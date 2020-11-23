@@ -3,6 +3,7 @@ package integration
 import (
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
@@ -14,10 +15,11 @@ import (
 )
 
 // NewIntegration creates gossip service for the integration test
-func NewIntegration(ctx *adapters.ServiceContext, network opera.Config, stack *node.Node) *gossip.Service {
-	gossipCfg := gossip.DefaultConfig(network)
+func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *node.Node) *gossip.Service {
+	gossipCfg := gossip.FakeConfig(len(genesis.State.Validators))
 
-	engine, dagIndex, _, gdb, blockProc := MakeEngine(ctx.Config.DataDir, &gossipCfg)
+	dbs := flushable.NewSyncedPool(DBProducer(ctx.Config.DataDir))
+	engine, dagIndex, gdb, blockProc := MakeEngine(dbs, &gossipCfg, genesis)
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
 
@@ -32,7 +34,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config, stack *n
 	signer := valkeystore.NewSigner(valKeystore)
 
 	// find a genesis validator which corresponds to the key
-	for _, v := range network.Genesis.Alloc.Validators {
+	for _, v := range genesis.State.Validators {
 		if v.PubKey.String() == pubKey.String() {
 			gossipCfg.Emitter.Validator.ID = v.ID
 			gossipCfg.Emitter.Validator.PubKey = v.PubKey
@@ -42,7 +44,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config, stack *n
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(stack, &gossipCfg, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, &gossipCfg, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

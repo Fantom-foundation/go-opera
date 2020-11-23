@@ -43,7 +43,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload) error {
 	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
 
 	// calc initial GasPower
-	e.SetGasPowerUsed(basiccheck.CalcGasPowerUsed(e, &s.config.Net.Dag))
+	e.SetGasPowerUsed(basiccheck.CalcGasPowerUsed(e, &s.net.Dag))
 	var selfParent *inter.Event
 	if e.SelfParent() != nil {
 		selfParent = s.store.GetEvent(*e.SelfParent())
@@ -126,7 +126,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 			return s.store.GetEvent(id)
 		})
 		// notify event checkers about new validation data
-		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, &s.config.Net.Economy)) // read gaspower check data from disk
+		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, &s.net.Economy)) // read gaspower check data from disk
 		s.heavyCheckReader.Addrs.Store(NewEpochPubKeys(s.store, newEpoch))
 		// notify about new epoch
 		s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)

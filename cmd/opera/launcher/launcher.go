@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -24,7 +25,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/flags"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
@@ -56,11 +57,11 @@ func init() {
 	// Flags for testing purpose.
 	testFlags = []cli.Flag{
 		FakeNetFlag,
-		LegacyTestnetFlag,
 	}
 
 	// Flags that configure the node.
 	nodeFlags = []cli.Flag{
+		GenesisFlag,
 		utils.IdentityFlag,
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,
@@ -177,6 +178,7 @@ func init() {
 		javascriptCommand,
 		// See config.go:
 		dumpConfigCommand,
+		checkConfigCommand,
 		// See misccmd.go:
 		versionCommand,
 		licenseCommand,
@@ -234,14 +236,16 @@ func lachesisMain(ctx *cli.Context) error {
 	}
 	defer tracingStop()
 
-	node, _ := makeNode(ctx, makeAllConfigs(ctx))
+	cfg := makeAllConfigs(ctx)
+	genesis := getOperaGenesis(ctx)
+	node, _ := makeNode(ctx, cfg, genesis)
 	defer node.Close()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config) (*node.Node, *gossip.Service) {
+func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node, *gossip.Service) {
 	// check errlock file
 	// TODO: do the same with with stack.OpenDatabaseWithFreezer()
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
@@ -249,22 +253,16 @@ func makeNode(ctx *cli.Context, cfg *config) (*node.Node, *gossip.Service) {
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	engine, dagIndex, _, gdb, blockProc := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
+	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
+	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, &cfg.Opera, genesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 
-	// configure emitter
-	err := setValidator(ctx, &cfg.Lachesis.Emitter)
-	if err != nil {
-		utils.Fatalf("Failed to set validator: %v", err)
-	}
-
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
-	valPubkey := cfg.Lachesis.Emitter.Validator.PubKey
+	valPubkey := cfg.Opera.Emitter.Validator.PubKey
 	if key := getFakeValidatorKey(ctx); key != nil {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
-		log.Info("Added fake validator key", "pubkey", valPubkey.String())
-		coinbase := integration.SetAccountKey(stack.AccountManager(), key, validator.FakePassword)
-		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex(), "password", validator.FakePassword)
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
+		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
 	}
 
 	// unlock validator key
@@ -278,7 +276,7 @@ func makeNode(ctx *cli.Context, cfg *config) (*node.Node, *gossip.Service) {
 
 	// Create and register a gossip network service.
 
-	svc, err := gossip.NewService(stack, &cfg.Lachesis, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, &cfg.Opera, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}

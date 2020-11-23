@@ -47,8 +47,8 @@ type Config struct {
 	EmergencyThreshold uint64
 }
 
-// DefaultEmitterConfig returns the default configurations for the events emitter.
-func DefaultEmitterConfig() Config {
+// DefaultConfig returns the default configurations for the events emitter.
+func DefaultConfig() Config {
 	return Config{
 		VersionToPublish: _params.VersionWithMeta(),
 
@@ -86,9 +86,9 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 	return &config
 }
 
-// FakeEmitterConfig returns the testing configurations for the events emitter.
-func FakeEmitterConfig(num int) Config {
-	cfg := DefaultEmitterConfig()
+// FakeConfig returns the testing configurations for the events emitter.
+func FakeConfig(num int) Config {
+	cfg := DefaultConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
 	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max * 3 / 2
 	if num <= 1 {

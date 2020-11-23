@@ -9,8 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -53,15 +54,15 @@ func SealEpoch(metrics []ValidatorEpochMetric) []byte {
 	return data
 }
 
-func SetGenesisValidator(auth common.Address, validatorID idx.ValidatorID, pubkey validator.PubKey, status uint64, createdEpoch idx.Epoch, createdTime inter.Timestamp, deactivatedEpoch idx.Epoch, deactivatedTime inter.Timestamp) []byte {
-	data, _ := sAbi.Pack("_setGenesisValidator", auth, utils.U64toBig(uint64(validatorID)), pubkey.Raw, utils.U64toBig(status),
-		utils.U64toBig(uint64(createdEpoch)), utils.U64toBig(uint64(createdTime)), utils.U64toBig(uint64(deactivatedEpoch)),
-		utils.U64toBig(uint64(deactivatedTime)))
+func SetGenesisValidator(v gpos.Validator) []byte {
+	data, _ := sAbi.Pack("_setGenesisValidator", v.Address, utils.U64toBig(uint64(v.ID)), v.PubKey.Raw, utils.U64toBig(v.Status),
+		utils.U64toBig(uint64(v.CreationEpoch)), utils.U64toBig(uint64(v.CreationTime.Unix())), utils.U64toBig(uint64(v.DeactivatedEpoch)),
+		utils.U64toBig(uint64(v.DeactivatedTime.Unix())))
 	return data
 }
 
-func SetGenesisDelegation(delegator common.Address, validatorID idx.ValidatorID, amount *big.Int, rewards *big.Int) []byte {
-	data, _ := sAbi.Pack("_setGenesisDelegation", delegator, utils.U64toBig(uint64(validatorID)), amount, rewards)
+func SetGenesisDelegation(delegator common.Address, validatorID idx.ValidatorID, d genesis.Delegation) []byte {
+	data, _ := sAbi.Pack("_setGenesisDelegation", delegator, utils.U64toBig(uint64(validatorID)), d.Stake, d.Rewards)
 	return data
 }
 

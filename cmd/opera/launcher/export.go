@@ -38,7 +38,7 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Lachesis)
+	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Opera)
 	defer gdb.Close()
 
 	fn := ctx.Args().First()

@@ -7,10 +7,10 @@ import (
 )
 
 type ValidatorEventsModule struct {
-	net opera.Config
+	net opera.Rules
 }
 
-func New(net opera.Config) *ValidatorEventsModule {
+func New(net opera.Rules) *ValidatorEventsModule {
 	return &ValidatorEventsModule{
 		net: net,
 	}
@@ -29,7 +29,7 @@ type ValidatorEventsProcessor struct {
 	es                     blockproc.EpochState
 	bs                     blockproc.BlockState
 	validatorHighestEvents inter.EventIs
-	net                    opera.Config
+	net                    opera.Rules
 }
 
 func (p *ValidatorEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {

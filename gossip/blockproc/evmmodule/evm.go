@@ -17,10 +17,10 @@ import (
 )
 
 type EVMModule struct {
-	net opera.Config
+	net opera.Rules
 }
 
-func New(net opera.Config) *EVMModule {
+func New(net opera.Rules) *EVMModule {
 	return &EVMModule{
 		net: net,
 	}
@@ -47,7 +47,7 @@ type OperaEVMProcessor struct {
 	reader   evmcore.DummyChain
 	statedb  *state.StateDB
 	onNewLog func(*types.Log)
-	net      opera.Config
+	net      opera.Rules
 
 	blockIdx      *big.Int
 	prevBlockHash common.Hash

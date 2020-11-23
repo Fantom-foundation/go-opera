@@ -6,6 +6,25 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
+func (s *Store) GetGenesisHash() *hash.Hash {
+	valBytes, err := s.table.Genesis.Get([]byte("g"))
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	if len(valBytes) == 0 {
+		return nil
+	}
+	val := hash.BytesToHash(valBytes)
+	return &val
+}
+
+func (s *Store) SetGenesisHash(val hash.Hash) {
+	err := s.table.Genesis.Put([]byte("g"), val.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+}
+
 // SetBlock stores chain block.
 func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
 	s.rlp.Set(s.table.Blocks, n.Bytes(), b)

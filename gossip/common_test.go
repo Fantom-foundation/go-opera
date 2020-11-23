@@ -10,7 +10,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
@@ -28,9 +27,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -47,7 +46,7 @@ const (
 )
 
 type testEnv struct {
-	network   opera.Config
+	network   opera.Rules
 	blockProc BlockProc
 	store     *Store
 
@@ -57,9 +56,6 @@ type testEnv struct {
 	lastBlockTime time.Time
 	lastState     hash.Hash
 
-	validators pos.ValidatorsBuilder
-	delegators []common.Address
-
 	nonces map[common.Address]uint64
 
 	epoch    idx.Epoch
@@ -67,10 +63,11 @@ type testEnv struct {
 }
 
 func newTestEnv() *testEnv {
-	vaccs := genesis.FakeValidators(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
-	network := opera.FakeNetConfig(vaccs)
+	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+	genesis := genStore.GetGenesis()
+	network := genesis.Rules
 
-	network.Dag.MaxEpochDuration = maxEpochDuration
+	network.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
 	dbs := flushable.NewSyncedPool(
 		memorydb.NewProducer(""))
@@ -78,13 +75,13 @@ func newTestEnv() *testEnv {
 	blockProc := BlockProc{
 		SealerModule:        sealmodule.New(network),
 		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
-		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(network),
+		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(genesis),
 		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(network),
 		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(network),
 		EventsModule:        eventmodule.New(network),
 		EVMModule:           evmmodule.New(network),
 	}
-	_, _, err := store.ApplyGenesis(blockProc, &network)
+	_, _, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
 		panic(err)
 	}
@@ -97,8 +94,7 @@ func newTestEnv() *testEnv {
 
 		lastBlock:     0,
 		lastState:     store.GetBlock(0).Root,
-		lastBlockTime: network.Genesis.Time.Time(),
-		validators:    vaccs.Validators.Build().Builder(),
+		lastBlockTime: genesis.State.Time.Time(),
 	}
 
 	return env
@@ -182,12 +178,12 @@ func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Trans
 }
 
 func (env *testEnv) privateKey(n int) *ecdsa.PrivateKey {
-	key := genesis.FakeKey(n)
+	key := makegenesis.FakeKey(n)
 	return key
 }
 
 func (env *testEnv) Address(n int) common.Address {
-	key := genesis.FakeKey(n)
+	key := makegenesis.FakeKey(n)
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return addr
 }

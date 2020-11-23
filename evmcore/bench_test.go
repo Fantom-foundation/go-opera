@@ -31,8 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -149,14 +148,9 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	net := &opera.Config{
-		Dag: opera.FakeNetDagConfig(),
-		Genesis: genesis.Genesis{
-			Alloc: genesis.VAccounts{Accounts: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}}},
-		},
-	}
+	net := makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
 
-	genesisBlock := MustApplyGenesis(net, db)
+	genesisBlock := MustApplyGenesis(net.State, db)
 	genesisBlock.GasLimit = 1000000
 
 	// Time the insertion of the new chain.

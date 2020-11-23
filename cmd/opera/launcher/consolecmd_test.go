@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 func TestConsoleWelcome(t *testing.T) {
 	// Start a opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
-		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"console")
 
 	// Gather all the infos the welcome message needs to contain
@@ -64,7 +64,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 		ipc = filepath.Join(ws, "opera.ipc")
 	}
 	cli := exec(t,
-		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
 
 	waitForEndpoint(t, ipc, 60*time.Second)
@@ -77,7 +77,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 func TestHTTPAttachWelcome(t *testing.T) {
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 	cli := exec(t,
-		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--http", "--http.port", port)
 
 	endpoint := "http://127.0.0.1:" + port
@@ -92,7 +92,7 @@ func TestWSAttachWelcome(t *testing.T) {
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 
 	cli := exec(t,
-		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ws", "--ws.port", port)
 
 	endpoint := "ws://127.0.0.1:" + port
@@ -141,7 +141,5 @@ func trulyRandInt(lo, hi int) int {
 }
 
 func genesisStart() string {
-	g := genesis.MainGenesis()
-	s := g.Time.Unix()
-	return time.Unix(s, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	return time.Unix(int64(makegenesis.FakeGenesisTime.Unix()), 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 }

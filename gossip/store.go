@@ -39,6 +39,7 @@ type Store struct {
 		PackInfos  kvdb.Store `table:"p"`
 		Packs      kvdb.Store `table:"P"`
 		PacksNum   kvdb.Store `table:"n"`
+		Genesis    kvdb.Store `table:"g"`
 
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`

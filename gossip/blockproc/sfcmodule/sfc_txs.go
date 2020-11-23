@@ -14,16 +14,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/sfctype"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc/sfccall"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc/sfcpos"
 )
 
 type SfcTxListenerModule struct {
-	net opera.Config
+	net opera.Rules
 }
 
-func NewSfcTxListenerModule(net opera.Config) *SfcTxListenerModule {
+func NewSfcTxListenerModule(net opera.Rules) *SfcTxListenerModule {
 	return &SfcTxListenerModule{
 		net: net,
 	}
@@ -45,36 +46,36 @@ type SfcTxListener struct {
 	bs      blockproc.BlockState
 	statedb *state.StateDB
 
-	net opera.Config
+	net opera.Rules
 }
 
 type SfcTxTransactor struct {
-	net opera.Config
+	net opera.Rules
 }
 
 type SfcTxPreTransactor struct {
-	net opera.Config
+	net opera.Rules
 }
 
 type SfcTxGenesisTransactor struct {
-	net opera.Config
+	g opera.Genesis
 }
 
-func NewSfcTxTransactor(net opera.Config) *SfcTxTransactor {
+func NewSfcTxTransactor(net opera.Rules) *SfcTxTransactor {
 	return &SfcTxTransactor{
 		net: net,
 	}
 }
 
-func NewSfcTxPreTransactor(net opera.Config) *SfcTxPreTransactor {
+func NewSfcTxPreTransactor(net opera.Rules) *SfcTxPreTransactor {
 	return &SfcTxPreTransactor{
 		net: net,
 	}
 }
 
-func NewSfcTxGenesisTransactor(net opera.Config) *SfcTxGenesisTransactor {
+func NewSfcTxGenesisTransactor(g opera.Genesis) *SfcTxGenesisTransactor {
 	return &SfcTxGenesisTransactor{
-		net: net,
+		g: g,
 	}
 }
 
@@ -94,12 +95,18 @@ func (p *SfcTxGenesisTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ blockpro
 	buildTx := internalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 15)
 	// push genesis validators
-	for _, v := range p.net.Genesis.Alloc.Validators {
-		calldata := sfccall.SetGenesisValidator(v.Address, v.ID, v.PubKey, sfctype.OkStatus, 0, p.net.Genesis.Time, 0, 0)
-		internalTxs = append(internalTxs, buildTx(calldata))
-		calldata = sfccall.SetGenesisDelegation(v.Address, v.ID, v.Stake, new(big.Int))
+	for _, v := range p.g.State.Validators {
+		calldata := sfccall.SetGenesisValidator(v)
 		internalTxs = append(internalTxs, buildTx(calldata))
 	}
+	// push genesis delegations
+	p.g.State.Delegations.ForEach(func(addr common.Address, toValidatorID idx.ValidatorID, delegation genesis.Delegation) {
+		if delegation.Stake.Sign() == 0 {
+			panic(addr.String())
+		}
+		calldata := sfccall.SetGenesisDelegation(addr, toValidatorID, delegation)
+		internalTxs = append(internalTxs, buildTx(calldata))
+	})
 	// finish initialization
 	calldata := sfccall.Initialize(0)
 	internalTxs = append(internalTxs, buildTx(calldata))

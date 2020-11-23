@@ -6,6 +6,6 @@ import (
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(net *opera.Config) (evmBlock *evmcore.EvmBlock, err error) {
-	return evmcore.ApplyGenesis(s.table.Evm, net)
+func (s *Store) ApplyGenesis(g opera.GenesisState) (evmBlock *evmcore.EvmBlock, err error) {
+	return evmcore.ApplyGenesis(s.table.Evm, g)
 }

@@ -9,10 +9,10 @@ import (
 )
 
 type OperaEpochsSealerModule struct {
-	net opera.Config
+	net opera.Rules
 }
 
-func New(net opera.Config) *OperaEpochsSealerModule {
+func New(net opera.Rules) *OperaEpochsSealerModule {
 	return &OperaEpochsSealerModule{
 		net: net,
 	}
@@ -31,7 +31,7 @@ type OperaEpochsSealer struct {
 	block blockproc.BlockCtx
 	es    blockproc.EpochState
 	bs    blockproc.BlockState
-	net   opera.Config
+	net   opera.Rules
 }
 
 func (s *OperaEpochsSealer) EpochSealing() bool {
