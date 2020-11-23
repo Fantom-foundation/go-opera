@@ -8,70 +8,123 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
-func TestTopicsDb(t *testing.T) {
+// Find wraps ForEach() for tests.
+func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
+	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
+		all = append(all, item)
+		next = true
+		return
+	})
+
+	return
+}
+
+func TestIndexSearchMultyVariants(t *testing.T) {
+	logger.SetTestMode(t)
+	var (
+		hash1 = common.BytesToHash([]byte("topic1"))
+		hash2 = common.BytesToHash([]byte("topic2"))
+		hash3 = common.BytesToHash([]byte("topic3"))
+		hash4 = common.BytesToHash([]byte("topic4"))
+	)
+	testdata := []*types.Log{{
+		BlockNumber: 1,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash1, hash1, hash1},
+	}, {
+		BlockNumber: 2,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash2, hash2, hash2},
+	}, {
+		BlockNumber: 998,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash3, hash3, hash3},
+	}, {
+		BlockNumber: 999,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash4, hash4, hash4},
+	},
+	}
+
+	index := New(memorydb.New())
+
+	for _, l := range testdata {
+		err := index.Push(l)
+		require.NoError(t, err)
+	}
+
+	find := func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}, {}, {hash1, hash2, hash3, hash4}})
+		require.NoError(err)
+		// require.ElementsMatchf(testdata, got, "") doesn't work properly here, so:
+		count := 0
+		for _, a := range got {
+			for _, b := range testdata {
+				if b.Address == a.Address {
+					require.ElementsMatch(a.Topics, b.Topics)
+					count++
+					break
+				}
+			}
+		}
+		require.Equal(len(testdata), count)
+	}
+
+	t.Run("Find lazy", func(t *testing.T) {
+		index.fetchMethod = index.fetchLazy
+		find(t)
+	})
+}
+
+func TestIndexSearchSingleVariant(t *testing.T) {
 	logger.SetTestMode(t)
 
 	topics, recs, topics4rec := genTestData()
 
-	db := New(memorydb.New())
+	index := New(memorydb.New())
 
-	t.Run("Write", func(t *testing.T) {
-		assertar := assert.New(t)
-
-		for _, rec := range recs {
-			if !assertar.NoError(db.Push(rec)) {
-				return
-			}
-		}
-	})
+	for _, rec := range recs {
+		err := index.Push(rec)
+		require.NoError(t, err)
+	}
 
 	find := func(t *testing.T) {
-		assertar := assert.New(t)
+		require := require.New(t)
 
 		for i := 0; i < len(topics); i++ {
 			from, to := topics4rec(i)
 			tt := topics[from : to-1]
 
-			qq := make([][]common.Hash, len(tt))
+			qq := make([][]common.Hash, len(tt)+1)
 			for pos, t := range tt {
-				qq[pos] = []common.Hash{t}
+				qq[pos+1] = []common.Hash{t}
 			}
 
-			got, err := db.Find(qq)
-			if !assertar.NoError(err) {
-				return
-			}
+			got, err := index.Find(qq)
+			require.NoError(err)
 
 			var expect []*types.Log
 			for j, rec := range recs {
 				if f, t := topics4rec(j); f != from || t != to {
 					continue
 				}
-
 				expect = append(expect, rec)
 			}
 
-			if !assertar.ElementsMatchf(expect, got, "step %d", i) {
-				return
-			}
+			require.ElementsMatchf(expect, got, "step %d", i)
 		}
 	}
 
-	t.Run("Find sync", func(t *testing.T) {
-		db.fetchMethod = db.fetchSync
+	t.Run("Find lazy", func(t *testing.T) {
+		index.fetchMethod = index.fetchLazy
 		find(t)
 	})
-
-	t.Run("Find async", func(t *testing.T) {
-		db.fetchMethod = db.fetchAsync
-		find(t)
-	})
-
 }
 
 func genTestData() (
@@ -103,7 +156,7 @@ func genTestData() (
 			BlockHash:   hash.FakeHash(int64(i / period)),
 			TxHash:      hash.FakeHash(int64(i % period)),
 			Index:       uint(i % period),
-			Address:     common.Address{0x1, 0x2, 0xff, 0x0},
+			Address:     randAddress(),
 			Topics:      topics[from:to],
 			Data:        make([]byte, i),
 		}
@@ -111,5 +164,16 @@ func genTestData() (
 		recs[i] = r
 	}
 
+	return
+}
+
+func randAddress() (addr common.Address) {
+	n, err := rand.Read(addr[:])
+	if err != nil {
+		panic(err)
+	}
+	if n != common.AddressLength {
+		panic("address is not filled")
+	}
 	return
 }

@@ -4,93 +4,40 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type (
-	logrecBuilder struct {
-		types.Log
-
+	logrec struct {
 		ID          ID
-		conditions  uint8
 		topicsCount uint8
-
-		ok    chan struct{}
-		ready chan error
 	}
 )
 
-func newLogrecBuilder(logrec ID, conditions uint8, topicCount uint8) *logrecBuilder {
-	rec := &logrecBuilder{
-		Log: types.Log{
-			BlockNumber: logrec.BlockNumber(),
-			TxHash:      logrec.TxHash(),
-			Index:       logrec.Index(),
-			Topics:      make([]common.Hash, topicCount),
-		},
-		ID:          logrec,
-		conditions:  conditions,
+func newLogrec(rec ID, topicCount uint8) *logrec {
+	return &logrec{
+		ID:          rec,
 		topicsCount: topicCount,
 	}
-
-	return rec
 }
 
-func (rec *logrecBuilder) Build() (r *types.Log, err error) {
-	if rec.ready != nil {
-		var complete bool
-		err, complete = <-rec.ready
-		if !complete {
-			return
-		}
-	}
-
-	r = &rec.Log
-	return
-}
-
-// MatchedWith count of conditions.
-func (rec *logrecBuilder) MatchedWith(count uint8) {
-	if rec.conditions > count {
-		rec.conditions -= count
-		return
-	}
-	rec.conditions = 0
-	if rec.ok != nil {
-		rec.ok <- struct{}{}
-	}
-}
-
-// IsMatched if it is matched with the all conditions.
-func (rec *logrecBuilder) IsMatched() bool {
-	return rec.conditions == 0
-}
-
-// SetOtherTopic appends topic.
-func (rec *logrecBuilder) SetOtherTopic(pos uint8, topic common.Hash) {
-	if pos >= rec.topicsCount {
-		log.Crit("inconsistent table.Others", "param", "topicN")
-	}
-
-	var empty common.Hash
-	if rec.Topics[pos] != empty {
-		return
-	}
-
-	rec.Topics[pos] = topic
-}
-
-// Fetch log record's data.
-func (rec *logrecBuilder) Fetch(
+// FetchLog record's data.
+func (rec *logrec) FetchLog(
 	othersTable kvdb.Iteratee,
 	logrecTable kvdb.Reader,
-) (err error) {
-	// others
+) (r *types.Log, err error) {
+	r = &types.Log{
+		BlockNumber: rec.ID.BlockNumber(),
+		TxHash:      rec.ID.TxHash(),
+		Index:       rec.ID.Index(),
+		Topics:      make([]common.Hash, rec.topicsCount),
+	}
+
 	it := othersTable.NewIterator(rec.ID.Bytes(), nil)
+	defer it.Release()
 	for it.Next() {
 		pos := extractTopicPos(it.Key())
 		topic := common.BytesToHash(it.Value())
-		rec.SetOtherTopic(pos, topic)
+		r.Topics[pos] = topic
 	}
 
 	err = it.Error()
@@ -98,19 +45,18 @@ func (rec *logrecBuilder) Fetch(
 		return
 	}
 
-	it.Release()
-
 	// fields
 	buf, err := logrecTable.Get(rec.ID.Bytes())
 	if err != nil {
 		return
 	}
 	offset := 0
-	rec.Address = common.BytesToAddress(buf[offset : offset+common.AddressLength])
-	offset += common.AddressLength
-	rec.BlockHash = common.BytesToHash(buf[offset : offset+common.HashLength])
+	r.BlockHash = common.BytesToHash(buf[offset : offset+common.HashLength])
 	offset += common.HashLength
-	rec.Data = buf[offset:]
+	r.Data = buf[offset:]
+
+	r.Address = common.BytesToAddress(r.Topics[0].Bytes())
+	r.Topics = r.Topics[1:]
 
 	return
 }
