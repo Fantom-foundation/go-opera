@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"github.com/pkg/errors"
