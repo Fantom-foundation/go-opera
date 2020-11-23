@@ -7,12 +7,12 @@ import (
 
 // SetTxPosition stores transaction block and position.
 func (s *Store) SetTx(txid common.Hash, tx *types.Transaction) {
-	s.set(s.table.Txs, txid.Bytes(), tx)
+	s.rlp.Set(s.table.Txs, txid.Bytes(), tx)
 }
 
 // GetTxPosition returns stored transaction block and position.
 func (s *Store) GetTx(txid common.Hash) *types.Transaction {
-	tx, _ := s.get(s.table.Txs, txid.Bytes(), &types.Transaction{}).(*types.Transaction)
+	tx, _ := s.rlp.Get(s.table.Txs, txid.Bytes(), &types.Transaction{}).(*types.Transaction)
 
 	return tx
 }

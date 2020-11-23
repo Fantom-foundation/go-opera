@@ -8,7 +8,7 @@ import (
 
 // SetBlock stores chain block.
 func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
-	s.set(s.table.Blocks, n.Bytes(), b)
+	s.rlp.Set(s.table.Blocks, n.Bytes(), b)
 
 	// Add to LRU cache.
 	if b != nil && s.cache.Blocks != nil {
@@ -27,7 +27,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 		}
 	}
 
-	block, _ := s.get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
+	block, _ := s.rlp.Get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
 
 	// Add to LRU cache.
 	if block != nil && s.cache.Blocks != nil {

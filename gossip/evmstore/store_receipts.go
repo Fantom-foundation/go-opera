@@ -27,7 +27,7 @@ func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
 			GasUsed:         r.GasUsed,
 		}
 	}
-	s.set(s.table.Receipts, n.Bytes(), receiptsStorage)
+	s.rlp.Set(s.table.Receipts, n.Bytes(), receiptsStorage)
 
 	// Add to LRU cache.
 	if s.cache.Receipts != nil {
@@ -51,7 +51,7 @@ func (s *Store) GetReceipts(n idx.Block) types.Receipts {
 	}
 
 	if receiptsStorage == nil {
-		receiptsStorage, _ = s.get(s.table.Receipts, n.Bytes(), &[]*receiptRLP{}).(*[]*receiptRLP)
+		receiptsStorage, _ = s.rlp.Get(s.table.Receipts, n.Bytes(), &[]*receiptRLP{}).(*[]*receiptRLP)
 		if receiptsStorage == nil {
 			return nil
 		}

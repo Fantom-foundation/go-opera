@@ -35,7 +35,7 @@ func (s *Store) DelEvent(id hash.Event) {
 func (s *Store) SetEvent(e *inter.EventPayload) {
 	key := e.ID().Bytes()
 
-	s.set(s.table.Events, key, e)
+	s.rlp.Set(s.table.Events, key, e)
 
 	// Add to LRU cache.
 	if s.cache.Events != nil {
@@ -53,7 +53,7 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	}
 
 	key := id.Bytes()
-	w, _ := s.get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
+	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 
 	// Put event to LRU cache.
 	if w != nil {
@@ -74,7 +74,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	}
 
 	key := id.Bytes()
-	w, _ := s.get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
+	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 	if w == nil {
 		return nil
 	}
@@ -151,5 +151,6 @@ func (s *Store) GetEventPayloadRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
-	return s.has(s.table.Events, h.Bytes())
+	has, _ := s.table.Events.Has(h.Bytes())
+	return has
 }

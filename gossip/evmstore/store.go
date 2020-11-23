@@ -12,12 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/rlp"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
+	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -44,6 +44,8 @@ type Store struct {
 	mutex struct {
 		Inc sync.Mutex
 	}
+
+	rlp rlpstore.Helper
 
 	logger.Instance
 }
@@ -111,43 +113,6 @@ func (s *Store) EvmLogs() *topicsdb.Index {
 /*
  * Utils:
  */
-
-// set RLP value
-func (s *Store) set(table kvdb.Store, key []byte, val interface{}) {
-	buf, err := rlp.EncodeToBytes(val)
-	if err != nil {
-		s.Log.Crit("Failed to encode rlp", "err", err)
-	}
-
-	if err := table.Put(key, buf); err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
-}
-
-// get RLP value
-func (s *Store) get(table kvdb.Store, key []byte, to interface{}) interface{} {
-	buf, err := table.Get(key)
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	if buf == nil {
-		return nil
-	}
-
-	err = rlp.DecodeBytes(buf, to)
-	if err != nil {
-		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
-	}
-	return to
-}
-
-func (s *Store) has(table kvdb.Store, key []byte) bool {
-	res, err := table.Has(key)
-	if err != nil {
-		s.Log.Crit("Failed to get key", "err", err)
-	}
-	return res
-}
 
 func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
 	keys := make([][]byte, 0, 500) // don't write during iteration
