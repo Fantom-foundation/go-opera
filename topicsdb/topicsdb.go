@@ -14,7 +14,7 @@ const MaxCount = 0xff
 
 var (
 	ErrTooManyTopics = fmt.Errorf("Too many topics")
-	ErrNoOneTopic    = fmt.Errorf("No one topic")
+	ErrEmptyTopics   = fmt.Errorf("Empty topics")
 )
 
 // Index is a specialized indexes for log records storing and fetching.
@@ -59,7 +59,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 		ok = ok || len(alternative) > 0
 	}
 	if !ok {
-		return ErrNoOneTopic
+		return ErrEmptyTopics
 	}
 
 	return tt.fetchMethod(topics, onLog)
