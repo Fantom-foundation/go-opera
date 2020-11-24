@@ -99,6 +99,8 @@ func newTestEnv() *testEnv {
 		lastState:     store.GetBlock(0).Root,
 		lastBlockTime: network.Genesis.Time.Time(),
 		validators:    vaccs.Validators.Build().Builder(),
+
+		nonces: make(map[common.Address]uint64),
 	}
 
 	return env
@@ -154,7 +156,9 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 }
 
 func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transaction {
-	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
+	sender := env.Address(from)
+	nonce, _ := env.PendingNonceAt(nil, sender)
+	env.incNonce(sender)
 	key := env.privateKey(from)
 	receiver := env.Address(to)
 	gp := params.MinGasPrice
@@ -168,11 +172,13 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transacti
 }
 
 func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Transaction {
-	data := hexutil.MustDecode(hex)
-	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
+	sender := env.Address(from)
+	nonce, _ := env.PendingNonceAt(nil, sender)
+	env.incNonce(sender)
 	key := env.privateKey(from)
 	gp := params.MinGasPrice
-	tx := types.NewContractCreation(nonce, amount, gasLimit*10000, gp, data)
+	data := hexutil.MustDecode(hex)
+	tx := types.NewContractCreation(nonce, amount, gasLimit*100000, gp, data)
 	tx, err := types.SignTx(tx, env.signer, key)
 	if err != nil {
 		panic(err)

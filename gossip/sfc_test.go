@@ -29,11 +29,12 @@ import (
 
 func TestSFC(t *testing.T) {
 	logger.SetTestMode(t)
+	logger.SetLevel("debug")
 
 	env := newTestEnv()
 	defer env.Close()
 
-	_, err := sfcproxy.NewContract(sfc.ContractAddress, env)
+	sfcProxy, err := sfcproxy.NewContract(sfc.ContractAddress, env)
 	require.NoError(t, err)
 
 	var (
@@ -59,20 +60,16 @@ func TestSFC(t *testing.T) {
 			newImpl := r[0].ContractAddress
 
 			admin := env.Payer(1)
-			tx, err := sfcProxy.ContractTransactor.UpgradeTo(admin, newImpl)
+			tx, err := sfcProxy.ContractTransactor.Upgrade(admin, newImpl)
 			require.NoError(err)
 			env.ApplyBlock(sameEpoch, tx)
 
-			impl, err := sfcProxy.Implementation(env.ReadOnly())
-			require.NoError(err)
-			require.Equal(newImpl, impl, "SFC-proxy: implementation address")
-
-			sfc11, err = sfc110.NewContract(sfc.ContractAddress, env)
+			sfc10, err = sfc100.NewContract(sfc.ContractAddress, env)
 			require.NoError(err)
 
-			epoch, err := sfc11.ContractCaller.CurrentEpoch(env.ReadOnly())
+			epoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
 			require.NoError(err)
-			require.Equal(0, epoch.Cmp(big.NewInt(2)), "current epoch")
+			require.Equal(0, epoch.Cmp(big.NewInt(3)), "current epoch %s", epoch.String())
 		})
 
 }
