@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"bytes"
@@ -25,17 +25,19 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-func importChain(ctx *cli.Context) error {
+func importEvents(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
 	// avoid P2P interaction, API calls and events emitting
+	genesis := getOperaGenesis(ctx)
 	cfg := makeAllConfigs(ctx)
-	cfg.Lachesis.Emitter.Validator = emitter.ValidatorConfig{}
-	cfg.Lachesis.TxPool.Journal = ""
+	cfg.Opera.Emitter.Validator = emitter.ValidatorConfig{}
+	cfg.Opera.TxPool.Journal = ""
 	cfg.Node.IPCPath = ""
 	cfg.Node.HTTPHost = ""
 	cfg.Node.WSHost = ""
@@ -48,7 +50,7 @@ func importChain(ctx *cli.Context) error {
 	cfg.Node.P2P.StaticNodes = nil
 	cfg.Node.P2P.TrustedNodes = nil
 
-	err := importToNode(ctx, cfg, ctx.Args()...)
+	err := importToNode(ctx, cfg, genesis, ctx.Args()...)
 	if err != nil {
 		return err
 	}
@@ -56,22 +58,14 @@ func importChain(ctx *cli.Context) error {
 	return nil
 }
 
-func importToNode(ctx *cli.Context, cfg *config, args ...string) error {
-	node, svc := makeNode(ctx, cfg)
+func importToNode(ctx *cli.Context, cfg *config, genesis opera.Genesis, args ...string) error {
+	node, svc := makeNode(ctx, cfg, genesis)
 	defer node.Close()
 	startNode(ctx, node)
 
-	check := true
-	for _, arg := range ctx.Args() {
-		if arg == "check=false" || arg == "check=0" {
-			check = false
-		}
-	}
+	check := ctx.BoolT(EventsCheckFlag.Name)
 
 	for _, fn := range args {
-		if strings.HasPrefix(fn, "check=") {
-			continue
-		}
 		if err := importFile(svc, check, fn); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
 			return err

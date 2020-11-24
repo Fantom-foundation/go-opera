@@ -19,7 +19,7 @@ type TxPosition struct {
 
 // SetTxPosition stores transaction block and position.
 func (s *Store) SetTxPosition(txid common.Hash, position TxPosition) {
-	s.set(s.table.TxPositions, txid.Bytes(), &position)
+	s.rlp.Set(s.table.TxPositions, txid.Bytes(), &position)
 
 	// Add to LRU cache.
 	s.cache.TxPositions.Add(txid.String(), &position)
@@ -34,7 +34,7 @@ func (s *Store) GetTxPosition(txid common.Hash) *TxPosition {
 		}
 	}
 
-	txPosition, _ := s.get(s.table.TxPositions, txid.Bytes(), &TxPosition{}).(*TxPosition)
+	txPosition, _ := s.rlp.Get(s.table.TxPositions, txid.Bytes(), &TxPosition{}).(*TxPosition)
 
 	// Add to LRU cache.
 	if txPosition != nil {

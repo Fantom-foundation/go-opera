@@ -61,7 +61,7 @@ type EmitterWorld struct {
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
 
-	net    *opera.Config
+	net    opera.Rules
 	config *Config
 
 	world EmitterWorld
@@ -91,7 +91,7 @@ type syncStatus struct {
 
 // NewEmitter creation.
 func NewEmitter(
-	net *opera.Config,
+	net opera.Rules,
 	config *Config,
 	world EmitterWorld,
 ) *Emitter {

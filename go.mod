@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.13
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20201116093211-2ca60a7ee23f
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20201123104149-5681fcb40422
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect

@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"github.com/pkg/errors"
@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
 )
 
@@ -41,8 +42,8 @@ func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 		if err != nil {
 			return err
 		}
-		vaccs := getFakeValidators(num)
-		validatorPubkey = vaccs.Validators.Map()[validatorID].PubKey
+		validators := makegenesis.GetFakeValidators(num)
+		validatorPubkey = validators.Map()[validatorID].PubKey
 	}
 	if ctx.GlobalIsSet(validatorIDFlag.Name) {
 		validatorID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))

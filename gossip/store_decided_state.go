@@ -19,7 +19,7 @@ func (s *Store) SetBlockState(v blockproc.BlockState) {
 
 // FlushEpochState stores the latest block state in DB
 func (s *Store) FlushBlockState() {
-	s.set(s.table.BlockState, []byte(lbKey), s.GetBlockState())
+	s.rlp.Set(s.table.BlockState, []byte(lbKey), s.GetBlockState())
 }
 
 // GetBlockState retrieves the latest block state
@@ -27,7 +27,7 @@ func (s *Store) GetBlockState() blockproc.BlockState {
 	if v := s.cache.BlockState.Load(); v != nil {
 		return *v.(*blockproc.BlockState)
 	}
-	v, ok := s.get(s.table.BlockState, []byte(lbKey), &blockproc.BlockState{}).(*blockproc.BlockState)
+	v, ok := s.rlp.Get(s.table.BlockState, []byte(lbKey), &blockproc.BlockState{}).(*blockproc.BlockState)
 	if !ok {
 		log.Crit("Genesis not applied")
 	}
@@ -42,7 +42,7 @@ func (s *Store) SetEpochState(v blockproc.EpochState) {
 
 // FlushEpochState stores the latest epoch state in DB
 func (s *Store) FlushEpochState() {
-	s.set(s.table.EpochState, []byte(leKey), s.GetEpochState())
+	s.rlp.Set(s.table.EpochState, []byte(leKey), s.GetEpochState())
 }
 
 // GetEpochState retrieves the latest epoch state
@@ -50,7 +50,7 @@ func (s *Store) GetEpochState() blockproc.EpochState {
 	if v := s.cache.EpochState.Load(); v != nil {
 		return *v.(*blockproc.EpochState)
 	}
-	v, ok := s.get(s.table.EpochState, []byte(leKey), &blockproc.EpochState{}).(*blockproc.EpochState)
+	v, ok := s.rlp.Get(s.table.EpochState, []byte(leKey), &blockproc.EpochState{}).(*blockproc.EpochState)
 	if !ok {
 		log.Crit("Genesis not applied")
 	}

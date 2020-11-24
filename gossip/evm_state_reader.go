@@ -100,14 +100,14 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 				}
 			}
 		}
-		for _, txid := range block.InternalTxs {
-			tx := r.store.evm.GetTx(txid)
-			if tx == nil {
-				log.Crit("Block tx not found", "tx", txid.String())
-				continue
-			}
-			transactions = append(transactions, tx)
+	}
+	for _, txid := range block.InternalTxs {
+		tx := r.store.evm.GetTx(txid)
+		if tx == nil {
+			log.Crit("Block tx not found", "tx", txid.String())
+			continue
 		}
+		transactions = append(transactions, tx)
 	}
 
 	var prev hash.Event

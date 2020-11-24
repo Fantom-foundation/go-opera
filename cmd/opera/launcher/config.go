@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"bufio"
@@ -21,7 +21,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	futils "github.com/Fantom-foundation/go-opera/utils"
 )
 
 var (
@@ -34,6 +37,15 @@ var (
 		Category:    "MISCELLANEOUS COMMANDS",
 		Description: `The dumpconfig command shows configuration values.`,
 	}
+	checkConfigCommand = cli.Command{
+		Action:      utils.MigrateFlags(checkConfig),
+		Name:        "checkconfig",
+		Usage:       "Checks configuration file",
+		ArgsUsage:   "",
+		Flags:       append(nodeFlags, testFlags...),
+		Category:    "MISCELLANEOUS COMMANDS",
+		Description: `The checkconfig checks configuration file.`,
+	}
 
 	configFileFlag = cli.StringFlag{
 		Name:  "config",
@@ -45,6 +57,12 @@ var (
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
 		Value: utils.DirectoryString(DefaultDataDir()),
+	}
+
+	// FakeNetFlag enables special testnet, where validators are automatically created
+	GenesisFlag = cli.StringFlag{
+		Name:  "genesis",
+		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
 )
 
@@ -62,8 +80,8 @@ var tomlSettings = toml.Config{
 }
 
 type config struct {
-	Node     node.Config
-	Lachesis gossip.Config
+	Node  node.Config
+	Opera gossip.Config
 }
 
 func loadAllConfigs(file string, cfg *config) error {
@@ -86,23 +104,30 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func defaultLachesisConfig(ctx *cli.Context) opera.Config {
-	var cfg opera.Config
-
+func getOperaGenesis(ctx *cli.Context) opera.Genesis {
+	var genesisStore *genesisstore.Store
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		cfg = opera.FakeNetConfig(getFakeValidators(num))
-	case ctx.GlobalBool(utils.LegacyTestnetFlag.Name):
-		cfg = opera.TestNetConfig()
+		genesisStore = makegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+	case ctx.GlobalIsSet(GenesisFlag.Name):
+		path := ctx.GlobalString(GenesisFlag.Name)
+		var err error
+		genesisStore, err = makegenesis.OpenGenesis(path)
+		if err != nil {
+			log.Crit("Genesis reading error", "path", path, "err", err)
+		}
 	default:
-		cfg = opera.MainNetConfig()
+		log.Crit("Network genesis is not specified")
 	}
-
-	return cfg
+	genesis := genesisStore.GetGenesis()
+	if ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
+		genesis.Rules.NetworkID = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
+	}
+	return genesis
 }
 
 func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
@@ -195,7 +220,7 @@ func setTxPool(ctx *cli.Context, cfg *evmcore.TxPoolConfig) {
 	}
 }
 
-func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) gossip.Config {
+func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, error) {
 	cfg := src
 
 	// Avoid conflicting network flags
@@ -205,9 +230,6 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) gossip.Config {
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 
-	if ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
-		cfg.Net.NetworkID = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
-	}
 	// TODO cache config
 	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(utils.CacheDatabaseFlag.Name) {
 	//	cfg.DatabaseCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(utils.CacheDatabaseFlag.Name) / 100
@@ -237,7 +259,12 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) gossip.Config {
 		cfg.RPCTxFeeCap = ctx.GlobalFloat64(utils.RPCGlobalTxFeeCap.Name)
 	}
 
-	return cfg
+	err := setValidator(ctx, &cfg.Emitter)
+	if err != nil {
+		return cfg, err
+	}
+
+	return cfg, nil
 }
 
 func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
@@ -250,23 +277,38 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	return cfg
 }
 
-func makeAllConfigs(ctx *cli.Context) *config {
+func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Defaults (low priority)
-	net := defaultLachesisConfig(ctx)
-	cfg := config{Lachesis: gossip.DefaultConfig(net), Node: defaultNodeConfig()}
+	cfg := config{Opera: gossip.DefaultConfig(), Node: defaultNodeConfig()}
+	if ctx.GlobalIsSet(FakeNetFlag.Name) {
+		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		cfg.Opera = gossip.FakeConfig(num)
+	}
 
 	// Load config file (medium priority)
 	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
 		if err := loadAllConfigs(file, &cfg); err != nil {
-			utils.Fatalf("%v", err)
+			return &cfg, err
 		}
 	}
 
 	// Apply flags (high priority)
-	cfg.Lachesis = gossipConfigWithFlags(ctx, cfg.Lachesis)
+	var err error
+	cfg.Opera, err = gossipConfigWithFlags(ctx, cfg.Opera)
+	if err != nil {
+		return nil, err
+	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
 
-	return &cfg
+	return &cfg, nil
+}
+
+func makeAllConfigs(ctx *cli.Context) *config {
+	cfg, err := mayMakeAllConfigs(ctx)
+	if err != nil {
+		utils.Fatalf("%v", err)
+	}
+	return cfg
 }
 
 func defaultNodeConfig() node.Config {
@@ -302,4 +344,9 @@ func dumpConfig(ctx *cli.Context) error {
 	dump.Write(out)
 
 	return nil
+}
+
+func checkConfig(ctx *cli.Context) error {
+	_, err := mayMakeAllConfigs(ctx)
+	return err
 }

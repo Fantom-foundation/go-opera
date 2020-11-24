@@ -5,7 +5,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type (
@@ -18,7 +17,6 @@ type (
 	}
 	// Config for the gossip service.
 	Config struct {
-		Net     opera.Config
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
 		StoreConfig
@@ -68,10 +66,9 @@ type (
 )
 
 // DefaultConfig returns the default configurations for the gossip service.
-func DefaultConfig(network opera.Config) Config {
+func DefaultConfig() Config {
 	cfg := Config{
-		Net:         network,
-		Emitter:     emitter.DefaultEmitterConfig(),
+		Emitter:     emitter.DefaultConfig(),
 		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
@@ -90,14 +87,13 @@ func DefaultConfig(network opera.Config) Config {
 		},
 	}
 
-	if network.NetworkID == opera.FakeNetworkID {
-		cfg.Emitter = emitter.FakeEmitterConfig(len(network.Genesis.Alloc.Validators))
-	}
-	/*if network.NetworkId == opera.DevNetworkId { // TODO dev network
-		cfg.TxPool = evmcore.FakeTxPoolConfig()
-		cfg.Emitter = FakeEmitterConfig()
-	}*/
+	return cfg
+}
 
+// FakeConfig returns the default configurations for the gossip service in fakenet.
+func FakeConfig(num int) Config {
+	cfg := DefaultConfig()
+	cfg.Emitter = emitter.FakeConfig(num)
 	return cfg
 }
 

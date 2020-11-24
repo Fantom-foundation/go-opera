@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"path/filepath"
@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
 func TestFakeNetFlag_NonValidator(t *testing.T) {
@@ -89,8 +89,6 @@ at block: 0 ({{niltime}})
 	cli.ExpectExit()
 
 	wantMessages := []string{
-		"Added fake validator key",
-		"pubkey=" + va.String(),
 		"Unlocked validator key",
 		"pubkey=" + va.String(),
 	}
@@ -112,7 +110,7 @@ func readFakeValidator(fakenet string) *validator.PubKey {
 	}
 
 	return &validator.PubKey{
-		Raw:  crypto.FromECDSAPub(&genesis.FakeKey(int(n)).PublicKey),
+		Raw:  crypto.FromECDSAPub(&makegenesis.FakeKey(int(n)).PublicKey),
 		Type: "secp256k1",
 	}
 }

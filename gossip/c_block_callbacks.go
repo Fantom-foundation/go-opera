@@ -25,7 +25,7 @@ import (
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
 		BeginBlock: consensusCallbackBeginBlockFn(
-			s.config.Net,
+			s.net,
 			s.store,
 			s.blockProc,
 			s.config.TxIndex,
@@ -38,7 +38,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 
 // consensusCallbackBeginBlockFn takes only necessaries for block processing.
 func consensusCallbackBeginBlockFn(
-	network opera.Config,
+	network opera.Rules,
 	store *Store,
 	blockProc BlockProc,
 	txIndex bool,
@@ -135,7 +135,7 @@ func consensusCallbackBeginBlockFn(
 					block.InternalTxs = append(block.InternalTxs, tx.Hash())
 				}
 
-				block, blockEvents := spillBlockEvents(store, block, &network)
+				block, blockEvents := spillBlockEvents(store, block, network)
 				txs := make(types.Transactions, 0, blockEvents.Len()*10)
 				for _, e := range blockEvents {
 					txs = append(txs, e.Txs()...)
@@ -236,7 +236,7 @@ func consensusCallbackBeginBlockFn(
 }
 
 // spillBlockEvents excludes first events which exceed BlockGasHardLimit
-func spillBlockEvents(store *Store, block *inter.Block, network *opera.Config) (*inter.Block, inter.EventPayloads) {
+func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*inter.Block, inter.EventPayloads) {
 	fullEvents := make(inter.EventPayloads, len(block.Events))
 	if len(block.Events) == 0 {
 		return block, fullEvents

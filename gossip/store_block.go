@@ -6,31 +6,44 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
+func (s *Store) GetGenesisHash() *hash.Hash {
+	valBytes, err := s.table.Genesis.Get([]byte("g"))
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	if len(valBytes) == 0 {
+		return nil
+	}
+	val := hash.BytesToHash(valBytes)
+	return &val
+}
+
+func (s *Store) SetGenesisHash(val hash.Hash) {
+	err := s.table.Genesis.Put([]byte("g"), val.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+}
+
 // SetBlock stores chain block.
 func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
-	s.set(s.table.Blocks, n.Bytes(), b)
+	s.rlp.Set(s.table.Blocks, n.Bytes(), b)
 
 	// Add to LRU cache.
-	if b != nil && s.cache.Blocks != nil {
-		s.cache.Blocks.Add(n, b)
-	}
+	s.cache.Blocks.Add(n, b)
 }
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	// Get block from LRU cache first.
-	if s.cache.Blocks != nil {
-		if c, ok := s.cache.Blocks.Get(n); ok {
-			if b, ok := c.(*inter.Block); ok {
-				return b
-			}
-		}
+	if c, ok := s.cache.Blocks.Get(n); ok {
+		return c.(*inter.Block)
 	}
 
-	block, _ := s.get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
+	block, _ := s.rlp.Get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
 
 	// Add to LRU cache.
-	if block != nil && s.cache.Blocks != nil {
+	if block != nil {
 		s.cache.Blocks.Add(n, block)
 	}
 

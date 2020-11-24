@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -35,8 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
 
@@ -147,8 +145,8 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend)
 
-		net         = opera.FakeNetConfig(genesis.FakeValidators(5, big.NewInt(0), big.NewInt(1)))
-		genesis     = evmcore.MustApplyGenesis(&net, backend.db)
+		net         = makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
+		genesis     = evmcore.MustApplyGenesis(net.State, backend.db)
 		chain, _, _ = evmcore.GenerateChain(
 			params.TestChainConfig, genesis, backend.db, 10, nil)
 		chainEvents = []evmcore.ChainHeadNotify{}

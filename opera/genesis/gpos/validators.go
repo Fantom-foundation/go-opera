@@ -1,44 +1,28 @@
 package gpos
 
 import (
-	"math/big"
-
+	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 )
 
 type (
 	// Validator is a helper structure to define genesis validators
 	Validator struct {
-		ID      idx.ValidatorID
-		Address common.Address
-		PubKey  validator.PubKey
-		Stake   *big.Int
+		ID               idx.ValidatorID
+		Address          common.Address
+		PubKey           validator.PubKey
+		CreationTime     inter.Timestamp
+		CreationEpoch    idx.Epoch
+		DeactivatedTime  inter.Timestamp
+		DeactivatedEpoch idx.Epoch
+		Status           uint64
 	}
 
 	Validators []Validator
 )
-
-// Build converts Validators to Validators
-func (gv Validators) Build() *pos.Validators {
-	builder := pos.NewBigBuilder()
-	for _, val := range gv {
-		builder.Set(val.ID, val.Stake)
-	}
-	return builder.Build()
-}
-
-// TotalStake returns sum of stakes
-func (gv Validators) TotalStake() *big.Int {
-	totalStake := new(big.Int)
-	for _, val := range gv {
-		totalStake.Add(totalStake, val.Stake)
-	}
-	return totalStake
-}
 
 // Map converts Validators to map
 func (gv Validators) Map() map[idx.ValidatorID]Validator {

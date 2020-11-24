@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -26,6 +25,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 const (
@@ -63,6 +63,7 @@ type dagNotifier interface {
 
 type ProtocolManager struct {
 	config *Config
+	net    opera.Rules
 
 	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
@@ -94,10 +95,12 @@ type ProtocolManager struct {
 	newEpochsSub     notify.Subscription
 
 	// channels for fetcher, syncer, txsyncLoop
-	newPeerCh   chan *peer
-	txsyncCh    chan *txsync
-	quitSync    chan struct{}
-	noMorePeers chan struct{}
+	newPeerCh chan *peer
+	txsyncCh  chan *txsync
+	quitSync  chan struct {
+	}
+	noMorePeers chan struct {
+	}
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -111,6 +114,7 @@ type ProtocolManager struct {
 // with the Fantom network.
 func NewProtocolManager(
 	config *Config,
+	net opera.Rules,
 	notifier dagNotifier,
 	txpool txPool,
 	engineMu *sync.RWMutex,
@@ -125,6 +129,7 @@ func NewProtocolManager(
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:       config,
+		net:          net,
 		notifier:     notifier,
 		txpool:       txpool,
 		store:        s,
@@ -451,7 +456,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		genesis    = pm.store.GetBlock(0).Atropos
 		myProgress = pm.myProgress()
 	)
-	if err := p.Handshake(pm.config.Net.NetworkID, myProgress, common.Hash(genesis)); err != nil {
+	if err := p.Handshake(pm.net.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
@@ -918,7 +923,7 @@ type NodeInfo struct {
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	numOfBlocks := pm.store.GetLatestBlockIndex()
 	return &NodeInfo{
-		Network:     pm.config.Net.NetworkID,
+		Network:     pm.net.NetworkID,
 		Genesis:     common.Hash(pm.store.GetBlock(0).Atropos),
 		Epoch:       pm.store.GetEpoch(),
 		NumOfBlocks: numOfBlocks,

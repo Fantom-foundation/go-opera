@@ -1,4 +1,4 @@
-package main
+package launcher
 
 import (
 	"compress/gzip"
@@ -31,14 +31,14 @@ var (
 // always print out progress. This avoids the user wondering what's going on.
 const statsReportLimit = 8 * time.Second
 
-func exportChain(ctx *cli.Context) error {
+func exportEvents(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Lachesis)
+	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Opera)
 	defer gdb.Close()
 
 	fn := ctx.Args().First()
