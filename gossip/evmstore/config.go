@@ -2,26 +2,38 @@ package evmstore
 
 type (
 	// StoreConfig is a config for store db.
-	StoreConfig struct {
-		// Cache size for Receipts.
-		ReceiptsCacheSize int
+	StoreCacheConfig struct {
+		// Cache size for Receipts (size in bytes).
+		ReceiptsSize uint
+		// Cache size for Receipts (number of blocks).
+		ReceiptsBlocks int
 		// Cache size for TxPositions.
-		TxPositionsCacheSize int
+		TxPositions int
+	}
+	// StoreConfig is a config for store db.
+	StoreConfig struct {
+		Cache StoreCacheConfig
 	}
 )
 
 // DefaultStoreConfig for product.
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		ReceiptsCacheSize:    5,
-		TxPositionsCacheSize: 1000,
+		StoreCacheConfig{
+			ReceiptsSize:   64 * 1024,
+			ReceiptsBlocks: 1000,
+			TxPositions:    5000,
+		},
 	}
 }
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
-		ReceiptsCacheSize:    1,
-		TxPositionsCacheSize: 100,
+		StoreCacheConfig{
+			ReceiptsSize:   3 * 1024,
+			ReceiptsBlocks: 100,
+			TxPositions:    500,
+		},
 	}
 }

@@ -15,3 +15,7 @@ type Block struct {
 	GasUsed     uint64
 	Root        hash.Hash
 }
+
+func (b *Block) EstimateSize() int {
+	return (len(b.Events)+len(b.InternalTxs)+len(b.Txs)+1+1)*32 + len(b.SkippedTxs)*4 + 8 + 8
+}

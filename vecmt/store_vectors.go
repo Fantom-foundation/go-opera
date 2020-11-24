@@ -32,7 +32,7 @@ func (vi *Index) GetHighestBeforeTime(id hash.Event) *HighestBeforeTime {
 	if b == nil {
 		return nil
 	}
-	vi.cache.HighestBeforeTime.Add(id, &b)
+	vi.cache.HighestBeforeTime.Add(id, &b, uint(len(b)))
 	return &b
 }
 
@@ -48,7 +48,7 @@ func (vi *Index) GetHighestBefore(id hash.Event) *HighestBefore {
 func (vi *Index) SetHighestBeforeTime(id hash.Event, vec *HighestBeforeTime) {
 	vi.setBytes(vi.table.HighestBeforeTime, id, *vec)
 
-	vi.cache.HighestBeforeTime.Add(id, vec)
+	vi.cache.HighestBeforeTime.Add(id, vec, uint(len(*vec)))
 }
 
 // SetHighestBeforeTime stores the vectors into DB

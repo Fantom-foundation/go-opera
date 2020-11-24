@@ -7,12 +7,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -37,8 +37,8 @@ type Store struct {
 	}
 
 	cache struct {
-		TxPositions *lru.Cache `cache:"-"` // store by pointer
-		Receipts    *lru.Cache `cache:"-"` // store by value
+		TxPositions *wlru.Cache `cache:"-"` // store by pointer
+		Receipts    *wlru.Cache `cache:"-"` // store by value
 	}
 
 	mutex struct {
@@ -71,8 +71,8 @@ func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
 }
 
 func (s *Store) initCache() {
-	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
-	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
+	s.cache.Receipts = s.makeCache(s.cfg.Cache.ReceiptsSize, s.cfg.Cache.ReceiptsBlocks)
+	s.cache.TxPositions = s.makeCache(uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
 }
 
 // Commit changes.
@@ -129,12 +129,11 @@ func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
 	}
 }
 
-func (s *Store) makeCache(size int) *lru.Cache {
-	cache, err := lru.New(1)
+func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
+	cache, err := wlru.New(weight, size)
 	if err != nil {
 		s.Log.Crit("Error create LRU cache", "err", err)
 		return nil
 	}
-	cache.Resize(size)
 	return cache
 }

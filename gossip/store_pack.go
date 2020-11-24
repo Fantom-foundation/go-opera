@@ -33,7 +33,7 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 
 	// Add to LRU cache.
 	if w != nil {
-		s.cache.PackInfos.Add(key.String(), *w)
+		s.cache.PackInfos.Add(key.String(), *w, 1)
 	}
 
 	return w
@@ -67,7 +67,7 @@ func (s *Store) SetPackInfo(epoch idx.Epoch, idx idx.Pack, value PackInfo) {
 	s.rlp.Set(s.table.PackInfos, key.Bytes(), value)
 
 	// Add to LRU cache.
-	s.cache.PackInfos.Add(key.String(), value)
+	s.cache.PackInfos.Add(key.String(), value, 1)
 }
 
 func (s *Store) AddToPack(epoch idx.Epoch, idx idx.Pack, e hash.Event) {

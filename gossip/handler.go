@@ -36,9 +36,6 @@ const (
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
-
-	// the maximum number of events in the ordering buffer
-	eventsBuffSize = 2048
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -79,7 +76,7 @@ type ProtocolManager struct {
 
 	downloader *packsdownloader.PacksDownloader
 	fetcher    *fetcher.Fetcher
-	buffer     *ordering.EventBuffer
+	buffer     *ordering.EventsBuffer
 	checkers   *eventcheck.Checkers
 
 	store        *Store
@@ -163,7 +160,7 @@ func (pm *ProtocolManager) peerMisbehaviour(peer string, err error) bool {
 	return false
 }
 
-func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.Fetcher, *ordering.EventBuffer) {
+func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.Fetcher, *ordering.EventsBuffer) {
 	// checkers
 	lightCheck := func(e dag.Event) error {
 		if err := checkers.Basiccheck.Validate(e.(inter.EventPayloadI)); err != nil {
@@ -194,7 +191,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 	}
 
 	// DAG callbacks
-	buffer := ordering.New(eventsBuffSize, ordering.Callback{
+	buffer := ordering.New(pm.config.Protocol.EventsBufferBytes, pm.config.Protocol.EventsBufferNum, ordering.Callback{
 
 		Process: func(_e dag.Event) error {
 			e := _e.(*inter.EventPayload)
@@ -209,8 +206,8 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 			}
 			log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
 
-			// If the event is indeed in our own graph, announce it
-			if atomic.LoadUint32(&pm.synced) != 0 { // announce only if synced up
+			// event is connected, announce it if synced up
+			if atomic.LoadUint32(&pm.synced) != 0 {
 				passedSinceEvent := now.Sub(e.CreationTime().Time())
 				pm.BroadcastEvent(e, passedSinceEvent)
 			}
@@ -230,7 +227,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 		},
 
 		Get: func(id hash.Event) dag.Event {
-			e := pm.store.GetEvent(id)
+			e := pm.store.GetEventPayload(id)
 			if e == nil {
 				return nil
 			}
@@ -241,7 +238,9 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 	})
 
 	newFetcher := fetcher.New(fetcher.Callback{
-		PushEvent:        buffer.PushEvent,
+		PushEvent: func(e dag.Event, peer string) {
+			buffer.PushEvent(e, uint(e.(inter.EventPayloadI).Size()), peer)
+		},
 		OnlyInterested:   pm.onlyInterestedEvents,
 		PeerMisbehaviour: pm.peerMisbehaviour,
 		LightCheck:       lightCheck,

@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/ethdb"
-	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -48,11 +48,11 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events        *lru.Cache   `cache:"-"` // store by pointer
-		EventsHeaders *lru.Cache   `cache:"-"` // store by pointer
-		Blocks        *lru.Cache   `cache:"-"` // store by pointer
-		PackInfos     *lru.Cache   `cache:"-"` // store by value
-		BlockHashes   *lru.Cache   `cache:"-"` // store by pointer
+		Events        *wlru.Cache  `cache:"-"` // store by pointer
+		EventsHeaders *wlru.Cache  `cache:"-"` // store by pointer
+		Blocks        *wlru.Cache  `cache:"-"` // store by pointer
+		PackInfos     *wlru.Cache  `cache:"-"` // store by value
+		BlockHashes   *wlru.Cache  `cache:"-"` // store by pointer
 		BlockState    atomic.Value // store by pointer
 		EpochState    atomic.Value // store by pointer
 	}
@@ -94,11 +94,11 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 }
 
 func (s *Store) initCache() {
-	s.cache.Events = s.makeCache(s.cfg.EventsCacheSize)
-	s.cache.EventsHeaders = s.makeCache(s.cfg.EventsHeadersCacheSize)
-	s.cache.Blocks = s.makeCache(s.cfg.BlockCacheSize)
-	s.cache.PackInfos = s.makeCache(s.cfg.PackInfosCacheSize)
-	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
+	s.cache.Events = s.makeCache(s.cfg.Cache.EventsSize, s.cfg.Cache.EventsNum)
+	s.cache.Blocks = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
+	s.cache.EventsHeaders = s.makeCache(uint(s.cfg.Cache.EventsHeadersNum), s.cfg.Cache.EventsHeadersNum)
+	s.cache.PackInfos = s.makeCache(uint(s.cfg.Cache.PackInfosNum), s.cfg.Cache.PackInfosNum)
+	s.cache.BlockHashes = s.makeCache(uint(s.cfg.Cache.BlocksNum), s.cfg.Cache.BlocksNum)
 }
 
 // Close leaves underlying database.
@@ -164,12 +164,11 @@ func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
 	}
 }
 
-func (s *Store) makeCache(size int) *lru.Cache {
-	cache, err := lru.New(1)
+func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
+	cache, err := wlru.New(weight, size)
 	if err != nil {
 		s.Log.Crit("Error create LRU cache", "err", err)
 		return nil
 	}
-	cache.Resize(size)
 	return cache
 }

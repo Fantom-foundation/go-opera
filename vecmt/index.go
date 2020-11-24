@@ -7,20 +7,20 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/Fantom-foundation/lachesis-base/vecengine"
 	"github.com/Fantom-foundation/lachesis-base/vecfc"
-	lru "github.com/hashicorp/golang-lru"
 )
 
 // IndexCacheConfig - config for cache sizes of Engine
 type IndexCacheConfig struct {
-	HighestBeforeTime int `json:"lowestAfterSeq"`
+	HighestBeforeTimeSize uint
 }
 
 // IndexConfig - Engine config (cache sizes)
 type IndexConfig struct {
 	Fc     vecfc.IndexConfig
-	Caches IndexCacheConfig `json:"cacheSizes"`
+	Caches IndexCacheConfig
 }
 
 // Engine is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
@@ -41,7 +41,7 @@ type Index struct {
 	}
 
 	cache struct {
-		HighestBeforeTime *lru.Cache
+		HighestBeforeTime *wlru.Cache
 	}
 
 	cfg IndexConfig
@@ -52,7 +52,7 @@ func DefaultConfig() IndexConfig {
 	return IndexConfig{
 		Fc: vecfc.DefaultConfig(),
 		Caches: IndexCacheConfig{
-			HighestBeforeTime: 500,
+			HighestBeforeTimeSize: 160 * 1024,
 		},
 	}
 }
@@ -62,7 +62,7 @@ func LiteConfig() IndexConfig {
 	return IndexConfig{
 		Fc: vecfc.LiteConfig(),
 		Caches: IndexCacheConfig{
-			HighestBeforeTime: 20,
+			HighestBeforeTimeSize: 4 * 1024,
 		},
 	}
 }
@@ -97,7 +97,7 @@ func NewIndexWithBase(crit func(error), config IndexConfig, base *vecfc.Index) *
 }
 
 func (vi *Index) initCaches() {
-	vi.cache.HighestBeforeTime, _ = lru.New(vi.cfg.Caches.HighestBeforeTime)
+	vi.cache.HighestBeforeTime, _ = wlru.New(vi.cfg.Caches.HighestBeforeTimeSize, int(vi.cfg.Caches.HighestBeforeTimeSize))
 }
 
 // Reset resets buffers.
