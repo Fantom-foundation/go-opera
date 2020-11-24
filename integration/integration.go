@@ -3,6 +3,7 @@ package integration
 import (
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
@@ -12,14 +13,22 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 // NewIntegration creates gossip service for the integration test
 func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *node.Node) *gossip.Service {
 	gossipCfg := gossip.FakeConfig(len(genesis.State.Validators))
+	cfg := Configs{
+		Opera:         gossipCfg,
+		OperaStore:    gossip.DefaultStoreConfig(),
+		Lachesis:      abft.DefaultConfig(),
+		LachesisStore: abft.DefaultStoreConfig(),
+		VectorClock:   vecmt.DefaultConfig(),
+	}
 
 	dbs := flushable.NewSyncedPool(DBProducer(ctx.Config.DataDir))
-	engine, dagIndex, gdb, blockProc := MakeEngine(dbs, &gossipCfg, genesis)
+	engine, dagIndex, gdb, blockProc := MakeEngine(dbs, cfg, genesis)
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
 

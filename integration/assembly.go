@@ -26,6 +26,14 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
+type Configs struct {
+	Opera         gossip.Config
+	OperaStore    gossip.StoreConfig
+	Lachesis      abft.Config
+	LachesisStore abft.StoreConfig
+	VectorClock   vecmt.IndexConfig
+}
+
 func panics(name string) func(error) {
 	return func(err error) {
 		log.Crit(fmt.Sprintf("%s error", name), "err", err)
@@ -45,14 +53,14 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(dbs *flushable.SyncedPool, gossipCfg *gossip.Config, g opera.Genesis) (*abft.Lachesis, *vecmt.Index, *gossip.Store, gossip.BlockProc) {
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
+func MakeEngine(dbs *flushable.SyncedPool, cfg Configs, g opera.Genesis) (*abft.Lachesis, *vecmt.Index, *gossip.Store, gossip.BlockProc) {
+	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 
 	cMainDb := dbs.GetDb("lachesis")
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
 		return dbs.GetDb(fmt.Sprintf("lachesis-%d", epoch))
 	}
-	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), abft.DefaultStoreConfig())
+	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), cfg.LachesisStore)
 
 	// write genesis
 
@@ -97,8 +105,8 @@ func MakeEngine(dbs *flushable.SyncedPool, gossipCfg *gossip.Config, g opera.Gen
 	}
 
 	// create consensus
-	vecClock := vecmt.NewIndex(panics("Vector clock"), vecmt.DefaultConfig())
-	engine := abft.NewLachesis(cdb, &GossipStoreAdapter{gdb}, vecmt2dagidx.Wrap(vecClock), panics("Lachesis"), abft.DefaultConfig())
+	vecClock := vecmt.NewIndex(panics("Vector clock"), cfg.VectorClock)
+	engine := abft.NewLachesis(cdb, &GossipStoreAdapter{gdb}, vecmt2dagidx.Wrap(vecClock), panics("Lachesis"), cfg.Lachesis)
 
 	return engine, vecClock, gdb, blockProc
 }

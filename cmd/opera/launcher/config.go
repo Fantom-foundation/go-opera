@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -21,10 +22,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 var (
@@ -80,8 +83,22 @@ var tomlSettings = toml.Config{
 }
 
 type config struct {
-	Node  node.Config
-	Opera gossip.Config
+	Node          node.Config
+	Opera         gossip.Config
+	OperaStore    gossip.StoreConfig
+	Lachesis      abft.Config
+	LachesisStore abft.StoreConfig
+	VectorClock   vecmt.IndexConfig
+}
+
+func (c *config) AppConfigs() integration.Configs {
+	return integration.Configs{
+		Opera:         c.Opera,
+		OperaStore:    c.OperaStore,
+		Lachesis:      c.Lachesis,
+		LachesisStore: c.LachesisStore,
+		VectorClock:   c.VectorClock,
+	}
 }
 
 func loadAllConfigs(file string, cfg *config) error {
@@ -279,7 +296,14 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 
 func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Defaults (low priority)
-	cfg := config{Opera: gossip.DefaultConfig(), Node: defaultNodeConfig()}
+	cfg := config{
+		Node:          defaultNodeConfig(),
+		Opera:         gossip.DefaultConfig(),
+		OperaStore:    gossip.DefaultStoreConfig(),
+		Lachesis:      abft.DefaultConfig(),
+		LachesisStore: abft.DefaultStoreConfig(),
+		VectorClock:   vecmt.DefaultConfig(),
+	}
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		cfg.Opera = gossip.FakeConfig(num)
