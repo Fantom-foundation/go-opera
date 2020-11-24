@@ -210,8 +210,7 @@ func newService(config *Config, net opera.Rules, store *Store, signer valkeystor
 // makeCheckers builds event checkers
 func makeCheckers(net opera.Rules, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	ledgerID := net.EvmChainConfig().ChainID
-	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(ledgerID))
+	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(net.EvmChainConfig().ChainID))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)

@@ -9,17 +9,15 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/cser"
 )
 
-func encodeSig(v, r, s *big.Int) (sig [65]byte) {
+func encodeSig(r, s *big.Int) (sig [64]byte) {
 	copy(sig[0:], cser.PaddedBytes(r.Bytes(), 32)[:32])
 	copy(sig[32:], cser.PaddedBytes(s.Bytes(), 32)[:32])
-	copy(sig[64:], cser.PaddedBytes(v.Bytes(), 1)[:1])
 	return sig
 }
 
-func decodeSig(sig [65]byte) (v, r, s *big.Int) {
+func decodeSig(sig [64]byte) (r, s *big.Int) {
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
-	v = new(big.Int).SetBytes([]byte{sig[64]})
 	return
 }
 
@@ -33,7 +31,9 @@ func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
 		w.FixedBytes(tx.To().Bytes())
 	}
 	w.SliceBytes(tx.Data())
-	sig := encodeSig(tx.RawSignatureValues())
+	v, r, s := tx.RawSignatureValues()
+	w.BigInt(v)
+	sig := encodeSig(r, s)
 	w.FixedBytes(sig[:])
 	return nil
 }
@@ -52,9 +52,10 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 	}
 	data := r.SliceBytes()
 	// sig
-	var sig [65]byte
+	v := r.BigInt()
+	var sig [64]byte
 	r.FixedBytes(sig[:])
+	_r, s := decodeSig(sig)
 
-	v, _r, s := decodeSig(sig)
 	return types.NewRawTransaction(nonce, to, amount, gasLimit, gasPrice, data, v, _r, s), nil
 }

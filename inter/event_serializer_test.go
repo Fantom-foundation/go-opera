@@ -247,10 +247,10 @@ func FakeEvent(txsNum int) *EventPayload {
 		h := hash.BytesToHash(bytes.Repeat([]byte{math.MaxUint8}, 32))
 		addr := common.BytesToAddress(h.Bytes()[:20])
 		if i%2 == 0 {
-			tx := types.NewRawTransaction(r.Uint64(), nil, randBig(r), r.Uint64(), randBig(r), []byte{}, big.NewInt(int64(r.Intn(0xff))), h.Big(), h.Big())
+			tx := types.NewRawTransaction(r.Uint64(), nil, randBig(r), r.Uint64(), randBig(r), []byte{}, big.NewInt(int64(r.Intn(0xffffffff))), h.Big(), h.Big())
 			txs = append(txs, tx)
 		} else {
-			tx := types.NewRawTransaction(r.Uint64(), &addr, randBig(r), r.Uint64(), randBig(r), []byte{}, big.NewInt(int64(r.Intn(0xff))), h.Big(), h.Big())
+			tx := types.NewRawTransaction(r.Uint64(), &addr, randBig(r), r.Uint64(), randBig(r), []byte{}, new(big.Int), new(big.Int), new(big.Int))
 			txs = append(txs, tx)
 		}
 	}
