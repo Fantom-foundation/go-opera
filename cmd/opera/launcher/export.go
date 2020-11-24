@@ -38,7 +38,7 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Opera)
+	gdb := makeGossipStore(cfg.Node.DataDir, cfg)
 	defer gdb.Close()
 
 	fn := ctx.Args().First()
@@ -87,9 +87,9 @@ func exportEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func makeGossipStore(dataDir string, gossipCfg *gossip.Config) *gossip.Store {
+func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
 	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
+	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb
 }

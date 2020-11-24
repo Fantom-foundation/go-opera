@@ -1,9 +1,10 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 func (s *Store) GetGenesisHash() *hash.Hash {
@@ -30,7 +31,7 @@ func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
 	s.rlp.Set(s.table.Blocks, n.Bytes(), b)
 
 	// Add to LRU cache.
-	s.cache.Blocks.Add(n, b)
+	s.cache.Blocks.Add(n, b, uint(b.EstimateSize()))
 }
 
 // GetBlock returns stored block.
@@ -44,7 +45,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 
 	// Add to LRU cache.
 	if block != nil {
-		s.cache.Blocks.Add(n, block)
+		s.cache.Blocks.Add(n, block, uint(block.EstimateSize()))
 	}
 
 	return block
@@ -56,7 +57,7 @@ func (s *Store) SetBlockIndex(id hash.Event, n idx.Block) {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 
-	s.cache.BlockHashes.Add(id, n)
+	s.cache.BlockHashes.Add(id, n, 1)
 }
 
 // GetBlockIndex returns stored block index.
@@ -78,7 +79,7 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 	}
 	n := idx.BytesToBlock(buf)
 
-	s.cache.BlockHashes.Add(id, n)
+	s.cache.BlockHashes.Add(id, n, 1)
 
 	return &n
 }

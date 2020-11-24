@@ -22,7 +22,7 @@ func (s *Store) SetTxPosition(txid common.Hash, position TxPosition) {
 	s.rlp.Set(s.table.TxPositions, txid.Bytes(), &position)
 
 	// Add to LRU cache.
-	s.cache.TxPositions.Add(txid.String(), &position)
+	s.cache.TxPositions.Add(txid.String(), &position, 1)
 }
 
 // GetTxPosition returns stored transaction block and position.
@@ -38,7 +38,7 @@ func (s *Store) GetTxPosition(txid common.Hash) *TxPosition {
 
 	// Add to LRU cache.
 	if txPosition != nil {
-		s.cache.TxPositions.Add(txid.String(), txPosition)
+		s.cache.TxPositions.Add(txid.String(), txPosition, 1)
 	}
 
 	return txPosition

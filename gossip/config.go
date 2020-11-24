@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"github.com/syndtr/goleveldb/leveldb/opt"
+
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -14,12 +16,14 @@ type (
 
 		LatencyImportance    int
 		ThroughputImportance int
+
+		EventsBufferBytes uint
+		EventsBufferNum   int
 	}
 	// Config for the gossip service.
 	Config struct {
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
-		StoreConfig
 
 		TxIndex             bool // Whether to enable indexing transactions and receipts or not
 		DecisiveEventsIndex bool // Whether to enable indexing events which decide blocks or not
@@ -49,17 +53,22 @@ type (
 
 		ExtRPCEnabled bool
 	}
+	StoreCacheConfig struct {
+		// Cache size for full events.
+		EventsNum  int
+		EventsSize uint
+		// Cache size for event headers
+		EventsHeadersNum int
+		// Cache size for Blocks.
+		BlocksNum  int
+		BlocksSize uint
+		// Cache size for PackInfos.
+		PackInfosNum int
+	}
 
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
-		// Cache size for Events.
-		EventsCacheSize int
-		// Cache size for EventHeaderData (Epoch db).
-		EventsHeadersCacheSize int
-		// Cache size for Block.
-		BlockCacheSize int
-		// Cache size for PackInfos.
-		PackInfosCacheSize int
+		Cache StoreCacheConfig
 		// EVM is EVM store config
 		EVM evmstore.StoreConfig
 	}
@@ -68,9 +77,8 @@ type (
 // DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig() Config {
 	cfg := Config{
-		Emitter:     emitter.DefaultConfig(),
-		TxPool:      evmcore.DefaultTxPoolConfig(),
-		StoreConfig: DefaultStoreConfig(),
+		Emitter: emitter.DefaultConfig(),
+		TxPool:  evmcore.DefaultTxPoolConfig(),
 
 		TxIndex:             true,
 		DecisiveEventsIndex: false,
@@ -78,6 +86,8 @@ func DefaultConfig() Config {
 		Protocol: ProtocolConfig{
 			LatencyImportance:    60,
 			ThroughputImportance: 40,
+			EventsBufferBytes:    6 * opt.MiB,
+			EventsBufferNum:      3000,
 		},
 
 		GPO: gasprice.Config{
@@ -100,21 +110,29 @@ func FakeConfig(num int) Config {
 // DefaultStoreConfig for product.
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:        500,
-		EventsHeadersCacheSize: 10000,
-		BlockCacheSize:         100,
-		PackInfosCacheSize:     100,
-		EVM:                    evmstore.DefaultStoreConfig(),
+		Cache: StoreCacheConfig{
+			EventsNum:        5000,
+			EventsSize:       6 * opt.MiB,
+			EventsHeadersNum: 5000,
+			BlocksNum:        1000,
+			BlocksSize:       512 * opt.KiB,
+			PackInfosNum:     100,
+		},
+		EVM: evmstore.DefaultStoreConfig(),
 	}
 }
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 1000,
-		BlockCacheSize:         100,
-		PackInfosCacheSize:     100,
-		EVM:                    evmstore.LiteStoreConfig(),
+		Cache: StoreCacheConfig{
+			EventsNum:        500,
+			EventsSize:       512 * opt.KiB,
+			EventsHeadersNum: 500,
+			BlocksNum:        100,
+			BlocksSize:       50 * opt.KiB,
+			PackInfosNum:     10,
+		},
+		EVM: evmstore.LiteStoreConfig(),
 	}
 }

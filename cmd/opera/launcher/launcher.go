@@ -254,7 +254,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 	stack := makeConfigNode(ctx, &cfg.Node)
 
 	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
-	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, &cfg.Opera, genesis)
+	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, cfg.AppConfigs(), genesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
