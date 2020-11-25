@@ -58,11 +58,9 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	find := func(t *testing.T) {
-		require := require.New(t)
-		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}, {}, {hash1, hash2, hash3, hash4}})
-		require.NoError(err)
-		// require.ElementsMatchf(testdata, got, "") doesn't work properly here, so:
+	// require.ElementsMatchf(testdata, got, "") doesn't work properly here,
+	// so use check()
+	check := func(require *require.Assertions, got []*types.Log) {
 		count := 0
 		for _, a := range got {
 			for _, b := range testdata {
@@ -76,14 +74,17 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		require.Equal(len(testdata), count)
 	}
 
-	t.Run("Find lazy", func(t *testing.T) {
-		index.fetchMethod = index.fetchLazy
-		find(t)
+	t.Run("With no addresses", func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}, {}, {hash1, hash2, hash3, hash4}})
+		require.NoError(err)
+		check(require, got)
 	})
 }
 
 func TestIndexSearchSingleVariant(t *testing.T) {
 	logger.SetTestMode(t)
+	require := require.New(t)
 
 	topics, recs, topics4rec := genTestData()
 
@@ -91,40 +92,31 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 
 	for _, rec := range recs {
 		err := index.Push(rec)
-		require.NoError(t, err)
+		require.NoError(err)
 	}
 
-	find := func(t *testing.T) {
-		require := require.New(t)
+	for i := 0; i < len(topics); i++ {
+		from, to := topics4rec(i)
+		tt := topics[from : to-1]
 
-		for i := 0; i < len(topics); i++ {
-			from, to := topics4rec(i)
-			tt := topics[from : to-1]
-
-			qq := make([][]common.Hash, len(tt)+1)
-			for pos, t := range tt {
-				qq[pos+1] = []common.Hash{t}
-			}
-
-			got, err := index.Find(qq)
-			require.NoError(err)
-
-			var expect []*types.Log
-			for j, rec := range recs {
-				if f, t := topics4rec(j); f != from || t != to {
-					continue
-				}
-				expect = append(expect, rec)
-			}
-
-			require.ElementsMatchf(expect, got, "step %d", i)
+		qq := make([][]common.Hash, len(tt)+1)
+		for pos, t := range tt {
+			qq[pos+1] = []common.Hash{t}
 		}
-	}
 
-	t.Run("Find lazy", func(t *testing.T) {
-		index.fetchMethod = index.fetchLazy
-		find(t)
-	})
+		got, err := index.Find(qq)
+		require.NoError(err)
+
+		var expect []*types.Log
+		for j, rec := range recs {
+			if f, t := topics4rec(j); f != from || t != to {
+				continue
+			}
+			expect = append(expect, rec)
+		}
+
+		require.ElementsMatchf(expect, got, "step %d", i)
+	}
 }
 
 func genTestData() (
