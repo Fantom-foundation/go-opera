@@ -324,6 +324,10 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
 
+	if err := cfg.Opera.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
 }
 

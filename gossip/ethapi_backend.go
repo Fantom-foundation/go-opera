@@ -173,17 +173,8 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	if requested == current {
 		heads = b.svc.store.GetHeads(requested)
 	} else {
-		num, ok := b.svc.store.GetPacksNum(requested)
-		if !ok {
-			err = errors.New("epoch is not found")
-			return
-		}
-		packInfo := b.svc.store.GetPackInfo(requested, num-1)
-		if packInfo == nil {
-			err = errors.New("epoch is not found")
-			return
-		}
-		heads = packInfo.Heads
+		err = errors.New("heads for previous epochs are not available")
+		return
 	}
 
 	if heads == nil {

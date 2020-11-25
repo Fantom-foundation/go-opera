@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	mapset "github.com/deckarep/golang-set"
@@ -26,7 +27,7 @@ var (
 
 const (
 	maxKnownTxs    = 24576 // Maximum transactions hashes to keep in the known list (prevent DOS)
-	maxKnownEvents = 16384 // Maximum event hashes to keep in the known list (prevent DOS)
+	maxKnownEvents = 24576 // Maximum event hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -97,10 +98,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	if a.Epoch != b.Epoch {
 		return a.Epoch < b.Epoch
 	}
-	if a.NumOfBlocks != b.NumOfBlocks {
-		return a.NumOfBlocks < b.NumOfBlocks
-	}
-	return a.LastPackInfo.Index < b.LastPackInfo.Index
+	return a.NumOfBlocks < b.NumOfBlocks
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -266,14 +264,6 @@ func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	return p2p.Send(p.rw, EventsMsg, events)
 }
 
-func (p *peer) SendPackInfosRLP(packInfos *packInfosDataRLP) error {
-	return p2p.Send(p.rw, PackInfosMsg, packInfos)
-}
-
-func (p *peer) SendPack(pack *packData) error {
-	return p2p.Send(p.rw, PackMsg, pack)
-}
-
 // AsyncSendEvents queues an entire event for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendEvents(events inter.EventPayloads) {
@@ -307,18 +297,19 @@ func (p *peer) RequestEvents(ids hash.Events) error {
 	return nil
 }
 
-func (p *peer) RequestPackInfos(epoch idx.Epoch, indexes []idx.Pack) error {
-	return p2p.Send(p.rw, GetPackInfosMsg, getPackInfosData{
-		Epoch:   epoch,
-		Indexes: indexes,
-	})
+func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {
+	// Mark all the event hash as known, but ensure we don't overflow our limits
+	for _, id := range ids {
+		p.knownEvents.Add(id)
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	}
+	return p2p.Send(p.rw, EventsStreamResponse, r)
 }
 
-func (p *peer) RequestPack(epoch idx.Epoch, index idx.Pack) error {
-	return p2p.Send(p.rw, GetPackMsg, getPackData{
-		Epoch: epoch,
-		Index: index,
-	})
+func (p *peer) RequestEventsStream(r dagstream.Request) error {
+	return p2p.Send(p.rw, RequestEventsStream, r)
 }
 
 // Handshake executes the protocol handshake, negotiating version number,

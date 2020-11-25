@@ -112,12 +112,10 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(oldEpoch, e.Creator(), e.ID())
 
-	s.packsOnNewEvent(e, e.Epoch())
 	s.emitter.OnNewEvent(e)
 
 	if newEpoch != oldEpoch {
 		// epoch is sealed, prune epoch data
-		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.occurredTxs.Clear()
 		// reset dag indexer
 		s.store.resetEpochStore(newEpoch)

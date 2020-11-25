@@ -15,7 +15,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -26,11 +25,6 @@ var (
 	errTerminated = errors.New("terminated") // internal err
 )
 
-const (
-	maxQueuedTasks = 128 // the maximum number of events to queue up
-	maxBatch       = 4   // Maximum number of events in an task batch (batch is divided if exceeded)
-)
-
 // Reader is accessed by the validator to get the current state.
 type Reader interface {
 	GetEpochPubKeys() (map[idx.ValidatorID]validator.PubKey, idx.Epoch)
@@ -38,11 +32,9 @@ type Reader interface {
 
 // Check which require only parents list + current epoch info
 type Checker struct {
-	config   *opera.DagConfig
+	config   Config
 	txSigner types.Signer
 	reader   Reader
-
-	numOfThreads int
 
 	tasksQ chan *TaskData
 	quit   chan struct{}
@@ -55,32 +47,28 @@ type TaskData struct {
 	onValidated func(dag.Events, []error)
 }
 
-// NewDefault uses N-1 threads
-func NewDefault(config *opera.DagConfig, reader Reader, txSigner types.Signer) *Checker {
-	threads := runtime.NumCPU()
-	if threads > 1 {
-		threads--
-	}
-	if threads < 1 {
-		threads = 1
-	}
-	return New(config, reader, txSigner, threads)
-}
-
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
-func New(config *opera.DagConfig, reader Reader, txSigner types.Signer, numOfThreads int) *Checker {
+func New(config Config, reader Reader, txSigner types.Signer) *Checker {
+	if config.Threads == 0 {
+		config.Threads = runtime.NumCPU()
+		if config.Threads > 1 {
+			config.Threads--
+		}
+		if config.Threads < 1 {
+			config.Threads = 1
+		}
+	}
 	return &Checker{
 		config:       config,
 		txSigner:     txSigner,
 		reader:       reader,
-		numOfThreads: numOfThreads,
-		tasksQ:       make(chan *TaskData, maxQueuedTasks),
+		tasksQ:       make(chan *TaskData, config.MaxQueuedBatches),
 		quit:         make(chan struct{}),
 	}
 }
 
 func (v *Checker) Start() {
-	for i := 0; i < v.numOfThreads; i++ {
+	for i := 0; i < v.config.Threads; i++ {
 		v.wg.Add(1)
 		go v.loop()
 	}
@@ -92,15 +80,15 @@ func (v *Checker) Stop() {
 }
 
 func (v *Checker) Overloaded() bool {
-	return len(v.tasksQ) > maxQueuedTasks/2
+	return len(v.tasksQ) > v.config.MaxQueuedBatches/2
 }
 
 func (v *Checker) Enqueue(events dag.Events, onValidated func(dag.Events, []error)) error {
 	// divide big batch into smaller ones
-	for start := 0; start < len(events); start += maxBatch {
+	for start := 0; start < len(events); start += v.config.MaxBatch {
 		end := len(events)
-		if end > start+maxBatch {
-			end = start + maxBatch
+		if end > start+v.config.MaxBatch {
+			end = start + v.config.MaxBatch
 		}
 		op := &TaskData{
 			Events:      events[start:end],
@@ -161,15 +149,15 @@ func (v *Checker) loop() {
 	defer v.wg.Done()
 	for {
 		select {
-		case <-v.quit:
-			return
-
 		case op := <-v.tasksQ:
 			result := make([]error, len(op.Events))
 			for i, e := range op.Events {
 				result[i] = v.Validate(e)
 			}
 			op.onValidated(op.Events, result)
+
+		case <-v.quit:
+			return
 		}
 	}
 }

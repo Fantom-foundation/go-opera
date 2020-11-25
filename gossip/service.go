@@ -61,10 +61,6 @@ func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.Epoch) notify.Subscription
 	return f.scope.Track(f.newEpoch.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription {
-	return f.scope.Track(f.newPack.Subscribe(ch))
-}
-
 func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.EventPayload) notify.Subscription {
 	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
 }
@@ -93,7 +89,7 @@ type BlockProc struct {
 
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
-	config *Config
+	config Config
 	net    opera.Rules
 
 	wg   sync.WaitGroup
@@ -136,7 +132,11 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config *Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
 	}
@@ -151,10 +151,10 @@ func NewService(stack *node.Node, config *Config, net opera.Rules, store *Store,
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, svc.net.NetworkID)
 
-	return svc, err
+	return svc, nil
 }
 
-func newService(config *Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func newService(config Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:         config,
 		net:            net,
@@ -182,7 +182,7 @@ func newService(config *Config, net opera.Rules, store *Store, signer valkeystor
 	// create checkers
 	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                                  // read pub keys of current epoch from disk
 	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), &svc.net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(svc.net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
+	svc.checkers = makeCheckers(config.HeavyCheck, svc.net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create protocol manager
 	var err error
@@ -208,9 +208,9 @@ func newService(config *Config, net opera.Rules, store *Store, signer valkeystor
 }
 
 // makeCheckers builds event checkers
-func makeCheckers(net opera.Rules, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
+func makeCheckers(heavyCheckCfg heavycheck.Config, net opera.Rules, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(net.EvmChainConfig().ChainID))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP155Signer(net.EvmChainConfig().ChainID))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -230,7 +230,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	emitterCfg := s.config.Emitter // copy data
 	emitterCfg.EmitIntervals = *emitterCfg.EmitIntervals.RandomizeEmitTime(r)
 
-	return emitter.NewEmitter(s.net, &emitterCfg,
+	return emitter.NewEmitter(s.net, emitterCfg,
 		emitter.EmitterWorld{
 			Store:       s.store,
 			EngineMu:    s.engineMu,

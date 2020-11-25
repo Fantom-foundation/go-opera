@@ -75,13 +75,13 @@ func (v *Checker) CalcGasPower(e inter.EventI, selfParent inter.EventI) (inter.G
 
 	var res inter.GasPowerLeft
 	for i := range ctx.Configs {
-		res.Gas[i] = calcGasPower(e, selfParent, ctx, &ctx.Configs[i])
+		res.Gas[i] = calcGasPower(e, selfParent, ctx, ctx.Configs[i])
 	}
 
 	return res, nil
 }
 
-func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContext, config *Config) uint64 {
+func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContext, config Config) uint64 {
 	var prevGasPowerLeft uint64
 	var prevTime inter.Timestamp
 
@@ -103,7 +103,7 @@ func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContex
 	return calcValidatorGasPower(e, prevTime, prevGasPowerLeft, ctx.Validators, config)
 }
 
-func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config *Config) uint64 {
+func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config Config) uint64 {
 	gasPowerPerSec, maxGasPower, startup := calcValidatorGasPowerPerSec(e.Creator(), validators, config)
 
 	if e.SelfParent() == nil {
@@ -131,7 +131,7 @@ func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowe
 func calcValidatorGasPowerPerSec(
 	validator idx.ValidatorID,
 	validators *pos.Validators,
-	config *Config,
+	config Config,
 ) (
 	perSec uint64,
 	maxGasPower uint64,

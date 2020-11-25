@@ -26,7 +26,6 @@ type EventPayloadI interface {
 	EventI
 	Sig() Signature
 	Txs() types.Transactions
-	Size() int
 }
 
 var (

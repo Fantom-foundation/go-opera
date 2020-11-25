@@ -102,7 +102,7 @@ func exportTo(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 		counter int
 		last    hash.Event
 	)
-	gdb.ForEachEventRLP(from, func(id hash.Event, event rlp.RawValue) bool {
+	gdb.ForEachEventRLP(from.Bytes(), func(id hash.Event, event rlp.RawValue) bool {
 		if to >= from && id.Epoch() > to {
 			return false
 		}
