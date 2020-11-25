@@ -31,22 +31,26 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		hash2 = common.BytesToHash([]byte("topic2"))
 		hash3 = common.BytesToHash([]byte("topic3"))
 		hash4 = common.BytesToHash([]byte("topic4"))
+		addr1 = randAddress()
+		addr2 = randAddress()
+		addr3 = randAddress()
+		addr4 = randAddress()
 	)
 	testdata := []*types.Log{{
 		BlockNumber: 1,
-		Address:     randAddress(),
+		Address:     addr1,
 		Topics:      []common.Hash{hash1, hash1, hash1},
 	}, {
 		BlockNumber: 2,
-		Address:     randAddress(),
+		Address:     addr2,
 		Topics:      []common.Hash{hash2, hash2, hash2},
 	}, {
 		BlockNumber: 998,
-		Address:     randAddress(),
+		Address:     addr3,
 		Topics:      []common.Hash{hash3, hash3, hash3},
 	}, {
 		BlockNumber: 999,
-		Address:     randAddress(),
+		Address:     addr4,
 		Topics:      []common.Hash{hash4, hash4, hash4},
 	},
 	}
@@ -76,7 +80,24 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 	t.Run("With no addresses", func(t *testing.T) {
 		require := require.New(t)
-		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}, {}, {hash1, hash2, hash3, hash4}})
+		got, err := index.Find([][]common.Hash{
+			{},
+			{hash1, hash2, hash3, hash4},
+			{},
+			{hash1, hash2, hash3, hash4},
+		})
+		require.NoError(err)
+		check(require, got)
+	})
+
+	t.Run("With addresses", func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.Find([][]common.Hash{
+			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+			{hash1, hash2, hash3, hash4},
+			{},
+			{hash1, hash2, hash3, hash4},
+		})
 		require.NoError(err)
 		check(require, got)
 	})
