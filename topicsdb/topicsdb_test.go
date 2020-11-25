@@ -140,6 +140,51 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 	}
 }
 
+func TestIndexSearch(t *testing.T) {
+	logger.SetTestMode(t)
+	var (
+		hash1 = common.BytesToHash([]byte("topic1"))
+		hash2 = common.BytesToHash([]byte("topic2"))
+		hash3 = common.BytesToHash([]byte("topic3"))
+		hash4 = common.BytesToHash([]byte("topic4"))
+		addr  = randAddress()
+	)
+	testdata := []*types.Log{{
+		BlockNumber: 1,
+		Address:     addr,
+		Topics:      []common.Hash{hash1},
+	}, {
+		BlockNumber: 2,
+		Address:     addr,
+		Topics:      []common.Hash{hash2},
+	}, {
+		BlockNumber: 998,
+		Address:     addr,
+		Topics:      []common.Hash{hash3},
+	}, {
+		BlockNumber: 999,
+		Address:     addr,
+		Topics:      []common.Hash{hash4},
+	},
+	}
+
+	index := New(memorydb.New())
+
+	for _, l := range testdata {
+		err := index.Push(l)
+		require.NoError(t, err)
+	}
+
+	require := require.New(t)
+	got, err := index.Find([][]common.Hash{
+		{addr.Hash()},
+		{hash3},
+	})
+	require.NoError(err)
+	require.Equal(1, len(got))
+
+}
+
 func genTestData() (
 	topics []common.Hash,
 	recs []*types.Log,
