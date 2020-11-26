@@ -15,6 +15,7 @@ func (tt *Index) walk(
 ) (
 	gonext bool, err error,
 ) {
+	gonext = true
 	for {
 		if pos >= uint8(len(topics)) {
 			if rec == nil {
@@ -49,6 +50,7 @@ func (tt *Index) walk(
 			copy(prefix[prefLen:], rec.ID.Bytes())
 			prefLen += logrecKeySize
 		}
+
 		it := tt.table.Topic.NewIterator(prefix[:prefLen], nil)
 		for it.Next() {
 			id := extractLogrecID(it.Key())

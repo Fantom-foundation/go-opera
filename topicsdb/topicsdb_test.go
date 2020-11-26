@@ -25,7 +25,6 @@ func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
 }
 
 func TestIndexSearchMultyVariants(t *testing.T) {
-	return
 	logger.SetTestMode(t)
 	var (
 		hash1 = common.BytesToHash([]byte("topic1"))
@@ -105,7 +104,6 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 }
 
 func TestIndexSearchSingleVariant(t *testing.T) {
-	return
 	logger.SetTestMode(t)
 	require := require.New(t)
 
