@@ -148,7 +148,7 @@ func (f *Filter) indexedLogs(ctx context.Context, end int64) (logs []*types.Log,
 		return
 	}
 
-	logs = filterLogs(logs, big.NewInt(f.begin), big.NewInt(end), f.addresses, f.topics)
+	logs = filterLogs(logs, big.NewInt(f.begin), big.NewInt(end), nil, nil)
 	return
 }
 
