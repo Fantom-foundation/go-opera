@@ -139,7 +139,7 @@ func consensusCallbackBeginBlockFn(
 						block.InternalTxs = append(block.InternalTxs, tx.Hash())
 					}
 
-					block, blockEvents := spillBlockEvents(store, block, network)
+					block, blockEvents := spillBlockEvents(store, block, &network)
 					txs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)
