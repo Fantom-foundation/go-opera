@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -116,6 +117,8 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
+// consensusCallbackBeginBlockFn makes lachesis.BeginBlockFn.
+// Note that onBlockEnd would be run async.
 func (env *testEnv) consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
@@ -139,9 +142,12 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
 
+	var waitForBlockEnd sync.WaitGroup
+	waitForBlockEnd.Add(1)
 	onBlockEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
 		receipts = externalReceipts
 		env.lastState = block.Root
+		waitForBlockEnd.Done()
 	}
 
 	beginBlock := env.consensusCallbackBeginBlockFn(onBlockEnd)
@@ -151,6 +157,7 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 
 	process.ApplyEvent(event)
 	_ = process.EndBlock()
+	waitForBlockEnd.Wait()
 
 	return
 }

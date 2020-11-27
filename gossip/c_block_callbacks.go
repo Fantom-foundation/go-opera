@@ -36,7 +36,9 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	}
 }
 
-// consensusCallbackBeginBlockFn takes only necessaries for block processing.
+// consensusCallbackBeginBlockFn takes only necessaries for block processing and
+// makes lachesis.BeginBlockFn.
+// Note that onBlockEnd would be run async.
 func consensusCallbackBeginBlockFn(
 	network opera.Rules,
 	store *Store,
