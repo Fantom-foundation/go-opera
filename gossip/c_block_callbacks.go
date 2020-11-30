@@ -20,6 +20,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
@@ -48,6 +49,8 @@ func consensusCallbackBeginBlockFn(
 	occurredTxs *occuredtxs.Buffer,
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
+	var blockQueue *utils.NumQueue
+
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		start := time.Now()
 
@@ -94,7 +97,7 @@ func consensusCallbackBeginBlockFn(
 					CBlock: *cBlock,
 				}
 
-				bs = eventProcessor.Finalize(blockCtx)
+				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to don't mutate the bs, it is unclear
 
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
@@ -113,7 +116,7 @@ func consensusCallbackBeginBlockFn(
 				// Seal epoch if requested
 				if sealing {
 					sealer.Update(bs, es)
-					bs, es = sealer.SealEpoch()
+					bs, es = sealer.SealEpoch() // TODO: refactor to don't mutate the bs, it is unclear
 					newValidators = es.Validators
 					store.SetEpochState(es)
 					txListener.Update(bs, es)
@@ -121,7 +124,13 @@ func consensusCallbackBeginBlockFn(
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 
+				blockN := uint64(bs.LastBlock)
+				if blockQueue == nil {
+					blockQueue = utils.NewNumQueue(blockN - 1)
+				}
 				go func() {
+					blockQueue.WaitFor(blockN - 1)
+					defer blockQueue.Done(blockN)
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
@@ -139,7 +148,7 @@ func consensusCallbackBeginBlockFn(
 						block.InternalTxs = append(block.InternalTxs, tx.Hash())
 					}
 
-					block, blockEvents := spillBlockEvents(store, block, &network)
+					block, blockEvents := spillBlockEvents(store, block, network)
 					txs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)
@@ -188,7 +197,7 @@ func consensusCallbackBeginBlockFn(
 						}
 						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
-					bs = txListener.Finalize()
+					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
 					// At this point, block state is finalized
 
 					store.SetBlock(bs.LastBlock, block)
