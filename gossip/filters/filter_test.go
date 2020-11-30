@@ -179,9 +179,14 @@ func TestFilters(t *testing.T) {
 		rawdb.WriteReceipts(backend.db, block.Hash(), block.NumberU64(), receipts[i])
 	}
 
-	filter := NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1, hash2, hash3, hash4}})
+	var (
+		filter *Filter
+		logs   []*types.Log
+		err    error
+	)
 
-	logs, err := filter.Logs(context.Background())
+	filter = NewRangeFilter(backend, 0, -1, []common.Address{addr}, [][]common.Hash{{hash1, hash2, hash3, hash4}})
+	logs, err = filter.Logs(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -197,6 +202,7 @@ func TestFilters(t *testing.T) {
 	if len(logs) != 1 {
 		t.Error("expected 1 log, got", len(logs))
 	}
+
 	if len(logs) > 0 && logs[0].Topics[0] != hash3 {
 		t.Errorf("expected log[0].Topics[0] to be %x, got %x", hash3, logs[0].Topics[0])
 	}
@@ -214,7 +220,6 @@ func TestFilters(t *testing.T) {
 	}
 
 	filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
-
 	logs, err = filter.Logs(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -225,7 +230,6 @@ func TestFilters(t *testing.T) {
 
 	failHash := common.BytesToHash([]byte("fail"))
 	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}})
-
 	logs, err = filter.Logs(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -236,7 +240,6 @@ func TestFilters(t *testing.T) {
 
 	failAddr := common.BytesToAddress([]byte("failmenow"))
 	filter = NewRangeFilter(backend, 0, -1, []common.Address{failAddr}, nil)
-
 	logs, err = filter.Logs(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -246,7 +249,6 @@ func TestFilters(t *testing.T) {
 	}
 
 	filter = NewRangeFilter(backend, 0, -1, nil, [][]common.Hash{{failHash}, {hash1}})
-
 	logs, err = filter.Logs(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -254,4 +256,5 @@ func TestFilters(t *testing.T) {
 	if len(logs) != 0 {
 		t.Error("expected 0 log, got", len(logs))
 	}
+
 }
