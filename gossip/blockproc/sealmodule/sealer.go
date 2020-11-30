@@ -76,6 +76,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 		oldValIdx := oldValidators.GetIdx(valID)
 		newValidatorBlockStates[newValIdx] = s.bs.ValidatorStates[oldValIdx]
 		newValidatorBlockStates[newValIdx].DirtyGasRefund = 0
+		newValidatorBlockStates[newValIdx].Uptime = 0
 		newValidatorEpochStates[newValIdx].GasRefund = s.bs.ValidatorStates[oldValIdx].DirtyGasRefund
 		newValidatorEpochStates[newValIdx].PrevEpochEvent = s.bs.ValidatorStates[oldValIdx].LastEvent
 	}
