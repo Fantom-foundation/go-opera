@@ -35,7 +35,7 @@ type (
 
 		Fetcher       dagfetcher.Config
 		StreamLeecher streamleecher.Config
-		SteamSeeder   streamseeder.Config
+		StreamSeeder  streamseeder.Config
 	}
 	// Config for the gossip service.
 	Config struct {
@@ -118,12 +118,12 @@ func DefaultConfig() Config {
 				Num:  1000,
 				Size: 30 * opt.MiB,
 			},
-			EventsSemaphoreTimeout:  5 * time.Second,
-			ProgressBroadcastPeriod: 5 * time.Second,
+			EventsSemaphoreTimeout:  10 * time.Second,
+			ProgressBroadcastPeriod: 10 * time.Second,
 
 			Fetcher:       dagfetcher.DefaultConfig(),
 			StreamLeecher: streamleecher.DefaultConfig(),
-			SteamSeeder:   streamseeder.DefaultConfig(),
+			StreamSeeder:  streamseeder.DefaultConfig(),
 		},
 
 		GPO: gasprice.Config{
