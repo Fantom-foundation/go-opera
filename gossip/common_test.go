@@ -30,6 +30,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -55,6 +56,7 @@ type testEnv struct {
 	lastBlock     idx.Block
 	lastBlockTime time.Time
 	lastState     hash.Hash
+	validators    gpos.Validators
 
 	nonces map[common.Address]uint64
 
@@ -81,6 +83,7 @@ func newTestEnv() *testEnv {
 		EventsModule:        eventmodule.New(network),
 		EVMModule:           evmmodule.New(network),
 	}
+
 	_, _, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
 		panic(err)
@@ -95,6 +98,9 @@ func newTestEnv() *testEnv {
 		lastBlock:     0,
 		lastState:     store.GetBlock(0).Root,
 		lastBlockTime: genesis.State.Time.Time(),
+		validators:    genesis.State.Validators,
+
+		nonces: make(map[common.Address]uint64),
 	}
 
 	return env
@@ -150,7 +156,9 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 }
 
 func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transaction {
-	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
+	sender := env.Address(from)
+	nonce, _ := env.PendingNonceAt(nil, sender)
+	env.incNonce(sender)
 	key := env.privateKey(from)
 	receiver := env.Address(to)
 	gp := params.MinGasPrice
@@ -164,11 +172,13 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transacti
 }
 
 func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Transaction {
-	data := hexutil.MustDecode(hex)
-	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
+	sender := env.Address(from)
+	nonce, _ := env.PendingNonceAt(nil, sender)
+	env.incNonce(sender)
 	key := env.privateKey(from)
 	gp := params.MinGasPrice
-	tx := types.NewContractCreation(nonce, amount, gasLimit*10000, gp, data)
+	data := hexutil.MustDecode(hex)
+	tx := types.NewContractCreation(nonce, amount, gasLimit*100000, gp, data)
 	tx, err := types.SignTx(tx, env.signer, key)
 	if err != nil {
 		panic(err)
