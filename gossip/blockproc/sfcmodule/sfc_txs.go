@@ -119,6 +119,11 @@ func (p *SfcTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs blockpr
 
 	// write cheaters
 	for _, validatorID := range block.CBlock.Cheaters {
+		valIdx := es.Validators.GetIdx(validatorID)
+		if bs.ValidatorStates[valIdx].Cheater {
+			continue
+		}
+		bs.ValidatorStates[valIdx].Cheater = true
 		calldata := sfccall.DeactivateValidator(validatorID, sfctype.DoublesignBit)
 		internalTxs = append(internalTxs, buildTx(calldata))
 	}

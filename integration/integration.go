@@ -53,7 +53,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(stack, &gossipCfg, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, gossipCfg, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

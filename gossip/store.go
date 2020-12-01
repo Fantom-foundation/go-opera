@@ -36,7 +36,6 @@ type Store struct {
 		EpochState kvdb.Store `table:"D"`
 		Events     kvdb.Store `table:"e"`
 		Blocks     kvdb.Store `table:"b"`
-		PackInfos  kvdb.Store `table:"p"`
 		Packs      kvdb.Store `table:"P"`
 		PacksNum   kvdb.Store `table:"n"`
 		Genesis    kvdb.Store `table:"g"`
@@ -51,7 +50,6 @@ type Store struct {
 		Events        *wlru.Cache  `cache:"-"` // store by pointer
 		EventsHeaders *wlru.Cache  `cache:"-"` // store by pointer
 		Blocks        *wlru.Cache  `cache:"-"` // store by pointer
-		PackInfos     *wlru.Cache  `cache:"-"` // store by value
 		BlockHashes   *wlru.Cache  `cache:"-"` // store by pointer
 		BlockState    atomic.Value // store by pointer
 		EpochState    atomic.Value // store by pointer
@@ -97,7 +95,6 @@ func (s *Store) initCache() {
 	s.cache.Events = s.makeCache(s.cfg.Cache.EventsSize, s.cfg.Cache.EventsNum)
 	s.cache.Blocks = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
 	s.cache.EventsHeaders = s.makeCache(uint(s.cfg.Cache.EventsHeadersNum), s.cfg.Cache.EventsHeadersNum)
-	s.cache.PackInfos = s.makeCache(uint(s.cfg.Cache.PackInfosNum), s.cfg.Cache.PackInfosNum)
 	s.cache.BlockHashes = s.makeCache(uint(s.cfg.Cache.BlocksNum), s.cfg.Cache.BlocksNum)
 }
 

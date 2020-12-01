@@ -1,8 +1,16 @@
 package gossip
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagfetcher"
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
+	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -17,8 +25,17 @@ type (
 		LatencyImportance    int
 		ThroughputImportance int
 
-		EventsBufferBytes uint
-		EventsBufferNum   int
+		EventsBufferLimit    dag.Metric
+		EventsSemaphoreLimit dag.Metric
+		MsgsSemaphoreLimit   dag.Metric
+
+		EventsSemaphoreTimeout time.Duration
+
+		ProgressBroadcastPeriod time.Duration
+
+		Fetcher       dagfetcher.Config
+		StreamLeecher streamleecher.Config
+		SteamSeeder   streamseeder.Config
 	}
 	// Config for the gossip service.
 	Config struct {
@@ -31,6 +48,8 @@ type (
 
 		// Protocol options
 		Protocol ProtocolConfig
+
+		HeavyCheck heavycheck.Config
 
 		// Gas Price Oracle options
 		GPO gasprice.Config
@@ -62,8 +81,6 @@ type (
 		// Cache size for Blocks.
 		BlocksNum  int
 		BlocksSize uint
-		// Cache size for PackInfos.
-		PackInfosNum int
 	}
 
 	// StoreConfig is a config for store db.
@@ -83,11 +100,30 @@ func DefaultConfig() Config {
 		TxIndex:             true,
 		DecisiveEventsIndex: false,
 
+		HeavyCheck: heavycheck.DefaultConfig(),
+
 		Protocol: ProtocolConfig{
 			LatencyImportance:    60,
 			ThroughputImportance: 40,
-			EventsBufferBytes:    6 * opt.MiB,
-			EventsBufferNum:      3000,
+			EventsBufferLimit: dag.Metric{
+				// Shouldn't be too big because complexity is O(n) for each insertion in the EventsBuffer
+				Num:  500,
+				Size: 10 * opt.MiB,
+			},
+			EventsSemaphoreLimit: dag.Metric{
+				Num:  10000,
+				Size: 30 * opt.MiB,
+			},
+			MsgsSemaphoreLimit: dag.Metric{
+				Num:  1000,
+				Size: 30 * opt.MiB,
+			},
+			EventsSemaphoreTimeout:  5 * time.Second,
+			ProgressBroadcastPeriod: 5 * time.Second,
+
+			Fetcher:       dagfetcher.DefaultConfig(),
+			StreamLeecher: streamleecher.DefaultConfig(),
+			SteamSeeder:   streamseeder.DefaultConfig(),
 		},
 
 		GPO: gasprice.Config{
@@ -96,8 +132,36 @@ func DefaultConfig() Config {
 			MaxPrice:   gasprice.DefaultMaxPrice,
 		},
 	}
+	cfg.HeavyCheck.MaxBatch = cfg.Protocol.Fetcher.MaxEventsBatch
 
 	return cfg
+}
+
+func (c *Config) Validate() error {
+	if c.Protocol.StreamLeecher.Session.DefaultChunkSize.Num > hardLimitItems-1 {
+		return fmt.Errorf("DefaultChunkSize.Num has to be at not greater than %d", hardLimitItems-1)
+	}
+	if c.Protocol.StreamLeecher.Session.DefaultChunkSize.Size > protocolMaxMsgSize/2 {
+		return fmt.Errorf("DefaultChunkSize.Num has to be at not greater than %d", protocolMaxMsgSize/2)
+	}
+	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.StreamLeecher.Session.DefaultChunkSize.Num ||
+		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.StreamLeecher.Session.DefaultChunkSize.Size {
+		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (DefaultChunkSize)", c.Protocol.StreamLeecher.Session.DefaultChunkSize.String())
+	}
+	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.EventsBufferLimit.Num ||
+		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.EventsBufferLimit.Size {
+		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (EventsBufferLimit)", c.Protocol.EventsBufferLimit.String())
+	}
+	if c.Protocol.EventsSemaphoreLimit.Size < 2*protocolMaxMsgSize {
+		return fmt.Errorf("EventsSemaphoreLimit.Size has to be at least %d", 2*protocolMaxMsgSize)
+	}
+	if c.Protocol.MsgsSemaphoreLimit.Size < protocolMaxMsgSize {
+		return fmt.Errorf("MsgsSemaphoreLimit.Size has to be at least %d", protocolMaxMsgSize)
+	}
+	if c.Protocol.EventsBufferLimit.Size < protocolMaxMsgSize {
+		return fmt.Errorf("EventsBufferLimit.Size has to be at least %d", protocolMaxMsgSize)
+	}
+	return nil
 }
 
 // FakeConfig returns the default configurations for the gossip service in fakenet.
@@ -116,7 +180,6 @@ func DefaultStoreConfig() StoreConfig {
 			EventsHeadersNum: 5000,
 			BlocksNum:        1000,
 			BlocksSize:       512 * opt.KiB,
-			PackInfosNum:     100,
 		},
 		EVM: evmstore.DefaultStoreConfig(),
 	}
@@ -131,7 +194,6 @@ func LiteStoreConfig() StoreConfig {
 			EventsHeadersNum: 500,
 			BlocksNum:        100,
 			BlocksSize:       50 * opt.KiB,
-			PackInfosNum:     10,
 		},
 		EVM: evmstore.LiteStoreConfig(),
 	}

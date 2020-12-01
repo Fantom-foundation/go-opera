@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 // Constants to match up protocol versions and messages
@@ -25,7 +25,7 @@ const protocolName = "opera"
 var ProtocolVersions = []uint{lachesis62}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
-var protocolLengths = map[uint]uint64{lachesis62: PackMsg + 1}
+var protocolLengths = map[uint]uint64{lachesis62: EventsStreamResponse + 1}
 
 const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -53,15 +53,10 @@ const (
 	// May be an answer to GetEventsMsg, or be sent during aggressive events propagation.
 	EventsMsg = 0xf3
 
-	// Request pack infos by epoch:pack indexes
-	GetPackInfosMsg = 0xf4
-	// Contains the requested pack infos. An answer to GetPackInfosMsg.
-	PackInfosMsg = 0xf5
-
-	// Request pack by epoch:pack index
-	GetPackMsg = 0xf6
-	// Contains the requested pack. An answer to GetPackMsg.
-	PackMsg = 0xf7
+	// Request a range of events by a selector
+	RequestEventsStream = 0xf4
+	// Contains the requested events by RequestEventsStream
+	EventsStreamResponse = 0xf5
 )
 
 type errCode int
@@ -121,36 +116,14 @@ type ethStatusData struct {
 
 // PeerProgress is synchronization status of a peer
 type PeerProgress struct {
-	Epoch        idx.Epoch
-	NumOfBlocks  idx.Block
-	LastPackInfo PackInfo
-	LastBlock    hash.Event
+	Epoch       idx.Epoch
+	NumOfBlocks idx.Block
+	LastBlock   hash.Event
 }
 
-type packInfosData struct {
-	Epoch           idx.Epoch
-	TotalNumOfPacks idx.Pack // in specified epoch
-	Infos           []PackInfo
-}
-
-type packInfosDataRLP struct {
-	Epoch           idx.Epoch
-	TotalNumOfPacks idx.Pack // in specified epoch
-	RawInfos        []rlp.RawValue
-}
-
-type getPackInfosData struct {
-	Epoch   idx.Epoch
-	Indexes []idx.Pack
-}
-
-type getPackData struct {
-	Epoch idx.Epoch
-	Index idx.Pack
-}
-
-type packData struct {
-	Epoch idx.Epoch
-	Index idx.Pack
-	IDs   hash.Events
+type epochChunk struct {
+	SessionID uint32
+	Done      bool
+	IDs       hash.Events
+	Events    inter.EventPayloads
 }
