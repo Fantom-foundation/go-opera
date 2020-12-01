@@ -165,8 +165,7 @@ func NewProtocolManager(
 	pm.SetName("PM")
 
 	pm.parentlessCheck, pm.fetcher, pm.buffer = pm.makeFetcher(checkers)
-	// TODO default config
-	pm.leecher = streamleecher.New(pm.store.GetEpoch(), false, streamleecher.DefaultConfig(), streamleecher.Callbacks{
+	pm.leecher = streamleecher.New(pm.store.GetEpoch(), false, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
 		OnlyNotConnected: pm.onlyNotConnectedEvents,
 		RequestChunk: func(peer string, r dagstream.Request) error {
 			p := pm.peers.Peer(peer)
@@ -184,7 +183,7 @@ func NewProtocolManager(
 			return p.progress.Epoch
 		},
 	})
-	pm.seeder = streamseeder.New(streamseeder.DefaultConfig(), streamseeder.Callbacks{
+	pm.seeder = streamseeder.New(pm.config.Protocol.StreamSeeder, streamseeder.Callbacks{
 		ForEachEvent: func(start []byte, onEvent func(key hash.Event, event interface{}, size uint64) bool) {
 			s.ForEachEventRLP(start, func(key hash.Event, event rlp.RawValue) bool {
 				return onEvent(key, event, uint64(len(event)))
@@ -436,8 +435,6 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Fantom protocol")
 
-	pm.eventsSemaphore.Terminate()
-	pm.msgSemaphore.Terminate()
 	pm.checkers.Heavycheck.Stop()
 	pm.fetcher.Stop()
 	pm.leecher.Stop()
@@ -453,6 +450,8 @@ func (pm *ProtocolManager) Stop() {
 	// Wait for the subscription loops to come down.
 	pm.loopsWg.Wait()
 
+	pm.eventsSemaphore.Terminate()
+	pm.msgSemaphore.Terminate()
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
 	pm.noMorePeers <- struct{}{}
@@ -595,7 +594,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		Size: uint64(msg.Size),
 	}
 	if !pm.msgSemaphore.Acquire(eventsSizeEst, pm.config.Protocol.EventsSemaphoreTimeout) {
-		pm.Log.Warn("Failed to acquire semaphore for p2p message", "size", msg.Size)
+		pm.Log.Warn("Failed to acquire semaphore for p2p message", "size", msg.Size, "peer", p.id)
 		return nil
 	}
 	defer pm.msgSemaphore.Release(eventsSizeEst)
@@ -694,7 +693,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if request.Limit.Num > hardLimitItems {
+		if request.Limit.Num > hardLimitItems-1 {
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
 		if request.Limit.Size > protocolMaxMsgSize*2/3 {
@@ -726,23 +725,16 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return errors.New("expected either events or event hashes")
 		}
 		var last hash.Event
-		var total dag.Metric
 		if len(chunk.IDs) != 0 {
 			pm.handleHashes(p, chunk.IDs)
 			last = chunk.IDs[len(chunk.IDs)-1]
-			total.Num = idx.Event(len(chunk.IDs))
-			total.Size = uint64(len(chunk.IDs) * len(hash.ZeroEvent))
 		}
 		if len(chunk.Events) != 0 {
 			pm.handleEvents(p, chunk.Events.Bases())
 			last = chunk.Events[len(chunk.Events)-1].ID()
-			total.Num = idx.Event(len(chunk.Events))
-			for _, e := range chunk.Events {
-				total.Size += uint64(e.Size())
-			}
 		}
 
-		_ = pm.leecher.NotifyChunkReceived(chunk.SessionID, last, total, chunk.Done)
+		_ = pm.leecher.NotifyChunkReceived(chunk.SessionID, last, chunk.Done)
 
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
