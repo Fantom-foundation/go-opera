@@ -49,7 +49,10 @@ func consensusCallbackBeginBlockFn(
 	occurredTxs *occuredtxs.Buffer,
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
-	var blockQueue *utils.NumQueue
+	var (
+		blockQueue   *utils.NumQueue
+		blockCounter uint64 // blockCounter is a sequence number of the block in the function scope
+	)
 
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		start := time.Now()
@@ -124,13 +127,13 @@ func consensusCallbackBeginBlockFn(
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 
-				blockN := uint64(bs.LastBlock)
+				blockCounter++
 				if blockQueue == nil {
-					blockQueue = utils.NewNumQueue(blockN - 1)
+					blockQueue = utils.NewNumQueue(blockCounter - 1)
 				}
-				go func() {
-					blockQueue.WaitFor(blockN - 1)
-					defer blockQueue.Done(blockN)
+				go func(blockCounter uint64) {
+					blockQueue.WaitFor(blockCounter - 1)
+					defer blockQueue.Done(blockCounter)
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
@@ -241,7 +244,7 @@ func consensusCallbackBeginBlockFn(
 
 					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
-				}()
+				}(blockCounter)
 
 				return
 			},
