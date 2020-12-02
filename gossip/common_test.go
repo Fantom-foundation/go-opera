@@ -63,6 +63,9 @@ type testEnv struct {
 
 	epoch    idx.Epoch
 	eventSeq idx.Event
+
+	callbacks
+	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts)
 }
 
 func newTestEnv() *testEnv {
@@ -117,20 +120,32 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-// consensusCallbackBeginBlockFn makes lachesis.BeginBlockFn.
+// consensusCallbackBeginBlockFn returns single (for testEnv) callback instance.
+// Note that onBlockEnd overwrites previous.
 // Note that onBlockEnd would be run async.
 func (env *testEnv) consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
-	const txIndex = true
-	return consensusCallbackBeginBlockFn(
-		env.network,
-		env.store,
-		env.blockProc,
-		txIndex,
-		nil, nil,
-		onBlockEnd,
-	)
+	env.onBlockEnd = onBlockEnd
+	if env.callbacks.consensus == nil {
+		const txIndex = true
+		blockEndListener := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
+			if env.onBlockEnd != nil {
+				env.onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
+			}
+		}
+		env.callbacks.consensus = &lachesis.ConsensusCallbacks{
+			BeginBlock: consensusCallbackBeginBlockFn(
+				env.network,
+				env.store,
+				env.blockProc,
+				txIndex,
+				nil, nil,
+				blockEndListener,
+			),
+		}
+	}
+	return env.callbacks.consensus.BeginBlock
 }
 
 func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (receipts types.Receipts) {
