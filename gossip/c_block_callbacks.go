@@ -131,6 +131,10 @@ func consensusCallbackBeginBlockFn(
 				if blockQueue == nil {
 					blockQueue = utils.NewNumQueue(blockCounter - 1)
 				}
+				if sealing {
+					// don't start next goroutines until the all previous finished
+					blockQueue.WaitFor(blockCounter - 1)
+				}
 				go func(blockCounter uint64) {
 					blockQueue.WaitFor(blockCounter - 1)
 					defer blockQueue.Done(blockCounter)
