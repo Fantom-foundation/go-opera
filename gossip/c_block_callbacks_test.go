@@ -30,19 +30,27 @@ func TestConsensusCallback(t *testing.T) {
 		balances[i] = env.State().GetBalance(env.Address(i + 1))
 	}
 
-	// transfers
-	for n := 0; n < blockCount; n++ {
+	for n := uint64(0); n < blockCount; n++ {
+		// transfers
 		txs := make([]*types.Transaction, accounts)
 		for i := range txs {
 			from := (i)%accounts + 1
 			to := (i+1)%accounts + 1
 			txs[i] = env.Transfer(from, to, utils.ToFtm(100))
 		}
-		rr := env.ApplyBlock(sameEpoch, txs...)
+		tm := sameEpoch
+		if n%10 == 0 {
+			tm = nextEpoch
+		}
+		rr := env.ApplyBlock(tm, txs...)
 		for i, r := range rr {
 			fee := big.NewInt(0).Mul(big.NewInt(int64(r.GasUsed)), params.MinGasPrice)
 			balances[i] = big.NewInt(0).Sub(balances[i], fee)
 		}
+
+		// some acts to check data race
+		bs := env.store.GetBlockState()
+		require.LessOrEqual(n, uint64(bs.LastBlock))
 	}
 
 	// check balances
