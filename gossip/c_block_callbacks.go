@@ -23,18 +23,26 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
+type callbacks struct {
+	consensus *lachesis.ConsensusCallbacks
+}
+
+// GetConsensusCallbacks returns single (for Service) callback instance.
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
-	return lachesis.ConsensusCallbacks{
-		BeginBlock: consensusCallbackBeginBlockFn(
-			s.net,
-			s.store,
-			s.blockProc,
-			s.config.TxIndex,
-			&s.feed,
-			s.occurredTxs,
-			nil,
-		),
+	if s.callbacks.consensus == nil {
+		s.callbacks.consensus = &lachesis.ConsensusCallbacks{
+			BeginBlock: consensusCallbackBeginBlockFn(
+				s.net,
+				s.store,
+				s.blockProc,
+				s.config.TxIndex,
+				&s.feed,
+				s.occurredTxs,
+				nil,
+			),
+		}
 	}
+	return *s.callbacks.consensus
 }
 
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and

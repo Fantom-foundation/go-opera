@@ -129,6 +129,7 @@ type Service struct {
 
 	stopped bool
 
+	callbacks
 	logger.Instance
 }
 
