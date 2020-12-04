@@ -207,6 +207,7 @@ func consensusCallbackBeginBlockFn(
 				store.SetBlock(bs.LastBlock, block)
 				store.SetBlockState(bs)
 
+				// A parallel thread for notifications, etc
 				blockCounter++
 				if blockQueue == nil {
 					blockQueue = utils.NewNumQueue(blockCounter - 1)
@@ -219,18 +220,6 @@ func consensusCallbackBeginBlockFn(
 					blockQueue.WaitFor(blockCounter - 1)
 					defer blockQueue.Done(blockCounter)
 
-					// Notify about new block and txs
-					if feed != nil {
-						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-						feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
-						var logs []*types.Log
-						for _, r := range allReceipts {
-							for _, l := range r.Logs {
-								logs = append(logs, l)
-							}
-						}
-						feed.newLogs.Send(logs)
-					}
 					// Build index for not skipped txs
 					if txIndex {
 						for _, tx := range evmBlock.Transactions {
@@ -249,6 +238,19 @@ func consensusCallbackBeginBlockFn(
 					}
 					for _, tx := range append(preInternalTxs, internalTxs...) {
 						store.evm.SetTx(tx.Hash(), tx)
+					}
+
+					// Notify about new block and txs
+					if feed != nil {
+						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
+						feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
+						var logs []*types.Log
+						for _, r := range allReceipts {
+							for _, l := range r.Logs {
+								logs = append(logs, l)
+							}
+						}
+						feed.newLogs.Send(logs)
 					}
 
 					if onBlockEnd != nil {
