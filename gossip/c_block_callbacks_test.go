@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -44,7 +43,7 @@ func TestConsensusCallback(t *testing.T) {
 		}
 		rr := env.ApplyBlock(tm, txs...)
 		for i, r := range rr {
-			fee := big.NewInt(0).Mul(big.NewInt(int64(r.GasUsed)), params.MinGasPrice)
+			fee := big.NewInt(0).Mul(new(big.Int).SetUint64(r.GasUsed), txs[i].GasPrice())
 			balances[i] = big.NewInt(0).Sub(balances[i], fee)
 		}
 

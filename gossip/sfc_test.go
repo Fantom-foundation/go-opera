@@ -17,13 +17,13 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfcproxy"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -76,31 +76,34 @@ func TestSFC(t *testing.T) {
 
 func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
 	require := require.New(t)
+	accounts := len(env.validators)
 
-	balances := make([]*big.Int, 3)
+	// save start balances
+	balances := make([]*big.Int, accounts)
 	for i := range balances {
 		balances[i] = env.State().GetBalance(env.Address(i + 1))
 	}
 
-	var gasUsed uint64
 	for i := uint64(0); i < count; i++ {
-		rr := env.ApplyBlock(sameEpoch,
-			env.Transfer(1, 2, utils.ToFtm(100)),
-		)
-		gasUsed += rr[0].GasUsed // per 1 account
-		env.ApplyBlock(sameEpoch,
-			env.Transfer(2, 3, utils.ToFtm(100)),
-		)
-		env.ApplyBlock(sameEpoch,
-			env.Transfer(3, 1, utils.ToFtm(100)),
-		)
+		// transfers
+		txs := make([]*types.Transaction, accounts)
+		for i := range txs {
+			from := (i)%accounts + 1
+			to := (i+1)%accounts + 1
+			txs[i] = env.Transfer(from, to, utils.ToFtm(100))
+		}
+
+		rr := env.ApplyBlock(sameEpoch, txs...)
+		for i, r := range rr {
+			fee := big.NewInt(0).Mul(new(big.Int).SetUint64(r.GasUsed), txs[i].GasPrice())
+			balances[i] = big.NewInt(0).Sub(balances[i], fee)
+		}
 	}
 
-	gp := params.MinGasPrice
-	gas := big.NewInt(0).Mul(big.NewInt(int64(gasUsed)), gp)
+	// check balances
 	for i := range balances {
 		require.Equal(
-			big.NewInt(0).Sub(balances[i], gas),
+			balances[i],
 			env.State().GetBalance(env.Address(i+1)),
 			fmt.Sprintf("account%d", i),
 		)
