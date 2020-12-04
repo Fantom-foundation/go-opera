@@ -135,6 +135,78 @@ func consensusCallbackBeginBlockFn(
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 
+				// Execute post-internal transactions
+				internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
+				internalReceipts := evmProcessor.Execute(internalTxs, true)
+
+				// sort events by Lamport time
+				sort.Sort(confirmedEvents)
+
+				// new block
+				var block = &inter.Block{
+					Time:    blockCtx.Time,
+					Atropos: cBlock.Atropos,
+					Events:  hash.Events(confirmedEvents),
+				}
+				for _, tx := range append(preInternalTxs, internalTxs...) {
+					block.InternalTxs = append(block.InternalTxs, tx.Hash())
+				}
+
+				block, blockEvents := spillBlockEvents(store, block, network)
+				txs := make(types.Transactions, 0, blockEvents.Len()*10)
+				for _, e := range blockEvents {
+					txs = append(txs, e.Txs()...)
+					blockEvents = append(blockEvents, e)
+				}
+
+				externalReceipts := evmProcessor.Execute(txs, false)
+				evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
+
+				block.SkippedTxs = skippedTxs
+				block.Root = hash.Hash(evmBlock.Root)
+
+				// memorize event position of each tx
+				txPositions := make(map[common.Hash]evmstore.TxPosition)
+				for _, e := range blockEvents {
+					for i, tx := range e.Txs() {
+						// If tx was met in multiple events, then assign to first ordered event
+						if _, ok := txPositions[tx.Hash()]; ok {
+							continue
+						}
+						txPositions[tx.Hash()] = evmstore.TxPosition{
+							Event:       e.ID(),
+							EventOffset: uint32(i),
+						}
+					}
+				}
+				// memorize block position of each tx
+				for i, tx := range evmBlock.Transactions {
+					// not skipped txs only
+					position := txPositions[tx.Hash()]
+					position.Block = bs.LastBlock
+					position.BlockOffset = uint32(i)
+					txPositions[tx.Hash()] = position
+				}
+
+				// call OnNewReceipt
+				for i, r := range allReceipts {
+					txEventPos := txPositions[r.TxHash]
+					var creator idx.ValidatorID
+					if !txEventPos.Event.IsZero() {
+						txEvent := store.GetEvent(txEventPos.Event)
+						creator = txEvent.Creator()
+						if es.Validators.Get(creator) == 0 {
+							creator = 0
+						}
+					}
+					txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
+				}
+				bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
+				// At this point, block state is finalized
+
+				store.SetBlock(bs.LastBlock, block)
+				store.SetBlockState(bs)
+
 				blockCounter++
 				if blockQueue == nil {
 					blockQueue = utils.NewNumQueue(blockCounter - 1)
@@ -146,77 +218,6 @@ func consensusCallbackBeginBlockFn(
 				go func(blockCounter uint64) {
 					blockQueue.WaitFor(blockCounter - 1)
 					defer blockQueue.Done(blockCounter)
-					// Execute post-internal transactions
-					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-					internalReceipts := evmProcessor.Execute(internalTxs, true)
-
-					// sort events by Lamport time
-					sort.Sort(confirmedEvents)
-
-					// new block
-					var block = &inter.Block{
-						Time:    blockCtx.Time,
-						Atropos: cBlock.Atropos,
-						Events:  hash.Events(confirmedEvents),
-					}
-					for _, tx := range append(preInternalTxs, internalTxs...) {
-						block.InternalTxs = append(block.InternalTxs, tx.Hash())
-					}
-
-					block, blockEvents := spillBlockEvents(store, block, network)
-					txs := make(types.Transactions, 0, blockEvents.Len()*10)
-					for _, e := range blockEvents {
-						txs = append(txs, e.Txs()...)
-						blockEvents = append(blockEvents, e)
-					}
-
-					externalReceipts := evmProcessor.Execute(txs, false)
-					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
-
-					block.SkippedTxs = skippedTxs
-					block.Root = hash.Hash(evmBlock.Root)
-
-					// memorize event position of each tx
-					txPositions := make(map[common.Hash]evmstore.TxPosition)
-					for _, e := range blockEvents {
-						for i, tx := range e.Txs() {
-							// If tx was met in multiple events, then assign to first ordered event
-							if _, ok := txPositions[tx.Hash()]; ok {
-								continue
-							}
-							txPositions[tx.Hash()] = evmstore.TxPosition{
-								Event:       e.ID(),
-								EventOffset: uint32(i),
-							}
-						}
-					}
-					// memorize block position of each tx
-					for i, tx := range evmBlock.Transactions {
-						// not skipped txs only
-						position := txPositions[tx.Hash()]
-						position.Block = bs.LastBlock
-						position.BlockOffset = uint32(i)
-						txPositions[tx.Hash()] = position
-					}
-
-					// call OnNewReceipt
-					for i, r := range allReceipts {
-						txEventPos := txPositions[r.TxHash]
-						var creator idx.ValidatorID
-						if !txEventPos.Event.IsZero() {
-							txEvent := store.GetEvent(txEventPos.Event)
-							creator = txEvent.Creator()
-							if es.Validators.Get(creator) == 0 {
-								creator = 0
-							}
-						}
-						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
-					}
-					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
-					// At this point, block state is finalized
-
-					store.SetBlock(bs.LastBlock, block)
-					store.SetBlockState(bs)
 
 					// Notify about new block and txs
 					if feed != nil {
