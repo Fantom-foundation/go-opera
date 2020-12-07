@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
+	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -117,8 +118,9 @@ type Service struct {
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
 
-	wgBlockProc sync.WaitGroup
-	blockProc   BlockProc
+	blockProcWg      sync.WaitGroup
+	blockProcTasks   *workers.Workers
+	blockProcModules BlockProc
 
 	feed ServiceFeed
 
@@ -157,20 +159,21 @@ func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, 
 
 func newService(config Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
-		config:         config,
-		net:            net,
-		wg:             sync.WaitGroup{},
-		done:           make(chan struct{}),
-		Name:           fmt.Sprintf("Node-%d", rand.Int()),
-		store:          store,
-		engine:         engine,
-		blockProc:      blockProc,
-		dagIndexer:     dagIndexer,
-		engineMu:       new(sync.RWMutex),
-		occurredTxs:    occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(net.EvmChainConfig().ChainID)),
-		uniqueEventIDs: uniqueID{new(big.Int)},
-		Instance:       logger.MakeInstance(),
+		config:           config,
+		net:              net,
+		done:             make(chan struct{}),
+		Name:             fmt.Sprintf("Node-%d", rand.Int()),
+		store:            store,
+		engine:           engine,
+		blockProcModules: blockProc,
+		dagIndexer:       dagIndexer,
+		engineMu:         new(sync.RWMutex),
+		occurredTxs:      occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(net.EvmChainConfig().ChainID)),
+		uniqueEventIDs:   uniqueID{new(big.Int)},
+		Instance:         logger.MakeInstance(),
 	}
+
+	svc.blockProcTasks = workers.New(&svc.wg, svc.done, 1)
 
 	// create server pool
 	trustedNodes := []string{}
@@ -316,6 +319,8 @@ func (s *Service) Start() error {
 			s.p2pServer.DiscV5.RegisterTopic(topic, s.done)
 		}(s.Topic)
 	}
+
+	s.blockProcTasks.Start(1)
 
 	s.pm.Start(s.p2pServer.MaxPeers)
 

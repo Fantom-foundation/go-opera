@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
+	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,8 +52,9 @@ type testEnv struct {
 	network opera.Rules
 	store   *Store
 
-	wgBlockProc sync.WaitGroup
-	blockProc   BlockProc
+	blockProcWg      sync.WaitGroup
+	blockProcTasks   *workers.Workers
+	blockProcModules BlockProc
 
 	signer types.Signer
 
@@ -65,6 +67,9 @@ type testEnv struct {
 
 	epoch    idx.Epoch
 	eventSeq idx.Event
+
+	wg   sync.WaitGroup
+	done chan struct{}
 }
 
 func newTestEnv() *testEnv {
@@ -93,10 +98,10 @@ func newTestEnv() *testEnv {
 	}
 
 	env := &testEnv{
-		network:   network,
-		blockProc: blockProc,
-		store:     store,
-		signer:    types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+		network:          network,
+		blockProcModules: blockProc,
+		store:            store,
+		signer:           types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 
 		lastBlock:     0,
 		lastState:     store.GetBlock(0).Root,
@@ -104,13 +109,20 @@ func newTestEnv() *testEnv {
 		validators:    genesis.State.Validators,
 
 		nonces: make(map[common.Address]uint64),
+
+		done: make(chan struct{}),
 	}
+
+	env.blockProcTasks = workers.New(&env.wg, env.done, 1)
+	env.blockProcTasks.Start(1)
 
 	return env
 }
 
 func (env *testEnv) Close() {
+	close(env.done)
 	env.store.Close()
+	env.wg.Wait()
 }
 
 func (env *testEnv) GetEvmStateReader() *EvmStateReader {
@@ -127,10 +139,11 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 ) lachesis.BeginBlockFn {
 	const txIndex = true
 	callback := consensusCallbackBeginBlockFn(
-		&env.wgBlockProc,
+		env.blockProcTasks,
+		&env.blockProcWg,
 		env.network,
 		env.store,
-		env.blockProc,
+		env.blockProcModules,
 		txIndex,
 		nil, nil,
 		onBlockEnd,

@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
+	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -27,10 +28,11 @@ import (
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
 		BeginBlock: consensusCallbackBeginBlockFn(
-			&s.wgBlockProc,
+			s.blockProcTasks,
+			&s.blockProcWg,
 			s.net,
 			s.store,
-			s.blockProc,
+			s.blockProcModules,
 			s.config.TxIndex,
 			&s.feed,
 			s.occurredTxs,
@@ -43,6 +45,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 // makes lachesis.BeginBlockFn.
 // Note that onBlockEnd would be run async.
 func consensusCallbackBeginBlockFn(
+	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
 	network opera.Rules,
 	store *Store,
@@ -126,7 +129,7 @@ func consensusCallbackBeginBlockFn(
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 				wg.Add(1)
-				go func() {
+				err := parallelTasks.Enqueue(func() {
 					defer wg.Done()
 
 					// Execute post-internal transactions
@@ -241,7 +244,11 @@ func consensusCallbackBeginBlockFn(
 					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 
-				}()
+				})
+				if err != nil {
+					panic(err)
+				}
+
 				return
 			},
 		}
