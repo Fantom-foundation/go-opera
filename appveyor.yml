@@ -10,7 +10,7 @@ environment:
   GOPATH: c:\gopath
   GO111MODULE: on
 
-stack: go 1.13
+stack: go 1.14
 
 init:
   - choco install make mingw

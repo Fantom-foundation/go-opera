@@ -1,6 +1,6 @@
 module github.com/Fantom-foundation/go-opera
 
-go 1.13
+go 1.14
 
 require (
 	github.com/Fantom-foundation/lachesis-base v0.0.0-20201208055012-a1325f0a96c0
