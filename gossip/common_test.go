@@ -65,8 +65,6 @@ type testEnv struct {
 
 	epoch    idx.Epoch
 	eventSeq idx.Event
-
-	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts)
 }
 
 func newTestEnv() *testEnv {
