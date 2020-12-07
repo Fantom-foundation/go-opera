@@ -207,9 +207,6 @@ func consensusCallbackBeginBlockFn(
 					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
 					// At this point, block state is finalized
 
-					store.SetBlock(bs.LastBlock, block)
-					store.SetBlockState(bs)
-
 					// Build index for not skipped txs
 					if txIndex {
 						for _, tx := range evmBlock.Transactions {
@@ -229,6 +226,9 @@ func consensusCallbackBeginBlockFn(
 					for _, tx := range append(preInternalTxs, internalTxs...) {
 						store.evm.SetTx(tx.Hash(), tx)
 					}
+
+					store.SetBlock(bs.LastBlock, block)
+					store.SetBlockState(bs)
 
 					// Notify about new block and txs
 					if feed != nil {
