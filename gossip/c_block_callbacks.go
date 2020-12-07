@@ -21,7 +21,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 type callbacks struct {
@@ -59,9 +58,7 @@ func consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	var (
-		wg           sync.WaitGroup
-		blockQueue   *utils.NumQueue
-		blockCounter uint64 // blockCounter is a sequence number of the block in the function scope
+		wg sync.WaitGroup
 	)
 
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
@@ -213,59 +210,46 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlock(bs.LastBlock, block)
 					store.SetBlockState(bs)
 
-					// A parallel thread for notifications, etc
-					blockCounter++
-					if blockQueue == nil {
-						blockQueue = utils.NewNumQueue(blockCounter - 1)
-					}
-					if sealing {
-						// don't start next goroutines until the all previous finished
-						blockQueue.WaitFor(blockCounter - 1)
-					}
-					go func(blockCounter uint64) {
-						blockQueue.WaitFor(blockCounter - 1)
-						defer blockQueue.Done(blockCounter)
-
-						// Build index for not skipped txs
-						if txIndex {
-							for _, tx := range evmBlock.Transactions {
-								// not skipped txs only
-								store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
-							}
-
-							// Index receipts
-							if allReceipts.Len() != 0 {
-								store.evm.SetReceipts(bs.LastBlock, allReceipts)
-
-								for _, r := range allReceipts {
-									store.evm.IndexLogs(r.Logs...)
-								}
-							}
-						}
-						for _, tx := range append(preInternalTxs, internalTxs...) {
-							store.evm.SetTx(tx.Hash(), tx)
+					// Build index for not skipped txs
+					if txIndex {
+						for _, tx := range evmBlock.Transactions {
+							// not skipped txs only
+							store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
 						}
 
-						// Notify about new block and txs
-						if feed != nil {
-							feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-							feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
-							var logs []*types.Log
+						// Index receipts
+						if allReceipts.Len() != 0 {
+							store.evm.SetReceipts(bs.LastBlock, allReceipts)
+
 							for _, r := range allReceipts {
-								for _, l := range r.Logs {
-									logs = append(logs, l)
-								}
+								store.evm.IndexLogs(r.Logs...)
 							}
-							feed.newLogs.Send(logs)
 						}
+					}
+					for _, tx := range append(preInternalTxs, internalTxs...) {
+						store.evm.SetTx(tx.Hash(), tx)
+					}
 
-						if onBlockEnd != nil {
-							onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
+					// Notify about new block and txs
+					if feed != nil {
+						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
+						feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
+						var logs []*types.Log
+						for _, r := range allReceipts {
+							for _, l := range r.Logs {
+								logs = append(logs, l)
+							}
 						}
+						feed.newLogs.Send(logs)
+					}
 
-						log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
-							evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
-					}(blockCounter)
+					if onBlockEnd != nil {
+						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
+					}
+
+					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
+						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
+
 				}()
 				return
 			},
