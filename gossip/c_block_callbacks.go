@@ -23,32 +23,27 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-type callbacks struct {
-	consensus *lachesis.ConsensusCallbacks
-}
-
 // GetConsensusCallbacks returns single (for Service) callback instance.
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
-	if s.callbacks.consensus == nil {
-		s.callbacks.consensus = &lachesis.ConsensusCallbacks{
-			BeginBlock: consensusCallbackBeginBlockFn(
-				s.net,
-				s.store,
-				s.blockProc,
-				s.config.TxIndex,
-				&s.feed,
-				s.occurredTxs,
-				nil,
-			),
-		}
+	return lachesis.ConsensusCallbacks{
+		BeginBlock: consensusCallbackBeginBlockFn(
+			&s.wgBlockProc,
+			s.net,
+			s.store,
+			s.blockProc,
+			s.config.TxIndex,
+			&s.feed,
+			s.occurredTxs,
+			nil,
+		),
 	}
-	return *s.callbacks.consensus
 }
 
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and
 // makes lachesis.BeginBlockFn.
 // Note that onBlockEnd would be run async.
 func consensusCallbackBeginBlockFn(
+	wg *sync.WaitGroup,
 	network opera.Rules,
 	store *Store,
 	blockProc BlockProc,
@@ -57,10 +52,6 @@ func consensusCallbackBeginBlockFn(
 	occurredTxs *occuredtxs.Buffer,
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
-	var (
-		wg sync.WaitGroup
-	)
-
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		wg.Wait()
 		start := time.Now()

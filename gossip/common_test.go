@@ -48,9 +48,11 @@ const (
 )
 
 type testEnv struct {
-	network   opera.Rules
-	blockProc BlockProc
-	store     *Store
+	network opera.Rules
+	store   *Store
+
+	wgBlockProc sync.WaitGroup
+	blockProc   BlockProc
 
 	signer types.Signer
 
@@ -64,7 +66,6 @@ type testEnv struct {
 	epoch    idx.Epoch
 	eventSeq idx.Event
 
-	callbacks
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts)
 }
 
@@ -126,26 +127,17 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 func (env *testEnv) consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
-	env.onBlockEnd = onBlockEnd
-	if env.callbacks.consensus == nil {
-		const txIndex = true
-		blockEndListener := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
-			if env.onBlockEnd != nil {
-				env.onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
-			}
-		}
-		env.callbacks.consensus = &lachesis.ConsensusCallbacks{
-			BeginBlock: consensusCallbackBeginBlockFn(
-				env.network,
-				env.store,
-				env.blockProc,
-				txIndex,
-				nil, nil,
-				blockEndListener,
-			),
-		}
-	}
-	return env.callbacks.consensus.BeginBlock
+	const txIndex = true
+	callback := consensusCallbackBeginBlockFn(
+		&env.wgBlockProc,
+		env.network,
+		env.store,
+		env.blockProc,
+		txIndex,
+		nil, nil,
+		onBlockEnd,
+	)
+	return callback
 }
 
 func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (receipts types.Receipts) {

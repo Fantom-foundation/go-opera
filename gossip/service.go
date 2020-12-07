@@ -117,7 +117,8 @@ type Service struct {
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
 
-	blockProc BlockProc
+	wgBlockProc sync.WaitGroup
+	blockProc   BlockProc
 
 	feed ServiceFeed
 
@@ -129,7 +130,6 @@ type Service struct {
 
 	stopped bool
 
-	callbacks
 	logger.Instance
 }
 
