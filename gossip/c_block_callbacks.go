@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -58,11 +59,13 @@ func consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	var (
+		wg           sync.WaitGroup
 		blockQueue   *utils.NumQueue
 		blockCounter uint64 // blockCounter is a sequence number of the block in the function scope
 	)
 
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
+		wg.Wait()
 		start := time.Now()
 
 		bs := store.GetBlockState()
@@ -134,133 +137,136 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
 
-				// Execute post-internal transactions
-				internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-				internalReceipts := evmProcessor.Execute(internalTxs, true)
+					// Execute post-internal transactions
+					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
+					internalReceipts := evmProcessor.Execute(internalTxs, true)
 
-				// sort events by Lamport time
-				sort.Sort(confirmedEvents)
+					// sort events by Lamport time
+					sort.Sort(confirmedEvents)
 
-				// new block
-				var block = &inter.Block{
-					Time:    blockCtx.Time,
-					Atropos: cBlock.Atropos,
-					Events:  hash.Events(confirmedEvents),
-				}
-				for _, tx := range append(preInternalTxs, internalTxs...) {
-					block.InternalTxs = append(block.InternalTxs, tx.Hash())
-				}
-
-				block, blockEvents := spillBlockEvents(store, block, network)
-				txs := make(types.Transactions, 0, blockEvents.Len()*10)
-				for _, e := range blockEvents {
-					txs = append(txs, e.Txs()...)
-					blockEvents = append(blockEvents, e)
-				}
-
-				externalReceipts := evmProcessor.Execute(txs, false)
-				evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
-
-				block.SkippedTxs = skippedTxs
-				block.Root = hash.Hash(evmBlock.Root)
-
-				// memorize event position of each tx
-				txPositions := make(map[common.Hash]evmstore.TxPosition)
-				for _, e := range blockEvents {
-					for i, tx := range e.Txs() {
-						// If tx was met in multiple events, then assign to first ordered event
-						if _, ok := txPositions[tx.Hash()]; ok {
-							continue
-						}
-						txPositions[tx.Hash()] = evmstore.TxPosition{
-							Event:       e.ID(),
-							EventOffset: uint32(i),
-						}
-					}
-				}
-				// memorize block position of each tx
-				for i, tx := range evmBlock.Transactions {
-					// not skipped txs only
-					position := txPositions[tx.Hash()]
-					position.Block = bs.LastBlock
-					position.BlockOffset = uint32(i)
-					txPositions[tx.Hash()] = position
-				}
-
-				// call OnNewReceipt
-				for i, r := range allReceipts {
-					txEventPos := txPositions[r.TxHash]
-					var creator idx.ValidatorID
-					if !txEventPos.Event.IsZero() {
-						txEvent := store.GetEvent(txEventPos.Event)
-						creator = txEvent.Creator()
-						if es.Validators.Get(creator) == 0 {
-							creator = 0
-						}
-					}
-					txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
-				}
-				bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
-				// At this point, block state is finalized
-
-				store.SetBlock(bs.LastBlock, block)
-				store.SetBlockState(bs)
-
-				// A parallel thread for notifications, etc
-				blockCounter++
-				if blockQueue == nil {
-					blockQueue = utils.NewNumQueue(blockCounter - 1)
-				}
-				if sealing {
-					// don't start next goroutines until the all previous finished
-					blockQueue.WaitFor(blockCounter - 1)
-				}
-				go func(blockCounter uint64) {
-					blockQueue.WaitFor(blockCounter - 1)
-					defer blockQueue.Done(blockCounter)
-
-					// Build index for not skipped txs
-					if txIndex {
-						for _, tx := range evmBlock.Transactions {
-							// not skipped txs only
-							store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
-						}
-
-						// Index receipts
-						if allReceipts.Len() != 0 {
-							store.evm.SetReceipts(bs.LastBlock, allReceipts)
-
-							for _, r := range allReceipts {
-								store.evm.IndexLogs(r.Logs...)
-							}
-						}
+					// new block
+					var block = &inter.Block{
+						Time:    blockCtx.Time,
+						Atropos: cBlock.Atropos,
+						Events:  hash.Events(confirmedEvents),
 					}
 					for _, tx := range append(preInternalTxs, internalTxs...) {
-						store.evm.SetTx(tx.Hash(), tx)
+						block.InternalTxs = append(block.InternalTxs, tx.Hash())
 					}
 
-					// Notify about new block and txs
-					if feed != nil {
-						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-						feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
-						var logs []*types.Log
-						for _, r := range allReceipts {
-							for _, l := range r.Logs {
-								logs = append(logs, l)
+					block, blockEvents := spillBlockEvents(store, block, network)
+					txs := make(types.Transactions, 0, blockEvents.Len()*10)
+					for _, e := range blockEvents {
+						txs = append(txs, e.Txs()...)
+						blockEvents = append(blockEvents, e)
+					}
+
+					externalReceipts := evmProcessor.Execute(txs, false)
+					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
+
+					block.SkippedTxs = skippedTxs
+					block.Root = hash.Hash(evmBlock.Root)
+
+					// memorize event position of each tx
+					txPositions := make(map[common.Hash]evmstore.TxPosition)
+					for _, e := range blockEvents {
+						for i, tx := range e.Txs() {
+							// If tx was met in multiple events, then assign to first ordered event
+							if _, ok := txPositions[tx.Hash()]; ok {
+								continue
+							}
+							txPositions[tx.Hash()] = evmstore.TxPosition{
+								Event:       e.ID(),
+								EventOffset: uint32(i),
 							}
 						}
-						feed.newLogs.Send(logs)
+					}
+					// memorize block position of each tx
+					for i, tx := range evmBlock.Transactions {
+						// not skipped txs only
+						position := txPositions[tx.Hash()]
+						position.Block = bs.LastBlock
+						position.BlockOffset = uint32(i)
+						txPositions[tx.Hash()] = position
 					}
 
-					if onBlockEnd != nil {
-						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
+					// call OnNewReceipt
+					for i, r := range allReceipts {
+						txEventPos := txPositions[r.TxHash]
+						var creator idx.ValidatorID
+						if !txEventPos.Event.IsZero() {
+							txEvent := store.GetEvent(txEventPos.Event)
+							creator = txEvent.Creator()
+							if es.Validators.Get(creator) == 0 {
+								creator = 0
+							}
+						}
+						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
+					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
+					// At this point, block state is finalized
 
-					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
-						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
-				}(blockCounter)
+					store.SetBlock(bs.LastBlock, block)
+					store.SetBlockState(bs)
 
+					// A parallel thread for notifications, etc
+					blockCounter++
+					if blockQueue == nil {
+						blockQueue = utils.NewNumQueue(blockCounter - 1)
+					}
+					if sealing {
+						// don't start next goroutines until the all previous finished
+						blockQueue.WaitFor(blockCounter - 1)
+					}
+					go func(blockCounter uint64) {
+						blockQueue.WaitFor(blockCounter - 1)
+						defer blockQueue.Done(blockCounter)
+
+						// Build index for not skipped txs
+						if txIndex {
+							for _, tx := range evmBlock.Transactions {
+								// not skipped txs only
+								store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
+							}
+
+							// Index receipts
+							if allReceipts.Len() != 0 {
+								store.evm.SetReceipts(bs.LastBlock, allReceipts)
+
+								for _, r := range allReceipts {
+									store.evm.IndexLogs(r.Logs...)
+								}
+							}
+						}
+						for _, tx := range append(preInternalTxs, internalTxs...) {
+							store.evm.SetTx(tx.Hash(), tx)
+						}
+
+						// Notify about new block and txs
+						if feed != nil {
+							feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
+							feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
+							var logs []*types.Log
+							for _, r := range allReceipts {
+								for _, l := range r.Logs {
+									logs = append(logs, l)
+								}
+							}
+							feed.newLogs.Send(logs)
+						}
+
+						if onBlockEnd != nil {
+							onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
+						}
+
+						log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
+							evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
+					}(blockCounter)
+				}()
 				return
 			},
 		}
