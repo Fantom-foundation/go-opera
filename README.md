@@ -8,7 +8,7 @@ Building `opera` requires both a Go (version 1.14 or later) and a C compiler. Yo
 them using your favourite package manager. Once the dependencies are installed, run
 
 ```shell
-go build -o ./build/opera ./cmd/opera
+make opera
 ```
 The build output is ```build/opera``` executable.
 
