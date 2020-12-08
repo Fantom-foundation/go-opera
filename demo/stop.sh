@@ -1,9 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
+cd $(dirname $0)
 
-PROG=opera
-
-# kill all opera processes
-pkill "${PROG}"
-
-# remove demo data
-rm -rf /tmp/opera-demo/datadir/
+killall opera

@@ -1,55 +1,44 @@
-#!/bin/bash
-
-# This script will launch a cluster of OPERA nodes
-# The parameter N = number of nodes to run
+#!/usr/bin/env bash
+cd $(dirname $0)
+. ./_params.sh
 
 set -e
 
-# number of nodes N
-N=5
+echo -e "\nStart $N nodes:\n"
 
-#
-PROG=opera
-EXEC=../build/opera
-
-# default ip using localhost
-IP=127.0.0.1
-# default RPC port PORT
-# the actual ports are PORT+1, PORT+2, etc (18541, 18542, 18543, ... )
-#PORT=18540
-PORT=4000
-
-declare -r OPERA_BASE_DIR=/tmp/opera-demo
-
-
-echo -e "\nStart $N nodes:"
-for i in $(seq $N)
+rm -f ./transactions.rlp
+for ((i=0;i<$N;i+=1))
 do
-    rpcport=$((PORT + i))
-    p2pport=$((5050 + i))
+    DATADIR="${PWD}/opera$i.datadir"
+    rm -fr ${DATADIR}
+    mkdir -p ${DATADIR}
 
-    ${EXEC} \
-  --nat extip:$IP \
-	--fakenet $i/$N \
-	--port ${p2pport} --http --http.api "eth,ftm,dag,debug,admin,web3,personal,net,txpool" --http.port ${rpcport} --nousb --verbosity 3 \
-	--datadir "${OPERA_BASE_DIR}/datadir/opera$i" &
-    echo -e "Started opera client at ${IP}:${port}"
+    PORT=$(($PORT_BASE+$i))
+    RPCP=$(($RPCP_BASE+$i))
+    WSP=$(($WSP_BASE+$i))
+    ACC=$(($i+1))
+    (go run ../cmd/opera \
+	--datadir=${DATADIR} \
+	--fakenet=${ACC}/$N,1000 \
+	--port=${PORT} \
+	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \
+	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \
+	--nousb --verbosity=3 --tracing &> opera$i.log)&
 done
 
-
-
 attach_and_exec() {
-    local URL=$1
+    local i=$1
     local CMD=$2
+    local RPCP=$(($RPCP_BASE+$i))
 
     for attempt in $(seq 20)
     do
         if (( attempt > 5 ));
-        then
+        then 
             echo "  - attempt ${attempt}: " >&2
         fi;
 
-        res=$("${EXEC}" --exec "${CMD}" attach http://${URL} 2> /dev/null)
+        res=$(go run ../cmd/opera --exec "${CMD}" attach http://127.0.0.1:${RPCP} 2> /dev/null)
         if [ $? -eq 0 ]
         then
             #echo "success" >&2
@@ -64,28 +53,15 @@ attach_and_exec() {
     return 1
 }
 
-
 echo -e "\nConnect nodes to ring:\n"
-for i in $(seq $N)
+for ((i=0;i<$N;i+=1))
 do
-    j=$((i % N + 1))
+    j=$(((i+1) % N))
 
-    echo " getting node-$j address:"
-	url=${IP}:$((PORT + j))
-	echo "    at url: ${url}"
-
-    enode=$(attach_and_exec ${url} 'admin.nodeInfo.enode')
+    enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
     echo "    p2p address = ${enode}"
 
     echo " connecting node-$i to node-$j:"
-    url=${IP}:$((PORT + i))
-    echo "    at url: ${url}"
-
-    res=$(attach_and_exec ${url} "admin.addPeer(${enode})")
+    res=$(attach_and_exec $i "admin.addPeer(${enode})")
     echo "    result = ${res}"
 done
-
-
-echo
-echo "Sleep for 10000 seconds..."
-sleep 10000
