@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagfetcher"
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
@@ -25,13 +26,13 @@ type (
 		LatencyImportance    int
 		ThroughputImportance int
 
-		EventsBufferLimit    dag.Metric
 		EventsSemaphoreLimit dag.Metric
 		MsgsSemaphoreLimit   dag.Metric
-
-		EventsSemaphoreTimeout time.Duration
+		MsgsSemaphoreTimeout time.Duration
 
 		ProgressBroadcastPeriod time.Duration
+
+		Processor dagprocessor.Config
 
 		Fetcher       dagfetcher.Config
 		StreamLeecher streamleecher.Config
@@ -105,22 +106,18 @@ func DefaultConfig() Config {
 		Protocol: ProtocolConfig{
 			LatencyImportance:    60,
 			ThroughputImportance: 40,
-			EventsBufferLimit: dag.Metric{
-				// Shouldn't be too big because complexity is O(n) for each insertion in the EventsBuffer
-				Num:  500,
-				Size: 10 * opt.MiB,
+			MsgsSemaphoreLimit: dag.Metric{
+				Num:  1000,
+				Size: 30 * opt.MiB,
 			},
 			EventsSemaphoreLimit: dag.Metric{
 				Num:  10000,
 				Size: 30 * opt.MiB,
 			},
-			MsgsSemaphoreLimit: dag.Metric{
-				Num:  1000,
-				Size: 30 * opt.MiB,
-			},
-			EventsSemaphoreTimeout:  10 * time.Second,
+			MsgsSemaphoreTimeout:    10 * time.Second,
 			ProgressBroadcastPeriod: 10 * time.Second,
 
+			Processor:     dagprocessor.DefaultConfig(),
 			Fetcher:       dagfetcher.DefaultConfig(),
 			StreamLeecher: streamleecher.DefaultConfig(),
 			StreamSeeder:  streamseeder.DefaultConfig(),
@@ -132,7 +129,6 @@ func DefaultConfig() Config {
 			MaxPrice:   gasprice.DefaultMaxPrice,
 		},
 	}
-	cfg.HeavyCheck.MaxBatch = cfg.Protocol.Fetcher.MaxEventsBatch
 
 	return cfg
 }
@@ -148,9 +144,9 @@ func (c *Config) Validate() error {
 		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.StreamLeecher.Session.DefaultChunkSize.Size {
 		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (DefaultChunkSize)", c.Protocol.StreamLeecher.Session.DefaultChunkSize.String())
 	}
-	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.EventsBufferLimit.Num ||
-		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.EventsBufferLimit.Size {
-		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (EventsBufferLimit)", c.Protocol.EventsBufferLimit.String())
+	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.Processor.EventsBufferLimit.Num ||
+		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.Processor.EventsBufferLimit.Size {
+		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (EventsBufferLimit)", c.Protocol.Processor.EventsBufferLimit.String())
 	}
 	if c.Protocol.EventsSemaphoreLimit.Size < 2*protocolMaxMsgSize {
 		return fmt.Errorf("EventsSemaphoreLimit.Size has to be at least %d", 2*protocolMaxMsgSize)
@@ -158,7 +154,7 @@ func (c *Config) Validate() error {
 	if c.Protocol.MsgsSemaphoreLimit.Size < protocolMaxMsgSize {
 		return fmt.Errorf("MsgsSemaphoreLimit.Size has to be at least %d", protocolMaxMsgSize)
 	}
-	if c.Protocol.EventsBufferLimit.Size < protocolMaxMsgSize {
+	if c.Protocol.Processor.EventsBufferLimit.Size < protocolMaxMsgSize {
 		return fmt.Errorf("EventsBufferLimit.Size has to be at least %d", protocolMaxMsgSize)
 	}
 	return nil
