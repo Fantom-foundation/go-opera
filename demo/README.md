@@ -1,20 +1,19 @@
-# Docker
+# Demo
 
-Contains the scripts to do opera benchmarking (only for fakenet now) with Docker.
+Contains the scripts to do opera benchmarking (only for fakenet now).
 
 ## for common purpose
 
-  - build node docker image "opera": `make opera` (use GOPROXY and TAG env vars optionally);
   - run network: `./start.sh`;
   - stop network: `./stop.sh`;
+  - clean data and logs: `./clean.sh`;
 
 You could specify number of validators by setting N environment variable.
-It is possible to get the error "failed RPC connection to" because nodes start slowly. Try `./start.sh` again.
 
 
 ## Stake transfer example
 
-from [`docker/`](./docker/) dir
+from [`demo/`](./demo/) dir
 
 * Start network:
 ```sh
@@ -23,7 +22,7 @@ N=3 ./start.sh
 
 * Attach js-console to running node0:
 ```sh
-docker exec -ti node0 /opera attach http://localhost:18545
+go run ../cmd/opera attach http://localhost:4000
 ```
 
 * Check the balance to ensure that node0 has something to transfer (node0 js-console):
@@ -38,7 +37,7 @@ eth.getBalance(eth.coinbase);
 
 * Get node1 address:
 ```sh
-docker exec -i node1 /opera attach --exec "eth.coinbase" http://localhost:18545
+go run ../cmd/opera attach --exec "eth.coinbase" http://localhost:4001
 ```
  output shows address:
 ```js
@@ -70,17 +69,11 @@ eth.getTransactionReceipt("0x68a7c1daeee7e7ab5aedf0d0dba337dbf79ce0988387cf6d63e
 
 * As soon as transaction is included into a block you will see new balance of both node addresses:
 ```sh
-docker exec -i node0 /opera attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
-docker exec -i node1 /opera attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
+go run ../cmd/opera attach --exec "eth.getBalance(eth.coinbase)" http://localhost:4000
+go run ../cmd/opera attach --exec "eth.getBalance(eth.coinbase)" http://localhost:4001
 ```
  outputs:
 ```js
 9.99999999978999e+23
 1.000000000000001e+24                                                                                                                                                                                       
 ```
-
-
-## without docker
-
-You can do the same without docker, see `local-*.sh` scripts.
-

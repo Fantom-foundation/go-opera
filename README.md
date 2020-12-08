@@ -170,7 +170,6 @@ $ opera --fakenet 1/5 --bootnodes "enode://verylonghex@1.2.3.4:5050"
 
 For the testing purposes, the full demo may be launched using:
 ```shell
-make
 cd demo/
 ./start.sh # start the Opera processes
 ./stop.sh # stop the demo and erase the chain data
