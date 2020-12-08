@@ -10,6 +10,15 @@ opera:
 	    -o build/opera \
 	    ./cmd/opera
 
+TAG ?= "latest"
+.PHONY: opera-image
+opera-image:
+	docker build \
+    	    --network=host \
+    	    --build-arg GOPROXY=$(GOPROXY) \
+    	    -f ./docker/Dockerfile.opera -t "opera:$(TAG)" .
+
+
 .PHONY: test
 test:
 	go test ./...

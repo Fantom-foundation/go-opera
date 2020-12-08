@@ -50,8 +50,7 @@ One of the quickest ways to get Lachesis up and running on your machine is by us
 Docker:
 
 ```shell
-cd docker/
-make
+make opera-image
 docker run -d --name opera-node -v /home/alice/opera:/root \
            -p 5050:5050 \
           "opera" \
