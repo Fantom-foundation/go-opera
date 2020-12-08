@@ -24,6 +24,8 @@ do
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \
 	--nousb --verbosity=3 --tracing &> opera$i.log)&
+
+    echo -e "\tnode$i ok"
 done
 
 attach_and_exec() {
