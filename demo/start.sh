@@ -19,7 +19,7 @@ do
     ACC=$(($i+1))
     (go run ../cmd/opera \
 	--datadir=${DATADIR} \
-	--fakenet=${ACC}/$N,1000 \
+	--fakenet=${ACC}/$N \
 	--port=${PORT} \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,sfc" \

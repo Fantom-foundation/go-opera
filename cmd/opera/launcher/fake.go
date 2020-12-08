@@ -15,7 +15,7 @@ import (
 // FakeNetFlag enables special testnet, where validators are automatically created
 var FakeNetFlag = cli.StringFlag{
 	Name:  "fakenet",
-	Usage: "'n/N[,non-validators]' - sets coinbase as fake n-th key from genesis of N validators. Non-validators is a count or json-file.",
+	Usage: "'n/N' - sets coinbase as fake n-th key from genesis of N validators.",
 }
 
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
@@ -45,9 +45,7 @@ func parseFakeGen(s string) (id idx.ValidatorID, num int, err error) {
 	}
 	id = idx.ValidatorID(u32)
 
-	parts = strings.SplitN(parts[1], ",", 2)
-
-	u32, err = strconv.ParseUint(parts[0], 10, 32)
+	u32, err = strconv.ParseUint(parts[1], 10, 32)
 	num = int(u32)
 	if num < 0 || int(id) > num {
 		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
