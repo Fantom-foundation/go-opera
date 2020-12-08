@@ -111,6 +111,7 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
+	em.syncStatus.startup = time.Now()
 	em.syncStatus.lastConnected = time.Now()
 	em.syncStatus.p2pSynced = time.Now()
 	validators, epoch := em.world.Store.GetEpochValidators()
@@ -122,6 +123,7 @@ func (em *Emitter) StartEventEmission() {
 	if em.done != nil {
 		return
 	}
+	em.init()
 	em.done = make(chan struct{})
 
 	newTxsCh := make(chan evmcore.NewTxsNotify)
