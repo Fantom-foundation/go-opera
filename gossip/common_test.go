@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -13,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
+	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -47,9 +49,12 @@ const (
 )
 
 type testEnv struct {
-	network   opera.Rules
-	blockProc BlockProc
-	store     *Store
+	network opera.Rules
+	store   *Store
+
+	blockProcWg      sync.WaitGroup
+	blockProcTasks   *workers.Workers
+	blockProcModules BlockProc
 
 	signer types.Signer
 
@@ -62,6 +67,9 @@ type testEnv struct {
 
 	epoch    idx.Epoch
 	eventSeq idx.Event
+
+	wg   sync.WaitGroup
+	done chan struct{}
 }
 
 func newTestEnv() *testEnv {
@@ -90,10 +98,10 @@ func newTestEnv() *testEnv {
 	}
 
 	env := &testEnv{
-		network:   network,
-		blockProc: blockProc,
-		store:     store,
-		signer:    types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+		network:          network,
+		blockProcModules: blockProc,
+		store:            store,
+		signer:           types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 
 		lastBlock:     0,
 		lastState:     store.GetBlock(0).Root,
@@ -101,13 +109,20 @@ func newTestEnv() *testEnv {
 		validators:    genesis.State.Validators,
 
 		nonces: make(map[common.Address]uint64),
+
+		done: make(chan struct{}),
 	}
+
+	env.blockProcTasks = workers.New(&env.wg, env.done, 1)
+	env.blockProcTasks.Start(1)
 
 	return env
 }
 
 func (env *testEnv) Close() {
+	close(env.done)
 	env.store.Close()
+	env.wg.Wait()
 }
 
 func (env *testEnv) GetEvmStateReader() *EvmStateReader {
@@ -116,18 +131,24 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
+// consensusCallbackBeginBlockFn returns single (for testEnv) callback instance.
+// Note that onBlockEnd overwrites previous.
+// Note that onBlockEnd would be run async.
 func (env *testEnv) consensusCallbackBeginBlockFn(
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	const txIndex = true
-	return consensusCallbackBeginBlockFn(
+	callback := consensusCallbackBeginBlockFn(
+		env.blockProcTasks,
+		&env.blockProcWg,
 		env.network,
 		env.store,
-		env.blockProc,
+		env.blockProcModules,
 		txIndex,
 		nil, nil,
 		onBlockEnd,
 	)
+	return callback
 }
 
 func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (receipts types.Receipts) {
@@ -139,9 +160,12 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
 
+	var waitForBlockEnd sync.WaitGroup
+	waitForBlockEnd.Add(1)
 	onBlockEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
 		receipts = externalReceipts
 		env.lastState = block.Root
+		waitForBlockEnd.Done()
 	}
 
 	beginBlock := env.consensusCallbackBeginBlockFn(onBlockEnd)
@@ -151,6 +175,7 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 
 	process.ApplyEvent(event)
 	_ = process.EndBlock()
+	waitForBlockEnd.Wait()
 
 	return
 }
