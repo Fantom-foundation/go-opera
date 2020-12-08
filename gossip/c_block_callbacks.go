@@ -63,8 +63,7 @@ func consensusCallbackBeginBlockFn(
 		es := store.GetEpochState()
 
 		// Get stateDB
-		stateHash := store.GetBlock(bs.LastBlock).Root
-		statedb := store.evm.StateDB(stateHash)
+		statedb := store.evm.StateDB(bs.LastStateRoot)
 
 		bs.LastBlock++
 		bs.EpochBlocks++
@@ -199,6 +198,7 @@ func consensusCallbackBeginBlockFn(
 						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
 					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
+					bs.LastStateRoot = block.Root
 					// At this point, block state is finalized
 
 					// Build index for not skipped txs

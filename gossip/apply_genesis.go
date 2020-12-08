@@ -100,6 +100,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 
 	s.SetBlockState(blockproc.BlockState{
 		LastBlock:             highestBlock,
+		LastStateRoot:         hash.Hash(evmBlock.Root),
 		EpochBlocks:           0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]sfctype.SfcValidator),
@@ -126,6 +127,8 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	statedb := s.evm.StateDB(hash.Hash(evmBlock0.Root))
 
 	bs, es := s.GetBlockState(), s.GetEpochState()
+	bs.LastBlock++
+	bs.EpochBlocks++
 
 	blockCtx := blockproc.BlockCtx{
 		Idx:  bs.LastBlock,
@@ -172,6 +175,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		return errors.New("genesis transaction is skipped")
 	}
 	bs = txListener.Finalize()
+	bs.LastStateRoot = hash.Hash(evmBlock.Root)
 
 	s.SetBlockState(bs)
 
@@ -189,7 +193,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	genesisAtropos := prettyHash(evmBlock.Root, g)
 
 	block := &inter.Block{
-		Time:       g.State.Time,
+		Time:       blockCtx.Time,
 		Atropos:    genesisAtropos,
 		Events:     hash.Events{},
 		SkippedTxs: skippedTxs,

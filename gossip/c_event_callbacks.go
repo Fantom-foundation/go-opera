@@ -131,9 +131,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		s.feed.newEpoch.Send(newEpoch)
 	}
 
-	immediately := newEpoch != oldEpoch
-
-	return s.store.Commit(e.ID().Bytes(), immediately)
+	if newEpoch != oldEpoch || s.store.IsCommitNeeded() {
+		s.blockProcWg.Wait()
+		return s.store.Commit()
+	}
+	return nil
 }
 
 type uniqueID struct {

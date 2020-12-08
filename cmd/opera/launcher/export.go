@@ -88,7 +88,7 @@ func exportEvents(ctx *cli.Context) error {
 }
 
 func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
-	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
+	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir), integration.FlushIDKey)
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb

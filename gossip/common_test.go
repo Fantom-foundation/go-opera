@@ -103,8 +103,8 @@ func newTestEnv() *testEnv {
 		store:            store,
 		signer:           types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 
-		lastBlock:     0,
-		lastState:     store.GetBlock(0).Root,
+		lastBlock:     1,
+		lastState:     store.GetBlockState().LastStateRoot,
 		lastBlockTime: genesis.State.Time.Time(),
 		validators:    genesis.State.Validators,
 

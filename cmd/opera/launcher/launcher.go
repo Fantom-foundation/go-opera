@@ -253,7 +253,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
+	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir), integration.FlushIDKey)
 	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, cfg.AppConfigs(), genesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 

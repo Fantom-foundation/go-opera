@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"bytes"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,6 +43,8 @@ type Store struct {
 		BlockHashes kvdb.Store `table:"B"`
 	}
 
+	prevFlushTime time.Time
+
 	epochStore atomic.Value
 
 	cache struct {
@@ -67,7 +68,7 @@ type Store struct {
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
 	mems := memorydb.NewProducer("")
-	dbs := flushable.NewSyncedPool(mems)
+	dbs := flushable.NewSyncedPool(mems, []byte{0})
 	cfg := LiteStoreConfig()
 
 	return NewStore(dbs, cfg)
@@ -111,20 +112,15 @@ func (s *Store) Close() {
 	s.async.Close()
 }
 
+func (s *Store) IsCommitNeeded() bool {
+	return time.Since(s.prevFlushTime) > s.cfg.MaxNonFlushedPeriod ||
+		s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize
+}
+
 // Commit changes.
-func (s *Store) Commit(flushID []byte, immediately bool) error {
-	if flushID == nil {
-		// if flushId not specified, use current time
-		buf := bytes.NewBuffer(nil)
-		buf.Write([]byte{0xbe, 0xee})                                     // 0xbeee eyecatcher that flushed time
-		buf.Write(bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
-		flushID = buf.Bytes()
-	}
-
-	if !immediately && !s.dbs.IsFlushNeeded() {
-		return nil
-	}
-
+func (s *Store) Commit() error {
+	s.prevFlushTime = time.Now()
+	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
 	s.FlushBlockState()
 	s.FlushEpochState()

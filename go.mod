@@ -1,9 +1,9 @@
 module github.com/Fantom-foundation/go-opera
 
-go 1.13
+go 1.14
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20201208055012-a1325f0a96c0
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20201209163541-2928fbd17ceb
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
@@ -14,7 +14,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v1.13.1
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.9.8
+	github.com/ethereum/go-ethereum v1.9.22
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5

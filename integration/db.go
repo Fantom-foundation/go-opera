@@ -25,10 +25,10 @@ func dbCacheSize(name string) int {
 	return 2 * opt.MiB
 }
 
-func DBProducer(dbdir string) kvdb.DbProducer {
-	if dbdir == "inmemory" || dbdir == "" {
+func DBProducer(chaindataDir string) kvdb.IterableDBProducer {
+	if chaindataDir == "inmemory" || chaindataDir == "" {
 		return memorydb.NewProducer("")
 	}
 
-	return leveldb.NewProducer(dbdir, dbCacheSize)
+	return leveldb.NewProducer(chaindataDir, dbCacheSize)
 }
