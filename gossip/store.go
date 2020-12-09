@@ -108,8 +108,9 @@ func (s *Store) Close() {
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
 
-	s.mainDB.Close()
+	_ = s.mainDB.Close()
 	s.async.Close()
+	_ = s.closeEpochStore()
 }
 
 func (s *Store) IsCommitNeeded() bool {

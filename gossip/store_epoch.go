@@ -8,12 +8,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skiperrors"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
-
-	"github.com/Fantom-foundation/lachesis-base/hash"
 )
 
 type (
@@ -44,13 +43,18 @@ func newEpochStore(epoch idx.Epoch, db kvdb.DropableStore) *epochStore {
 	return es
 }
 
-// getEpochStore safe for concurrent use.
-func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
+func (s *Store) getAnyEpochStore() *epochStore {
 	_es := s.epochStore.Load()
 	if _es == nil {
 		return nil
 	}
 	es := _es.(*epochStore)
+	return es
+}
+
+// getEpochStore is safe for concurrent use.
+func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
+	es := s.getAnyEpochStore()
 	if es.epoch != epoch {
 		return nil
 	}
@@ -80,9 +84,21 @@ func (s *Store) loadEpochStore(epoch idx.Epoch) {
 	s.createEpochStore(epoch)
 }
 
+func (s *Store) closeEpochStore() error {
+	es := s.getAnyEpochStore()
+	if es == nil {
+		return nil
+	}
+	return es.db.Close()
+}
+
 func (s *Store) createEpochStore(epoch idx.Epoch) {
 	// create new DB
-	db := s.dbs.GetDb(fmt.Sprintf("gossip-%d", epoch))
+	name := fmt.Sprintf("gossip-%d", epoch)
+	db, err := s.dbs.OpenDB(name)
+	if err != nil {
+		s.Log.Crit("Filed to open DB", "name", name, "err", err)
+	}
 	s.epochStore.Store(newEpochStore(epoch, db))
 }
 
