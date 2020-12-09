@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -37,13 +38,22 @@ func ApplyGenesis(db ethdb.Database, g opera.GenesisState) (*EvmBlock, error) {
 	if err != nil {
 		return nil, err
 	}
+	count := 0
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
+		count++
+		if count%256 == 0 {
+			_ = statedb.Database().TrieDB().Cap(16 * opt.MiB)
+		}
 	})
 	g.Storage.ForEach(func(addr common.Address, key common.Hash, value common.Hash) {
 		statedb.SetState(addr, key, value)
+		count++
+		if count%256 == 0 {
+			_ = statedb.Database().TrieDB().Cap(16 * opt.MiB)
+		}
 	})
 
 	// initial block
@@ -52,8 +62,7 @@ func ApplyGenesis(db ethdb.Database, g opera.GenesisState) (*EvmBlock, error) {
 		return nil, err
 	}
 	block := genesisBlock(g, root)
-
-	err = statedb.Database().TrieDB().Cap(0)
+	err = statedb.Database().TrieDB().Commit(root, false, nil)
 	if err != nil {
 		return nil, err
 	}
