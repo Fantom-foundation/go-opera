@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -20,7 +21,7 @@ import (
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	dbs *flushable.SyncedPool
+	dbs kvdb.FlushableDBProducer
 	cfg StoreConfig
 
 	async *asyncStore
@@ -75,13 +76,22 @@ func NewMemStore() *Store {
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
+func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
+	mainDB, err := dbs.OpenDB("gossip")
+	if err != nil {
+		log.Crit("Filed to open DB", "name", "gossip", "err", err)
+	}
+	asyncDB, err := dbs.OpenDB("gossip-async")
+	if err != nil {
+		log.Crit("Filed to open DB", "name", "gossip-async", "err", err)
+	}
 	s := &Store{
-		dbs:      dbs,
-		cfg:      cfg,
-		async:    newAsyncStore(dbs),
-		mainDB:   dbs.GetDb("gossip"),
-		Instance: logger.MakeInstance(),
+		dbs:           dbs,
+		cfg:           cfg,
+		async:         newAsyncStore(asyncDB),
+		mainDB:        mainDB,
+		Instance:      logger.MakeInstance(),
+		prevFlushTime: time.Now(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)

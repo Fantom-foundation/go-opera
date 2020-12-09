@@ -63,7 +63,10 @@ func consensusCallbackBeginBlockFn(
 		es := store.GetEpochState()
 
 		// Get stateDB
-		statedb := store.evm.StateDB(bs.LastStateRoot)
+		statedb, err := store.evm.StateDB(bs.LastStateRoot)
+		if err != nil {
+			log.Crit("Failed to open StateDB", "err", err)
+		}
 
 		bs.LastBlock++
 		bs.EpochBlocks++

@@ -124,7 +124,10 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}
 
 	evmStateReader := &EvmStateReader{store: s}
-	statedb := s.evm.StateDB(hash.Hash(evmBlock0.Root))
+	statedb, err := s.evm.StateDB(hash.Hash(evmBlock0.Root))
+	if err != nil {
+		return err
+	}
 
 	bs, es := s.GetBlockState(), s.GetEpochState()
 	bs.LastBlock++

@@ -2,12 +2,10 @@ package gossip
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 )
 
 type asyncStore struct {
-	dbs    *flushable.SyncedPool
 	mainDB kvdb.Store
 	table  struct {
 		// Network tables
@@ -15,10 +13,9 @@ type asyncStore struct {
 	}
 }
 
-func newAsyncStore(dbs *flushable.SyncedPool) *asyncStore {
+func newAsyncStore(db kvdb.Store) *asyncStore {
 	s := &asyncStore{
-		dbs:    dbs,
-		mainDB: dbs.GetDb("gossip-async"),
+		mainDB: db,
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
