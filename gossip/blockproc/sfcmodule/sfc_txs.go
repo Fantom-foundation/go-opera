@@ -211,8 +211,8 @@ func (p *SfcTxListener) OnNewLog(l *types.Log) {
 		pubkey := l.Data[start+32 : start+32+size]
 
 		profile := p.bs.NextValidatorProfiles[validatorID]
-		profile.Pubkey.Type = "secp256k1"
-		profile.Pubkey.Raw = pubkey
+		profile.PubKey.Type = "secp256k1"
+		profile.PubKey.Raw = pubkey
 		p.bs.NextValidatorProfiles[validatorID] = profile
 	}
 	// Add balance

@@ -17,7 +17,7 @@ var (
 // SfcValidator is the node-side representation of SFC validator
 type SfcValidator struct {
 	Weight *big.Int
-	Pubkey validator.PubKey
+	PubKey validator.PubKey
 }
 
 // SfcValidatorAndID is pair SfcValidator + ValidatorID
