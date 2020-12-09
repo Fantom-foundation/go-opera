@@ -132,9 +132,16 @@ func consensusCallbackBeginBlockFn(
 				err := parallelTasks.Enqueue(func() {
 					defer wg.Done()
 
+					for _, tx := range preInternalTxs {
+						store.evm.SetTx(tx.Hash(), tx)
+					}
+
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
+					for _, tx := range internalTxs {
+						store.evm.SetTx(tx.Hash(), tx)
+					}
 
 					// sort events by Lamport time
 					sort.Sort(confirmedEvents)
@@ -216,9 +223,6 @@ func consensusCallbackBeginBlockFn(
 								store.evm.IndexLogs(r.Logs...)
 							}
 						}
-					}
-					for _, tx := range append(preInternalTxs, internalTxs...) {
-						store.evm.SetTx(tx.Hash(), tx)
 					}
 
 					store.SetBlock(bs.LastBlock, block)
