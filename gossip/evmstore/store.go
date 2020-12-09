@@ -76,9 +76,9 @@ func (s *Store) initCache() {
 }
 
 // Commit changes.
-func (s *Store) Commit() error {
+func (s *Store) Commit(root hash.Hash) error {
 	// Flush trie on the DB
-	err := s.table.EvmState.TrieDB().Cap(0)
+	err := s.table.EvmState.TrieDB().Commit(common.Hash(root), false, nil)
 	if err != nil {
 		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
@@ -86,12 +86,8 @@ func (s *Store) Commit() error {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) *state.StateDB {
-	db, err := state.New(common.Hash(from), s.table.EvmState, nil)
-	if err != nil {
-		s.Log.Crit("Failed to open state", "err", err)
-	}
-	return db
+func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
+	return state.New(common.Hash(from), s.table.EvmState, nil)
 }
 
 // StateDB returns state database.
