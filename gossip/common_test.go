@@ -80,7 +80,7 @@ func newTestEnv() *testEnv {
 	network.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
 	dbs := flushable.NewSyncedPool(
-		memorydb.NewProducer(""))
+		memorydb.NewProducer(""), []byte{0})
 	store := NewStore(dbs, LiteStoreConfig())
 	blockProc := BlockProc{
 		SealerModule:        sealmodule.New(network),
@@ -92,7 +92,7 @@ func newTestEnv() *testEnv {
 		EVMModule:           evmmodule.New(network),
 	}
 
-	_, _, err := store.ApplyGenesis(blockProc, genesis)
+	_, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
 		panic(err)
 	}

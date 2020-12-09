@@ -24,8 +24,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 func importEvents(ctx *cli.Context) error {
@@ -58,7 +58,7 @@ func importEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func importToNode(ctx *cli.Context, cfg *config, genesis opera.Genesis, args ...string) error {
+func importToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
 	node, svc := makeNode(ctx, cfg, genesis)
 	defer node.Close()
 	startNode(ctx, node)

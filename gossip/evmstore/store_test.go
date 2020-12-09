@@ -8,17 +8,15 @@ import (
 )
 
 func cachedStore() *Store {
-	mems := memorydb.NewProducer("", withDelay)
 	cfg := LiteStoreConfig()
 
-	return NewStore(mems.OpenDb("test"), cfg)
+	return NewStore(memorydb.New(), cfg)
 }
 
 func nonCachedStore() *Store {
-	mems := memorydb.NewProducer("", withDelay)
 	cfg := StoreConfig{}
 
-	return NewStore(mems.OpenDb("test"), cfg)
+	return NewStore(memorydb.New(), cfg)
 }
 
 func withDelay(db kvdb.DropableStore) kvdb.DropableStore {

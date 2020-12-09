@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -19,38 +18,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
-// GenesisMismatchError is raised when trying to overwrite an existing
-// genesis block with an incompatible one.
-type GenesisMismatchError struct {
-	Stored, New hash.Hash
-}
-
-// Error implements error interface.
-func (e *GenesisMismatchError) Error() string {
-	return fmt.Sprintf("database contains incompatible gossip genesis (have %s, new %s)", e.Stored.String(), e.New.String())
-}
-
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, new bool, err error) {
-	storedGenesis := s.GetGenesisHash()
-	if storedGenesis != nil {
-		newHash := g.Hash()
-		if *storedGenesis != newHash {
-			return genesisHash, true, &GenesisMismatchError{*storedGenesis, newHash}
-		}
-
-		genesisHash = *storedGenesis
-		return genesisHash, false, nil
-	}
+func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, err error) {
 	// if we'here, then it's first time genesis is applied
 	err = s.applyEpoch1Genesis(blockProc, g)
 	if err != nil {
-		return genesisHash, true, err
+		return genesisHash, err
 	}
 	genesisHash = g.Hash()
 	s.SetGenesisHash(genesisHash)
 
-	return genesisHash, true, err
+	return genesisHash, err
 }
 
 func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
