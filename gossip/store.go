@@ -124,12 +124,18 @@ func (s *Store) Close() {
 }
 
 func (s *Store) IsCommitNeeded(epochSealing bool) bool {
+	period := s.cfg.MaxNonFlushedPeriod
+	size := s.cfg.MaxNonFlushedSize / 2
 	if epochSealing {
-		return time.Since(s.prevFlushTime) > s.cfg.MaxNonFlushedPeriod/2 ||
-			s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize/2
+		period /= 2
+		size /= 2
 	}
-	return time.Since(s.prevFlushTime) > s.cfg.MaxNonFlushedPeriod ||
-		s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize
+	return time.Since(s.prevFlushTime) > period ||
+		s.dbs.NotFlushedSizeEst() > size
+}
+
+func (s *Store) Cap() {
+	s.evm.Cap(s.cfg.MaxNonFlushedSize / 4)
 }
 
 // Commit changes.

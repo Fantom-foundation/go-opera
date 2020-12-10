@@ -244,6 +244,11 @@ func consensusCallbackBeginBlockFn(
 						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 					}
 
+					if bs.LastBlock%1024 == 0 {
+						// flush EVM data to the DB if exceeds maximum RAM limit
+						store.Cap()
+					}
+
 					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 

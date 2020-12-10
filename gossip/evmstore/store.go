@@ -85,6 +85,10 @@ func (s *Store) Commit(root hash.Hash) error {
 	return err
 }
 
+func (s *Store) Cap(max int) {
+	_ = s.table.EvmState.TrieDB().Cap(common.StorageSize(max))
+}
+
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
 	return state.New(common.Hash(from), s.table.EvmState, nil)
