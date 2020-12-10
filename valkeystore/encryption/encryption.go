@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 var (
@@ -21,13 +21,13 @@ var (
 )
 
 type PrivateKey struct {
-	Type    string
+	Type    uint8
 	Bytes   []byte
 	Decoded interface{}
 }
 
 type EncryptedKeyJSON struct {
-	Type      string              `json:"type"`
+	Type      uint8               `json:"type"`
 	PublicKey string              `json:"pubkey"`
 	Crypto    keystore.CryptoJSON `json:"crypto"`
 }
@@ -44,7 +44,7 @@ func New(scryptN int, scryptP int) *Keystore {
 	}
 }
 
-func (ks Keystore) ReadKey(wantPubkey validator.PubKey, filename, auth string) (*PrivateKey, error) {
+func (ks Keystore) ReadKey(wantPubkey validatorpk.PubKey, filename, auth string) (*PrivateKey, error) {
 	// Load the key from the keystore and decrypt its contents
 	keyjson, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -63,7 +63,7 @@ func (ks Keystore) ReadKey(wantPubkey validator.PubKey, filename, auth string) (
 	return key, nil
 }
 
-func (ks Keystore) StoreKey(filename string, pubkey validator.PubKey, key []byte, auth string) error {
+func (ks Keystore) StoreKey(filename string, pubkey validatorpk.PubKey, key []byte, auth string) error {
 	keyjson, err := ks.EncryptKey(pubkey, key, auth)
 	if err != nil {
 		return err
@@ -78,8 +78,8 @@ func (ks Keystore) StoreKey(filename string, pubkey validator.PubKey, key []byte
 
 // EncryptKey encrypts a key using the specified scrypt parameters into a json
 // blob that can be decrypted later on.
-func (ks Keystore) EncryptKey(pubkey validator.PubKey, key []byte, auth string) ([]byte, error) {
-	if pubkey.Type != "secp256k1" {
+func (ks Keystore) EncryptKey(pubkey validatorpk.PubKey, key []byte, auth string) ([]byte, error) {
+	if pubkey.Type != validatorpk.Types.Secp256k1 {
 		return nil, ErrNotSupportedType
 	}
 	cryptoStruct, err := keystore.EncryptDataV3(key, []byte(auth), ks.scryptN, ks.scryptP)
@@ -109,7 +109,7 @@ func DecryptKey(keyjson []byte, auth string) (*PrivateKey, error) {
 	if err := json.Unmarshal(keyjson, k); err != nil {
 		return nil, err
 	}
-	if k.Type != "secp256k1" {
+	if k.Type != validatorpk.Types.Secp256k1 {
 		return nil, ErrNotSupportedType
 	}
 	keyBytes, err = decryptKey_secp256k1(k, auth)

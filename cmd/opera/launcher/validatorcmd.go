@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
@@ -97,9 +97,9 @@ func validatorKeyCreate(ctx *cli.Context) error {
 		utils.Fatalf("Failed to create account: %v", err)
 	}
 	privateKey := crypto.FromECDSA(privateKeyECDSA)
-	publicKey := validator.PubKey{
+	publicKey := validatorpk.PubKey{
 		Raw:  crypto.FromECDSAPub(&privateKeyECDSA.PublicKey),
-		Type: "secp256k1",
+		Type: validatorpk.Types.Secp256k1,
 	}
 
 	valKeystore := valkeystore.NewDefaultFileRawKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
@@ -135,7 +135,7 @@ func validatorKeyConvert(ctx *cli.Context) error {
 	_, _, keydir, _ := cfg.Node.AccountConfig()
 
 	pubkeyStr := ctx.Args().Get(1)
-	pubkey, err := validator.PubKeyFromString(pubkeyStr)
+	pubkey, err := validatorpk.FromString(pubkeyStr)
 	if err != nil {
 		utils.Fatalf("Failed to decode the validator pubkey: %v", err)
 	}
@@ -150,7 +150,7 @@ func validatorKeyConvert(ctx *cli.Context) error {
 		acckeypath = ctx.Args().First()
 	}
 
-	valkeypath := path.Join(keydir, "validator", pubkey.String())
+	valkeypath := path.Join(keydir, "validator", common.Bytes2Hex(pubkey.Bytes()))
 	err = encryption.MigrateAccountToValidatorKey(acckeypath, valkeypath, pubkey)
 	if err != nil {
 		utils.Fatalf("Failed to migrate the account key: %v", err)

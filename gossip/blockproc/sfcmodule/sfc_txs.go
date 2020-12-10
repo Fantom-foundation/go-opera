@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
@@ -211,8 +212,7 @@ func (p *SfcTxListener) OnNewLog(l *types.Log) {
 		pubkey := l.Data[start+32 : start+32+size]
 
 		profile := p.bs.NextValidatorProfiles[validatorID]
-		profile.PubKey.Type = "secp256k1"
-		profile.PubKey.Raw = pubkey
+		profile.PubKey, _ = validatorpk.FromBytes(pubkey)
 		p.bs.NextValidatorProfiles[validatorID] = profile
 	}
 	// Add balance

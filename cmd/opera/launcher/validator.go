@@ -8,7 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 var validatorIDFlag = cli.UintFlag{
@@ -34,7 +34,7 @@ var validatorPasswordFlag = cli.StringFlag{
 func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 	// Extract the current validator address, new flag overriding legacy one
 	var validatorID idx.ValidatorID
-	var validatorPubkey validator.PubKey
+	var validatorPubkey validatorpk.PubKey
 	var err error
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		var num int
@@ -49,7 +49,7 @@ func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 		validatorID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))
 	}
 	if ctx.GlobalIsSet(validatorPubkeyFlag.Name) {
-		validatorPubkey, err = validator.PubKeyFromString(ctx.GlobalString(validatorPubkeyFlag.Name))
+		validatorPubkey, err = validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
 		if err != nil {
 			return err
 		}

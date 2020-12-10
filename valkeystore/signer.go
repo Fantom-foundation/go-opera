@@ -5,12 +5,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
 type SignerI interface {
-	Sign(pubkey validator.PubKey, digest []byte) ([]byte, error)
+	Sign(pubkey validatorpk.PubKey, digest []byte) ([]byte, error)
 }
 
 type Signer struct {
@@ -23,8 +23,8 @@ func NewSigner(backend KeystoreI) *Signer {
 	}
 }
 
-func (s *Signer) Sign(pubkey validator.PubKey, digest []byte) ([]byte, error) {
-	if pubkey.Type != "secp256k1" {
+func (s *Signer) Sign(pubkey validatorpk.PubKey, digest []byte) ([]byte, error) {
+	if pubkey.Type != validatorpk.Types.Secp256k1 {
 		return nil, encryption.ErrNotSupportedType
 	}
 	key, err := s.backend.GetUnlocked(pubkey)

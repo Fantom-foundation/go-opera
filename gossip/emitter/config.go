@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	_params "github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
@@ -22,7 +22,7 @@ type EmitIntervals struct {
 
 type ValidatorConfig struct {
 	ID     idx.ValidatorID
-	PubKey validator.PubKey
+	PubKey validatorpk.PubKey
 }
 
 // Config is the configuration of events emitter.

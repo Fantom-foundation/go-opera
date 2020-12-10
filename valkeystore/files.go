@@ -5,7 +5,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
@@ -25,23 +27,23 @@ func NewFileKeystore(dir string, enc *encryption.Keystore) *FileKeystore {
 	}
 }
 
-func (f *FileKeystore) Has(pubkey validator.PubKey) bool {
+func (f *FileKeystore) Has(pubkey validatorpk.PubKey) bool {
 	return fileExists(f.PathOf(pubkey))
 }
 
-func (f *FileKeystore) Add(pubkey validator.PubKey, key []byte, auth string) error {
+func (f *FileKeystore) Add(pubkey validatorpk.PubKey, key []byte, auth string) error {
 	return f.enc.StoreKey(f.PathOf(pubkey), pubkey, key, auth)
 }
 
-func (f *FileKeystore) Get(pubkey validator.PubKey, auth string) (*encryption.PrivateKey, error) {
+func (f *FileKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
 	if !f.Has(pubkey) {
 		return nil, NotFound
 	}
 	return f.enc.ReadKey(pubkey, f.PathOf(pubkey), auth)
 }
 
-func (f *FileKeystore) PathOf(pubkey validator.PubKey) string {
-	return path.Join(f.dir, pubkey.String())
+func (f *FileKeystore) PathOf(pubkey validatorpk.PubKey) string {
+	return path.Join(f.dir, common.Bytes2Hex(pubkey.Bytes()))
 }
 
 func fileExists(filename string) bool {

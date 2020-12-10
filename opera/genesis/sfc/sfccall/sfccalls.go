@@ -55,7 +55,7 @@ func SealEpoch(metrics []ValidatorEpochMetric) []byte {
 }
 
 func SetGenesisValidator(v gpos.Validator) []byte {
-	data, _ := sAbi.Pack("_setGenesisValidator", v.Address, utils.U64toBig(uint64(v.ID)), v.PubKey.Raw, utils.U64toBig(v.Status),
+	data, _ := sAbi.Pack("_setGenesisValidator", v.Address, utils.U64toBig(uint64(v.ID)), v.PubKey.Bytes(), utils.U64toBig(v.Status),
 		utils.U64toBig(uint64(v.CreationEpoch)), utils.U64toBig(uint64(v.CreationTime.Unix())), utils.U64toBig(uint64(v.DeactivatedEpoch)),
 		utils.U64toBig(uint64(v.DeactivatedTime.Unix())))
 	return data

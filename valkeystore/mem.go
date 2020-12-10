@@ -3,7 +3,7 @@ package valkeystore
 import (
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
@@ -17,13 +17,13 @@ func NewMemKeystore() *MemKeystore {
 	}
 }
 
-func (m *MemKeystore) Has(pubkey validator.PubKey) bool {
+func (m *MemKeystore) Has(pubkey validatorpk.PubKey) bool {
 	_, ok := m.mem[m.idxOf(pubkey)]
 	return ok
 }
 
-func (m *MemKeystore) Add(pubkey validator.PubKey, key []byte, _ string) error {
-	if pubkey.Type != "secp256k1" {
+func (m *MemKeystore) Add(pubkey validatorpk.PubKey, key []byte, _ string) error {
+	if pubkey.Type != validatorpk.Types.Secp256k1 {
 		return encryption.ErrNotSupportedType
 	}
 	decoded, err := crypto.ToECDSA(key)
@@ -38,13 +38,13 @@ func (m *MemKeystore) Add(pubkey validator.PubKey, key []byte, _ string) error {
 	return nil
 }
 
-func (m *MemKeystore) Get(pubkey validator.PubKey, auth string) (*encryption.PrivateKey, error) {
+func (m *MemKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
 	if !m.Has(pubkey) {
 		return nil, NotFound
 	}
 	return m.mem[m.idxOf(pubkey)], nil
 }
 
-func (m *MemKeystore) idxOf(pubkey validator.PubKey) string {
-	return string(pubkey.Raw) + pubkey.Type
+func (m *MemKeystore) idxOf(pubkey validatorpk.PubKey) string {
+	return string(pubkey.Bytes())
 }

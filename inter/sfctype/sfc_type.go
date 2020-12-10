@@ -5,7 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 // SfcValidator is the node-side representation of SFC validator
 type SfcValidator struct {
 	Weight *big.Int
-	PubKey validator.PubKey
+	PubKey validatorpk.PubKey
 }
 
 // SfcValidatorAndID is pair SfcValidator + ValidatorID

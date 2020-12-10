@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 
 // Reader is accessed by the validator to get the current state.
 type Reader interface {
-	GetEpochPubKeys() (map[idx.ValidatorID]validator.PubKey, idx.Epoch)
+	GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch)
 }
 
 // Check which require only parents list + current epoch info
@@ -105,8 +105,8 @@ func (v *Checker) Enqueue(events dag.Events, onValidated func(dag.Events, []erro
 }
 
 // verifySignature checks the signature against e.Creator.
-func verifySignature(e inter.EventPayloadI, pubkey validator.PubKey) bool {
-	if pubkey.Type != "secp256k1" {
+func verifySignature(e inter.EventPayloadI, pubkey validatorpk.PubKey) bool {
+	if pubkey.Type != validatorpk.Types.Secp256k1 {
 		return false
 	}
 	signedHash := e.HashToSign().Bytes()

@@ -4,7 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
@@ -13,7 +13,7 @@ type (
 	Validator struct {
 		ID               idx.ValidatorID
 		Address          common.Address
-		PubKey           validator.PubKey
+		PubKey           validatorpk.PubKey
 		CreationTime     inter.Timestamp
 		CreationEpoch    idx.Epoch
 		DeactivatedTime  inter.Timestamp
@@ -34,8 +34,8 @@ func (gv Validators) Map() map[idx.ValidatorID]Validator {
 }
 
 // PubKeys returns not sorted genesis pub keys
-func (gv Validators) PubKeys() []validator.PubKey {
-	res := make([]validator.PubKey, 0, len(gv))
+func (gv Validators) PubKeys() []validatorpk.PubKey {
+	res := make([]validatorpk.PubKey, 0, len(gv))
 	for _, v := range gv {
 		res = append(res, v.PubKey)
 	}

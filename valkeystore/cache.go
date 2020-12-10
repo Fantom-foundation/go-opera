@@ -3,7 +3,7 @@ package valkeystore
 import (
 	"errors"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
@@ -24,19 +24,19 @@ func NewCachedKeystore(backend RawKeystoreI) *CachedKeystore {
 	}
 }
 
-func (c *CachedKeystore) Unlocked(pubkey validator.PubKey) bool {
+func (c *CachedKeystore) Unlocked(pubkey validatorpk.PubKey) bool {
 	_, ok := c.cache[c.idxOf(pubkey)]
 	return ok
 }
 
-func (c *CachedKeystore) Has(pubkey validator.PubKey) bool {
+func (c *CachedKeystore) Has(pubkey validatorpk.PubKey) bool {
 	if c.Unlocked(pubkey) {
 		return true
 	}
 	return c.backend.Has(pubkey)
 }
 
-func (c *CachedKeystore) Unlock(pubkey validator.PubKey, auth string) error {
+func (c *CachedKeystore) Unlock(pubkey validatorpk.PubKey, auth string) error {
 	if c.Unlocked(pubkey) {
 		return ErrAlreadyUnlocked
 	}
@@ -48,21 +48,21 @@ func (c *CachedKeystore) Unlock(pubkey validator.PubKey, auth string) error {
 	return nil
 }
 
-func (c *CachedKeystore) GetUnlocked(pubkey validator.PubKey) (*encryption.PrivateKey, error) {
+func (c *CachedKeystore) GetUnlocked(pubkey validatorpk.PubKey) (*encryption.PrivateKey, error) {
 	if !c.Unlocked(pubkey) {
 		return nil, ErrLocked
 	}
 	return c.cache[c.idxOf(pubkey)], nil
 }
 
-func (c *CachedKeystore) idxOf(pubkey validator.PubKey) string {
-	return string(pubkey.Raw) + pubkey.Type
+func (c *CachedKeystore) idxOf(pubkey validatorpk.PubKey) string {
+	return string(pubkey.Bytes())
 }
 
-func (c *CachedKeystore) Add(pubkey validator.PubKey, key []byte, auth string) error {
+func (c *CachedKeystore) Add(pubkey validatorpk.PubKey, key []byte, auth string) error {
 	return c.backend.Add(pubkey, key, auth)
 }
 
-func (c *CachedKeystore) Get(pubkey validator.PubKey, auth string) (*encryption.PrivateKey, error) {
+func (c *CachedKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
 	return c.backend.Get(pubkey, auth)
 }
