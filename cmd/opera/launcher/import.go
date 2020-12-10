@@ -59,8 +59,8 @@ func importEvents(ctx *cli.Context) error {
 }
 
 func importToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
-	node, svc := makeNode(ctx, cfg, genesis)
-	defer node.Close()
+	node, svc, close := makeNode(ctx, cfg, genesis)
+	defer close()
 	startNode(ctx, node)
 
 	check := ctx.BoolT(EventsCheckFlag.Name)

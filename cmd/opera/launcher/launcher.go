@@ -237,14 +237,14 @@ func lachesisMain(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 	genesisPath := getOperaGenesis(ctx)
-	node, _ := makeNode(ctx, cfg, genesisPath)
-	defer node.Close()
+	node, _, close := makeNode(ctx, cfg, genesisPath)
+	defer close()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service) {
+func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	// TODO: do the same with with stack.OpenDatabaseWithFreezer()
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
@@ -256,7 +256,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, _, genesisStore, blockProc := integration.MakeEngine(chaindataDir, genesis, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(chaindataDir, genesis, cfg.AppConfigs())
 	_ = genesis.Close()
 	metrics.SetDataDir(cfg.Node.DataDir)
 
@@ -292,7 +292,12 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	stack.RegisterProtocols(svc.Protocols())
 	stack.RegisterLifecycle(svc)
 
-	return stack, svc
+	return stack, svc, func() {
+		_ = stack.Close()
+		gdb.Close()
+		_ = cdb.Close()
+		genesisStore.Close()
+	}
 }
 
 func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {
