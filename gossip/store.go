@@ -123,7 +123,11 @@ func (s *Store) Close() {
 	_ = s.closeEpochStore()
 }
 
-func (s *Store) IsCommitNeeded() bool {
+func (s *Store) IsCommitNeeded(epochSealing bool) bool {
+	if epochSealing {
+		return time.Since(s.prevFlushTime) > s.cfg.MaxNonFlushedPeriod/2 ||
+			s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize/2
+	}
 	return time.Since(s.prevFlushTime) > s.cfg.MaxNonFlushedPeriod ||
 		s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize
 }

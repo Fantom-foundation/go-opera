@@ -180,8 +180,8 @@ func DefaultStoreConfig() StoreConfig {
 			BlocksSize:       512 * opt.KiB,
 		},
 		EVM:                 evmstore.DefaultStoreConfig(),
-		MaxNonFlushedSize:   8 * opt.MiB,
-		MaxNonFlushedPeriod: 10 * time.Minute,
+		MaxNonFlushedSize:   16 * opt.MiB,
+		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
 
@@ -197,6 +197,6 @@ func LiteStoreConfig() StoreConfig {
 		},
 		EVM:                 evmstore.LiteStoreConfig(),
 		MaxNonFlushedSize:   400 * opt.KiB,
-		MaxNonFlushedPeriod: 10 * time.Minute,
+		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
