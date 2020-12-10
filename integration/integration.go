@@ -30,7 +30,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis InputGenesis, stack *n
 		VectorClock:   vecmt.DefaultConfig(),
 	}
 
-	engine, dagIndex, gdb, _, genesisStore, blockProc := MakeEngine(ctx.Config.DataDir, genesis, cfg)
+	engine, dagIndex, gdb, _, genesisStore, blockProc := MakeEngine(DBProducer(ctx.Config.DataDir), genesis, cfg)
 	_ = genesis.Close()
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
