@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -32,12 +31,7 @@ import (
 )
 
 // ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(db ethdb.Database, g opera.GenesisState) (*EvmBlock, error) {
-	// state
-	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
-	if err != nil {
-		return nil, err
-	}
+func ApplyGenesis(statedb *state.StateDB, g opera.GenesisState) (*EvmBlock, error) {
 	count := 0
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
 		statedb.AddBalance(addr, account.Balance)
@@ -72,7 +66,6 @@ func ApplyGenesis(db ethdb.Database, g opera.GenesisState) (*EvmBlock, error) {
 
 // genesisBlock makes genesis block with pretty hash.
 func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
-
 	block := &EvmBlock{
 		EvmHeader: EvmHeader{
 			Number:   big.NewInt(0),
@@ -87,8 +80,8 @@ func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
 }
 
 // MustApplyGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyGenesis(g opera.GenesisState, db ethdb.Database) *EvmBlock {
-	block, err := ApplyGenesis(db, g)
+func MustApplyGenesis(g opera.GenesisState, statedb *state.StateDB) *EvmBlock {
+	block, err := ApplyGenesis(statedb, g)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)
 	}
