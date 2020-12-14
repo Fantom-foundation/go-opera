@@ -99,7 +99,7 @@ func (s *Store) Import(reader io.Reader) error {
 }
 
 var (
-	fileHeader  = hexutils.HexToBytes("644bac2c")
+	fileHeader  = hexutils.HexToBytes("641b00ac")
 	fileVersion = hexutils.HexToBytes("00010001")
 )
 
