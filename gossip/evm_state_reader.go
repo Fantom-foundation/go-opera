@@ -27,6 +27,13 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
+func (s *Service) FinalEvmStateReader() *EvmStateReader {
+	return &EvmStateReader{
+		ServiceFeed: &s.feed, // TODO: make it flushable
+		store:       s.store.OnlyFinal(),
+	}
+}
+
 func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return params.MinGasPrice
 }

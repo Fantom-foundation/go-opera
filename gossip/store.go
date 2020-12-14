@@ -81,23 +81,35 @@ func NewMemStore() *Store {
 
 // NewStore creates store over key-value db.
 func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
-	const name = "gossip"
-	mainDB, err := dbs.OpenDB(name)
+	const name1 = "gossip"
+	mainDB, err := dbs.OpenDB(name1)
 	if err != nil {
-		log.Crit("fail to open db", "name", name, "err", err)
+		log.Crit("fail to open db", "name", name1, "err", err)
 	}
 
+	const name2 = "gossip-async"
+	asyncDB, err := dbs.OpenDB("gossip-async")
+	if err != nil {
+		log.Crit("failed to open db", "name", name2, "err", err)
+	}
+
+	s := newStore(dbs, cfg, mainDB, asyncDB)
+	s.initCache()
+
+	return s
+}
+
+func newStore(dbs *flushable.SyncedPool, cfg StoreConfig, mainDB, asyncDB kvdb.Store) *Store {
 	s := &Store{
 		dbs:      dbs,
 		cfg:      cfg,
-		async:    newAsyncStore(dbs),
+		async:    newAsyncStore(asyncDB),
 		mainDB:   mainDB,
 		Instance: logger.MakeInstance(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
 
-	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
 
 	return s

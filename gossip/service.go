@@ -180,8 +180,7 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 	svc.serverPool = newServerPool(store.async.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	// create tx pool
-	stateReader := svc.GetEvmStateReader()
-	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), stateReader)
+	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), svc.GetEvmStateReader())
 
 	// create checkers
 	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                                  // read pub keys of current epoch from disk
@@ -196,7 +195,7 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, svc.FinalEvmStateReader(), nil}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	// load epoch DB
