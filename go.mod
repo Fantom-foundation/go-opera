@@ -14,7 +14,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v1.13.1
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.9.8
+	github.com/ethereum/go-ethereum v1.9.22
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
@@ -56,5 +56,3 @@ require (
 replace gopkg.in/urfave/cli.v1 => github.com/urfave/cli v1.20.0
 
 replace github.com/ethereum/go-ethereum => github.com/uprendis/go-ethereum v1.9.22-ftm-0.2
-
-replace github.com/Fantom-foundation/lachesis-base => ../lachesis-base
