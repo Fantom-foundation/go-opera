@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 )
@@ -156,7 +157,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	if err != nil {
 		b.Fatalf("cannot create statedb: %v", err)
 	}
-	genesisBlock := MustApplyGenesis(net.State, statedb)
+	genesisBlock := MustApplyGenesis(net.State, statedb, opt.MiB)
 	genesisBlock.GasLimit = 1000000
 
 	// Time the insertion of the new chain.

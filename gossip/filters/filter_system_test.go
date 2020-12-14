@@ -33,6 +33,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -148,7 +149,7 @@ func TestBlockSubscription(t *testing.T) {
 
 		net         = makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
 		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
-		genesis     = evmcore.MustApplyGenesis(net.State, statedb)
+		genesis     = evmcore.MustApplyGenesis(net.State, statedb, opt.MiB)
 		chain, _, _ = evmcore.GenerateChain(
 			params.TestChainConfig, genesis, backend.db, 10, nil)
 		chainEvents = []evmcore.ChainHeadNotify{}
