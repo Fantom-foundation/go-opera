@@ -101,9 +101,9 @@ func MakeEngine(dbs *flushable.SyncedPool, cfg Configs, g opera.Genesis) (*abft.
 		}
 	}
 
-	err = dbs.Flush(genesisHash.Bytes())
+	err = gdb.Commit(genesisHash.Bytes(), true)
 	if err != nil {
-		utils.Fatalf("Failed to flush genesis state: %v", err)
+		utils.Fatalf("Failed to commit genesis state: %v", err)
 	}
 
 	if isNew {
