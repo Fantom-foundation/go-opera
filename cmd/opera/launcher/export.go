@@ -78,7 +78,7 @@ func exportEvents(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	err = exportTo(writer, gdb, from, to)
+	err = exportTo(writer, gdb.OnlyFinal(), from, to)
 	if err != nil {
 		utils.Fatalf("Export error: %v\n", err)
 	}
