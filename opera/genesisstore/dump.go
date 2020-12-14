@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/status-im/keycard-go/hexutils"
 )
 
@@ -51,11 +52,13 @@ func readAll(reader io.Reader, buf []byte) error {
 }
 
 func (s *Store) Import(reader io.Reader) error {
+	batch := s.db.NewBatch()
+	defer batch.Reset()
 	var lenB [4]byte
 	for {
 		err := readAll(reader, lenB[:])
 		if err == io.EOF {
-			return nil
+			break
 		}
 		if err != nil {
 			return err
@@ -80,11 +83,19 @@ func (s *Store) Import(reader io.Reader) error {
 			return err
 		}
 
-		err = s.db.Put(key, value)
+		err = batch.Put(key, value)
 		if err != nil {
 			return err
 		}
+		if batch.ValueSize() > kvdb.IdealBatchSize {
+			err = batch.Write()
+			if err != nil {
+				return err
+			}
+			batch.Reset()
+		}
 	}
+	return batch.Write()
 }
 
 var (
