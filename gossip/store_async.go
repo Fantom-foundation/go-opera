@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type asyncStore struct {
@@ -16,9 +17,15 @@ type asyncStore struct {
 }
 
 func newAsyncStore(dbs *flushable.SyncedPool) *asyncStore {
+	const name = "gossip-async"
+	mainDB, err := dbs.OpenDB(name)
+	if err != nil {
+		log.Crit("failed to open db", "name", name, "err", err)
+	}
+
 	s := &asyncStore{
 		dbs:    dbs,
-		mainDB: dbs.GetDb("gossip-async"),
+		mainDB: mainDB,
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)

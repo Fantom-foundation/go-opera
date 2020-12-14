@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
@@ -27,7 +26,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *
 		VectorClock:   vecmt.DefaultConfig(),
 	}
 
-	dbs := flushable.NewSyncedPool(DBProducer(ctx.Config.DataDir))
+	dbs := gossip.NewSyncedPool(DBProducer(ctx.Config.DataDir))
 	engine, dagIndex, gdb, blockProc := MakeEngine(dbs, cfg, genesis)
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()

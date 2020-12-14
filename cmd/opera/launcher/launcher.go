@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -253,7 +252,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
+	dbs := gossip.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
 	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, cfg.AppConfigs(), genesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 

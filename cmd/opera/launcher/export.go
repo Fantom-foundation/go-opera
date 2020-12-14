@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -88,7 +87,7 @@ func exportEvents(ctx *cli.Context) error {
 }
 
 func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
-	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
+	dbs := gossip.NewSyncedPool(integration.DBProducer(dataDir))
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb

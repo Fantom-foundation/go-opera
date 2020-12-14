@@ -56,9 +56,17 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 func MakeEngine(dbs *flushable.SyncedPool, cfg Configs, g opera.Genesis) (*abft.Lachesis, *vecmt.Index, *gossip.Store, gossip.BlockProc) {
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 
-	cMainDb := dbs.GetDb("lachesis")
+	cMainDb, err := dbs.OpenDB("lachesis")
+	if err != nil {
+		utils.Fatalf("Failed to open Lachesis DB: %v", err)
+	}
+
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
-		return dbs.GetDb(fmt.Sprintf("lachesis-%d", epoch))
+		db, err := dbs.OpenDB(fmt.Sprintf("lachesis-%d", epoch))
+		if err != nil {
+			utils.Fatalf("Failed to open Lachesis-%d DB: %v", epoch, err)
+		}
+		return db
 	}
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), cfg.LachesisStore)
 
@@ -74,7 +82,7 @@ func MakeEngine(dbs *flushable.SyncedPool, cfg Configs, g opera.Genesis) (*abft.
 		EVMModule:           evmmodule.New(g.Rules),
 	}
 
-	err := gdb.Migrate()
+	err = gdb.Migrate()
 	if err != nil {
 		utils.Fatalf("Failed to migrate Gossip DB: %v", err)
 	}

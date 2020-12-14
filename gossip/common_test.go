@@ -11,7 +11,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
@@ -79,8 +78,7 @@ func newTestEnv() *testEnv {
 
 	network.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
-	dbs := flushable.NewSyncedPool(
-		memorydb.NewProducer(""))
+	dbs := NewSyncedPool(memorydb.NewProducer(""))
 	store := NewStore(dbs, LiteStoreConfig())
 	blockProc := BlockProc{
 		SealerModule:        sealmodule.New(network),

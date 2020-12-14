@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skiperrors"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 )
@@ -82,7 +83,12 @@ func (s *Store) loadEpochStore(epoch idx.Epoch) {
 
 func (s *Store) createEpochStore(epoch idx.Epoch) {
 	// create new DB
-	db := s.dbs.GetDb(fmt.Sprintf("gossip-%d", epoch))
+	name := fmt.Sprintf("gossip-%d", epoch)
+	db, err := s.dbs.OpenDB(name)
+	if err != nil {
+		log.Crit("fail to open db", "name", name, "err", err)
+	}
+
 	s.epochStore.Store(newEpochStore(epoch, db))
 }
 

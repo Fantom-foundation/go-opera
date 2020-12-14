@@ -9,16 +9,23 @@ import (
 
 func cachedStore() *Store {
 	mems := memorydb.NewProducer("", withDelay)
+	dbs, err := mems.OpenDB("test")
+	if err != nil {
+		panic(err)
+	}
 	cfg := LiteStoreConfig()
-
-	return NewStore(mems.OpenDb("test"), cfg)
+	return NewStore(dbs, cfg)
 }
 
 func nonCachedStore() *Store {
 	mems := memorydb.NewProducer("", withDelay)
+	dbs, err := mems.OpenDB("test")
+	if err != nil {
+		panic(err)
+	}
 	cfg := StoreConfig{}
 
-	return NewStore(mems.OpenDb("test"), cfg)
+	return NewStore(dbs, cfg)
 }
 
 func withDelay(db kvdb.DropableStore) kvdb.DropableStore {

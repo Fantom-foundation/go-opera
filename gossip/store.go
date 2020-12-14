@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -64,10 +65,15 @@ type Store struct {
 	logger.Instance
 }
 
+// NewSyncedPool wraps flushable.NewSyncedPool()
+func NewSyncedPool(producer kvdb.DBProducer) *flushable.SyncedPool {
+	return flushable.NewSyncedPool(producer, []byte("flushID"))
+}
+
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
 	mems := memorydb.NewProducer("")
-	dbs := flushable.NewSyncedPool(mems)
+	dbs := NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
 	return NewStore(dbs, cfg)
@@ -75,11 +81,17 @@ func NewMemStore() *Store {
 
 // NewStore creates store over key-value db.
 func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
+	const name = "gossip"
+	mainDB, err := dbs.OpenDB(name)
+	if err != nil {
+		log.Crit("fail to open db", "name", name, "err", err)
+	}
+
 	s := &Store{
 		dbs:      dbs,
 		cfg:      cfg,
 		async:    newAsyncStore(dbs),
-		mainDB:   dbs.GetDb("gossip"),
+		mainDB:   mainDB,
 		Instance: logger.MakeInstance(),
 	}
 
@@ -121,7 +133,7 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 		flushID = buf.Bytes()
 	}
 
-	if !immediately && !s.dbs.IsFlushNeeded() {
+	if !immediately && !s.isFlushNeeded() {
 		return nil
 	}
 
@@ -133,6 +145,11 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 		return err
 	}
 	return s.dbs.Flush(flushID)
+}
+
+func (s *Store) isFlushNeeded() bool {
+	// TODO: configure it
+	return s.dbs.NotFlushedSizeEst() > 10*1024*1024
 }
 
 /*
