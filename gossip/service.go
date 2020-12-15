@@ -221,7 +221,7 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, svc.FinalEvmStateReader(), nil}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, store.OnlyFinal(), svc.FinalEvmStateReader(), nil}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	// load epoch DB

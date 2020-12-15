@@ -36,6 +36,7 @@ import (
 type EthAPIBackend struct {
 	extRPCEnabled bool
 	svc           *Service
+	store         *Store
 	state         *EvmStateReader
 	gpo           *gasprice.Oracle
 }
@@ -56,7 +57,7 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 
 // HeaderByHash returns evm header by its (atropos) hash.
 func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmcore.EvmHeader, error) {
-	index := b.svc.store.GetBlockIndex(hash.Event(h))
+	index := b.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
 	}
@@ -93,7 +94,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb := b.svc.store.evm.StateDB(hash.Hash(header.Root))
+	stateDb := b.store.evm.StateDB(hash.Hash(header.Root))
 	return stateDb, header, nil
 }
 
@@ -128,10 +129,7 @@ func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) 
 		return hash.Event{}, err
 	}
 
-	b.svc.engineMu.RLock() // lock because of iteration
-	defer b.svc.engineMu.RUnlock()
-
-	options := b.svc.store.FindEventHashes(epoch, lamport, prefix)
+	options := b.store.FindEventHashes(epoch, lamport, prefix)
 	if len(options) == 0 {
 		return hash.Event{}, errors.New("event not found by short ID")
 	}
@@ -147,7 +145,7 @@ func (b *EthAPIBackend) GetEventPayload(ctx context.Context, shortEventID string
 	if err != nil {
 		return nil, err
 	}
-	return b.svc.store.GetEventPayload(id), nil
+	return b.store.GetEventPayload(id), nil
 }
 
 // GetEvent returns the Lachesis event header by hash or short ID.
@@ -156,14 +154,14 @@ func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*int
 	if err != nil {
 		return nil, err
 	}
-	return b.svc.store.GetEvent(id), nil
+	return b.store.GetEvent(id), nil
 }
 
 // GetHeads returns IDs of all the epoch events with no descendants.
 // * When epoch is -2 the heads for latest epoch are returned.
 // * When epoch is -1 the heads for latest sealed epoch are returned.
 func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
-	current := b.svc.store.GetEpoch()
+	current := b.store.GetEpoch()
 
 	requested, err := b.epochWithDefault(ctx, epoch)
 	if err != nil {
@@ -171,7 +169,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	}
 
 	if requested == current {
-		heads = b.svc.store.GetHeads(requested)
+		heads = b.store.GetHeads(requested)
 	} else {
 		err = errors.New("heads for previous epochs are not available")
 		return
@@ -185,7 +183,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 }
 
 func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
-	current := b.svc.store.GetEpoch()
+	current := b.store.GetEpoch()
 
 	switch {
 	case epoch == rpc.PendingBlockNumber:
@@ -209,16 +207,16 @@ func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNu
 		return err
 	}
 
-	b.svc.store.ForEachEpochEvent(requested, onEvent)
+	b.store.ForEachEpochEvent(requested, onEvent)
 	return nil
 }
 
 func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
-	return b.svc.store.GetValidators()
+	return b.store.GetValidators()
 }
 
 func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
-	index := b.svc.store.GetBlockIndex(hash.Event(h))
+	index := b.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
 	}
@@ -252,13 +250,13 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 		number = rpc.BlockNumber(header.Number.Uint64())
 	}
 
-	receipts := b.svc.store.evm.GetReceipts(idx.Block(number))
+	receipts := b.store.evm.GetReceipts(idx.Block(number))
 	return receipts, nil
 }
 
 // GetReceipts retrieves the receipts for all transactions in a given block.
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, block common.Hash) (types.Receipts, error) {
-	number := b.svc.store.GetBlockIndex(hash.Event(block))
+	number := b.store.GetBlockIndex(hash.Event(block))
 	if number == nil {
 		return nil, nil
 	}
@@ -333,16 +331,16 @@ func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return nil, 0, 0, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
 	}
 
-	position := b.svc.store.evm.GetTxPosition(txHash)
+	position := b.store.evm.GetTxPosition(txHash)
 	if position == nil {
 		return nil, 0, 0, nil
 	}
 
 	var tx *types.Transaction
 	if position.Event.IsZero() {
-		tx = b.svc.store.evm.GetTx(txHash)
+		tx = b.store.evm.GetTx(txHash)
 	} else {
-		event := b.svc.store.GetEventPayload(position.Event)
+		event := b.store.GetEventPayload(position.Event)
 		if position.EventOffset > uint32(event.Txs().Len()) {
 			return nil, 0, 0, fmt.Errorf("transactions index is corrupted (offset is larger than number of txs in event), event=%s, txid=%s, block=%d, offset=%d, txs_num=%d",
 				position.Event.String(),
@@ -404,7 +402,7 @@ func (b *EthAPIBackend) MinGasPrice() *big.Int {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.evm.EvmTable()
+	return b.store.evm.EvmTable()
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -424,10 +422,10 @@ func (b *EthAPIBackend) RPCTxFeeCap() float64 {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.store.evm.EvmLogs()
+	return b.store.evm.EvmLogs()
 }
 
 // CurrentEpoch returns current epoch number.
 func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
-	return b.svc.store.GetEpoch()
+	return b.store.GetEpoch()
 }
