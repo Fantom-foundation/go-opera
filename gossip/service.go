@@ -39,6 +39,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -49,6 +50,7 @@ const (
 
 type ServiceFeed struct {
 	scope notify.SubscriptionScope
+	final utils.FlushableSubscriptionScope
 
 	newEpoch        notify.Feed
 	newPack         notify.Feed
@@ -76,6 +78,30 @@ func (f *ServiceFeed) SubscribeNewTxs(ch chan<- core.NewTxsEvent) notify.Subscri
 
 func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscription {
 	return f.scope.Track(f.newLogs.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeFinalBlock(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
+	buf := utils.NewChanBuffer(ch)
+	return f.final.Track(f.newBlock.Subscribe(buf.InChannel()), buf.Flush)
+}
+
+func (f *ServiceFeed) SubscribeFinalTxs(ch chan<- core.NewTxsEvent) notify.Subscription {
+	buf := utils.NewChanBuffer(ch)
+	return f.final.Track(f.newTxs.Subscribe(buf.InChannel()), buf.Flush)
+}
+
+func (f *ServiceFeed) SubscribeFinalLogs(ch chan<- []*types.Log) notify.Subscription {
+	buf := utils.NewChanBuffer(ch)
+	return f.final.Track(f.newLogs.Subscribe(buf.InChannel()), buf.Flush)
+}
+
+func (f *ServiceFeed) Flush() {
+	f.final.Flush()
+}
+
+func (f *ServiceFeed) Close() {
+	f.final.Close()
+	f.scope.Close()
 }
 
 type BlockProc struct {
@@ -336,14 +362,18 @@ func (s *Service) Stop() error {
 	s.emitter.StopEventEmission()
 	s.pm.Stop()
 	s.wg.Wait()
-	s.feed.scope.Close()
+	s.feed.Close()
 
 	// flush the state at exit, after all the routines stopped
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	s.stopped = true
 
-	return s.store.Commit(nil, true)
+	ok, err := s.store.Commit(nil, true)
+	if ok {
+		s.feed.Flush()
+	}
+	return err
 }
 
 // AccountManager return node's account manager

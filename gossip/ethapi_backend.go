@@ -301,15 +301,15 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 }
 
 func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
-	return b.svc.feed.SubscribeNewLogs(ch)
+	return b.svc.feed.SubscribeFinalLogs(ch)
 }
 
 func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
-	return b.svc.feed.SubscribeNewTxs(ch)
+	return b.svc.feed.SubscribeFinalTxs(ch)
 }
 
 func (b *EthAPIBackend) SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
-	return b.svc.feed.SubscribeNewBlock(ch)
+	return b.svc.feed.SubscribeFinalBlock(ch)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

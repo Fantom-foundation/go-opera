@@ -136,7 +136,7 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(flushID []byte, immediately bool) error {
+func (s *Store) Commit(flushID []byte, immediately bool) (flushed bool, err error) {
 	if flushID == nil {
 		// if flushId not specified, use current time
 		buf := bytes.NewBuffer(nil)
@@ -146,17 +146,19 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 	}
 
 	if !immediately && !s.isFlushNeeded() {
-		return nil
+		return
 	}
 
 	// Flush the DBs
 	s.FlushBlockState()
 	s.FlushEpochState()
-	err := s.evm.Commit()
+	err = s.evm.Commit()
 	if err != nil {
-		return err
+		return
 	}
-	return s.dbs.Flush(flushID)
+	err = s.dbs.Flush(flushID)
+	flushed = (err == nil)
+	return
 }
 
 func (s *Store) isFlushNeeded() bool {
