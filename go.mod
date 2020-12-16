@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.14
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20201214053230-1d2647efcddf
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20201214165924-72afa56d8136
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
@@ -57,4 +57,4 @@ replace gopkg.in/urfave/cli.v1 => github.com/urfave/cli v1.20.0
 
 replace github.com/ethereum/go-ethereum => github.com/uprendis/go-ethereum v1.9.22-ftm-0.2
 
-replace github.com/Fantom-foundation/lachesis-base => ../lachesis-base
+replace github.com/Fantom-foundation/lachesis-base => github.com/rus-alex/lachesis-base v0.0.0-20201214165924-72afa56d8136
