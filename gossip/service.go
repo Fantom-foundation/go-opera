@@ -153,9 +153,6 @@ type Service struct {
 	// application protocol
 	pm *ProtocolManager
 
-	EthAPI        *EthAPIBackend
-	netRPCService *ethapi.PublicNetAPI
-
 	stopped bool
 
 	logger.Instance
@@ -177,8 +174,6 @@ func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, 
 
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
-	// Create the net API service
-	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, svc.net.NetworkID)
 
 	return svc, nil
 }
@@ -219,10 +214,6 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 	if err != nil {
 		return nil, err
 	}
-
-	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, store.OnlyFinal(), svc.FinalEvmStateReader(), nil}
-	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	// load epoch DB
 	svc.store.loadEpochStore(svc.store.GetEpoch())
@@ -306,7 +297,10 @@ func (s *Service) Protocols() []p2p.Protocol {
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	apis := ethapi.GetAPIs(s.EthAPI)
+	backend := &EthAPIBackend{s.config.ExtRPCEnabled, s, s.store.OnlyFinal(), s.FinalEvmStateReader(), nil}
+	backend.gpo = gasprice.NewOracle(backend, s.config.GPO)
+
+	apis := ethapi.GetAPIs(backend)
 
 	apis = append(apis, []rpc.API{
 		{
@@ -317,12 +311,12 @@ func (s *Service) APIs() []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s.EthAPI),
+			Service:   filters.NewPublicFilterAPI(backend),
 			Public:    true,
 		}, {
 			Namespace: "net",
 			Version:   "1.0",
-			Service:   s.netRPCService,
+			Service:   ethapi.NewPublicNetAPI(s.p2pServer, s.net.NetworkID),
 			Public:    true,
 		},
 	}...)

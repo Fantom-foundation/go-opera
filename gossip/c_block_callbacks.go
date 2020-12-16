@@ -24,7 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-// GetConsensusCallbacks returns single (for Service) callback instance.
+// GetConsensusCallbacks returns callback instance.
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
 		BeginBlock: consensusCallbackBeginBlockFn(
