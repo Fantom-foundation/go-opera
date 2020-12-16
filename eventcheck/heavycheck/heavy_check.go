@@ -59,11 +59,11 @@ func New(config Config, reader Reader, txSigner types.Signer) *Checker {
 		}
 	}
 	return &Checker{
-		config:       config,
-		txSigner:     txSigner,
-		reader:       reader,
-		tasksQ:       make(chan *TaskData, config.MaxQueuedBatches),
-		quit:         make(chan struct{}),
+		config:   config,
+		txSigner: txSigner,
+		reader:   reader,
+		tasksQ:   make(chan *TaskData, config.MaxQueuedBatches),
+		quit:     make(chan struct{}),
 	}
 }
 

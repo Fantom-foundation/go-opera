@@ -1,5 +1,7 @@
 package evmstore
 
+import "github.com/syndtr/goleveldb/leveldb/opt"
+
 type (
 	// StoreConfig is a config for store db.
 	StoreCacheConfig struct {
@@ -9,6 +11,7 @@ type (
 		ReceiptsBlocks int
 		// Cache size for TxPositions.
 		TxPositions int
+		EvmDatabase int
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
@@ -23,6 +26,7 @@ func DefaultStoreConfig() StoreConfig {
 			ReceiptsSize:   64 * 1024,
 			ReceiptsBlocks: 1000,
 			TxPositions:    5000,
+			EvmDatabase:    16 * opt.MiB,
 		},
 	}
 }

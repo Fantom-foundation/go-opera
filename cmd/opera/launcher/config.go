@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -121,28 +121,49 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func getOperaGenesis(ctx *cli.Context) opera.Genesis {
-	var genesisStore *genesisstore.Store
+func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
+
+	var genesis integration.InputGenesis
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		genesisStore = makegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		fakeGenesisStore := makegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		genesis = integration.InputGenesis{
+			Hash: fakeGenesisStore.Hash(),
+			Read: func(store *genesisstore.Store) error {
+				buf := bytes.NewBuffer(nil)
+				err = fakeGenesisStore.Export(buf)
+				if err != nil {
+					return err
+				}
+				return store.Import(buf)
+			},
+			Close: func() error {
+				return nil
+			},
+		}
 	case ctx.GlobalIsSet(GenesisFlag.Name):
-		path := ctx.GlobalString(GenesisFlag.Name)
-		var err error
-		genesisStore, err = makegenesis.OpenGenesis(path)
+		genesisPath := ctx.GlobalString(GenesisFlag.Name)
+
+		genesisFile, err := os.Open(genesisPath)
 		if err != nil {
-			log.Crit("Genesis reading error", "path", path, "err", err)
+			utils.Fatalf("Failed to open genesis file: %v", err)
+		}
+		inputGenesisHash, readGenesisStore, err := genesisstore.OpenGenesisStore(genesisFile)
+		if err != nil {
+			utils.Fatalf("Failed to read genesis file: %v", err)
+		}
+
+		genesis = integration.InputGenesis{
+			Hash:  inputGenesisHash,
+			Read:  readGenesisStore,
+			Close: genesisFile.Close,
 		}
 	default:
 		log.Crit("Network genesis is not specified")
-	}
-	genesis := genesisStore.GetGenesis()
-	if ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
-		genesis.Rules.NetworkID = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
 	}
 	return genesis
 }

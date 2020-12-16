@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"bytes"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -21,7 +21,7 @@ import (
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	dbs *flushable.SyncedPool
+	dbs kvdb.FlushableDBProducer
 	cfg StoreConfig
 
 	async *asyncStore
@@ -43,6 +43,8 @@ type Store struct {
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
 	}
+
+	prevFlushTime time.Time
 
 	epochStore atomic.Value
 
@@ -67,20 +69,29 @@ type Store struct {
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
 	mems := memorydb.NewProducer("")
-	dbs := flushable.NewSyncedPool(mems)
+	dbs := flushable.NewSyncedPool(mems, []byte{0})
 	cfg := LiteStoreConfig()
 
 	return NewStore(dbs, cfg)
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
+func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
+	mainDB, err := dbs.OpenDB("gossip")
+	if err != nil {
+		log.Crit("Filed to open DB", "name", "gossip", "err", err)
+	}
+	asyncDB, err := dbs.OpenDB("gossip-async")
+	if err != nil {
+		log.Crit("Filed to open DB", "name", "gossip-async", "err", err)
+	}
 	s := &Store{
-		dbs:      dbs,
-		cfg:      cfg,
-		async:    newAsyncStore(dbs),
-		mainDB:   dbs.GetDb("gossip"),
-		Instance: logger.MakeInstance(),
+		dbs:           dbs,
+		cfg:           cfg,
+		async:         newAsyncStore(asyncDB),
+		mainDB:        mainDB,
+		Instance:      logger.MakeInstance(),
+		prevFlushTime: time.Now(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
@@ -107,28 +118,34 @@ func (s *Store) Close() {
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
 
-	s.mainDB.Close()
+	_ = s.mainDB.Close()
 	s.async.Close()
+	_ = s.closeEpochStore()
+}
+
+func (s *Store) IsCommitNeeded(epochSealing bool) bool {
+	period := s.cfg.MaxNonFlushedPeriod
+	size := s.cfg.MaxNonFlushedSize / 2
+	if epochSealing {
+		period /= 2
+		size /= 2
+	}
+	return time.Since(s.prevFlushTime) > period ||
+		s.dbs.NotFlushedSizeEst() > size
+}
+
+func (s *Store) Cap() {
+	s.evm.Cap(s.cfg.MaxNonFlushedSize / 4)
 }
 
 // Commit changes.
-func (s *Store) Commit(flushID []byte, immediately bool) error {
-	if flushID == nil {
-		// if flushId not specified, use current time
-		buf := bytes.NewBuffer(nil)
-		buf.Write([]byte{0xbe, 0xee})                                     // 0xbeee eyecatcher that flushed time
-		buf.Write(bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
-		flushID = buf.Bytes()
-	}
-
-	if !immediately && !s.dbs.IsFlushNeeded() {
-		return nil
-	}
-
+func (s *Store) Commit() error {
+	s.prevFlushTime = time.Now()
+	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
 	s.FlushBlockState()
 	s.FlushEpochState()
-	err := s.evm.Commit()
+	err := s.evm.Commit(s.GetBlockState().LastStateRoot)
 	if err != nil {
 		return err
 	}

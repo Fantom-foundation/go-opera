@@ -1,6 +1,7 @@
 package errlock
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -31,6 +32,21 @@ func Permanent(err error) {
 	utils.Fatalf("Node is permanently stopping due to an issue. Please fix the issue and then delete file \"%s\". Error message:\n%s", eLockPath, err.Error())
 }
 
+func readAll(reader io.Reader, max int) ([]byte, error) {
+	buf := make([]byte, max)
+	consumed := 0
+	for {
+		n, err := reader.Read(buf[consumed:])
+		consumed += n
+		if consumed == len(buf) || err == io.EOF {
+			return buf[consumed:], nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+}
+
 // read errlock file
 func read(dir string) (bool, string, string, error) {
 	eLockPath := path.Join(dir, "errlock")
@@ -43,12 +59,11 @@ func read(dir string) (bool, string, string, error) {
 
 	// read no more than N bytes
 	maxFileLen := 5000
-	eLockBytes := make([]byte, maxFileLen)
-	n, err := data.Read(eLockBytes)
+	eLockBytes, err := readAll(data, maxFileLen)
 	if err != nil {
 		return true, "", eLockPath, err
 	}
-	return true, string(eLockBytes[:n]), eLockPath, nil
+	return true, string(eLockBytes), eLockPath, nil
 }
 
 // write errlock file

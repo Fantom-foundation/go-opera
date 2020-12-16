@@ -150,7 +150,7 @@ func validatorKeyConvert(ctx *cli.Context) error {
 		acckeypath = ctx.Args().First()
 	}
 
-	valkeypath := path.Join(path.Join(keydir, "validator"), pubkey.String())
+	valkeypath := path.Join(keydir, "validator", pubkey.String())
 	err = encryption.MigrateAccountToValidatorKey(acckeypath, valkeypath, pubkey)
 	if err != nil {
 		utils.Fatalf("Failed to migrate the account key: %v", err)

@@ -344,7 +344,7 @@ func (s *Service) Stop() error {
 	defer s.engineMu.Unlock()
 	s.stopped = true
 
-	return s.store.Commit(nil, true)
+	return s.store.Commit()
 }
 
 // AccountManager return node's account manager

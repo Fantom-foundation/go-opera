@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -31,39 +30,51 @@ import (
 )
 
 // ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(db ethdb.Database, g opera.GenesisState) (*EvmBlock, error) {
-	// state
-	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
-	if err != nil {
-		return nil, err
-	}
+func ApplyGenesis(statedb *state.StateDB, g opera.GenesisState, maxMemoryUsage int) (*EvmBlock, error) {
+	mem := 0
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
+		mem += 1024 + len(account.Code)
+		if mem > maxMemoryUsage {
+			_, _ = flush(statedb)
+			mem = 0
+		}
 	})
 	g.Storage.ForEach(func(addr common.Address, key common.Hash, value common.Hash) {
 		statedb.SetState(addr, key, value)
+		mem += 1024
+		if mem > maxMemoryUsage {
+			_, _ = flush(statedb)
+			mem = 0
+		}
 	})
 
 	// initial block
-	root, err := statedb.Commit(true)
+	root, err := flush(statedb)
 	if err != nil {
 		return nil, err
 	}
 	block := genesisBlock(g, root)
 
-	err = statedb.Database().TrieDB().Cap(0)
-	if err != nil {
-		return nil, err
-	}
-
 	return block, nil
+}
+
+func flush(statedb *state.StateDB) (common.Hash, error) {
+	root, err := statedb.Commit(true)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	err = statedb.Database().TrieDB().Commit(root, false, nil)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return root, nil
 }
 
 // genesisBlock makes genesis block with pretty hash.
 func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
-
 	block := &EvmBlock{
 		EvmHeader: EvmHeader{
 			Number:   big.NewInt(0),
@@ -78,8 +89,8 @@ func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
 }
 
 // MustApplyGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyGenesis(g opera.GenesisState, db ethdb.Database) *EvmBlock {
-	block, err := ApplyGenesis(db, g)
+func MustApplyGenesis(g opera.GenesisState, statedb *state.StateDB, maxMemoryUsage int) *EvmBlock {
+	block, err := ApplyGenesis(statedb, g, maxMemoryUsage)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)
 	}

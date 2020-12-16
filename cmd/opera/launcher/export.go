@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ import (
 
 var (
 	eventsFileHeader  = hexutils.HexToBytes("7e995678")
-	eventsFileVersion = hexutils.HexToBytes("00010000")
+	eventsFileVersion = hexutils.HexToBytes("00010001")
 )
 
 // statsReportLimit is the time limit during import and export after which we
@@ -88,7 +89,7 @@ func exportEvents(ctx *cli.Context) error {
 }
 
 func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
-	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
+	dbs := flushable.NewSyncedPool(integration.DBProducer(path.Join(dataDir, "chaindata")), integration.FlushIDKey)
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb

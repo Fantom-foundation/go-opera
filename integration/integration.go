@@ -4,21 +4,24 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
+	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
+var (
+	FlushIDKey = hexutils.HexToBytes("0068c2927bf842c3e9e2f1364494a33a752db334b9a819534bc9f17d2c3b4e5970008ff519d35a86f29fcaa5aae706b75dee871f65f174fcea1747f2915fc92158f6bfbf5eb79f65d16225738594bffb0c")
+)
+
 // NewIntegration creates gossip service for the integration test
-func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *node.Node) *gossip.Service {
-	gossipCfg := gossip.FakeConfig(len(genesis.State.Validators))
+func NewIntegration(ctx *adapters.ServiceContext, genesis InputGenesis, stack *node.Node) *gossip.Service {
+	gossipCfg := gossip.FakeConfig(1)
 	cfg := Configs{
 		Opera:         gossipCfg,
 		OperaStore:    gossip.DefaultStoreConfig(),
@@ -27,8 +30,8 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *
 		VectorClock:   vecmt.DefaultConfig(),
 	}
 
-	dbs := flushable.NewSyncedPool(DBProducer(ctx.Config.DataDir))
-	engine, dagIndex, gdb, blockProc := MakeEngine(dbs, cfg, genesis)
+	engine, dagIndex, gdb, _, genesisStore, blockProc := MakeEngine(DBProducer(ctx.Config.DataDir), genesis, cfg)
+	_ = genesis.Close()
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
 
@@ -43,9 +46,9 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *
 	signer := valkeystore.NewSigner(valKeystore)
 
 	// find a genesis validator which corresponds to the key
-	for _, v := range genesis.State.Validators {
+	for id, v := range gdb.GetEpochState().ValidatorProfiles {
 		if v.PubKey.String() == pubKey.String() {
-			gossipCfg.Emitter.Validator.ID = v.ID
+			gossipCfg.Emitter.Validator.ID = id
 			gossipCfg.Emitter.Validator.PubKey = v.PubKey
 		}
 	}
@@ -53,7 +56,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis opera.Genesis, stack *
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(stack, gossipCfg, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, gossipCfg, genesisStore.GetRules(), gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

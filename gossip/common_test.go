@@ -80,7 +80,7 @@ func newTestEnv() *testEnv {
 	network.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
 	dbs := flushable.NewSyncedPool(
-		memorydb.NewProducer(""))
+		memorydb.NewProducer(""), []byte{0})
 	store := NewStore(dbs, LiteStoreConfig())
 	blockProc := BlockProc{
 		SealerModule:        sealmodule.New(network),
@@ -92,7 +92,7 @@ func newTestEnv() *testEnv {
 		EVMModule:           evmmodule.New(network),
 	}
 
-	_, _, err := store.ApplyGenesis(blockProc, genesis)
+	_, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
 		panic(err)
 	}
@@ -103,8 +103,8 @@ func newTestEnv() *testEnv {
 		store:            store,
 		signer:           types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 
-		lastBlock:     0,
-		lastState:     store.GetBlock(0).Root,
+		lastBlock:     1,
+		lastState:     store.GetBlockState().LastStateRoot,
 		lastBlockTime: genesis.State.Time.Time(),
 		validators:    genesis.State.Validators,
 
@@ -240,7 +240,8 @@ func (env *testEnv) ReadOnly() *bind.CallOpts {
 }
 
 func (env *testEnv) State() *state.StateDB {
-	return env.store.evm.StateDB(env.lastState)
+	statedb, _ := env.store.evm.StateDB(env.lastState)
+	return statedb
 }
 
 func (env *testEnv) incNonce(account common.Address) {

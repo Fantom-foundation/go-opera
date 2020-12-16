@@ -37,7 +37,7 @@ Welcome to the Lachesis JavaScript console!
 
 instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
-at block: 0 ({{niltime}})
+at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
  modules: {{apis}}
 
@@ -80,7 +80,7 @@ Welcome to the Lachesis JavaScript console!
 
 instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
-at block: 0 ({{niltime}})
+at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
  modules: {{apis}}
 

@@ -3,12 +3,12 @@ package launcher
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -25,7 +25,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/flags"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
@@ -237,15 +236,15 @@ func lachesisMain(ctx *cli.Context) error {
 	defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
-	genesis := getOperaGenesis(ctx)
-	node, _ := makeNode(ctx, cfg, genesis)
-	defer node.Close()
+	genesisPath := getOperaGenesis(ctx)
+	node, _, close := makeNode(ctx, cfg, genesisPath)
+	defer close()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node, *gossip.Service) {
+func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	// TODO: do the same with with stack.OpenDatabaseWithFreezer()
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
@@ -253,8 +252,12 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	dbs := flushable.NewSyncedPool(integration.DBProducer(cfg.Node.DataDir))
-	engine, dagIndex, gdb, blockProc := integration.MakeEngine(dbs, cfg.AppConfigs(), genesis)
+	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
+	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
+		utils.Fatalf("Failed to create chaindata directory: %v", err)
+	}
+	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir), genesis, cfg.AppConfigs())
+	_ = genesis.Close()
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
@@ -276,7 +279,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 
 	// Create and register a gossip network service.
 
-	svc, err := gossip.NewService(stack, cfg.Opera, genesis.Rules, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, cfg.Opera, genesisStore.GetRules(), gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
@@ -289,7 +292,12 @@ func makeNode(ctx *cli.Context, cfg *config, genesis opera.Genesis) (*node.Node,
 	stack.RegisterProtocols(svc.Protocols())
 	stack.RegisterLifecycle(svc)
 
-	return stack, svc
+	return stack, svc, func() {
+		_ = stack.Close()
+		gdb.Close()
+		_ = cdb.Close()
+		genesisStore.Close()
+	}
 }
 
 func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {

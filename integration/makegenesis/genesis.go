@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
@@ -26,14 +26,6 @@ import (
 var (
 	FakeGenesisTime = inter.Timestamp(1577419000 * time.Second)
 )
-
-func OpenGenesis(path string) (*genesisstore.Store, error) {
-	db, err := leveldb.New(path, opt.MiB, 0, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return genesisstore.NewStore(db), nil
-}
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n int) *ecdsa.PrivateKey {
@@ -76,6 +68,14 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 		Time:          FakeGenesisTime,
 		PrevEpochTime: FakeGenesisTime - inter.Timestamp(time.Hour),
 		ExtraData:     []byte("fake"),
+	})
+	genStore.SetBlock(0, genesis.Block{
+		Time:        FakeGenesisTime - inter.Timestamp(time.Minute),
+		Atropos:     hash.Event{},
+		Txs:         types.Transactions{},
+		InternalTxs: types.Transactions{},
+		Root:        hash.Hash{},
+		Receipts:    []*types.ReceiptForStorage{},
 	})
 	preDeploySfc(admin, sfc.ContractAddress, sfc.ContractAddressV1, proxy.GetContractBin(), sfc.GetContractBin(), genStore)
 

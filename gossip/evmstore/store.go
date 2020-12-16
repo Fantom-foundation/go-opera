@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -62,7 +63,7 @@ func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
 
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16, "")
+	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, cfg.Cache.EvmDatabase / opt.MiB, "")
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
 	s.initCache()
@@ -76,22 +77,22 @@ func (s *Store) initCache() {
 }
 
 // Commit changes.
-func (s *Store) Commit() error {
+func (s *Store) Commit(root hash.Hash) error {
 	// Flush trie on the DB
-	err := s.table.EvmState.TrieDB().Cap(0)
+	err := s.table.EvmState.TrieDB().Commit(common.Hash(root), false, nil)
 	if err != nil {
 		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
 	return err
 }
 
+func (s *Store) Cap(max int) {
+	_ = s.table.EvmState.TrieDB().Cap(common.StorageSize(max))
+}
+
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) *state.StateDB {
-	db, err := state.New(common.Hash(from), s.table.EvmState, nil)
-	if err != nil {
-		s.Log.Crit("Failed to open state", "err", err)
-	}
-	return db
+func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
+	return state.New(common.Hash(from), s.table.EvmState, nil)
 }
 
 // StateDB returns state database.

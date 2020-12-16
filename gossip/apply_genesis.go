@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -19,38 +18,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
-// GenesisMismatchError is raised when trying to overwrite an existing
-// genesis block with an incompatible one.
-type GenesisMismatchError struct {
-	Stored, New hash.Hash
-}
-
-// Error implements error interface.
-func (e *GenesisMismatchError) Error() string {
-	return fmt.Sprintf("database contains incompatible gossip genesis (have %s, new %s)", e.Stored.String(), e.New.String())
-}
-
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, new bool, err error) {
-	storedGenesis := s.GetGenesisHash()
-	if storedGenesis != nil {
-		newHash := g.Hash()
-		if *storedGenesis != newHash {
-			return genesisHash, true, &GenesisMismatchError{*storedGenesis, newHash}
-		}
-
-		genesisHash = *storedGenesis
-		return genesisHash, false, nil
-	}
+func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, err error) {
 	// if we'here, then it's first time genesis is applied
 	err = s.applyEpoch1Genesis(blockProc, g)
 	if err != nil {
-		return genesisHash, true, err
+		return genesisHash, err
 	}
 	genesisHash = g.Hash()
 	s.SetGenesisHash(genesisHash)
 
-	return genesisHash, true, err
+	return genesisHash, err
 }
 
 func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
@@ -100,6 +78,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 
 	s.SetBlockState(blockproc.BlockState{
 		LastBlock:             highestBlock,
+		LastStateRoot:         hash.Hash(evmBlock.Root),
 		EpochBlocks:           0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]sfctype.SfcValidator),
@@ -123,9 +102,14 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}
 
 	evmStateReader := &EvmStateReader{store: s}
-	statedb := s.evm.StateDB(hash.Hash(evmBlock0.Root))
+	statedb, err := s.evm.StateDB(hash.Hash(evmBlock0.Root))
+	if err != nil {
+		return err
+	}
 
 	bs, es := s.GetBlockState(), s.GetEpochState()
+	bs.LastBlock++
+	bs.EpochBlocks++
 
 	blockCtx := blockproc.BlockCtx{
 		Idx:  bs.LastBlock,
@@ -172,6 +156,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		return errors.New("genesis transaction is skipped")
 	}
 	bs = txListener.Finalize()
+	bs.LastStateRoot = hash.Hash(evmBlock.Root)
 
 	s.SetBlockState(bs)
 
@@ -189,7 +174,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	genesisAtropos := prettyHash(evmBlock.Root, g)
 
 	block := &inter.Block{
-		Time:       g.State.Time,
+		Time:       blockCtx.Time,
 		Atropos:    genesisAtropos,
 		Events:     hash.Events{},
 		SkippedTxs: skippedTxs,

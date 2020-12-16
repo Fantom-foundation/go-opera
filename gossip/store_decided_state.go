@@ -29,7 +29,7 @@ func (s *Store) GetBlockState() blockproc.BlockState {
 	}
 	v, ok := s.rlp.Get(s.table.BlockState, []byte(lbKey), &blockproc.BlockState{}).(*blockproc.BlockState)
 	if !ok {
-		log.Crit("Genesis not applied")
+		log.Crit("Block state reading failed: genesis not applied")
 	}
 	s.cache.BlockState.Store(v)
 	return *v
@@ -52,7 +52,7 @@ func (s *Store) GetEpochState() blockproc.EpochState {
 	}
 	v, ok := s.rlp.Get(s.table.EpochState, []byte(leKey), &blockproc.EpochState{}).(*blockproc.EpochState)
 	if !ok {
-		log.Crit("Genesis not applied")
+		log.Crit("Epoch state reading failed: genesis not applied")
 	}
 	s.cache.EpochState.Store(v)
 	return *v

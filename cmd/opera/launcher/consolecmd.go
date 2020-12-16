@@ -79,9 +79,9 @@ func localConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	cfg := makeAllConfigs(ctx)
 	genesis := getOperaGenesis(ctx)
-	node, _ := makeNode(ctx, cfg, genesis)
+	node, _, close := makeNode(ctx, cfg, genesis)
 	startNode(ctx, node)
-	defer node.Close()
+	defer close()
 
 	// Attach to the newly started node and start the JavaScript console
 	client, err := node.Attach()
@@ -181,9 +181,9 @@ func ephemeralConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	cfg := makeAllConfigs(ctx)
 	genesis := getOperaGenesis(ctx)
-	node, _ := makeNode(ctx, cfg, genesis)
+	node, _, close := makeNode(ctx, cfg, genesis)
 	startNode(ctx, node)
-	defer node.Close()
+	defer close()
 
 	// Attach to the newly started node and start the JavaScript console
 	client, err := node.Attach()

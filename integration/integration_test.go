@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -40,8 +42,21 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	genesisStore := makegenesis.FakeGenesisStore(count, big.NewInt(0), big.NewInt(10000))
-	genesis := genesisStore.GetGenesis()
+	fakeGenesisStore := makegenesis.FakeGenesisStore(count, big.NewInt(0), big.NewInt(10000))
+	genesis := InputGenesis{
+		Hash: fakeGenesisStore.Hash(),
+		Read: func(store *genesisstore.Store) error {
+			buf := bytes.NewBuffer(nil)
+			err := fakeGenesisStore.Export(buf)
+			if err != nil {
+				return err
+			}
+			return store.Import(buf)
+		},
+		Close: func() error {
+			return nil
+		},
+	}
 
 	// register a single gossip service
 	services := adapters.LifecycleConstructors{
@@ -65,7 +80,7 @@ func testSim(t *testing.T, connect topology) {
 
 	// create and start nodes
 	nodes := make([]enode.ID, count)
-	for i, val := range genesis.State.Validators {
+	for i, val := range fakeGenesisStore.GetMetadata().Validators {
 		key := makegenesis.FakeKey(int(val.ID))
 		id := enode.PubkeyToIDV4(&key.PublicKey)
 		config := &adapters.NodeConfig{

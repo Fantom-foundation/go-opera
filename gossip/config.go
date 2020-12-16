@@ -88,7 +88,9 @@ type (
 	StoreConfig struct {
 		Cache StoreCacheConfig
 		// EVM is EVM store config
-		EVM evmstore.StoreConfig
+		EVM                 evmstore.StoreConfig
+		MaxNonFlushedSize   int
+		MaxNonFlushedPeriod time.Duration
 	}
 )
 
@@ -177,7 +179,9 @@ func DefaultStoreConfig() StoreConfig {
 			BlocksNum:        1000,
 			BlocksSize:       512 * opt.KiB,
 		},
-		EVM: evmstore.DefaultStoreConfig(),
+		EVM:                 evmstore.DefaultStoreConfig(),
+		MaxNonFlushedSize:   16 * opt.MiB,
+		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
 
@@ -191,6 +195,8 @@ func LiteStoreConfig() StoreConfig {
 			BlocksNum:        100,
 			BlocksSize:       50 * opt.KiB,
 		},
-		EVM: evmstore.LiteStoreConfig(),
+		EVM:                 evmstore.LiteStoreConfig(),
+		MaxNonFlushedSize:   400 * opt.KiB,
+		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
