@@ -344,6 +344,7 @@ func (s *Service) Stop() error {
 	defer s.engineMu.Unlock()
 	s.stopped = true
 
+	s.blockProcWg.Wait()
 	return s.store.Commit()
 }
 
