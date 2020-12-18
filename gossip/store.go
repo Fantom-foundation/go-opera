@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"bytes"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -56,10 +55,6 @@ type Store struct {
 		EpochState    atomic.Value // store by pointer
 	}
 
-	mutex struct {
-		Inc sync.Mutex
-	}
-
 	rlp rlpstore.Helper
 
 	logger.Instance
@@ -93,15 +88,15 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 		log.Crit("failed to open db", "name", name2, "err", err)
 	}
 
-	s := newStore(dbs, cfg, mainDB, asyncDB)
+	s := newStore(cfg, mainDB, asyncDB)
+	s.dbs = dbs
 	s.initCache()
 
 	return s
 }
 
-func newStore(dbs *flushable.SyncedPool, cfg StoreConfig, mainDB, asyncDB kvdb.Store) *Store {
+func newStore(cfg StoreConfig, mainDB, asyncDB kvdb.Store) *Store {
 	s := &Store{
-		dbs:      dbs,
 		cfg:      cfg,
 		async:    newAsyncStore(asyncDB),
 		mainDB:   mainDB,

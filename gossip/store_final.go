@@ -19,7 +19,7 @@ func (s *Store) OnlyFinal() *Store {
 		log.Crit("failed to open db", "name", "err", err)
 	}
 
-	return newStore(nil, s.cfg, &readonly{mainDB}, &readonly{asyncDB})
+	return newStore(s.cfg, &readonly{mainDB}, &readonly{asyncDB})
 }
 
 type readonly struct {
