@@ -18,8 +18,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
@@ -35,7 +35,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			s.blockProcModules,
 			s.config.TxIndex,
 			&s.feed,
-			s.occurredTxs,
+			s.emitter,
 			nil,
 		),
 	}
@@ -52,7 +52,7 @@ func consensusCallbackBeginBlockFn(
 	blockProc BlockProc,
 	txIndex bool,
 	feed *ServiceFeed,
-	occurredTxs *occuredtxs.Buffer,
+	emitter *emitter.Emitter,
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
@@ -85,11 +85,11 @@ func consensusCallbackBeginBlockFn(
 				if !e.NoTxs() {
 					// non-empty events only
 					confirmedEvents = append(confirmedEvents, e.ID())
-					if occurredTxs != nil {
-						occurredTxs.CollectConfirmedTxs(store.GetEventPayload(e.ID()).Txs())
-					}
 				}
 				eventProcessor.ProcessConfirmedEvent(e)
+				if emitter != nil {
+					emitter.OnEventConfirmed(e)
+				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
 				// Note: it's possible that i'th Atropos observes i+1's Atropos,
@@ -251,7 +251,6 @@ func consensusCallbackBeginBlockFn(
 
 					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
-
 				})
 				if err != nil {
 					panic(err)

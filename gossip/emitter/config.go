@@ -39,12 +39,12 @@ type Config struct {
 
 	EpochTailLength idx.Frame // number of frames before event is considered epoch
 
-	MaxParents uint32
+	MaxParents idx.Event
 
 	// thresholds on GasLeft
-	SmoothTpsThreshold uint64
-	NoTxsThreshold     uint64
-	EmergencyThreshold uint64
+	LimitedTpsThreshold uint64
+	NoTxsThreshold      uint64
+	EmergencyThreshold  uint64
 }
 
 // DefaultConfig returns the default configurations for the events emitter.
@@ -53,9 +53,9 @@ func DefaultConfig() Config {
 		VersionToPublish: _params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
-			Min:                        200 * time.Millisecond,
-			Max:                        12 * time.Minute,
-			Confirming:                 200 * time.Millisecond,
+			Min:                        120 * time.Millisecond,
+			Max:                        10 * time.Minute,
+			Confirming:                 120 * time.Millisecond,
 			DoublesignProtection:       30 * time.Minute, // should be at least 2x of MaxEmitInterval
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
@@ -64,11 +64,11 @@ func DefaultConfig() Config {
 		MaxTxsFromSender:       TxTurnNonces,
 		EpochTailLength:        1,
 
-		MaxParents: 7,
+		MaxParents: 0,
 
-		SmoothTpsThreshold: (params.EventGas + params.TxGas) * 500,
-		NoTxsThreshold:     params.EventGas * 30,
-		EmergencyThreshold: params.EventGas * 5,
+		LimitedTpsThreshold: (params.EventGas + params.TxGas) * 500,
+		NoTxsThreshold:      params.EventGas * 30,
+		EmergencyThreshold:  params.EventGas * 5,
 	}
 }
 
@@ -90,7 +90,7 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 func FakeConfig(num int) Config {
 	cfg := DefaultConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
-	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max * 3 / 2
+	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max / 2
 	if num <= 1 {
 		// disable self-fork protection if fakenet 1/1
 		cfg.EmitIntervals.DoublesignProtection = 0
