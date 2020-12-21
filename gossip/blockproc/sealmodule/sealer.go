@@ -46,9 +46,9 @@ func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochSt
 }
 
 func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
-	// app final uptime for validators
+	// add final uptime for validators
 	for _, info := range s.bs.ValidatorStates {
-		if s.bs.LastBlock-info.LastBlock <= s.net.Economy.BlockMissedLatency {
+		if s.bs.LastBlock-info.LastBlock <= s.net.Economy.BlockMissedSlack {
 			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastMedianTime) - info.LastMedianTime
 		}
 	}

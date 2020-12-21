@@ -59,7 +59,7 @@ type BlocksMissed struct {
 
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	BlockMissedLatency idx.Block
+	BlockMissedSlack idx.Block
 
 	ShortGasPower GasPowerConfig
 	LongGasPower  GasPowerConfig
@@ -116,9 +116,9 @@ func FakeNetRules() Rules {
 // DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
-		BlockMissedLatency: 3,
-		ShortGasPower:      DefaultShortGasPowerConfig(),
-		LongGasPower:       DefaulLongGasPowerConfig(),
+		BlockMissedSlack: 50,
+		ShortGasPower:    DefaultShortGasPowerConfig(),
+		LongGasPower:     DefaulLongGasPowerConfig(),
 	}
 }
 

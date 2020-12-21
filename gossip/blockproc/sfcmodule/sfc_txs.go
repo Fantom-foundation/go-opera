@@ -138,6 +138,9 @@ func (p *SfcTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs blockpr
 				BlocksNum: block.Idx - info.LastBlock,
 				Period:    inter.MaxTimestamp(block.Time, info.LastMedianTime) - info.LastMedianTime,
 			}
+			if missed.BlocksNum <= p.net.Economy.BlockMissedSlack {
+				missed = opera.BlocksMissed{}
+			}
 			metrics[oldValIdx] = sfccall.ValidatorEpochMetric{
 				Missed:          missed,
 				Uptime:          info.Uptime,
