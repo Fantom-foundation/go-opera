@@ -15,7 +15,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -237,10 +236,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),
 			Txpool:   s.txpool,
 			Signer:   signer,
-			TxSender: func(tx *types.Transaction) common.Address {
-				sender, _ := txSigner.Sender(tx)
-				return sender
-			},
+			TxSigner: txSigner,
 			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
 				// sanity check
 				return s.checkers.Validate(emitted, parents.Interfaces())

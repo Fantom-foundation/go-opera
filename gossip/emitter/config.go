@@ -35,7 +35,7 @@ type Config struct {
 
 	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
 
-	MaxTxsFromSender int
+	MaxTxsPerAddress int
 
 	EpochTailLength idx.Frame // number of frames before event is considered epoch
 
@@ -61,7 +61,7 @@ func DefaultConfig() Config {
 		},
 
 		MaxGasRateGrowthFactor: 3.0,
-		MaxTxsFromSender:       TxTurnNonces,
+		MaxTxsPerAddress:        TxTurnNonces / 2,
 		EpochTailLength:        1,
 
 		MaxParents: 0,

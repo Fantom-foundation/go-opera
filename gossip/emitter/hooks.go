@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
@@ -42,7 +43,8 @@ func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 	em.quorumIndexer.ProcessEvent(e, e.Creator() == em.config.Validator.ID)
 	em.payloadIndexer.ProcessEvent(e, ancestor.Metric(e.Txs().Len()))
 	for _, tx := range e.Txs() {
-		em.originatedTxs.Inc(em.world.TxSender(tx))
+		addr, _ := types.Sender(em.world.TxSigner, tx)
+		em.originatedTxs.Inc(addr)
 	}
 	if e.Creator() == em.config.Validator.ID && em.syncStatus.prevLocalEmittedID != e.ID() {
 		// event was emitted by me on another instance
@@ -63,7 +65,8 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	}
 	e := em.world.Store.GetEventPayload(he.ID())
 	for _, tx := range e.Txs() {
-		em.originatedTxs.Dec(em.world.TxSender(tx))
+		addr, _ := types.Sender(em.world.TxSigner, tx)
+		em.originatedTxs.Dec(addr)
 	}
 	if em.idle() {
 		em.prevIdleTime = time.Now()

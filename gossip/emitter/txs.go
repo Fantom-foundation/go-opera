@@ -19,7 +19,7 @@ const (
 	TxTimeBufferSize  = 20000
 	TxTurnPeriod      = 8 * time.Second
 	TxTurnPeriodSlack = 1 * time.Second
-	TxTurnNonces      = 8
+	TxTurnNonces      = 24
 )
 
 func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
@@ -91,13 +91,12 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, account
 }
 
 func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Address]types.Transactions) {
-	if poolTxs == nil || len(poolTxs) == 0 {
+	if len(poolTxs) == 0 {
 		return
 	}
 
 	maxGasUsed := em.maxGasPowerToUse(e)
 
-	now := time.Now()
 	validators, epoch := em.world.Store.GetEpochValidators()
 	validatorsArr := validators.SortedIDs() // validators must be sorted deterministically
 	validatorsArrStakes := make([]pos.Weight, len(validatorsArr))
@@ -105,34 +104,39 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 		validatorsArrStakes[i] = validators.Get(addr)
 	}
 
-	for sender, txs := range poolTxs {
-		if txs.Len() > em.config.MaxTxsFromSender { // no more than MaxTxsFromSender txs from 1 sender
-			txs = txs[:em.config.MaxTxsFromSender]
-		}
+	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
 
-		// txs is the chain of dependent txs
-		for _, tx := range txs {
-			// enough gas power
-			if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
-				break // txs are dependent, so break the loop
-			}
-			// check not conflicted with already included txs (in any connected event)
-			if em.originatedTxs.TotalOf(sender) != 0 {
-				break // txs are dependent, so break the loop
-			}
-			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), now, validatorsArr, validatorsArrStakes, e.Creator(), epoch) {
-				break // txs are dependent, so break the loop
-			}
-			// check transaction is not outdated
-			if !em.world.Txpool.Has(tx.Hash()) {
-				break // txs are dependent, so break the loop
-			}
-
-			// add
-			e.SetGasPowerUsed(e.GasPowerUsed() + tx.Gas())
-			e.SetGasPowerLeft(e.GasPowerLeft().Sub(tx.Gas()))
-			e.SetTxs(append(e.Txs(), tx))
+	senderTxs := make(map[common.Address]int)
+	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
+		sender, _ := types.Sender(em.world.TxSigner, tx)
+		if senderTxs[sender] >= em.config.MaxTxsPerAddress {
+			sorted.Pop()
+			continue
 		}
+		if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
+			sorted.Pop()
+			continue
+		}
+		// check not conflicted with already included txs (in any connected event)
+		if em.originatedTxs.TotalOf(sender) != 0 {
+			sorted.Pop()
+			continue
+		}
+		// my turn, i.e. try to not include the same tx simultaneously by different validators
+		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), validatorsArr, validatorsArrStakes, e.Creator(), epoch) {
+			sorted.Pop()
+			continue
+		}
+		// check transaction is not outdated
+		if !em.world.Txpool.Has(tx.Hash()) {
+			sorted.Pop()
+			continue
+		}
+		// add
+		e.SetGasPowerUsed(e.GasPowerUsed() + tx.Gas())
+		e.SetGasPowerLeft(e.GasPowerLeft().Sub(tx.Gas()))
+		e.SetTxs(append(e.Txs(), tx))
+		senderTxs[sender]++
+		sorted.Shift()
 	}
 }

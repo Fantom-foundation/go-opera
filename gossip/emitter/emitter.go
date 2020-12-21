@@ -37,7 +37,7 @@ type EmitterWorld struct {
 	Txpool   txPool
 	Signer   valkeystore.SignerI
 
-	TxSender func(*types.Transaction) common.Address
+	TxSigner types.Signer
 
 	Check    func(e *inter.EventPayload, parents inter.Events) error
 	Process  func(*inter.EventPayload) error
