@@ -1,6 +1,7 @@
 package sealmodule
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
@@ -65,11 +66,11 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	// Build new []ValidatorEpochState and []ValidatorBlockState
 	newValidatorEpochStates := make([]blockproc.ValidatorEpochState, newValidators.Len())
 	newValidatorBlockStates := make([]blockproc.ValidatorBlockState, newValidators.Len())
-	for newValIdx := 0; newValIdx < newValidators.Len(); newValIdx++ {
+	for newValIdx := idx.Validator(0); newValIdx < newValidators.Len(); newValIdx++ {
 		// default values
 		newValidatorBlockStates[newValIdx] = blockproc.DefaultValidatorBlockState
 		// inherit validator's state from previous epoch, if any
-		valID := newValidators.SortedIDs()[newValIdx]
+		valID := newValidators.GetID(newValIdx)
 		if !oldValidators.Exists(valID) {
 			continue
 		}

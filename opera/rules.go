@@ -44,8 +44,8 @@ type GasPowerConfig struct {
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
-	MaxParents     uint32
-	MaxFreeParents uint32 // maximum number of parents with no gas cost
+	MaxParents     idx.Event
+	MaxFreeParents idx.Event // maximum number of parents with no gas cost
 
 	MaxEpochBlocks   idx.Block
 	MaxEpochDuration inter.Timestamp

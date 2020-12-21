@@ -132,7 +132,7 @@ func (p *SfcTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs blockpr
 	// push data into SFC before epoch sealing
 	if sealing {
 		metrics := make([]sfccall.ValidatorEpochMetric, es.Validators.Len())
-		for oldValIdx := 0; oldValIdx < es.Validators.Len(); oldValIdx++ {
+		for oldValIdx := idx.Validator(0); oldValIdx < es.Validators.Len(); oldValIdx++ {
 			info := bs.ValidatorStates[oldValIdx]
 			missed := opera.BlocksMissed{
 				BlocksNum: block.Idx - info.LastBlock,
