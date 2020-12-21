@@ -89,23 +89,20 @@ type ProtocolManager struct {
 
 	store        *Store
 	processEvent func(*inter.EventPayload) error
-	engineMu     *sync.RWMutex
+	engineMu     sync.Locker
 
 	notifier             dagNotifier
 	emittedEventsCh      chan *inter.EventPayload
 	emittedEventsSub     notify.Subscription
 	newEpochsCh          chan idx.Epoch
 	newEpochsSub         notify.Subscription
-	quitProgressBradcast chan struct {
-	}
+	quitProgressBradcast chan struct{}
 
 	// channels for fetcher, syncer, txsyncLoop
-	newPeerCh chan *peer
-	txsyncCh  chan *txsync
-	quitSync  chan struct {
-	}
-	noMorePeers chan struct {
-	}
+	newPeerCh   chan *peer
+	txsyncCh    chan *txsync
+	quitSync    chan struct{}
+	noMorePeers chan struct{}
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -122,7 +119,7 @@ func NewProtocolManager(
 	net opera.Rules,
 	notifier dagNotifier,
 	txpool txPool,
-	engineMu *sync.RWMutex,
+	engineMu sync.Locker,
 	checkers *eventcheck.Checkers,
 	s *Store,
 	processEvent func(*inter.EventPayload) error,
@@ -620,7 +617,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
 		}
 
-	case msg.Code == NewEventHashesMsg:
+	case msg.Code == NewEventIDsMsg:
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
 		if atomic.LoadUint32(&pm.synced) == 0 {
 			break
@@ -651,7 +648,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
-		var txs []*types.Transaction
+		var txs types.Transactions
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
@@ -689,7 +686,11 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		if len(rawEvents) != 0 {
-			_ = p.SendEventsRLP(rawEvents, ids)
+			if len(rawEvents) == 1 {
+				p.EnqueueSendEventsRLP(rawEvents, ids, p.unorderedQueue)
+			} else {
+				p.EnqueueSendEventsRLP(rawEvents, ids, p.orderedQueue)
+			}
 		}
 
 	case msg.Code == RequestEventsStream:
@@ -800,13 +801,13 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.EventPayload, passed time
 
 	// Broadcast of full event to a subset of peers
 	fullBroadcast := peers[:fullRecipients]
+	hashBroadcast := peers[fullRecipients:]
 	for _, peer := range fullBroadcast {
-		peer.AsyncSendEvents(inter.EventPayloads{event})
+		peer.AsyncSendEvents(inter.EventPayloads{event}, peer.unorderedQueue)
 	}
 	// Broadcast of event hash to the rest peers
-	hashBroadcast := peers[fullRecipients:]
 	for _, peer := range hashBroadcast {
-		peer.AsyncSendNewEventHashes(hash.Events{event.ID()})
+		peer.AsyncSendEventIDs(hash.Events{event.ID()}, peer.unorderedQueue)
 	}
 	log.Trace("Broadcast event", "hash", id, "fullRecipients", len(fullBroadcast), "hashRecipients", len(hashBroadcast))
 	return len(peers)
@@ -815,10 +816,6 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.EventPayload, passed time
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
-	if len(txs) > softLimitItems {
-		txs = txs[:softLimitItems]
-	}
-
 	var txset = make(map[*peer]types.Transactions)
 
 	// Broadcast transactions to a batch of peers not knowing about it
@@ -831,7 +828,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		peer.AsyncSendTransactions(txs)
+		peer.AsyncSendTransactions(txs, peer.unorderedQueue)
 	}
 }
 
@@ -848,13 +845,11 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 		}
 	}
 }
+
 func (pm *ProtocolManager) broadcastProgress() {
 	progress := pm.myProgress()
 	for _, peer := range pm.peers.List() {
-		err := peer.SendProgress(progress)
-		if err != nil {
-			log.Warn("Failed to send progress status", "peer", peer.id, "err", err)
-		}
+		peer.AsyncSendProgress(progress, peer.unorderedQueue)
 	}
 }
 
