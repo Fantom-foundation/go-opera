@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -63,13 +64,12 @@ type Emitter struct {
 	prevEmittedAtBlock idx.Block
 	originatedTxs      *originatedtxs.Buffer
 
-	prevIdleTime time.Time
-
-	challenges    map[idx.ValidatorID]time.Time
-	prevEventTime map[idx.ValidatorID]time.Time
-
-	spareValidators   map[idx.ValidatorID]bool
-	offlineValidators map[idx.ValidatorID]bool
+	// challenges is deadlines when each validator should emit an event
+	challenges map[idx.ValidatorID]time.Time
+	// offlineValidators is a map of validators which are likely to be offline
+	// This map may be different on different instances
+	offlineValidators     map[idx.ValidatorID]bool
+	expectedEmitIntervals map[idx.ValidatorID]time.Duration
 
 	prevRecheckedChallenges time.Time
 
@@ -96,6 +96,10 @@ func NewEmitter(
 	if config.MaxParents > net.Dag.MaxParents {
 		config.MaxParents = net.Dag.MaxParents
 	}
+	// Randomize event time to decrease chance of 2 parallel instances emitting event at the same time
+	// It increases the chance of detecting parallel instances
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	config.EmitIntervals = config.EmitIntervals.RandomizeEmitTime(r)
 
 	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
@@ -115,7 +119,6 @@ func (em *Emitter) init() {
 	em.syncStatus.startup = time.Now()
 	em.syncStatus.lastConnected = time.Now()
 	em.syncStatus.p2pSynced = time.Now()
-	em.prevIdleTime = time.Now()
 	validators, epoch := em.world.Store.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
@@ -301,6 +304,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// set consensus fields
 	var metric ancestor.Metric
 	err := em.world.Build(mutEvent, func() {
+		// calculate event metric when it is indexed by the vector clock
 		metric = eventMetric(em.quorumIndexer.GetMetricOf(mutEvent.ID()), mutEvent.Seq())
 	})
 	if err != nil {

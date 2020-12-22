@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	TxTimeBufferSize  = 20000
-	TxTurnPeriod      = 8 * time.Second
-	TxTurnPeriodSlack = 1 * time.Second
-	TxTurnNonces      = 24
+	TxTimeBufferSize    = 20000
+	TxTurnPeriod        = 8 * time.Second
+	TxTurnPeriodLatency = 1 * time.Second
+	TxTurnNonces        = 32
 )
 
 func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
@@ -63,31 +63,34 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
-// safe for concurrent use
-func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validatorsArr []idx.ValidatorID, validatorsArrStakes []pos.Weight, me idx.ValidatorID, epoch idx.Epoch) bool {
+func getTxRoundIndex(now, txTime time.Time, validators idx.Validator) int {
+	return int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(validators))
+}
 
-	var txTime time.Time
+func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
-		txTime = now
-		em.txTime.Add(txHash, txTime)
+		now := time.Now()
+		em.txTime.Add(txHash, now)
+		return now
 	} else {
-		txTime = txTimeI.(time.Time)
+		return txTimeI.(time.Time)
 	}
+}
 
-	getRoundIndex := func(t time.Time) int {
-		return int((t.Sub(txTime) / TxTurnPeriod) % time.Duration(len(validatorsArr)))
-	}
-	roundIndex := getRoundIndex(now)
-	if roundIndex != getRoundIndex(now.Add(TxTurnPeriodSlack)) {
+// safe for concurrent use
+func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validators *pos.Validators, me idx.ValidatorID, epoch idx.Epoch) bool {
+	txTime := em.getTxTime(txHash)
+
+	roundIndex := getTxRoundIndex(now, txTime, validators.Len())
+	if roundIndex != getTxRoundIndex(now.Add(TxTurnPeriodLatency), txTime, validators.Len()) {
+		// round is about to change, avoid originating the transaction to avoid racing with another validator
 		return false
 	}
 
-	turnHash := hash.Of(sender.Bytes(), bigendian.Uint64ToBytes(accountNonce/TxTurnNonces), epoch.Bytes())
-
-	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, turnHash)
-
-	return validatorsArr[turns[roundIndex]] == me
+	roundsHash := hash.Of(sender.Bytes(), bigendian.Uint64ToBytes(accountNonce/TxTurnNonces), epoch.Bytes())
+	rounds := utils.WeightedPermutation(roundIndex+1, validators.SortedWeights(), roundsHash)
+	return validators.GetID(idx.Validator(rounds[roundIndex])) == me
 }
 
 func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Address]types.Transactions) {
@@ -98,12 +101,8 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 	maxGasUsed := em.maxGasPowerToUse(e)
 
 	validators, epoch := em.world.Store.GetEpochValidators()
-	validatorsArr := validators.SortedIDs() // validators must be sorted deterministically
-	validatorsArrStakes := make([]pos.Weight, len(validatorsArr))
-	for i, addr := range validatorsArr {
-		validatorsArrStakes[i] = validators.Get(addr)
-	}
 
+	// sort transactions by price and nonce
 	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
 
 	senderTxs := make(map[common.Address]int)
@@ -113,17 +112,18 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			sorted.Pop()
 			continue
 		}
+		// check there's enough gas power to originate the transaction
 		if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
 			sorted.Pop()
 			continue
 		}
-		// check not conflicted with already included txs (in any connected event)
+		// check not conflicted with already originated txs (in any connected event)
 		if em.originatedTxs.TotalOf(sender) != 0 {
 			sorted.Pop()
 			continue
 		}
 		// my turn, i.e. try to not include the same tx simultaneously by different validators
-		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), validatorsArr, validatorsArrStakes, e.Creator(), epoch) {
+		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), validators, e.Creator(), epoch) {
 			sorted.Pop()
 			continue
 		}

@@ -56,12 +56,12 @@ func DefaultConfig() Config {
 			Min:                        120 * time.Millisecond,
 			Max:                        10 * time.Minute,
 			Confirming:                 120 * time.Millisecond,
-			DoublesignProtection:       30 * time.Minute, // should be at least 2x of MaxEmitInterval
+			DoublesignProtection:       24 * time.Minute, // should be greater than MaxEmitInterval
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
 		MaxGasRateGrowthFactor: 3.0,
-		MaxTxsPerAddress:        TxTurnNonces / 2,
+		MaxTxsPerAddress:       TxTurnNonces / 3,
 		EpochTailLength:        1,
 
 		MaxParents: 0,
@@ -73,17 +73,17 @@ func DefaultConfig() Config {
 }
 
 // RandomizeEmitTime and return new config
-func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
-	config := *cfg
+func (cfg EmitIntervals) RandomizeEmitTime(r *rand.Rand) EmitIntervals {
+	config := cfg
 	// value = value - 0.1 * value + 0.1 * random value
 	if config.Max > 10 {
 		config.Max = config.Max - config.Max/10 + time.Duration(r.Int63n(int64(config.Max/10)))
 	}
-	// value = value + 0.1 * random value
-	if config.DoublesignProtection > 10 {
-		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/10)))
+	// value = value + 0.5 * random value
+	if config.DoublesignProtection > 2 {
+		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/2)))
 	}
-	return &config
+	return config
 }
 
 // FakeConfig returns the testing configurations for the events emitter.

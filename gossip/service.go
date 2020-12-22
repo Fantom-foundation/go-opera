@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -223,14 +222,9 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, net opera.Rules, heavyCheckRe
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	emitterCfg := s.config.Emitter // copy data
-	emitterCfg.EmitIntervals = *emitterCfg.EmitIntervals.RandomizeEmitTime(r)
-
 	txSigner := types.NewEIP155Signer(s.net.EvmChainConfig().ChainID)
 
-	return emitter.NewEmitter(s.net, emitterCfg,
+	return emitter.NewEmitter(s.net, s.config.Emitter,
 		emitter.EmitterWorld{
 			Store:    s.store,
 			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),

@@ -40,6 +40,7 @@ func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 
 func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric, selfParent *inter.Event) bool {
 	passedTime := e.CreationTime().Time().Sub(em.prevEmittedAtTime)
+	// metric is a decimal (0.0, 1.0], being an estimation of how much the event will advance the consensus
 	adjustedPassedTime := time.Duration(ancestor.Metric(passedTime/piecefunc.DecimalUnit) * metric)
 	passedBlocks := em.world.Store.GetLatestBlockIndex() - em.prevEmittedAtBlock
 	// Forbid emitting if not enough power and power is decreasing
@@ -95,7 +96,8 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 		if passedTime < em.intervals.Min {
 			return false
 		}
-		if !em.idle() && adjustedPassedTime < em.intervals.Min {
+		if adjustedPassedTime < em.intervals.Min &&
+			!em.idle() {
 			return false
 		}
 		if adjustedPassedTime < em.intervals.Confirming &&

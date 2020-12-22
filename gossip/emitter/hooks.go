@@ -22,9 +22,9 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 	em.originatedTxs.Clear()
 
-	em.spareValidators = make(map[idx.ValidatorID]bool)
 	em.offlineValidators = make(map[idx.ValidatorID]bool)
 	em.challenges = make(map[idx.ValidatorID]time.Time)
+	em.expectedEmitIntervals = make(map[idx.ValidatorID]time.Duration)
 
 	em.recountValidators(newValidators)
 
@@ -67,8 +67,5 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	for _, tx := range e.Txs() {
 		addr, _ := types.Sender(em.world.TxSigner, tx)
 		em.originatedTxs.Dec(addr)
-	}
-	if em.idle() {
-		em.prevIdleTime = time.Now()
 	}
 }

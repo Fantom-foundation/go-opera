@@ -10,34 +10,24 @@ import (
 )
 
 const (
-	spareValidatorThreshold = 0.8 * piecefunc.DecimalUnit
-	validatorChallenge      = 5 * time.Second
+	validatorChallenge = 4 * time.Second
 )
 
 func (em *Emitter) recountValidators(validators *pos.Validators) {
 	// stakers with lower stake should emit less events to reduce network load
 	// confirmingEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MinEmitInterval
-	myIdx := validators.GetIdx(em.config.Validator.ID)
 	totalStakeBefore := pos.Weight(0)
-	myStakeRatio := uint64(0)
 	for i, stake := range validators.SortedWeights() {
 		vid := validators.GetID(idx.Validator(i))
 		// pos.Weight is uint32, so cast to uint64 to avoid an overflow
 		stakeRatio := uint64(totalStakeBefore) * uint64(piecefunc.DecimalUnit) / uint64(validators.TotalWeight())
-		if idx.Validator(i) == myIdx {
-			myStakeRatio = stakeRatio
-		}
-		if stakeRatio > spareValidatorThreshold {
-			em.spareValidators[vid] = true
-		} else {
-			delete(em.spareValidators, vid)
-		}
-		if !em.offlineValidators[vid] || idx.Validator(i) == myIdx {
+		if !em.offlineValidators[vid] {
 			totalStakeBefore += stake
 		}
+		confirmingEmitIntervalRatio := piecefunc.Get(stakeRatio, confirmingEmitIntervalF)
+		em.expectedEmitIntervals[vid] = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Confirming), confirmingEmitIntervalRatio))
 	}
-	confirmingEmitIntervalRatio := piecefunc.Get(myStakeRatio, confirmingEmitIntervalF)
-	em.intervals.Confirming = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Confirming), confirmingEmitIntervalRatio))
+	em.intervals.Confirming = em.expectedEmitIntervals[em.config.Validator.ID]
 	em.intervals.Max = em.config.EmitIntervals.Max
 }
 
@@ -49,18 +39,18 @@ func (em *Emitter) recheckChallenges() {
 	defer em.world.EngineMu.Unlock()
 	now := time.Now()
 	if !em.idle() {
-		// give challenges to all the non-spare validators
+		// give challenges to all the non-spare validators if network isn't idle
 		validators := em.world.Store.GetValidators()
 		for _, vid := range validators.IDs() {
-			if em.spareValidators[vid] || em.offlineValidators[vid] {
+			if em.offlineValidators[vid] {
 				continue
 			}
 			if _, ok := em.challenges[vid]; !ok {
-				em.challenges[vid] = now.Add(validatorChallenge)
+				em.challenges[vid] = now.Add(validatorChallenge + em.expectedEmitIntervals[vid]*4)
 			}
 		}
 	} else {
-		// erase all the challenges
+		// erase all the challenges if network is idle
 		em.challenges = make(map[idx.ValidatorID]time.Time)
 	}
 	// check challenges

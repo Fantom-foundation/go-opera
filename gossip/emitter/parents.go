@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
+// buildSearchStrategies returns a strategy for each parent search
 func (em *Emitter) buildSearchStrategies(maxParents idx.Event) []ancestor.SearchStrategy {
 	strategies := make([]ancestor.SearchStrategy, 0, maxParents)
 	if maxParents == 0 {
@@ -28,6 +29,7 @@ func (em *Emitter) buildSearchStrategies(maxParents idx.Event) []ancestor.Search
 	return strategies
 }
 
+// chooseParents selects an "optimal" parents set for the validator
 func (em *Emitter) chooseParents(epoch idx.Epoch, myValidatorID idx.ValidatorID) (*hash.Event, hash.Events, bool) {
 	selfParent := em.world.Store.GetLastEvent(epoch, myValidatorID)
 	heads := em.world.Store.GetHeads(epoch) // events with no descendants
