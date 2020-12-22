@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 func TestFakeNetFlag_NonValidator(t *testing.T) {
@@ -99,7 +99,7 @@ at block: 1 ({{niltime}})
 	}
 }
 
-func readFakeValidator(fakenet string) *validator.PubKey {
+func readFakeValidator(fakenet string) *validatorpk.PubKey {
 	n, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
@@ -109,8 +109,8 @@ func readFakeValidator(fakenet string) *validator.PubKey {
 		return nil
 	}
 
-	return &validator.PubKey{
+	return &validatorpk.PubKey{
 		Raw:  crypto.FromECDSAPub(&makegenesis.FakeKey(int(n)).PublicKey),
-		Type: "secp256k1",
+		Type: validatorpk.Types.Secp256k1,
 	}
 }

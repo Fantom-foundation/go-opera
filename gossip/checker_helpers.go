@@ -9,7 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -69,7 +69,7 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 // ValidatorsPubKeys stores info to authenticate validators
 type ValidatorsPubKeys struct {
 	Epoch   idx.Epoch
-	PubKeys map[idx.ValidatorID]validator.PubKey
+	PubKeys map[idx.ValidatorID]validatorpk.PubKey
 }
 
 // HeavyCheckReader is a helper to run heavy power checks
@@ -78,7 +78,7 @@ type HeavyCheckReader struct {
 }
 
 // GetEpochPubKeys is safe for concurrent use
-func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validator.PubKey, idx.Epoch) {
+func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch) {
 	auth := r.Addrs.Load().(*ValidatorsPubKeys)
 
 	return auth.PubKeys, auth.Epoch
@@ -87,7 +87,7 @@ func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validator.PubK
 // NewEpochPubKeys is the same as GetEpochValidators, but returns only addresses
 func NewEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
 	es := s.GetEpochState()
-	pubkeys := make(map[idx.ValidatorID]validator.PubKey, len(es.ValidatorProfiles))
+	pubkeys := make(map[idx.ValidatorID]validatorpk.PubKey, len(es.ValidatorProfiles))
 	for id, profile := range es.ValidatorProfiles {
 		pubkeys[id] = profile.PubKey
 	}

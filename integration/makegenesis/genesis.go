@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	FakeGenesisTime = inter.Timestamp(1577419000 * time.Second)
+	FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
 )
 
 // FakeKey gets n-th fake private key.
@@ -93,9 +93,9 @@ func GetFakeValidators(num int) gpos.Validators {
 		validators = append(validators, gpos.Validator{
 			ID:      validatorID,
 			Address: addr,
-			PubKey: validator.PubKey{
+			PubKey: validatorpk.PubKey{
 				Raw:  pubkeyraw,
-				Type: "secp256k1",
+				Type: validatorpk.Types.Secp256k1,
 			},
 			CreationTime:     FakeGenesisTime,
 			CreationEpoch:    0,

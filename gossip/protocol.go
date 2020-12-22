@@ -45,7 +45,7 @@ const (
 
 	// Non-aggressive events propagation. Signals about newly-connected
 	// batch of events, sending only their IDs.
-	NewEventHashesMsg = 0xf1
+	NewEventIDsMsg = 0xf1
 
 	// Request the batch of events by IDs
 	GetEventsMsg = 0xf2

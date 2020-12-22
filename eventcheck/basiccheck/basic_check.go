@@ -5,6 +5,7 @@ import (
 	"math"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -74,8 +75,8 @@ func CalcGasPowerUsed(e inter.EventPayloadI, config *opera.DagConfig) uint64 {
 	}
 
 	parentsGas := uint64(0)
-	if uint32(len(e.Parents())) > config.MaxFreeParents {
-		parentsGas = uint64(uint32(len(e.Parents()))-config.MaxFreeParents) * params.ParentGas
+	if idx.Event(len(e.Parents())) > config.MaxFreeParents {
+		parentsGas = uint64(idx.Event(len(e.Parents()))-config.MaxFreeParents) * params.ParentGas
 	}
 	extraGas := uint64(len(e.Extra())) * params.ExtraDataGas
 
@@ -104,7 +105,7 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if e.CreationTime() <= 0 || e.MedianTime() <= 0 {
 		return ErrZeroTime
 	}
-	if uint32(len(e.Parents())) > v.config.MaxParents {
+	if idx.Event(len(e.Parents())) > v.config.MaxParents {
 		return ErrTooManyParents
 	}
 	if err := v.checkGas(e); err != nil {

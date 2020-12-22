@@ -145,7 +145,8 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 		env.store,
 		env.blockProcModules,
 		txIndex,
-		nil, nil,
+		nil,
+		nil,
 		onBlockEnd,
 	)
 	return callback

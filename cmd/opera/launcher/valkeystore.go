@@ -12,14 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 )
 
-func addFakeValidatorKey(ctx *cli.Context, key *ecdsa.PrivateKey, pubkey validator.PubKey, valKeystore valkeystore.RawKeystoreI) {
+func addFakeValidatorKey(ctx *cli.Context, key *ecdsa.PrivateKey, pubkey validatorpk.PubKey, valKeystore valkeystore.RawKeystoreI) {
 	// add fake validator key
 	if key != nil && !valKeystore.Has(pubkey) {
-		err := valKeystore.Add(pubkey, crypto.FromECDSA(key), validator.FakePassword)
+		err := valKeystore.Add(pubkey, crypto.FromECDSA(key), validatorpk.FakePassword)
 		if err != nil {
 			utils.Fatalf("Failed to add fake validator key: %v", err)
 		}
@@ -49,12 +49,12 @@ func makeValidatorPasswordList(ctx *cli.Context) []string {
 		return lines
 	}
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		return []string{validator.FakePassword}
+		return []string{validatorpk.FakePassword}
 	}
 	return nil
 }
 
-func unlockValidatorKey(ctx *cli.Context, pubKey validator.PubKey, valKeystore valkeystore.KeystoreI) error {
+func unlockValidatorKey(ctx *cli.Context, pubKey validatorpk.PubKey, valKeystore valkeystore.KeystoreI) error {
 	var err error
 	for trials := 0; trials < 3; trials++ {
 		prompt := fmt.Sprintf("Unlocking validator key %s | Attempt %d/%d", pubKey.String(), trials+1, 3)

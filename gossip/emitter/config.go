@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	_params "github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
@@ -22,7 +22,7 @@ type EmitIntervals struct {
 
 type ValidatorConfig struct {
 	ID     idx.ValidatorID
-	PubKey validator.PubKey
+	PubKey validatorpk.PubKey
 }
 
 // Config is the configuration of events emitter.
@@ -35,16 +35,16 @@ type Config struct {
 
 	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
 
-	MaxTxsFromSender int
+	MaxTxsPerAddress int
 
 	EpochTailLength idx.Frame // number of frames before event is considered epoch
 
-	MaxParents uint32
+	MaxParents idx.Event
 
 	// thresholds on GasLeft
-	SmoothTpsThreshold uint64
-	NoTxsThreshold     uint64
-	EmergencyThreshold uint64
+	LimitedTpsThreshold uint64
+	NoTxsThreshold      uint64
+	EmergencyThreshold  uint64
 }
 
 // DefaultConfig returns the default configurations for the events emitter.
@@ -53,44 +53,44 @@ func DefaultConfig() Config {
 		VersionToPublish: _params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
-			Min:                        200 * time.Millisecond,
-			Max:                        12 * time.Minute,
-			Confirming:                 200 * time.Millisecond,
-			DoublesignProtection:       30 * time.Minute, // should be at least 2x of MaxEmitInterval
+			Min:                        120 * time.Millisecond,
+			Max:                        10 * time.Minute,
+			Confirming:                 120 * time.Millisecond,
+			DoublesignProtection:       24 * time.Minute, // should be greater than MaxEmitInterval
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
 		MaxGasRateGrowthFactor: 3.0,
-		MaxTxsFromSender:       TxTurnNonces,
+		MaxTxsPerAddress:       TxTurnNonces / 3,
 		EpochTailLength:        1,
 
-		MaxParents: 7,
+		MaxParents: 0,
 
-		SmoothTpsThreshold: (params.EventGas + params.TxGas) * 500,
-		NoTxsThreshold:     params.EventGas * 30,
-		EmergencyThreshold: params.EventGas * 5,
+		LimitedTpsThreshold: (params.EventGas + params.TxGas) * 500,
+		NoTxsThreshold:      params.EventGas * 30,
+		EmergencyThreshold:  params.EventGas * 5,
 	}
 }
 
 // RandomizeEmitTime and return new config
-func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
-	config := *cfg
+func (cfg EmitIntervals) RandomizeEmitTime(r *rand.Rand) EmitIntervals {
+	config := cfg
 	// value = value - 0.1 * value + 0.1 * random value
 	if config.Max > 10 {
 		config.Max = config.Max - config.Max/10 + time.Duration(r.Int63n(int64(config.Max/10)))
 	}
-	// value = value + 0.1 * random value
-	if config.DoublesignProtection > 10 {
-		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/10)))
+	// value = value + 0.5 * random value
+	if config.DoublesignProtection > 2 {
+		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/2)))
 	}
-	return &config
+	return config
 }
 
 // FakeConfig returns the testing configurations for the events emitter.
 func FakeConfig(num int) Config {
 	cfg := DefaultConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
-	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max * 3 / 2
+	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max / 2
 	if num <= 1 {
 		// disable self-fork protection if fakenet 1/1
 		cfg.EmitIntervals.DoublesignProtection = 0

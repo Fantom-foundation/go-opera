@@ -10,7 +10,7 @@ import (
 	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -35,14 +35,14 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis InputGenesis, stack *n
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
 
-	pubKey := validator.PubKey{
+	pubKey := validatorpk.PubKey{
 		Raw:  crypto.FromECDSAPub(&ctx.Config.PrivateKey.PublicKey),
-		Type: "secp256k1",
+		Type: validatorpk.Types.Secp256k1,
 	}
 
 	// unlock the key
-	_ = valKeystore.Add(pubKey, crypto.FromECDSA(ctx.Config.PrivateKey), validator.FakePassword)
-	_ = valKeystore.Unlock(pubKey, validator.FakePassword)
+	_ = valKeystore.Add(pubKey, crypto.FromECDSA(ctx.Config.PrivateKey), validatorpk.FakePassword)
+	_ = valKeystore.Unlock(pubKey, validatorpk.FakePassword)
 	signer := valkeystore.NewSigner(valKeystore)
 
 	// find a genesis validator which corresponds to the key

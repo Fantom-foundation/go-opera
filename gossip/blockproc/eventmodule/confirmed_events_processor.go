@@ -50,7 +50,7 @@ func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.
 			continue
 		}
 		info := p.bs.ValidatorStates[creatorIdx]
-		if block.Idx-info.LastBlock <= p.net.Economy.BlockMissedLatency {
+		if block.Idx-info.LastBlock <= p.net.Economy.BlockMissedSlack {
 			info.Uptime += e.MedianTime() - info.LastMedianTime
 		}
 		info.LastGasPowerLeft = e.GasPowerLeft()

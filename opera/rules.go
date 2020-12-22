@@ -44,8 +44,8 @@ type GasPowerConfig struct {
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
-	MaxParents     uint32
-	MaxFreeParents uint32 // maximum number of parents with no gas cost
+	MaxParents     idx.Event
+	MaxFreeParents idx.Event // maximum number of parents with no gas cost
 
 	MaxEpochBlocks   idx.Block
 	MaxEpochDuration inter.Timestamp
@@ -59,7 +59,7 @@ type BlocksMissed struct {
 
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	BlockMissedLatency idx.Block
+	BlockMissedSlack idx.Block
 
 	ShortGasPower GasPowerConfig
 	LongGasPower  GasPowerConfig
@@ -116,9 +116,9 @@ func FakeNetRules() Rules {
 // DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
-		BlockMissedLatency: 3,
-		ShortGasPower:      DefaultShortGasPowerConfig(),
-		LongGasPower:       DefaulLongGasPowerConfig(),
+		BlockMissedSlack: 50,
+		ShortGasPower:    DefaultShortGasPowerConfig(),
+		LongGasPower:     DefaulLongGasPowerConfig(),
 	}
 }
 

@@ -21,7 +21,7 @@ var (
 	errWrongMedianTime = errors.New("wrong event median time")
 )
 
-func (s *Service) buildEvent(e *inter.MutableEventPayload) error {
+func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) error {
 	// set some unique ID
 	e.SetID(s.uniqueEventIDs.sample())
 
@@ -38,6 +38,10 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload) error {
 	err := s.dagIndexer.Add(e)
 	if err != nil {
 		return err
+	}
+
+	if onIndexed != nil {
+		onIndexed()
 	}
 
 	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
@@ -89,9 +93,6 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		return errWrongMedianTime
 	}
 
-	// index originated txs
-	_ = s.occurredTxs.CollectNotConfirmedTxs(e.Txs())
-
 	// aBFT processing
 	err = s.engine.Process(e)
 	if err != nil {
@@ -112,11 +113,9 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(oldEpoch, e.Creator(), e.ID())
 
-	s.emitter.OnNewEvent(e)
+	s.emitter.OnEventConnected(e)
 
 	if newEpoch != oldEpoch {
-		// epoch is sealed, prune epoch data
-		s.occurredTxs.Clear()
 		// reset dag indexer
 		s.store.resetEpochStore(newEpoch)
 		es := s.store.getEpochStore(newEpoch)
@@ -131,7 +130,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		s.feed.newEpoch.Send(newEpoch)
 	}
 
-	if s.store.IsCommitNeeded(newEpoch != oldEpoch ) {
+	if s.store.IsCommitNeeded(newEpoch != oldEpoch) {
 		s.blockProcWg.Wait()
 		return s.store.Commit()
 	}

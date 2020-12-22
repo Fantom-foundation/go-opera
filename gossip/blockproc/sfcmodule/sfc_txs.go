@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
@@ -131,11 +132,14 @@ func (p *SfcTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs blockpr
 	// push data into SFC before epoch sealing
 	if sealing {
 		metrics := make([]sfccall.ValidatorEpochMetric, es.Validators.Len())
-		for oldValIdx := 0; oldValIdx < es.Validators.Len(); oldValIdx++ {
+		for oldValIdx := idx.Validator(0); oldValIdx < es.Validators.Len(); oldValIdx++ {
 			info := bs.ValidatorStates[oldValIdx]
 			missed := opera.BlocksMissed{
 				BlocksNum: block.Idx - info.LastBlock,
 				Period:    inter.MaxTimestamp(block.Time, info.LastMedianTime) - info.LastMedianTime,
+			}
+			if missed.BlocksNum <= p.net.Economy.BlockMissedSlack {
+				missed = opera.BlocksMissed{}
 			}
 			metrics[oldValIdx] = sfccall.ValidatorEpochMetric{
 				Missed:          missed,
@@ -211,8 +215,7 @@ func (p *SfcTxListener) OnNewLog(l *types.Log) {
 		pubkey := l.Data[start+32 : start+32+size]
 
 		profile := p.bs.NextValidatorProfiles[validatorID]
-		profile.PubKey.Type = "secp256k1"
-		profile.PubKey.Raw = pubkey
+		profile.PubKey, _ = validatorpk.FromBytes(pubkey)
 		p.bs.NextValidatorProfiles[validatorID] = profile
 	}
 	// Add balance

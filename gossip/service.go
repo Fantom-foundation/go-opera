@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -35,16 +34,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
-)
-
-const (
-	txsRingBufferSize = 20000 // Maximum number of stored hashes of included but not confirmed txs
 )
 
 type ServiceFeed struct {
@@ -112,7 +107,6 @@ type Service struct {
 	engineMu            *sync.RWMutex
 	emitter             *emitter.Emitter
 	txpool              *evmcore.TxPool
-	occurredTxs         *occuredtxs.Buffer
 	heavyCheckReader    HeavyCheckReader
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
@@ -168,7 +162,6 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 		blockProcModules: blockProc,
 		dagIndexer:       dagIndexer,
 		engineMu:         new(sync.RWMutex),
-		occurredTxs:      occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(net.EvmChainConfig().ChainID)),
 		uniqueEventIDs:   uniqueID{new(big.Int)},
 		Instance:         logger.MakeInstance(),
 	}
@@ -229,18 +222,15 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, net opera.Rules, heavyCheckRe
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	emitterCfg := s.config.Emitter // copy data
-	emitterCfg.EmitIntervals = *emitterCfg.EmitIntervals.RandomizeEmitTime(r)
+	txSigner := types.NewEIP155Signer(s.net.EvmChainConfig().ChainID)
 
-	return emitter.NewEmitter(s.net, emitterCfg,
+	return emitter.NewEmitter(s.net, s.config.Emitter,
 		emitter.EmitterWorld{
-			Store:       s.store,
-			EngineMu:    s.engineMu,
-			Txpool:      s.txpool,
-			Signer:      signer,
-			OccurredTxs: s.occurredTxs,
+			Store:    s.store,
+			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),
+			Txpool:   s.txpool,
+			Signer:   signer,
+			TxSigner: txSigner,
 			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
 				// sanity check
 				return s.checkers.Validate(emitted, parents.Interfaces())
@@ -326,7 +316,7 @@ func (s *Service) Start() error {
 
 	s.serverPool.start(s.p2pServer, s.Topic)
 
-	s.emitter.StartEventEmission()
+	s.emitter.Start()
 
 	return nil
 }
@@ -334,7 +324,7 @@ func (s *Service) Start() error {
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
 	close(s.done)
-	s.emitter.StopEventEmission()
+	s.emitter.Stop()
 	s.pm.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()

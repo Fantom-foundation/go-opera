@@ -50,7 +50,7 @@ func (t *weightedShuffleTree) build(i int) pos.Weight {
 	return thisW + leftW + rightW
 }
 
-func (t *weightedShuffleTree) rand64() uint64 {
+func (t *weightedShuffleTree) rand32() uint32 {
 	if t.seedIndex == 32 {
 		hasher := sha256.New() // use sha2 instead of sha3 for speed
 		hasher.Write(t.seed.Bytes())
@@ -58,8 +58,8 @@ func (t *weightedShuffleTree) rand64() uint64 {
 		t.seedIndex = 0
 	}
 	// use not used parts of old seed, instead of calculating new one
-	res := littleendian.BytesToUint64(t.seed[t.seedIndex : t.seedIndex+8])
-	t.seedIndex += 8
+	res := littleendian.BytesToUint32(t.seed[t.seedIndex : t.seedIndex+4])
+	t.seedIndex += 4
 	return res
 }
 
@@ -67,7 +67,7 @@ func (t *weightedShuffleTree) retrieve(i int) int {
 	node := t.nodes[i]
 	total := node.rightWeight + node.leftWeight + node.thisWeight
 
-	r := pos.Weight(t.rand64()) % total
+	r := pos.Weight(t.rand32()) % total
 
 	if r < node.thisWeight {
 		t.nodes[i].thisWeight = 0

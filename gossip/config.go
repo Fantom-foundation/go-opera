@@ -159,6 +159,7 @@ func (c *Config) Validate() error {
 	if c.Protocol.Processor.EventsBufferLimit.Size < protocolMaxMsgSize {
 		return fmt.Errorf("EventsBufferLimit.Size has to be at least %d", protocolMaxMsgSize)
 	}
+
 	return nil
 }
 

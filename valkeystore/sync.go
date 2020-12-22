@@ -3,7 +3,7 @@ package valkeystore
 import (
 	"sync"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
@@ -18,37 +18,37 @@ func NewSyncedKeystore(backend KeystoreI) *SyncedKeystore {
 	}
 }
 
-func (s *SyncedKeystore) Unlocked(pubkey validator.PubKey) bool {
+func (s *SyncedKeystore) Unlocked(pubkey validatorpk.PubKey) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.Unlocked(pubkey)
 }
 
-func (s *SyncedKeystore) Has(pubkey validator.PubKey) bool {
+func (s *SyncedKeystore) Has(pubkey validatorpk.PubKey) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.Has(pubkey)
 }
 
-func (s *SyncedKeystore) Unlock(pubkey validator.PubKey, auth string) error {
+func (s *SyncedKeystore) Unlock(pubkey validatorpk.PubKey, auth string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.Unlock(pubkey, auth)
 }
 
-func (s *SyncedKeystore) GetUnlocked(pubkey validator.PubKey) (*encryption.PrivateKey, error) {
+func (s *SyncedKeystore) GetUnlocked(pubkey validatorpk.PubKey) (*encryption.PrivateKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.GetUnlocked(pubkey)
 }
 
-func (s *SyncedKeystore) Add(pubkey validator.PubKey, key []byte, auth string) error {
+func (s *SyncedKeystore) Add(pubkey validatorpk.PubKey, key []byte, auth string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.Add(pubkey, key, auth)
 }
 
-func (s *SyncedKeystore) Get(pubkey validator.PubKey, auth string) (*encryption.PrivateKey, error) {
+func (s *SyncedKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.backend.Get(pubkey, auth)

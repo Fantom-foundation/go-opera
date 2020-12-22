@@ -84,7 +84,35 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 	return &n
 }
 
-// GetBlockByHash get block by block hash
-func (s *Store) GetBlockByHash(id hash.Event) *inter.Block {
-	return s.GetBlock(*s.GetBlockIndex(id))
+// SetGenesisBlockIndex stores genesis block index.
+func (s *Store) SetGenesisBlockIndex(n idx.Block) {
+	if err := s.table.Genesis.Put([]byte("i"), n.Bytes()); err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+}
+
+// GetGenesisBlockIndex returns stored genesis block index.
+func (s *Store) GetGenesisBlockIndex() *idx.Block {
+	buf, err := s.table.Genesis.Get([]byte("i"))
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	if buf == nil {
+		return nil
+	}
+	n := idx.BytesToBlock(buf)
+
+	return &n
+}
+
+func (s *Store) GetGenesisTime() inter.Timestamp {
+	n := s.GetGenesisBlockIndex()
+	if n == nil {
+		return 0
+	}
+	block := s.GetBlock(*n)
+	if block == nil {
+		return 0
+	}
+	return block.Time
 }
