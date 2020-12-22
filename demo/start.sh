@@ -6,6 +6,8 @@ set -e
 
 echo -e "\nStart $N nodes:\n"
 
+go build -o ../build/demo_opera ../cmd/opera
+
 rm -f ./transactions.rlp
 for ((i=0;i<$N;i+=1))
 do
@@ -17,7 +19,7 @@ do
     RPCP=$(($RPCP_BASE+$i))
     WSP=$(($WSP_BASE+$i))
     ACC=$(($i+1))
-    (go run ../cmd/opera \
+    (../build/demo_opera \
 	--datadir=${DATADIR} \
 	--fakenet=${ACC}/$N \
 	--port=${PORT} \
@@ -41,7 +43,7 @@ attach_and_exec() {
             echo "  - attempt ${attempt}: " >&2
         fi;
 
-        res=$(go run ../cmd/opera --exec "${CMD}" attach http://127.0.0.1:${RPCP} 2> /dev/null)
+        res=$(../build/demo_opera --exec "${CMD}" attach http://127.0.0.1:${RPCP} 2> /dev/null)
         if [ $? -eq 0 ]
         then
             #echo "success" >&2
