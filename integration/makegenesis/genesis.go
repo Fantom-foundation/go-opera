@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	FakeGenesisTime = inter.Timestamp(1577419000 * time.Second)
+	FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
 )
 
 // FakeKey gets n-th fake private key.

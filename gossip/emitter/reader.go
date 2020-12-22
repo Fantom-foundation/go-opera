@@ -28,6 +28,7 @@ type Reader interface {
 	GetEventPayload(hash.Event) *inter.EventPayload
 	GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event
 	GetHeads(idx.Epoch) hash.Events
+	GetGenesisTime() inter.Timestamp
 }
 
 type txPool interface {

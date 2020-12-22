@@ -11,6 +11,7 @@ import (
 
 const (
 	validatorChallenge = 4 * time.Second
+	networkStartPeriod = time.Hour
 )
 
 func (em *Emitter) recountValidators(validators *pos.Validators) {
@@ -29,6 +30,11 @@ func (em *Emitter) recountValidators(validators *pos.Validators) {
 	}
 	em.intervals.Confirming = em.expectedEmitIntervals[em.config.Validator.ID]
 	em.intervals.Max = em.config.EmitIntervals.Max
+	// if network just has started, then relax the doublesign protection
+	if time.Since(em.world.Store.GetGenesisTime().Time()) < networkStartPeriod {
+		em.intervals.Max /= 10
+		em.intervals.DoublesignProtection /= 10
+	}
 }
 
 func (em *Emitter) recheckChallenges() {
