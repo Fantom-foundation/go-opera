@@ -18,19 +18,13 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
-func BenchmarkStateDbWithBallot(b *testing.B) {
+func BenchmarkBallotTxsProcessing(b *testing.B) {
 	logger.SetLevel("warn")
 	logger.SetTestMode(b)
-
-	b.Run("overMPT", func(b *testing.B) {
-		env := newTestEnv()
-		defer env.Close()
-		benchmarkStateDbWithBallot(b, env)
-	})
-}
-
-func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	require := require.New(b)
+
+	env := newTestEnv()
+	defer env.Close()
 
 	proposals := [][32]byte{
 		ballotOption("Option 1"),
@@ -52,33 +46,45 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 
 	count := b.N
 
-	// Init accounts
 	txs := make([]*types.Transaction, 0, count-1)
+	flushTxs := func() {
+		env.ApplyBlock(nextEpoch, txs...)
+		txs = txs[:0]
+	}
+
+	// Init accounts
 	for i := 2; i <= count; i++ {
 		tx := env.Transfer(1, i, utils.ToFtm(10))
 		require.NoError(err)
 		txs = append(txs, tx)
+		if len(txs) > 2 {
+			flushTxs()
+		}
 	}
-	env.ApplyBlock(nextEpoch, txs...)
+	flushTxs()
 
 	// GiveRightToVote
-	txs = make([]*types.Transaction, 0, count)
 	for i := 1; i <= count; i++ {
 		tx, err := cBallot.GiveRightToVote(env.Payer(1), env.Address(i))
 		require.NoError(err)
 		txs = append(txs, tx)
+		if len(txs) > 2 {
+			flushTxs()
+		}
 	}
-	env.ApplyBlock(nextEpoch, txs...)
+	flushTxs()
 
 	// Vote
-	txs = make([]*types.Transaction, 0, count)
 	for i := 1; i <= count; i++ {
 		proposal := big.NewInt(int64(i % len(proposals)))
 		tx, err := cBallot.Vote(env.Payer(i), proposal)
 		require.NoError(err)
 		txs = append(txs, tx)
+		if len(txs) > 2 {
+			flushTxs()
+		}
 	}
-	env.ApplyBlock(nextEpoch, txs...)
+	flushTxs()
 
 	// Winer
 	_, err = cBallot.WinnerName(env.ReadOnly())
