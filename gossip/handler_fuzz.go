@@ -1,3 +1,5 @@
+//+build gofuzz
+
 package gossip
 
 import (
@@ -9,16 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
+func FuzzPM(data []byte) int {
+	return 0
+}
+
 func TestPM(t *testing.T) {
+	const (
+		genesisStakers = 3
+		genesisBalance = 1e18
+		genesisStake   = 2 * 4e6
+	)
+
 	require := require.New(t)
 
 	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
@@ -28,13 +40,13 @@ func TestPM(t *testing.T) {
 	config := DefaultConfig()
 	store := NewMemStore()
 	blockProc := BlockProc{
-		SealerModule:        sealmodule.New(network),
-		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
-		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(genesis),
-		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(network),
-		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(network),
-		EventsModule:        eventmodule.New(network),
-		EVMModule:           evmmodule.New(network),
+		SealerModule:        sealmodule.New(),
+		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
+		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(genesis),
+		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
+		EventsModule:        eventmodule.New(),
+		EVMModule:           evmmodule.New(),
 	}
 	_, err := store.ApplyGenesis(blockProc, genesis)
 	require.NoError(err)
@@ -47,7 +59,7 @@ func TestPM(t *testing.T) {
 
 	mu := new(sync.RWMutex)
 	feed := new(ServiceFeed)
-	checkers := makeCheckers(config.HeavyCheck, network, &heavyCheckReader, &gasPowerCheckReader, store)
+	checkers := makeCheckers(config.HeavyCheck, network.EvmChainConfig().ChainID, &heavyCheckReader, &gasPowerCheckReader, store)
 	processEvent := func(e *inter.EventPayload) error {
 		return nil
 	}
@@ -59,7 +71,6 @@ func TestPM(t *testing.T) {
 
 	pm, err := NewProtocolManager(
 		config,
-		network,
 		feed,
 		txpool,
 		mu,

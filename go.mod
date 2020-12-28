@@ -49,7 +49,7 @@ require (
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
 	go.uber.org/atomic v1.5.1 // indirect
-	golang.org/x/tools v0.0.0-20191109212701-97ad0ed33101 // indirect
+	golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e // indirect
 	gopkg.in/urfave/cli.v1 v1.22.1
 )
 

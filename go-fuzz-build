@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+go run github.com/dvyukov/go-fuzz/go-fuzz-build
+
