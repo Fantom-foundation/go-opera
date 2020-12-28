@@ -11,8 +11,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum"
@@ -76,9 +74,7 @@ func newTestEnv() *testEnv {
 
 	genesis.Rules.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
-	dbs := flushable.NewSyncedPool(
-		memorydb.NewProducer(""), []byte{0})
-	store := NewStore(dbs, LiteStoreConfig())
+	store := NewMemStore()
 	blockProc := BlockProc{
 		SealerModule:        sealmodule.New(),
 		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
