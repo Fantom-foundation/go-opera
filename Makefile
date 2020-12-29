@@ -29,8 +29,11 @@ coverage:
 
 .PHONY: fuzz
 fuzz:
-	CGO_ENABLED=1 go run github.com/dvyukov/go-fuzz/go-fuzz-build -work -x ./gossip && \
-	go run github.com/dvyukov/go-fuzz/go-fuzz
+	CGO_ENABLED=1 \
+	mkdir -p ./fuzzing && \
+	go run github.com/dvyukov/go-fuzz/go-fuzz-build -o=./fuzzing/gossip-fuzz.zip ./gossip && \
+	go run github.com/dvyukov/go-fuzz/go-fuzz -workdir=./fuzzing -bin=./fuzzing/gossip-fuzz.zip
+
 
 .PHONY: clean
 clean:

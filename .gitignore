@@ -11,6 +11,7 @@
 # Go test output
 */*.test
 */*.out
+fuzzing/
 
 # Build output
 build
