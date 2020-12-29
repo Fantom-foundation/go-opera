@@ -27,6 +27,11 @@ coverage:
 	go test -coverpkg=./... -coverprofile=cover.prof ./...
 	go tool cover -func cover.prof | grep -e "^total:"
 
+.PHONY: fuzz
+fuzz:
+	CGO_ENABLED=1 go run github.com/dvyukov/go-fuzz/go-fuzz-build -work -x ./gossip && \
+	go run github.com/dvyukov/go-fuzz/go-fuzz
+
 .PHONY: clean
 clean:
 	rm -fr ./build/*

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	_ "github.com/dvyukov/go-fuzz/go-fuzz-defs"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/stretchr/testify/require"
@@ -20,8 +21,14 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
+const (
+	fuzzHot      int = 1  // if the fuzzer should increase priority of the given input during subsequent fuzzing;
+	fuzzCold     int = -1 // if the input must not be added to corpus even if gives new coverage;
+	fuzzNoMatter int = 0  // otherwise.
+)
+
 func FuzzPM(data []byte) int {
-	return 0
+	return fuzzHot
 }
 
 func TestPM(t *testing.T) {
