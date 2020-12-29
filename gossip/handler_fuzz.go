@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
@@ -42,23 +38,15 @@ func TestPM(t *testing.T) {
 
 	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
-	network := genesis.Rules
 
 	config := DefaultConfig()
 	store := NewMemStore()
-	blockProc := BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(genesis),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
-	}
+	blockProc := DefaultBlockProc(genesis)
 	_, err := store.ApplyGenesis(blockProc, genesis)
 	require.NoError(err)
 
 	var (
+		network             = genesis.Rules
 		heavyCheckReader    HeavyCheckReader
 		gasPowerCheckReader GasPowerCheckReader
 		// TODO: init

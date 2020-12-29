@@ -17,10 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
@@ -84,15 +80,7 @@ func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Co
 }
 
 func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Configs, applyGenesis bool) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
-	blockProc := gossip.BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(g),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
-	}
+	blockProc := gossip.DefaultBlockProc(g)
 
 	err := gdb.Migrate()
 	if err != nil {
