@@ -1,15 +1,14 @@
-//+build gofuzz
+//build gofuzz
 
 package gossip
 
 import (
+	"bytes"
 	"sync"
-	"testing"
 
 	_ "github.com/dvyukov/go-fuzz/go-fuzz-defs"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -23,18 +22,41 @@ const (
 	fuzzNoMatter int = 0  // otherwise.
 )
 
+var (
+	fuzzedPM *ProtocolManager
+)
+
 func FuzzPM(data []byte) int {
+	var err error
+	if fuzzedPM == nil {
+		fuzzedPM, err = makeFuzzedPM()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	msg, err := newFuzzMsg(data)
+	if err != nil {
+		return fuzzCold
+	}
+	peer := p2p.NewPeer(enode.RandomID(enode.ID{}, 1), "fake-node-1", []p2p.Cap{})
+	input := &fuzzMsgReadWriter{msg}
+	other := fuzzedPM.newPeer(lachesis62, peer, input)
+
+	err = fuzzedPM.handleMsg(other)
+	if err != nil {
+		return fuzzNoMatter
+	}
+
 	return fuzzHot
 }
 
-func TestPM(t *testing.T) {
+func makeFuzzedPM() (pm *ProtocolManager, err error) {
 	const (
 		genesisStakers = 3
 		genesisBalance = 1e18
 		genesisStake   = 2 * 4e6
 	)
-
-	require := require.New(t)
 
 	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
@@ -42,8 +64,10 @@ func TestPM(t *testing.T) {
 	config := DefaultConfig()
 	store := NewMemStore()
 	blockProc := DefaultBlockProc(genesis)
-	_, err := store.ApplyGenesis(blockProc, genesis)
-	require.NoError(err)
+	_, err = store.ApplyGenesis(blockProc, genesis)
+	if err != nil {
+		return
+	}
 
 	var (
 		network             = genesis.Rules
@@ -64,7 +88,7 @@ func TestPM(t *testing.T) {
 		store:       store,
 	})
 
-	pm, err := NewProtocolManager(
+	pm, err = NewProtocolManager(
 		config,
 		feed,
 		txpool,
@@ -73,23 +97,26 @@ func TestPM(t *testing.T) {
 		store,
 		processEvent,
 		nil)
-	require.NoError(err)
+	if err != nil {
+		return
+	}
 
 	pm.Start(3)
-	defer pm.Stop()
-
-	p := p2p.NewPeer(enode.RandomID(enode.ID{}, 1), "fake-node-1", []p2p.Cap{})
-	peer1 := pm.newPeer(lachesis62, p, new(fuzzMsgReadWriter))
-	err = pm.handle(peer1)
-	require.NoError(err)
-
+	return
 }
 
 type fuzzMsgReadWriter struct {
+	msg *p2p.Msg
+}
+
+func newFuzzMsg(data []byte) (*p2p.Msg, error) {
+	return &p2p.Msg{
+		Payload: bytes.NewReader(data),
+	}, nil
 }
 
 func (rw *fuzzMsgReadWriter) ReadMsg() (p2p.Msg, error) {
-	return p2p.Msg{}, nil
+	return *rw.msg, nil
 }
 
 func (rw *fuzzMsgReadWriter) WriteMsg(p2p.Msg) error {
