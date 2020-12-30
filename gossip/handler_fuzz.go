@@ -110,7 +110,22 @@ type fuzzMsgReadWriter struct {
 }
 
 func newFuzzMsg(data []byte) (*p2p.Msg, error) {
+	var (
+		codes = []uint64{
+			EthStatusMsg,
+			EvmTxMsg,
+			ProgressMsg,
+			NewEventIDsMsg,
+			GetEventsMsg,
+			EventsMsg,
+			RequestEventsStream,
+			EventsStreamResponse,
+		}
+		code = codes[int(data[0])%len(codes)]
+	)
+
 	return &p2p.Msg{
+		Code:    code,
 		Payload: bytes.NewReader(data),
 	}, nil
 }
