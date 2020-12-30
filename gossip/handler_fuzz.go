@@ -1,4 +1,4 @@
-//build gofuzz
+//+build gofuzz
 
 package gossip
 
