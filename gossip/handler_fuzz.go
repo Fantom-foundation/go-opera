@@ -123,9 +123,11 @@ func newFuzzMsg(data []byte) (*p2p.Msg, error) {
 		}
 		code = codes[int(data[0])%len(codes)]
 	)
+	data = data[1:]
 
 	return &p2p.Msg{
 		Code:    code,
+		Size:    uint32(len(data)),
 		Payload: bytes.NewReader(data),
 	}, nil
 }
