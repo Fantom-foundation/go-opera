@@ -153,8 +153,8 @@ github.com/gorilla/websocket v1.4.1 h1:q7AeDBpnBk8AogcD4DSag/Ukw/KV+YhzLj2bP5HvK
 github.com/gorilla/websocket v1.4.1/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/graph-gophers/graphql-go v0.0.0-20191115155744-f33e81362277 h1:E0whKxgp2ojts0FDgUA8dl62bmH0LxKanMoBr6MDTDM=
 github.com/graph-gophers/graphql-go v0.0.0-20191115155744-f33e81362277/go.mod h1:9CQHMSxwO4MprSdzoIEobiHpoLtHm77vfxsvsIN5Vuc=
-github.com/guzenok/go-fuzz v0.0.0-20201230105846-6246c11644ce h1:Jafa8YgHdUXX2WOFlBv5Mh7G6RZCm1J6pUnSHKFOimc=
-github.com/guzenok/go-fuzz v0.0.0-20201230105846-6246c11644ce/go.mod h1:Q5On640X2Z0YzKOijx9GVhUu/kvHnk9aKoWGMlRDMtc=
+github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f h1:GQpcb9ywkaawJfZCFeIcrSWlsZFRTsig42e03dkzc+I=
+github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f/go.mod h1:Q5On640X2Z0YzKOijx9GVhUu/kvHnk9aKoWGMlRDMtc=
 github.com/hashicorp/go-uuid v1.0.1/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/golang-lru v0.5.4 h1:YDjusn29QI/Das2iO9M0BHnIbxPeyuCHsjMW+lJfyTc=
 github.com/hashicorp/golang-lru v0.5.4/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
