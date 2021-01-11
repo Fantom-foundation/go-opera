@@ -31,6 +31,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -109,6 +110,9 @@ type Service struct {
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
+
+	// version watcher
+	verWatcher *verwatcher.VerWarcher
 
 	blockProcWg      sync.WaitGroup
 	blockProcTasks   *workers.Workers
@@ -198,6 +202,8 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	})
 
 	svc.emitter = svc.makeEmitter(signer)
+
+	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
 
 	return svc, nil
 }
@@ -316,11 +322,14 @@ func (s *Service) Start() error {
 
 	s.emitter.Start()
 
+	s.verWatcher.Start()
+
 	return nil
 }
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
 	s.pm.Stop()

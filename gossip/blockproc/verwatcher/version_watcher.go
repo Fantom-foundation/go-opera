@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver/driverpos"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/version"
@@ -23,11 +24,6 @@ type VerWarcher struct {
 	logger.Instance
 }
 
-type Config struct {
-	ShutDownIfNotUpgraded bool
-	WarningIfNotUpgraded  bool
-}
-
 func New(cfg Config, store *Store) *VerWarcher {
 	return &VerWarcher{
 		cfg:      cfg,
@@ -38,7 +34,10 @@ func New(cfg Config, store *Store) *VerWarcher {
 }
 
 func (w *VerWarcher) OnNewLog(l *types.Log) {
-	if l.Topics[0] == driverpos.Topics.NetworkUpgradeActivated && len(l.Data) >= 32 {
+	if l.Address != driver.ContractAddress {
+		return
+	}
+	if l.Topics[0] == driverpos.Topics.UpdateNetworkVersion && len(l.Data) >= 32 {
 		netVersion := new(big.Int).SetBytes(l.Data[24:32]).Uint64()
 		w.store.SetNetworkVersion(netVersion)
 		if netVersion > version.AsU64() {
@@ -56,6 +55,9 @@ func (w *VerWarcher) OnNewLog(l *types.Log) {
 }
 
 func (w *VerWarcher) log() {
+	if w.cfg.WarningIfNotUpgradedEvery == 0 {
+		return
+	}
 	if w.store.GetNetworkVersion() > version.AsU64() {
 		w.Log.Warn(fmt.Sprintf("Network upgrade %s was activated. Current node version is %s. "+
 			"Please upgrade your node and re-sync the chain data.", version.U64ToString(w.store.GetNetworkVersion()), version.AsString()))
@@ -66,14 +68,14 @@ func (w *VerWarcher) log() {
 }
 
 func (w *VerWarcher) Start() {
-	if !w.cfg.WarningIfNotUpgraded {
+	if w.cfg.WarningIfNotUpgradedEvery == 0 {
 		return
 	}
 	w.log()
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(w.cfg.WarningIfNotUpgradedEvery)
 		for {
 			select {
 			case <-ticker.C:

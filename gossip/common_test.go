@@ -142,6 +142,7 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 		txIndex,
 		nil,
 		nil,
+		nil,
 		onBlockEnd,
 	)
 	return callback

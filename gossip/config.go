@@ -13,6 +13,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -54,6 +55,8 @@ type (
 
 		// Gas Price Oracle options
 		GPO gasprice.Config
+
+		VersionWatcher verwatcher.Config
 
 		// Enables tracking of SHA3 preimages in the VM
 		EnablePreimageRecording bool // TODO
@@ -129,6 +132,11 @@ func DefaultConfig() Config {
 			Blocks:     20,
 			Percentile: 60,
 			MaxPrice:   gasprice.DefaultMaxPrice,
+		},
+
+		VersionWatcher: verwatcher.Config{
+			ShutDownIfNotUpgraded:     false,
+			WarningIfNotUpgradedEvery: 5 * time.Second,
 		},
 	}
 

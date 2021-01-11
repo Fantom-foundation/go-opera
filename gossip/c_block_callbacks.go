@@ -18,6 +18,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -35,6 +36,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			s.config.TxIndex,
 			&s.feed,
 			s.emitter,
+			s.verWatcher,
 			nil,
 		),
 	}
@@ -51,6 +53,7 @@ func consensusCallbackBeginBlockFn(
 	txIndex bool,
 	feed *ServiceFeed,
 	emitter *emitter.Emitter,
+	verWatcher *verwatcher.VerWarcher,
 	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
@@ -111,7 +114,13 @@ func consensusCallbackBeginBlockFn(
 					ServiceFeed: feed,
 					store:       store,
 				}
-				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog, es.Rules)
+				onNewLogAll := func(l *types.Log) {
+					txListener.OnNewLog(l)
+					if verWatcher != nil {
+						verWatcher.OnNewLog(l)
+					}
+				}
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
