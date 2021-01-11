@@ -38,6 +38,8 @@ type BlockState struct {
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
+
+	DirtyRules opera.Rules
 }
 
 func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorBlockState {

@@ -1,6 +1,7 @@
 package drivermodule
 
 import (
+	"io"
 	"math"
 	"math/big"
 
@@ -118,7 +119,7 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
 	}
 
-	// push data into SFC before epoch sealing
+	// push data into Driver before epoch sealing
 	if sealing {
 		metrics := make([]drivercall.ValidatorEpochMetric, es.Validators.Len())
 		for oldValIdx := idx.Validator(0); oldValIdx < es.Validators.Len(); oldValIdx++ {
@@ -145,7 +146,7 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 func (p *DriverTxTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ blockproc.BlockState, es blockproc.EpochState, sealing bool, statedb *state.StateDB) types.Transactions {
 	buildTx := internalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 1)
-	// push data into SFC after epoch sealing
+	// push data into Driver after epoch sealing
 	if sealing {
 		calldata := drivercall.SealEpochValidators(es.Validators.SortedIDs())
 		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
@@ -171,6 +172,21 @@ func (p *DriverTxListener) OnNewReceipt(tx *types.Transaction, r *types.Receipt,
 	}
 }
 
+func decodeDataBytes(l *types.Log) ([]byte, error) {
+	if len(l.Data) < 32 {
+		return nil, io.ErrUnexpectedEOF
+	}
+	start := new(big.Int).SetBytes(l.Data[24:32]).Uint64()
+	if start+32 > uint64(len(l.Data)) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	size := new(big.Int).SetBytes(l.Data[start+24 : start+32]).Uint64()
+	if start+32+size > uint64(len(l.Data)) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	return l.Data[start+32 : start+32+size], nil
+}
+
 func (p *DriverTxListener) OnNewLog(l *types.Log) {
 	if l.Address != driver.ContractAddress {
 		return
@@ -189,19 +205,13 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		}
 	}
 	// Track validator pubkey changes
-	if l.Topics[0] == driverpos.Topics.UpdateValidatorPubkey && len(l.Topics) > 1 && len(l.Data) > 64 {
+	if l.Topics[0] == driverpos.Topics.UpdateValidatorPubkey && len(l.Topics) > 1 {
 		validatorID := idx.ValidatorID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
-		start := new(big.Int).SetBytes(l.Data[24:32]).Uint64()
-		if start > uint64(len(l.Data)-32) {
-			log.Warn("Malformed UpdatedValidatorPubkey SFC event")
+		pubkey, err := decodeDataBytes(l)
+		if err != nil {
+			log.Warn("Malformed UpdatedValidatorPubkey Driver event")
 			return
 		}
-		size := new(big.Int).SetBytes(l.Data[start+24 : start+32]).Uint64()
-		if start+32+size > uint64(len(l.Data)) {
-			log.Warn("Malformed UpdatedValidatorPubkey SFC event")
-			return
-		}
-		pubkey := l.Data[start+32 : start+32+size]
 
 		profile := p.bs.NextValidatorProfiles[validatorID]
 		profile.PubKey, _ = validatorpk.FromBytes(pubkey)
@@ -266,6 +276,20 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		value := common.BytesToHash(l.Data[32:64])
 
 		p.statedb.SetState(acc, key, value)
+	}
+	// Update rules
+	if l.Topics[0] == driverpos.Topics.UpdateNetworkRules && len(l.Data) >= 64 {
+		diff, err := decodeDataBytes(l)
+		if err != nil {
+			log.Warn("Malformed UpdateNetworkRules Driver event")
+			return
+		}
+
+		p.bs.DirtyRules, err = opera.UpdateRules(p.bs.DirtyRules, diff)
+		if err != nil {
+			log.Warn("Network rules update error", "err", err)
+			return
+		}
 	}
 }
 

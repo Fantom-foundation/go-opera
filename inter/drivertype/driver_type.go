@@ -14,7 +14,7 @@ var (
 	OkStatus      = uint64(0)
 )
 
-// Validator is the node-side representation of SFC validator
+// Validator is the node-side representation of Driver validator
 type Validator struct {
 	Weight *big.Int
 	PubKey validatorpk.PubKey

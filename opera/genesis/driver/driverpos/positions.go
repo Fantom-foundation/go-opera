@@ -7,7 +7,7 @@ import (
 
 // Events
 var (
-	// Topics of SFC contract logs
+	// Topics of Driver contract logs
 	Topics = struct {
 		IncBalance            common.Hash
 		SetBalance            common.Hash
@@ -17,6 +17,7 @@ var (
 		SetStorage            common.Hash
 		UpdateValidatorWeight common.Hash
 		UpdateValidatorPubkey common.Hash
+		UpdateNetworkRules    common.Hash
 	}{
 		IncBalance:            crypto.Keccak256Hash([]byte("IncBalance(address,uint256)")),
 		SetBalance:            crypto.Keccak256Hash([]byte("SetBalance(address,uint256)")),
@@ -26,5 +27,6 @@ var (
 		SetStorage:            crypto.Keccak256Hash([]byte("SetStorage(address,uint256,uint256)")),
 		UpdateValidatorWeight: crypto.Keccak256Hash([]byte("UpdateValidatorWeight(uint256,uint256)")),
 		UpdateValidatorPubkey: crypto.Keccak256Hash([]byte("UpdateValidatorPubkey(uint256,bytes)")),
+		UpdateNetworkRules:    crypto.Keccak256Hash([]byte("UpdateNetworkRules(bytes)")),
 	}
 )

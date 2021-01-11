@@ -78,9 +78,10 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.bs.ValidatorStates = newValidatorBlockStates
 	s.es.Validators = newValidators
 
-	// dirty EpochStats become active
+	// dirty data becomes active
 	s.es.PrevEpochStart = s.es.EpochStart
 	s.es.EpochStart = s.block.Time
+	s.es.Rules = s.bs.DirtyRules
 
 	s.bs.EpochBlocks = 0
 	newEpoch := s.es.Epoch + 1

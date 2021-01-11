@@ -82,6 +82,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		EpochBlocks:           0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
+		DirtyRules:            g.Rules,
 	})
 	s.SetEpochState(blockproc.EpochState{
 		Epoch:             g.FirstEpoch - 1,
