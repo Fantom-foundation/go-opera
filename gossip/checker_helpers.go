@@ -24,13 +24,13 @@ func (r *GasPowerCheckReader) GetValidationContext() *gaspowercheck.ValidationCo
 }
 
 // NewGasPowerContext reads current validation context for gaspowercheck
-func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, cfg *opera.EconomyConfig) *gaspowercheck.ValidationContext {
+func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, cfg opera.EconomyConfig) *gaspowercheck.ValidationContext {
 	// engineMu is locked here
 
 	short := cfg.ShortGasPower
 	shortTermConfig := gaspowercheck.Config{
 		Idx:                inter.ShortTermGas,
-		AllocPerSec:        short.InitialAllocPerSec,
+		AllocPerSec:        short.AllocPerSec,
 		MaxAllocPeriod:     short.MaxAllocPeriod,
 		StartupAllocPeriod: short.StartupAllocPeriod,
 		MinStartupGas:      short.MinStartupGas,
@@ -39,7 +39,7 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 	long := cfg.LongGasPower
 	longTermConfig := gaspowercheck.Config{
 		Idx:                inter.LongTermGas,
-		AllocPerSec:        long.InitialAllocPerSec,
+		AllocPerSec:        long.AllocPerSec,
 		MaxAllocPeriod:     long.MaxAllocPeriod,
 		StartupAllocPeriod: long.StartupAllocPeriod,
 		MinStartupGas:      long.MinStartupGas,

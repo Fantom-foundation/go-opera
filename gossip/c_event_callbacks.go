@@ -4,13 +4,12 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
-	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/params"
@@ -47,7 +46,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
 
 	// calc initial GasPower
-	e.SetGasPowerUsed(basiccheck.CalcGasPowerUsed(e, &s.net.Dag))
+	e.SetGasPowerUsed(epochcheck.CalcGasPowerUsed(e, s.store.GetRules().Dag))
 	var selfParent *inter.Event
 	if e.SelfParent() != nil {
 		selfParent = s.store.GetEvent(*e.SelfParent())
@@ -123,7 +122,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 			return s.store.GetEvent(id)
 		})
 		// notify event checkers about new validation data
-		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, &s.net.Economy)) // read gaspower check data from disk
+		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, s.store.GetRules().Economy)) // read gaspower check data from disk
 		s.heavyCheckReader.Addrs.Store(NewEpochPubKeys(s.store, newEpoch))
 		// notify about new epoch
 		s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)

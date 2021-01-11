@@ -6,17 +6,12 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-type OperaEpochsSealerModule struct {
-	net opera.Rules
-}
+type OperaEpochsSealerModule struct{}
 
-func New(net opera.Rules) *OperaEpochsSealerModule {
-	return &OperaEpochsSealerModule{
-		net: net,
-	}
+func New() *OperaEpochsSealerModule {
+	return &OperaEpochsSealerModule{}
 }
 
 func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx, bs blockproc.BlockState, es blockproc.EpochState) blockproc.SealerProcessor {
@@ -24,7 +19,6 @@ func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx, bs blockproc.B
 		block: block,
 		es:    es,
 		bs:    bs,
-		net:   m.net,
 	}
 }
 
@@ -32,12 +26,11 @@ type OperaEpochsSealer struct {
 	block blockproc.BlockCtx
 	es    blockproc.EpochState
 	bs    blockproc.BlockState
-	net   opera.Rules
 }
 
 func (s *OperaEpochsSealer) EpochSealing() bool {
-	sealEpoch := s.bs.EpochBlocks >= s.net.Dag.MaxEpochBlocks
-	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= inter.Timestamp(s.net.Dag.MaxEpochDuration)
+	sealEpoch := s.bs.EpochBlocks >= s.es.Rules.Dag.MaxEpochBlocks
+	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= inter.Timestamp(s.es.Rules.Dag.MaxEpochDuration)
 	return sealEpoch || s.block.CBlock.Cheaters.Len() != 0
 }
 
@@ -48,7 +41,7 @@ func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochSt
 func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
 	// add final uptime for validators
 	for _, info := range s.bs.ValidatorStates {
-		if s.bs.LastBlock-info.LastBlock <= s.net.Economy.BlockMissedSlack {
+		if s.bs.LastBlock-info.LastBlock <= s.es.Rules.Economy.BlockMissedSlack {
 			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastMedianTime) - info.LastMedianTime
 		}
 	}

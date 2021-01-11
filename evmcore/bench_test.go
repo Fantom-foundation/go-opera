@@ -157,7 +157,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	if err != nil {
 		b.Fatalf("cannot create statedb: %v", err)
 	}
-	genesisBlock := MustApplyGenesis(net.State, statedb, opt.MiB)
+	genesisBlock := MustApplyGenesis(net, statedb, opt.MiB)
 	genesisBlock.GasLimit = 1000000
 
 	// Time the insertion of the new chain.

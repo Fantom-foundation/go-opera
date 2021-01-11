@@ -14,6 +14,15 @@ import (
 
 // OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
+	em.maxParents = em.config.MaxParents
+	rules := em.world.Store.GetRules()
+	if em.maxParents == 0 {
+		em.maxParents = rules.Dag.MaxParents
+	}
+	if em.maxParents > rules.Dag.MaxParents {
+		em.maxParents = rules.Dag.MaxParents
+	}
+
 	if !em.isValidator() {
 		return
 	}

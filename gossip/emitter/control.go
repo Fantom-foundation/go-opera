@@ -59,9 +59,10 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	}
 	// Enforce emitting if passed too many time/blocks since previous event
 	{
-		maxBlocks := em.net.Economy.BlockMissedSlack/2 + 1
-		if em.net.Economy.BlockMissedSlack > maxBlocks && maxBlocks < em.net.Economy.BlockMissedSlack-5 {
-			maxBlocks = em.net.Economy.BlockMissedSlack - 5
+		rules := em.world.Store.GetRules()
+		maxBlocks := rules.Economy.BlockMissedSlack/2 + 1
+		if rules.Economy.BlockMissedSlack > maxBlocks && maxBlocks < rules.Economy.BlockMissedSlack-5 {
+			maxBlocks = rules.Economy.BlockMissedSlack - 5
 		}
 		if passedTime >= em.intervals.Max ||
 			passedBlocks >= maxBlocks*4/5 && metric >= piecefunc.DecimalUnit/2 ||

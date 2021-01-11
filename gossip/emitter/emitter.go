@@ -20,7 +20,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/tracing"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -52,7 +51,6 @@ type EmitterWorld struct {
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
 
-	net    opera.Rules
 	config Config
 
 	world EmitterWorld
@@ -81,21 +79,16 @@ type Emitter struct {
 	done chan struct{}
 	wg   sync.WaitGroup
 
+	maxParents idx.Event
+
 	logger.Periodic
 }
 
 // NewEmitter creation.
 func NewEmitter(
-	net opera.Rules,
 	config Config,
 	world EmitterWorld,
 ) *Emitter {
-	if config.MaxParents == 0 {
-		config.MaxParents = net.Dag.MaxParents
-	}
-	if config.MaxParents > net.Dag.MaxParents {
-		config.MaxParents = net.Dag.MaxParents
-	}
 	// Randomize event time to decrease chance of 2 parallel instances emitting event at the same time
 	// It increases the chance of detecting parallel instances
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -103,7 +96,6 @@ func NewEmitter(
 
 	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
-		net:           net,
 		config:        config,
 		world:         world,
 		gasRate:       metrics.NewMeterForced(),

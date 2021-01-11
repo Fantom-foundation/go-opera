@@ -34,9 +34,7 @@ type Rules struct {
 
 // GasPowerConfig defines gas power rules in the consensus.
 type GasPowerConfig struct {
-	InitialAllocPerSec uint64
-	MaxAllocPerSec     uint64
-	MinAllocPerSec     uint64
+	AllocPerSec        uint64
 	MaxAllocPeriod     inter.Timestamp
 	StartupAllocPeriod inter.Timestamp
 	MinStartupGas      uint64
@@ -71,7 +69,7 @@ type BlocksConfig struct {
 }
 
 // EvmChainConfig returns ChainConfig for transaction signing and execution
-func (c *Rules) EvmChainConfig() *ethparams.ChainConfig {
+func (c Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
 	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
 	return &cfg
@@ -149,9 +147,7 @@ func FakeNetDagConfig() DagConfig {
 // DefaulLongGasPowerConfig is long-window config
 func DefaulLongGasPowerConfig() GasPowerConfig {
 	return GasPowerConfig{
-		InitialAllocPerSec: 100 * params.EventGas,
-		MaxAllocPerSec:     1000 * params.EventGas,
-		MinAllocPerSec:     10 * params.EventGas,
+		AllocPerSec:        100 * params.EventGas,
 		MaxAllocPeriod:     inter.Timestamp(60 * time.Minute),
 		StartupAllocPeriod: inter.Timestamp(5 * time.Second),
 		MinStartupGas:      params.EventGas * 20,
@@ -162,9 +158,7 @@ func DefaulLongGasPowerConfig() GasPowerConfig {
 func DefaultShortGasPowerConfig() GasPowerConfig {
 	// 5x faster allocation rate, 12x lower max accumulated gas power
 	cfg := DefaulLongGasPowerConfig()
-	cfg.InitialAllocPerSec *= 5
-	cfg.MaxAllocPerSec *= 5
-	cfg.MinAllocPerSec *= 5
+	cfg.AllocPerSec *= 5
 	cfg.StartupAllocPeriod /= 5
 	cfg.MaxAllocPeriod /= 5 * 12
 	return cfg
@@ -173,15 +167,13 @@ func DefaultShortGasPowerConfig() GasPowerConfig {
 // FakeLongGasPowerConfig is fake long-window config
 func FakeLongGasPowerConfig() GasPowerConfig {
 	config := DefaulLongGasPowerConfig()
-	config.InitialAllocPerSec *= 1000
-	config.MaxAllocPerSec *= 1000
+	config.AllocPerSec *= 1000
 	return config
 }
 
 // FakeShortGasPowerConfig is fake short-window config
 func FakeShortGasPowerConfig() GasPowerConfig {
 	config := DefaultShortGasPowerConfig()
-	config.InitialAllocPerSec *= 1000
-	config.MaxAllocPerSec *= 1000
+	config.AllocPerSec *= 1000
 	return config
 }

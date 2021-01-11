@@ -25,6 +25,8 @@ type (
 		Time          inter.Timestamp
 		PrevEpochTime inter.Timestamp
 		ExtraData     []byte
+		DriverOwner   common.Address
+		TotalSupply   *big.Int
 	}
 	Accounts struct {
 		Raw kvdb.Iteratee
@@ -94,8 +96,13 @@ func (s *Store) GetDelegation(addr common.Address, toValidatorID idx.ValidatorID
 	w, ok := s.rlp.Get(s.table.EvmAccounts, append(addr.Bytes(), toValidatorID.Bytes()...), &genesis.Delegation{}).(*genesis.Delegation)
 	if !ok {
 		return genesis.Delegation{
-			Stake:   new(big.Int),
-			Rewards: new(big.Int),
+			Stake:              new(big.Int),
+			Rewards:            new(big.Int),
+			LockedStake:        new(big.Int),
+			LockupFromEpoch:    0,
+			LockupEndTime:      0,
+			LockupDuration:     0,
+			EarlyUnlockPenalty: new(big.Int),
 		}
 	}
 	return *w
@@ -127,26 +134,22 @@ func (s *Store) SetRules(cfg opera.Rules) {
 	s.rlp.Set(s.table.Rules, []byte("c"), &cfg)
 }
 
-func (s *Store) GetGenesisState() opera.GenesisState {
+func (s *Store) GetGenesis() opera.Genesis {
 	meatadata := s.GetMetadata()
-	return opera.GenesisState{
+	return opera.Genesis{
 		Accounts:      s.EvmAccounts(),
 		Storage:       s.EvmStorage(),
 		Delegations:   s.Delegations(),
 		Blocks:        s.Blocks(),
 		Validators:    meatadata.Validators,
 		FirstEpoch:    meatadata.FirstEpoch,
-		Time:          meatadata.Time,
 		PrevEpochTime: meatadata.PrevEpochTime,
+		Time:          meatadata.Time,
 		ExtraData:     meatadata.ExtraData,
-	}
-}
-
-func (s *Store) GetGenesis() opera.Genesis {
-	return opera.Genesis{
-		Rules: s.GetRules(),
-		State: s.GetGenesisState(),
-		Hash:  s.Hash,
+		TotalSupply:   meatadata.TotalSupply,
+		DriverOwner:   meatadata.DriverOwner,
+		Rules:         s.GetRules(),
+		Hash:          s.Hash,
 	}
 }
 

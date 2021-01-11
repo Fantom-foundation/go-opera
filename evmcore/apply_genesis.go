@@ -30,7 +30,7 @@ import (
 )
 
 // ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(statedb *state.StateDB, g opera.GenesisState, maxMemoryUsage int) (*EvmBlock, error) {
+func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (*EvmBlock, error) {
 	mem := 0
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
 		statedb.AddBalance(addr, account.Balance)
@@ -74,7 +74,7 @@ func flush(statedb *state.StateDB) (common.Hash, error) {
 }
 
 // genesisBlock makes genesis block with pretty hash.
-func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
+func genesisBlock(g opera.Genesis, root common.Hash) *EvmBlock {
 	block := &EvmBlock{
 		EvmHeader: EvmHeader{
 			Number:   big.NewInt(0),
@@ -89,7 +89,7 @@ func genesisBlock(g opera.GenesisState, root common.Hash) *EvmBlock {
 }
 
 // MustApplyGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyGenesis(g opera.GenesisState, statedb *state.StateDB, maxMemoryUsage int) *EvmBlock {
+func MustApplyGenesis(g opera.Genesis, statedb *state.StateDB, maxMemoryUsage int) *EvmBlock {
 	block, err := ApplyGenesis(statedb, g, maxMemoryUsage)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)

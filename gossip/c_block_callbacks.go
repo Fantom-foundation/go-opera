@@ -30,7 +30,6 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 		BeginBlock: consensusCallbackBeginBlockFn(
 			s.blockProcTasks,
 			&s.blockProcWg,
-			s.net,
 			s.store,
 			s.blockProcModules,
 			s.config.TxIndex,
@@ -47,7 +46,6 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 func consensusCallbackBeginBlockFn(
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
-	network opera.Rules,
 	store *Store,
 	blockProc BlockProc,
 	txIndex bool,
@@ -113,7 +111,7 @@ func consensusCallbackBeginBlockFn(
 					ServiceFeed: feed,
 					store:       store,
 				}
-				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog)
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog, es.Rules)
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -151,7 +149,7 @@ func consensusCallbackBeginBlockFn(
 						block.InternalTxs = append(block.InternalTxs, tx.Hash())
 					}
 
-					block, blockEvents := spillBlockEvents(store, block, network)
+					block, blockEvents := spillBlockEvents(store, block, es.Rules)
 					txs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)

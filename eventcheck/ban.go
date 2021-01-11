@@ -2,7 +2,8 @@ package eventcheck
 
 import (
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck"
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 )
 
 var (

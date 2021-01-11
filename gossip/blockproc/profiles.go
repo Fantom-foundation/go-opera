@@ -7,21 +7,21 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 )
 
-type ValidatorProfiles map[idx.ValidatorID]sfctype.SfcValidator
+type ValidatorProfiles map[idx.ValidatorID]drivertype.Validator
 
-func (vv ValidatorProfiles) SortedArray() []sfctype.SfcValidatorAndID {
+func (vv ValidatorProfiles) SortedArray() []drivertype.ValidatorAndID {
 	builder := pos.NewBigBuilder()
 	for id, profile := range vv {
 		builder.Set(id, profile.Weight)
 	}
 	validators := builder.Build()
 	sortedIds := validators.SortedIDs()
-	arr := make([]sfctype.SfcValidatorAndID, validators.Len())
+	arr := make([]drivertype.ValidatorAndID, validators.Len())
 	for i, id := range sortedIds {
-		arr[i] = sfctype.SfcValidatorAndID{
+		arr[i] = drivertype.ValidatorAndID{
 			ValidatorID: id,
 			Validator:   vv[id],
 		}
@@ -36,7 +36,7 @@ func (vv ValidatorProfiles) EncodeRLP(w io.Writer) error {
 
 // DecodeRLP is for RLP deserialization.
 func (vv *ValidatorProfiles) DecodeRLP(s *rlp.Stream) error {
-	var arr []sfctype.SfcValidatorAndID
+	var arr []drivertype.ValidatorAndID
 	if err := s.Decode(&arr); err != nil {
 		return err
 	}

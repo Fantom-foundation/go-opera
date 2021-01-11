@@ -43,6 +43,6 @@ func (em *Emitter) chooseParents(epoch idx.Epoch, myValidatorID idx.ValidatorID)
 	if selfParent != nil {
 		parents = hash.Events{*selfParent}
 	}
-	parents = ancestor.ChooseParents(parents, heads, em.buildSearchStrategies(em.config.MaxParents-idx.Event(len(parents))))
+	parents = ancestor.ChooseParents(parents, heads, em.buildSearchStrategies(em.maxParents-idx.Event(len(parents))))
 	return selfParent, parents, true
 }

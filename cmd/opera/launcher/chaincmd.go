@@ -14,15 +14,7 @@ var (
 		Name:      "import",
 		Usage:     "Import a blockchain file",
 		ArgsUsage: "<filename> (<filename 2> ... <filename N>) [check=false]",
-		Flags: []cli.Flag{
-			DataDirFlag,
-			utils.CacheFlag,
-			utils.SyncModeFlag,
-			utils.GCModeFlag,
-			utils.CacheDatabaseFlag,
-			utils.CacheGCFlag,
-		},
-		Category: "MISCELLANEOUS COMMANDS",
+		Category:  "MISCELLANEOUS COMMANDS",
 		Description: `
 The import command imports events from an RLP-encoded files.
 Events are fully verified by default, unless overridden by check=false flag.`,
@@ -49,14 +41,8 @@ Events are fully verified by default, unless overridden by --check=false flag.`,
 		},
 	}
 	exportCommand = cli.Command{
-		Name:  "export",
-		Usage: "Export blockchain",
-		Flags: []cli.Flag{
-			DataDirFlag,
-			utils.CacheFlag,
-			utils.SyncModeFlag,
-			utils.GCModeFlag,
-		},
+		Name:     "export",
+		Usage:    "Export blockchain",
 		Category: "MISCELLANEOUS COMMANDS",
 
 		Subcommands: []cli.Command{

@@ -5,35 +5,28 @@ import (
 	"math"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 var (
-	ErrTooManyParents = errors.New("event has too many parents")
-	ErrZeroTime       = errors.New("event has zero timestamp")
-	ErrNegativeValue  = errors.New("negative value")
-	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
-	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
-	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
-	ErrUnderpriced    = errors.New("event transaction underpriced")
+	ErrZeroTime      = errors.New("event has zero timestamp")
+	ErrNegativeValue = errors.New("negative value")
+	ErrIntrinsicGas  = errors.New("intrinsic gas too low")
+	ErrUnderpriced   = errors.New("event transaction underpriced")
 )
 
 type Checker struct {
-	base   *base.Checker
-	config *opera.DagConfig
+	base base.Checker
 }
 
 // New validator which performs checks which don't require anything except event
-func New(config *opera.DagConfig) *Checker {
+func New() *Checker {
 	return &Checker{
-		config: config,
-		base:   &base.Checker{},
+		base: base.Checker{},
 	}
 }
 
@@ -68,32 +61,6 @@ func (v *Checker) checkTxs(e inter.EventPayloadI) error {
 	return nil
 }
 
-func CalcGasPowerUsed(e inter.EventPayloadI, config *opera.DagConfig) uint64 {
-	txsGas := uint64(0)
-	for _, tx := range e.Txs() {
-		txsGas += tx.Gas()
-	}
-
-	parentsGas := uint64(0)
-	if idx.Event(len(e.Parents())) > config.MaxFreeParents {
-		parentsGas = uint64(idx.Event(len(e.Parents()))-config.MaxFreeParents) * params.ParentGas
-	}
-	extraGas := uint64(len(e.Extra())) * params.ExtraDataGas
-
-	return txsGas + parentsGas + extraGas + params.EventGas
-}
-
-func (v *Checker) checkGas(e inter.EventPayloadI) error {
-	if e.GasPowerUsed() > params.MaxGasPowerUsed {
-		return ErrTooBigGasUsed
-	}
-	if e.GasPowerUsed() != CalcGasPowerUsed(e, v.config) {
-		return ErrWrongGasUsed
-	}
-
-	return nil
-}
-
 // Validate event
 func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.base.Validate(e); err != nil {
@@ -104,12 +71,6 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	}
 	if e.CreationTime() <= 0 || e.MedianTime() <= 0 {
 		return ErrZeroTime
-	}
-	if idx.Event(len(e.Parents())) > v.config.MaxParents {
-		return ErrTooManyParents
-	}
-	if err := v.checkGas(e); err != nil {
-		return err
 	}
 	if err := v.checkTxs(e); err != nil {
 		return err

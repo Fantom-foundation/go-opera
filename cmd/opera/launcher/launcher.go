@@ -279,7 +279,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 
 	// Create and register a gossip network service.
 
-	svc, err := gossip.NewService(stack, cfg.Opera, genesisStore.GetRules(), gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, cfg.Opera, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
