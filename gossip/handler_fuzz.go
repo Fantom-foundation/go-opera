@@ -110,6 +110,10 @@ type fuzzMsgReadWriter struct {
 }
 
 func newFuzzMsg(data []byte) (*p2p.Msg, error) {
+	if len(data) < 1 {
+		return nil, ErrEmptyMessage
+	}
+
 	var (
 		codes = []uint64{
 			EthStatusMsg,
