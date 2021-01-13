@@ -26,6 +26,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 )
 
+const (
+	maxAdvanceEpochs = 1 << 16
+)
+
 type DriverTxListenerModule struct{}
 
 func NewDriverTxListenerModule() *DriverTxListenerModule {
@@ -289,6 +293,16 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		if err != nil {
 			log.Warn("Network rules update error", "err", err)
 			return
+		}
+	}
+	// Advance epochs
+	if l.Topics[0] == driverpos.Topics.UpdateNetworkRules && len(l.Data) >= 32 {
+		// epochsNum < 2^24 to avoid overflow
+		epochsNum := new(big.Int).SetBytes(l.Data[29:32]).Uint64()
+
+		p.bs.AdvanceEpochs += idx.Epoch(epochsNum)
+		if p.bs.AdvanceEpochs > maxAdvanceEpochs {
+			p.bs.AdvanceEpochs = maxAdvanceEpochs
 		}
 	}
 }
