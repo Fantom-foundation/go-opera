@@ -327,6 +327,11 @@ func (s *Service) Start() error {
 	return nil
 }
 
+// WaitBlockEnd waits until parallel block processing is complete (if any)
+func (s *Service) WaitBlockEnd() {
+	s.blockProcWg.Wait()
+}
+
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
 	s.verWatcher.Stop()

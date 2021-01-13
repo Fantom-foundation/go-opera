@@ -89,7 +89,12 @@ func exportEvents(ctx *cli.Context) error {
 }
 
 func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
+	rawProducer := integration.DBProducer(path.Join(dataDir, "chaindata"))
 	dbs := flushable.NewSyncedPool(integration.DBProducer(path.Join(dataDir, "chaindata")), integration.FlushIDKey)
+	err := dbs.Initialize(rawProducer.Names())
+	if err != nil {
+		utils.Fatalf("Failed to open DBs: %v", err)
+	}
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb

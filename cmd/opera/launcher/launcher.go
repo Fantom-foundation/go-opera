@@ -262,7 +262,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Opera.Emitter.Validator.PubKey
-	if key := getFakeValidatorKey(ctx); key != nil {
+	if key := getFakeValidatorKey(ctx); key != nil && cfg.Opera.Emitter.Validator.ID != 0 {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
 		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
