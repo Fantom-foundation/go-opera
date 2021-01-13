@@ -31,6 +31,7 @@ func (p *ValidatorEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 	if prev == nil || e.Seq() > prev.Seq() {
 		p.validatorHighestEvents[creatorIdx] = e
 	}
+	p.bs.EpochGas += e.GasPowerUsed()
 }
 
 func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.BlockState {

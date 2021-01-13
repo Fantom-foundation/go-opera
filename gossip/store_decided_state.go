@@ -80,11 +80,6 @@ func (s *Store) GetLatestBlockIndex() idx.Block {
 	return s.GetBlockState().LastBlock
 }
 
-// GetEpochBlockIndex retrieves the number of blocks in current epoch
-func (s *Store) GetEpochBlocks() idx.Block {
-	return s.GetBlockState().EpochBlocks
-}
-
 // GetRules retrieves current network rules
 func (s *Store) GetRules() opera.Rules {
 	return s.GetEpochState().Rules
