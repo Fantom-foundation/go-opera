@@ -19,6 +19,7 @@ var (
 		UpdateValidatorPubkey common.Hash
 		UpdateNetworkRules    common.Hash
 		UpdateNetworkVersion  common.Hash
+		AdvanceEpochs         common.Hash
 	}{
 		IncBalance:            crypto.Keccak256Hash([]byte("IncBalance(address,uint256)")),
 		SetBalance:            crypto.Keccak256Hash([]byte("SetBalance(address,uint256)")),
@@ -30,5 +31,6 @@ var (
 		UpdateValidatorPubkey: crypto.Keccak256Hash([]byte("UpdateValidatorPubkey(uint256,bytes)")),
 		UpdateNetworkRules:    crypto.Keccak256Hash([]byte("UpdateNetworkRules(bytes)")),
 		UpdateNetworkVersion:  crypto.Keccak256Hash([]byte("UpdateNetworkVersion(uint256)")),
+		AdvanceEpochs:         crypto.Keccak256Hash([]byte("AdvanceEpochs(uint256)")),
 	}
 )
