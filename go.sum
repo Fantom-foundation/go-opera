@@ -14,8 +14,8 @@ github.com/Azure/go-autorest/logger v0.1.0/go.mod h1:oExouG+K6PryycPJfVSxi/koC6L
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20201221134232-e82eb3d7a18a h1:ipzJxHaM9XMc3WEFy17Lyc+JyWKHIbp8nW6Wa/kikKU=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20201221134232-e82eb3d7a18a/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20210113050827-dea8e3826660 h1:caPcRqQT1UdDKMntGVA0eYAghBCo8U3UwFrU69/mxq4=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20210113050827-dea8e3826660/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=

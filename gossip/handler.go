@@ -571,7 +571,7 @@ func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool
 	// Schedule all the events for connection
 	peer := *p
 	now := time.Now()
-	_ = pm.processor.Enqueue(peer.id, events, ordered, now, peer.RequestEvents)
+	_ = pm.processor.Enqueue(peer.id, events, ordered, now, peer.RequestEvents, nil)
 }
 
 // handleMsg is invoked whenever an inbound message is received from a remote
