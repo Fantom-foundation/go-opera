@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 const lbKey = "d"
@@ -63,15 +64,15 @@ func (s *Store) GetEpoch() idx.Epoch {
 	return s.GetEpochState().Epoch
 }
 
-// GetValidators retrieves alidators atomically
+// GetValidators retrieves current validators
 func (s *Store) GetValidators() *pos.Validators {
 	return s.GetEpochState().Validators
 }
 
 // GetEpoch retrieves the current epoch and validators atomically
 func (s *Store) GetEpochValidators() (*pos.Validators, idx.Epoch) {
-	state := s.GetEpochState()
-	return state.Validators, state.Epoch
+	es := s.GetEpochState()
+	return es.Validators, es.Epoch
 }
 
 // GetEpoch retrieves the current block number
@@ -82,4 +83,15 @@ func (s *Store) GetLatestBlockIndex() idx.Block {
 // GetEpochBlockIndex retrieves the number of blocks in current epoch
 func (s *Store) GetEpochBlocks() idx.Block {
 	return s.GetBlockState().EpochBlocks
+}
+
+// GetRules retrieves current network rules
+func (s *Store) GetRules() opera.Rules {
+	return s.GetEpochState().Rules
+}
+
+// GetEpochRules retrieves current network rules and epoch atomically
+func (s *Store) GetEpochRules() (opera.Rules, idx.Epoch) {
+	es := s.GetEpochState()
+	return es.Rules, es.Epoch
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
@@ -33,14 +33,14 @@ func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash 
 
 func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
 	// apply app genesis
-	evmBlock, err = s.evm.ApplyGenesis(g.State)
+	evmBlock, err = s.evm.ApplyGenesis(g)
 	if err != nil {
 		return evmBlock, err
 	}
 
 	// write genesis blocks
 	var highestBlock idx.Block
-	g.State.Blocks.ForEach(func(index idx.Block, block genesis.Block) {
+	g.Blocks.ForEach(func(index idx.Block, block genesis.Block) {
 		txHashes := make([]common.Hash, len(block.Txs))
 		internalTxHashes := make([]common.Hash, len(block.InternalTxs))
 		for i, tx := range block.Txs {
@@ -81,15 +81,17 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		LastStateRoot:         hash.Hash(evmBlock.Root),
 		EpochBlocks:           0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
-		NextValidatorProfiles: make(map[idx.ValidatorID]sfctype.SfcValidator),
+		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
+		DirtyRules:            g.Rules,
 	})
 	s.SetEpochState(blockproc.EpochState{
-		Epoch:             g.State.FirstEpoch - 1,
-		EpochStart:        g.State.PrevEpochTime,
-		PrevEpochStart:    g.State.PrevEpochTime - 1,
+		Epoch:             g.FirstEpoch - 1,
+		EpochStart:        g.PrevEpochTime,
+		PrevEpochStart:    g.PrevEpochTime - 1,
 		Validators:        pos.NewBuilder().Build(),
 		ValidatorStates:   make([]blockproc.ValidatorEpochState, 0),
-		ValidatorProfiles: make(map[idx.ValidatorID]sfctype.SfcValidator),
+		ValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
+		Rules:             g.Rules,
 	})
 
 	return evmBlock, nil
@@ -113,7 +115,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	blockCtx := blockproc.BlockCtx{
 		Idx:  bs.LastBlock,
-		Time: g.State.Time,
+		Time: g.Time,
 		CBlock: lachesis.Block{
 			Atropos:  hash.Event{},
 			Cheaters: make(lachesis.Cheaters, 0),
@@ -123,7 +125,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 	sealing := true
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
-	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog)
+	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog, es.Rules)
 
 	// Execute genesis-internal transactions
 	genesisInternalTxs := blockProc.GenesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -163,11 +165,11 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
 		e := inter.MutableEventPayload{}
 		// for nice-looking ID
-		e.SetEpoch(g.State.FirstEpoch - 1)
+		e.SetEpoch(g.FirstEpoch - 1)
 		e.SetLamport(idx.Lamport(g.Rules.Dag.MaxEpochBlocks))
 		// actual data hashed
-		e.SetExtra(append(root[:], g.State.ExtraData...))
-		e.SetCreationTime(g.State.Time)
+		e.SetExtra(append(root[:], g.ExtraData...))
+		e.SetCreationTime(g.Time)
 
 		return e.Build().ID()
 	}

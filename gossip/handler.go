@@ -116,7 +116,6 @@ type ProtocolManager struct {
 // with the Fantom network.
 func NewProtocolManager(
 	config Config,
-	net opera.Rules,
 	notifier dagNotifier,
 	txpool txPool,
 	engineMu sync.Locker,
@@ -137,7 +136,6 @@ func NewProtocolManager(
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:               config,
-		net:                  net,
 		notifier:             notifier,
 		txpool:               txpool,
 		msgSemaphore:         datasemaphore.New(config.Protocol.MsgsSemaphoreLimit, warningFn),
@@ -220,7 +218,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers, fetcher 
 		if err := checkers.Basiccheck.Validate(e.(inter.EventPayloadI)); err != nil {
 			return err
 		}
-		if err := checkers.Epochcheck.Validate(e); err != nil {
+		if err := checkers.Epochcheck.Validate(e.(inter.EventPayloadI)); err != nil {
 			return err
 		}
 		return nil

@@ -16,9 +16,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/proxy"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/proxy/proxypos"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 )
@@ -45,6 +46,7 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 
 	validators := GetFakeValidators(num)
 
+	totalSupply := new(big.Int)
 	for _, val := range validators {
 		genStore.SetEvmAccount(val.Address, genesis.Account{
 			Code:    []byte{},
@@ -52,14 +54,20 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 			Nonce:   0,
 		})
 		genStore.SetDelegation(val.Address, val.ID, genesis.Delegation{
-			Stake:   stake,
-			Rewards: new(big.Int),
+			Stake:              stake,
+			Rewards:            new(big.Int),
+			LockedStake:        new(big.Int),
+			LockupFromEpoch:    0,
+			LockupEndTime:      0,
+			LockupDuration:     0,
+			EarlyUnlockPenalty: new(big.Int),
 		})
+		totalSupply.Add(totalSupply, balance)
 	}
 
-	var admin common.Address
+	var owner common.Address
 	if num != 0 {
-		admin = validators[0].Address
+		owner = validators[0].Address
 	}
 
 	genStore.SetMetadata(genesisstore.Metadata{
@@ -68,6 +76,8 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 		Time:          FakeGenesisTime,
 		PrevEpochTime: FakeGenesisTime - inter.Timestamp(time.Hour),
 		ExtraData:     []byte("fake"),
+		DriverOwner:   owner,
+		TotalSupply:   totalSupply,
 	})
 	genStore.SetBlock(0, genesis.Block{
 		Time:        FakeGenesisTime - inter.Timestamp(time.Minute),
@@ -77,7 +87,30 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 		Root:        hash.Hash{},
 		Receipts:    []*types.ReceiptForStorage{},
 	})
-	preDeploySfc(admin, sfc.ContractAddress, sfc.ContractAddressV1, proxy.GetContractBin(), sfc.GetContractBin(), genStore)
+	// pre deploy NetworkInitializer
+	genStore.SetEvmAccount(netinit.ContractAddress, genesis.Account{
+		Code:    netinit.GetContractBin(),
+		Balance: new(big.Int),
+		Nonce:   0,
+	})
+	// pre deploy NodeDriver
+	genStore.SetEvmAccount(driver.ContractAddress, genesis.Account{
+		Code:    driver.GetContractBin(),
+		Balance: new(big.Int),
+		Nonce:   0,
+	})
+	// pre deploy NodeDriverAuth
+	genStore.SetEvmAccount(driverauth.ContractAddress, genesis.Account{
+		Code:    driverauth.GetContractBin(),
+		Balance: new(big.Int),
+		Nonce:   0,
+	})
+	// pre deploy SFC
+	genStore.SetEvmAccount(sfc.ContractAddress, genesis.Account{
+		Code:    sfc.GetContractBin(),
+		Balance: new(big.Int),
+		Nonce:   0,
+	})
 
 	return genStore
 }
@@ -106,21 +139,4 @@ func GetFakeValidators(num int) gpos.Validators {
 	}
 
 	return validators
-}
-
-func preDeploySfc(admin, proxyAddr, implAddr common.Address, proxyCode, implCode []byte, genStore *genesisstore.Store) {
-	// pre deploy SFC impl
-	genStore.SetEvmAccount(implAddr, genesis.Account{
-		Code:    implCode,
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	// pre deploy SFC proxy
-	genStore.SetEvmAccount(proxyAddr, genesis.Account{
-		Code:    proxyCode,
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	genStore.SetEvmState(proxyAddr, proxypos.Admin(), admin.Hash())
-	genStore.SetEvmState(proxyAddr, proxypos.Implementation(), implAddr.Hash())
 }

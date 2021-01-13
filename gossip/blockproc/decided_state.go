@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type ValidatorBlockState struct {
@@ -37,6 +38,8 @@ type BlockState struct {
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
+
+	DirtyRules opera.Rules
 }
 
 func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorBlockState {
@@ -52,6 +55,8 @@ type EpochState struct {
 	Validators        *pos.Validators
 	ValidatorStates   []ValidatorEpochState
 	ValidatorProfiles ValidatorProfiles
+
+	Rules opera.Rules
 }
 
 func (es *EpochState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorEpochState {

@@ -1,9 +1,8 @@
 package eventcheck
 
 import (
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
-
 	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"

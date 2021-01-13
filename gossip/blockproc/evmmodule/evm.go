@@ -16,17 +16,13 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
-type EVMModule struct {
-	net opera.Rules
+type EVMModule struct{}
+
+func New() *EVMModule {
+	return &EVMModule{}
 }
 
-func New(net opera.Rules) *EVMModule {
-	return &EVMModule{
-		net: net,
-	}
-}
-
-func (p *EVMModule) Start(block blockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log)) blockproc.EVMProcessor {
+func (p *EVMModule) Start(block blockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
 	var prevBlockHash common.Hash
 	if block.Idx != 0 {
 		prevBlockHash = reader.GetHeader(common.Hash{}, uint64(block.Idx-1)).Hash
@@ -36,7 +32,7 @@ func (p *EVMModule) Start(block blockproc.BlockCtx, statedb *state.StateDB, read
 		reader:        reader,
 		statedb:       statedb,
 		onNewLog:      onNewLog,
-		net:           p.net,
+		net:           net,
 		blockIdx:      utils.U64toBig(uint64(block.Idx)),
 		prevBlockHash: prevBlockHash,
 	}

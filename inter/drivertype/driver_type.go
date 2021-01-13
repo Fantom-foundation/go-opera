@@ -1,4 +1,4 @@
-package sfctype
+package drivertype
 
 import (
 	"math/big"
@@ -14,14 +14,14 @@ var (
 	OkStatus      = uint64(0)
 )
 
-// SfcValidator is the node-side representation of SFC validator
-type SfcValidator struct {
+// Validator is the node-side representation of Driver validator
+type Validator struct {
 	Weight *big.Int
 	PubKey validatorpk.PubKey
 }
 
-// SfcValidatorAndID is pair SfcValidator + ValidatorID
-type SfcValidatorAndID struct {
+// ValidatorAndID is pair Validator + ValidatorID
+type ValidatorAndID struct {
 	ValidatorID idx.ValidatorID
-	Validator   SfcValidator
+	Validator   Validator
 }

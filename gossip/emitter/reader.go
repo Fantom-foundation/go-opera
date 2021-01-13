@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -29,6 +30,7 @@ type Reader interface {
 	GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event
 	GetHeads(idx.Epoch) hash.Events
 	GetGenesisTime() inter.Timestamp
+	GetRules() opera.Rules
 }
 
 type txPool interface {

@@ -25,13 +25,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
@@ -49,8 +48,7 @@ const (
 )
 
 type testEnv struct {
-	network opera.Rules
-	store   *Store
+	store *Store
 
 	blockProcWg      sync.WaitGroup
 	blockProcTasks   *workers.Workers
@@ -75,21 +73,20 @@ type testEnv struct {
 func newTestEnv() *testEnv {
 	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
-	network := genesis.Rules
 
-	network.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
+	genesis.Rules.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
 	dbs := flushable.NewSyncedPool(
 		memorydb.NewProducer(""), []byte{0})
 	store := NewStore(dbs, LiteStoreConfig())
 	blockProc := BlockProc{
-		SealerModule:        sealmodule.New(network),
-		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
-		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(genesis),
-		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(network),
-		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(network),
-		EventsModule:        eventmodule.New(network),
-		EVMModule:           evmmodule.New(network),
+		SealerModule:        sealmodule.New(),
+		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
+		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(genesis),
+		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
+		EventsModule:        eventmodule.New(),
+		EVMModule:           evmmodule.New(),
 	}
 
 	_, err := store.ApplyGenesis(blockProc, genesis)
@@ -98,15 +95,14 @@ func newTestEnv() *testEnv {
 	}
 
 	env := &testEnv{
-		network:          network,
 		blockProcModules: blockProc,
 		store:            store,
-		signer:           types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+		signer:           types.NewEIP155Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
 
 		lastBlock:     1,
 		lastState:     store.GetBlockState().LastStateRoot,
-		lastBlockTime: genesis.State.Time.Time(),
-		validators:    genesis.State.Validators,
+		lastBlockTime: genesis.Time.Time(),
+		validators:    genesis.Validators,
 
 		nonces: make(map[common.Address]uint64),
 
@@ -141,10 +137,10 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 	callback := consensusCallbackBeginBlockFn(
 		env.blockProcTasks,
 		&env.blockProcWg,
-		env.network,
 		env.store,
 		env.blockProcModules,
 		txIndex,
+		nil,
 		nil,
 		nil,
 		onBlockEnd,
@@ -310,7 +306,7 @@ func (env *testEnv) callContract(
 	evmContext := evmcore.NewEVMContext(msg, block.Header(), env.GetEvmStateReader(), &call.From)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, env.network.EvmChainConfig(), vm.Config{})
+	vmenv := vm.NewEVM(evmContext, statedb, env.store.GetRules().EvmChainConfig(), vm.Config{})
 	gaspool := new(evmcore.GasPool).AddGas(math.MaxUint64)
 	res, err := evmcore.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
 

@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -26,17 +25,18 @@ import (
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -86,7 +86,6 @@ type BlockProc struct {
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
 	config Config
-	net    opera.Rules
 
 	wg   sync.WaitGroup
 	done chan struct{}
@@ -112,6 +111,9 @@ type Service struct {
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
 
+	// version watcher
+	verWatcher *verwatcher.VerWarcher
+
 	blockProcWg      sync.WaitGroup
 	blockProcTasks   *workers.Workers
 	blockProcModules BlockProc
@@ -129,7 +131,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(stack *node.Node, config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -138,7 +140,7 @@ func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, 
 		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
 	}
 
-	svc, err := newService(config, net, store, signer, blockProc, engine, dagIndexer)
+	svc, err := newService(config, store, signer, blockProc, engine, dagIndexer)
 	if err != nil {
 		return nil, err
 	}
@@ -146,15 +148,14 @@ func NewService(stack *node.Node, config Config, net opera.Rules, store *Store, 
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
 	// Create the net API service
-	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, svc.net.NetworkID)
+	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 
 	return svc, nil
 }
 
-func newService(config Config, net opera.Rules, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func newService(config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:           config,
-		net:              net,
 		done:             make(chan struct{}),
 		Name:             fmt.Sprintf("Node-%d", rand.Int()),
 		store:            store,
@@ -173,17 +174,18 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 	svc.serverPool = newServerPool(store.async.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	// create tx pool
+	net := store.GetRules()
 	stateReader := svc.GetEvmStateReader()
 	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), stateReader)
 
 	// create checkers
-	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                                  // read pub keys of current epoch from disk
-	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), &svc.net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(config.HeavyCheck, svc.net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
+	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                             // read pub keys of current epoch from disk
+	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
+	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create protocol manager
 	var err error
-	svc.pm, err = NewProtocolManager(config, net, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent, svc.serverPool)
+	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent, svc.serverPool)
 	if err != nil {
 		return nil, err
 	}
@@ -201,19 +203,21 @@ func newService(config Config, net opera.Rules, store *Store, signer valkeystore
 
 	svc.emitter = svc.makeEmitter(signer)
 
+	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
+
 	return svc, nil
 }
 
 // makeCheckers builds event checkers
-func makeCheckers(heavyCheckCfg heavycheck.Config, net opera.Rules, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
+func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP155Signer(net.EvmChainConfig().ChainID))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP155Signer(chainID))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
 
 	return &eventcheck.Checkers{
-		Basiccheck:    basiccheck.New(&net.Dag),
+		Basiccheck:    basiccheck.New(),
 		Epochcheck:    epochcheck.New(store),
 		Parentscheck:  parentscheck.New(),
 		Heavycheck:    heavyCheck,
@@ -222,9 +226,9 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, net opera.Rules, heavyCheckRe
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := types.NewEIP155Signer(s.net.EvmChainConfig().ChainID)
+	txSigner := types.NewEIP155Signer(s.store.GetRules().EvmChainConfig().ChainID)
 
-	return emitter.NewEmitter(s.net, s.config.Emitter,
+	return emitter.NewEmitter(s.config.Emitter,
 		emitter.EmitterWorld{
 			Store:    s.store,
 			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),
@@ -318,11 +322,14 @@ func (s *Service) Start() error {
 
 	s.emitter.Start()
 
+	s.verWatcher.Start()
+
 	return nil
 }
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
 	s.pm.Stop()

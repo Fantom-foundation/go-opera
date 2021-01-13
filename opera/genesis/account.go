@@ -27,8 +27,13 @@ type (
 	}
 
 	Delegation struct {
-		Stake   *big.Int
-		Rewards *big.Int
+		Stake              *big.Int
+		Rewards            *big.Int
+		LockedStake        *big.Int
+		LockupFromEpoch    idx.Epoch
+		LockupEndTime      inter.Timestamp
+		LockupDuration     inter.Timestamp
+		EarlyUnlockPenalty *big.Int
 	}
 	// Account is an account in the state of the genesis block.
 	Account struct {

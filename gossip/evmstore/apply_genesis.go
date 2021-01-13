@@ -9,7 +9,7 @@ import (
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(g opera.GenesisState) (evmBlock *evmcore.EvmBlock, err error) {
+func (s *Store) ApplyGenesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
 	// state
 	statedb, err := s.StateDB(hash.Hash{})
 	if err != nil {

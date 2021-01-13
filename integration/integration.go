@@ -30,7 +30,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis InputGenesis, stack *n
 		VectorClock:   vecmt.DefaultConfig(),
 	}
 
-	engine, dagIndex, gdb, _, genesisStore, blockProc := MakeEngine(DBProducer(ctx.Config.DataDir), genesis, cfg)
+	engine, dagIndex, gdb, _, _, blockProc := MakeEngine(DBProducer(ctx.Config.DataDir), genesis, cfg)
 	_ = genesis.Close()
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
@@ -56,7 +56,7 @@ func NewIntegration(ctx *adapters.ServiceContext, genesis InputGenesis, stack *n
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(stack, gossipCfg, genesisStore.GetRules(), gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, gossipCfg, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}
