@@ -70,6 +70,8 @@ type Backend interface {
 	GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error)
+	MinGasPrice() *big.Int
+	MaxGasLimit() uint64
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error

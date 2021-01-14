@@ -268,7 +268,7 @@ func consensusCallbackBeginBlockFn(
 	}
 }
 
-// spillBlockEvents excludes first events which exceed BlockGasHardLimit
+// spillBlockEvents excludes first events which exceed MaxBlockGas
 func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*inter.Block, inter.EventPayloads) {
 	fullEvents := make(inter.EventPayloads, len(block.Events))
 	if len(block.Events) == 0 {
@@ -285,7 +285,7 @@ func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*i
 		fullEvents[i] = e
 		gasPowerUsedSum += e.GasPowerUsed()
 		// stop if limit is exceeded, erase [:i] events
-		if gasPowerUsedSum > network.Blocks.BlockGasHardLimit {
+		if gasPowerUsedSum > network.Blocks.MaxBlockGas {
 			// spill
 			block.Events = block.Events[i+1:]
 			fullEvents = fullEvents[i+1:]

@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -23,14 +22,16 @@ const (
 )
 
 func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
+	rules := em.world.Store.GetRules()
+	maxGasToUse := rules.Economy.Gas.MaxEventGas
 	// No txs if power is low
 	{
 		threshold := em.config.NoTxsThreshold
 		if e.GasPowerLeft().Min() <= threshold {
 			return 0
 		}
-		if e.GasPowerLeft().Min() < threshold+params.MaxGasPowerUsed {
-			return e.GasPowerLeft().Min() - threshold
+		if e.GasPowerLeft().Min() < threshold+maxGasToUse {
+			maxGasToUse = e.GasPowerLeft().Min() - threshold
 		}
 	}
 	// Smooth TPS if power isn't big
@@ -39,14 +40,22 @@ func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 		if e.GasPowerLeft().Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
 			passedTime := float64(e.CreationTime().Time().Sub(em.prevEmittedAtTime)) / (float64(time.Second))
-			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
-			if maxGasUsed > params.MaxGasPowerUsed {
-				maxGasUsed = params.MaxGasPowerUsed
+			smoothGasToUse := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			if maxGasToUse > smoothGasToUse {
+				maxGasToUse = smoothGasToUse
 			}
-			return maxGasUsed
 		}
 	}
-	return params.MaxGasPowerUsed
+	// pendingGas should be below MaxBlockGas
+	{
+		if rules.Blocks.MaxBlockGas <= em.pendingGas {
+			return 0
+		}
+		if rules.Blocks.MaxBlockGas < em.pendingGas+maxGasToUse {
+			maxGasToUse = rules.Blocks.MaxBlockGas - em.pendingGas
+		}
+	}
+	return rules.Economy.Gas.MaxEventGas
 }
 
 // safe for concurrent use

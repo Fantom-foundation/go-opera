@@ -8,13 +8,14 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 var (
 	ErrTooManyParents = errors.New("event has too many parents")
 	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
 	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
+	ErrUnderpriced    = errors.New("event transaction underpriced")
+	ErrTooBigExtra    = errors.New("event extra data is too large")
 	ErrNotRelevant    = base.ErrNotRelevant
 	ErrAuth           = base.ErrAuth
 )
@@ -38,26 +39,26 @@ func New(reader Reader) *Checker {
 	}
 }
 
-func CalcGasPowerUsed(e inter.EventPayloadI, config opera.DagConfig) uint64 {
+func CalcGasPowerUsed(e inter.EventPayloadI, rules opera.Rules) uint64 {
 	txsGas := uint64(0)
 	for _, tx := range e.Txs() {
 		txsGas += tx.Gas()
 	}
 
 	parentsGas := uint64(0)
-	if idx.Event(len(e.Parents())) > config.MaxFreeParents {
-		parentsGas = uint64(idx.Event(len(e.Parents()))-config.MaxFreeParents) * params.ParentGas
+	if idx.Event(len(e.Parents())) > rules.Dag.MaxFreeParents {
+		parentsGas = uint64(idx.Event(len(e.Parents()))-rules.Dag.MaxFreeParents) * rules.Economy.Gas.ParentGas
 	}
-	extraGas := uint64(len(e.Extra())) * params.ExtraDataGas
+	extraGas := uint64(len(e.Extra())) * rules.Economy.Gas.ExtraDataGas
 
-	return txsGas + parentsGas + extraGas + params.EventGas
+	return txsGas + parentsGas + extraGas + rules.Economy.Gas.EventGas
 }
 
-func (v *Checker) checkGas(e inter.EventPayloadI, rules *opera.Rules) error {
-	if e.GasPowerUsed() > params.MaxGasPowerUsed {
+func (v *Checker) checkGas(e inter.EventPayloadI, rules opera.Rules) error {
+	if e.GasPowerUsed() > rules.Economy.Gas.MaxEventGas {
 		return ErrTooBigGasUsed
 	}
-	if e.GasPowerUsed() != CalcGasPowerUsed(e, rules.Dag) {
+	if e.GasPowerUsed() != CalcGasPowerUsed(e, rules) {
 		return ErrWrongGasUsed
 	}
 	return nil
@@ -76,8 +77,16 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if idx.Event(len(e.Parents())) > rules.Dag.MaxParents {
 		return ErrTooManyParents
 	}
-	if err := v.checkGas(e, &rules); err != nil {
+	if uint32(len(e.Extra())) > rules.Dag.MaxExtraData {
+		return ErrTooBigExtra
+	}
+	if err := v.checkGas(e, rules); err != nil {
 		return err
+	}
+	for _, tx := range e.Txs() {
+		if tx.GasPrice().Cmp(rules.Economy.MinGasPrice) < 0 {
+			return ErrUnderpriced
+		}
 	}
 	return nil
 }

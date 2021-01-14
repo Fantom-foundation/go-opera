@@ -55,6 +55,10 @@ func (bc *testBlockChain) MinGasPrice() *big.Int {
 	return common.Big0
 }
 
+func (bc *testBlockChain) MaxGasLimit() uint64 {
+	return bc.CurrentBlock().GasLimit
+}
+
 func (bc *testBlockChain) CurrentBlock() *EvmBlock {
 	b := &EvmBlock{}
 	b.Number = big.NewInt(0)

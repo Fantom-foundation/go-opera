@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 type EvmStateReader struct {
@@ -28,7 +27,11 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 }
 
 func (r *EvmStateReader) MinGasPrice() *big.Int {
-	return params.MinGasPrice
+	return r.store.GetRules().Economy.MinGasPrice
+}
+
+func (r *EvmStateReader) MaxGasLimit() uint64 {
+	return (r.store.GetRules().Economy.Gas.MaxEventGas - r.store.GetRules().Economy.Gas.EventGas) * 2 / 3
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {

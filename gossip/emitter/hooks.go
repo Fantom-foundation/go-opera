@@ -30,6 +30,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.prevEmittedAtTime = em.loadPrevEmitTime()
 
 	em.originatedTxs.Clear()
+	em.pendingGas = 0
 
 	em.offlineValidators = make(map[idx.ValidatorID]bool)
 	em.challenges = make(map[idx.ValidatorID]time.Time)
@@ -55,6 +56,7 @@ func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 		addr, _ := types.Sender(em.world.TxSigner, tx)
 		em.originatedTxs.Inc(addr)
 	}
+	em.pendingGas += e.GasPowerUsed()
 	if e.Creator() == em.config.Validator.ID && em.syncStatus.prevLocalEmittedID != e.ID() {
 		// event was emitted by me on another instance
 		em.onNewExternalEvent(e)
@@ -76,5 +78,10 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	for _, tx := range e.Txs() {
 		addr, _ := types.Sender(em.world.TxSigner, tx)
 		em.originatedTxs.Dec(addr)
+	}
+	if em.pendingGas > e.GasPowerUsed() {
+		em.pendingGas -= e.GasPowerUsed()
+	} else {
+		em.pendingGas = 0
 	}
 }

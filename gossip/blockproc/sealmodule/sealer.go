@@ -29,8 +29,8 @@ type OperaEpochsSealer struct {
 }
 
 func (s *OperaEpochsSealer) EpochSealing() bool {
-	sealEpoch := s.bs.EpochGas >= s.es.Rules.Dag.MaxEpochGas
-	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= s.es.Rules.Dag.MaxEpochDuration
+	sealEpoch := s.bs.EpochGas >= s.es.Rules.Epochs.MaxEpochGas
+	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= s.es.Rules.Epochs.MaxEpochDuration
 	sealEpoch = sealEpoch || s.bs.AdvanceEpochs > 0
 	return sealEpoch || s.block.CBlock.Cheaters.Len() != 0
 }

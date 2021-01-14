@@ -27,7 +27,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
-	operaparams "github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
 )
@@ -402,10 +401,6 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	return b.gpo.SuggestPrice(ctx)
 }
 
-func (b *EthAPIBackend) MinGasPrice() *big.Int {
-	return operaparams.MinGasPrice
-}
-
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
 	return b.svc.store.evm.EvmTable()
 }
@@ -433,4 +428,11 @@ func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
 // CurrentEpoch returns current epoch number.
 func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
 	return b.svc.store.GetEpoch()
+}
+
+func (b *EthAPIBackend) MinGasPrice() *big.Int {
+	return b.state.MinGasPrice()
+}
+func (b *EthAPIBackend) MaxGasLimit() uint64 {
+	return b.state.MaxGasLimit()
 }

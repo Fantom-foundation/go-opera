@@ -61,6 +61,7 @@ type Emitter struct {
 	prevEmittedAtTime  time.Time
 	prevEmittedAtBlock idx.Block
 	originatedTxs      *originatedtxs.Buffer
+	pendingGas         uint64
 
 	// challenges is deadlines when each validator should emit an event
 	challenges map[idx.ValidatorID]time.Time

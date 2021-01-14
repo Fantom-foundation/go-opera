@@ -8,13 +8,13 @@ import (
 	ethparams "github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 const (
-	MainNetworkID uint64 = 0xfa
-	TestNetworkID uint64 = 0xfa2
-	FakeNetworkID uint64 = 0xfa3
+	MainNetworkID      uint64 = 0xfa
+	TestNetworkID      uint64 = 0xfa2
+	FakeNetworkID      uint64 = 0xfa3
+	DefaultEventMaxGas uint64 = 28000
 )
 
 // Rules describes opera net.
@@ -23,30 +23,43 @@ type Rules struct {
 	NetworkID uint64
 
 	// Graph options
-	Dag DagConfig
+	Dag DagRules
+
+	// Epochs options
+	Epochs EpochsRules
 
 	// Blockchain options
-	Blocks BlocksConfig
+	Blocks BlocksRules
 
 	// Economy options
-	Economy EconomyConfig
+	Economy EconomyRules
 }
 
-// GasPowerConfig defines gas power rules in the consensus.
-type GasPowerConfig struct {
+// GasPowerRules defines gas power rules in the consensus.
+type GasPowerRules struct {
 	AllocPerSec        uint64
 	MaxAllocPeriod     inter.Timestamp
 	StartupAllocPeriod inter.Timestamp
 	MinStartupGas      uint64
 }
 
-// DagConfig of Lachesis DAG (directed acyclic graph).
-type DagConfig struct {
-	MaxParents     idx.Event
-	MaxFreeParents idx.Event // maximum number of parents with no gas cost
+type GasRules struct {
+	MaxEventGas  uint64
+	EventGas     uint64
+	ParentGas    uint64
+	ExtraDataGas uint64
+}
 
+type EpochsRules struct {
 	MaxEpochGas      uint64
 	MaxEpochDuration inter.Timestamp
+}
+
+// DagRules of Lachesis DAG (directed acyclic graph).
+type DagRules struct {
+	MaxParents     idx.Event
+	MaxFreeParents idx.Event // maximum number of parents with no gas cost
+	MaxExtraData   uint32
 }
 
 // BlocksMissed is information about missed blocks from a staker
@@ -55,20 +68,24 @@ type BlocksMissed struct {
 	Period    inter.Timestamp
 }
 
-// EconomyConfig contains economy constants
-type EconomyConfig struct {
+// EconomyRules contains economy constants
+type EconomyRules struct {
 	BlockMissedSlack idx.Block
 
-	ShortGasPower GasPowerConfig
-	LongGasPower  GasPowerConfig
+	Gas GasRules
+
+	MinGasPrice *big.Int
+
+	ShortGasPower GasPowerRules
+	LongGasPower  GasPowerRules
 }
 
-// BlocksConfig contains blocks constants
-type BlocksConfig struct {
-	BlockGasHardLimit uint64 // technical hard limit, gas is mostly governed by gas power allocation
+// BlocksRules contains blocks constants
+type BlocksRules struct {
+	MaxBlockGas uint64 // technical hard limit, gas is mostly governed by gas power allocation
 }
 
-// EvmChainConfig returns ChainConfig for transaction signing and execution
+// EvmChainConfig returns ChainConfig for transactions signing and execution
 func (c Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
 	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
@@ -79,10 +96,11 @@ func MainNetRules() Rules {
 	return Rules{
 		Name:      "main",
 		NetworkID: MainNetworkID,
-		Dag:       DefaultDagConfig(),
-		Economy:   DefaultEconomyConfig(),
-		Blocks: BlocksConfig{
-			BlockGasHardLimit: 20000000,
+		Dag:       DefaultDagRules(),
+		Epochs:    DefaultEpochsRules(),
+		Economy:   DefaultEconomyRules(),
+		Blocks: BlocksRules{
+			MaxBlockGas: 20000000,
 		},
 	}
 }
@@ -91,10 +109,11 @@ func TestNetRules() Rules {
 	return Rules{
 		Name:      "test",
 		NetworkID: TestNetworkID,
-		Dag:       DefaultDagConfig(),
-		Economy:   DefaultEconomyConfig(),
-		Blocks: BlocksConfig{
-			BlockGasHardLimit: 20000000,
+		Dag:       DefaultDagRules(),
+		Epochs:    DefaultEpochsRules(),
+		Economy:   DefaultEconomyRules(),
+		Blocks: BlocksRules{
+			MaxBlockGas: 20000000,
 		},
 	}
 }
@@ -103,77 +122,95 @@ func FakeNetRules() Rules {
 	return Rules{
 		Name:      "fake",
 		NetworkID: FakeNetworkID,
-		Dag:       FakeNetDagConfig(),
-		Economy:   FakeEconomyConfig(),
-		Blocks: BlocksConfig{
-			BlockGasHardLimit: 20000000,
+		Dag:       DefaultDagRules(),
+		Epochs:    FakeNetEpochsRules(),
+		Economy:   FakeEconomyRules(),
+		Blocks: BlocksRules{
+			MaxBlockGas: 20000000,
 		},
 	}
 }
 
-// DefaultEconomyConfig returns mainnet economy
-func DefaultEconomyConfig() EconomyConfig {
-	return EconomyConfig{
+// DefaultEconomyRules returns mainnet economy
+func DefaultEconomyRules() EconomyRules {
+	return EconomyRules{
 		BlockMissedSlack: 50,
-		ShortGasPower:    DefaultShortGasPowerConfig(),
-		LongGasPower:     DefaulLongGasPowerConfig(),
+		Gas:              DefaultGasRules(),
+		MinGasPrice:      big.NewInt(1e9),
+		ShortGasPower:    DefaultShortGasPowerRules(),
+		LongGasPower:     DefaulLongGasPowerRules(),
 	}
 }
 
-// FakeEconomyConfig returns fakenet economy
-func FakeEconomyConfig() EconomyConfig {
-	cfg := DefaultEconomyConfig()
-	cfg.ShortGasPower = FakeShortGasPowerConfig()
-	cfg.LongGasPower = FakeLongGasPowerConfig()
+// FakeEconomyRules returns fakenet economy
+func FakeEconomyRules() EconomyRules {
+	cfg := DefaultEconomyRules()
+	cfg.ShortGasPower = FakeShortGasPowerRules()
+	cfg.LongGasPower = FakeLongGasPowerRules()
 	return cfg
 }
 
-func DefaultDagConfig() DagConfig {
-	return DagConfig{
-		MaxParents:       10,
-		MaxFreeParents:   3,
+func DefaultDagRules() DagRules {
+	return DagRules{
+		MaxParents:     10,
+		MaxFreeParents: 3,
+		MaxExtraData:   128,
+	}
+}
+
+func DefaultEpochsRules() EpochsRules {
+	return EpochsRules{
 		MaxEpochGas:      420000000,
 		MaxEpochDuration: inter.Timestamp(4 * time.Hour),
 	}
 }
 
-func FakeNetDagConfig() DagConfig {
-	cfg := DefaultDagConfig()
+func DefaultGasRules() GasRules {
+	return GasRules{
+		MaxEventGas:  10000000 + DefaultEventMaxGas,
+		EventGas:     DefaultEventMaxGas,
+		ParentGas:    2400,
+		ExtraDataGas: 25,
+	}
+}
+
+func FakeNetEpochsRules() EpochsRules {
+	cfg := DefaultEpochsRules()
 	cfg.MaxEpochGas /= 5
 	cfg.MaxEpochDuration = inter.Timestamp(10 * time.Minute)
 	return cfg
 }
 
-// DefaulLongGasPowerConfig is long-window config
-func DefaulLongGasPowerConfig() GasPowerConfig {
-	return GasPowerConfig{
-		AllocPerSec:        100 * params.EventGas,
+// DefaulLongGasPowerRules is long-window config
+func DefaulLongGasPowerRules() GasPowerRules {
+	return GasPowerRules{
+		AllocPerSec:        100 * DefaultEventMaxGas,
 		MaxAllocPeriod:     inter.Timestamp(60 * time.Minute),
 		StartupAllocPeriod: inter.Timestamp(5 * time.Second),
-		MinStartupGas:      params.EventGas * 20,
+		MinStartupGas:      DefaultEventMaxGas * 20,
 	}
 }
 
-// DefaultShortGasPowerConfig is short-window config
-func DefaultShortGasPowerConfig() GasPowerConfig {
+// DefaultShortGasPowerRules is short-window config
+func DefaultShortGasPowerRules() GasPowerRules {
 	// 5x faster allocation rate, 12x lower max accumulated gas power
-	cfg := DefaulLongGasPowerConfig()
+	cfg := DefaulLongGasPowerRules()
 	cfg.AllocPerSec *= 5
 	cfg.StartupAllocPeriod /= 5
 	cfg.MaxAllocPeriod /= 5 * 12
 	return cfg
 }
 
-// FakeLongGasPowerConfig is fake long-window config
-func FakeLongGasPowerConfig() GasPowerConfig {
-	config := DefaulLongGasPowerConfig()
+// FakeLongGasPowerRules is fake long-window config
+func FakeLongGasPowerRules() GasPowerRules {
+	config := DefaulLongGasPowerRules()
 	config.AllocPerSec *= 1000
 	return config
 }
 
-// FakeShortGasPowerConfig is fake short-window config
-func FakeShortGasPowerConfig() GasPowerConfig {
-	config := DefaultShortGasPowerConfig()
+// FakeShortGasPowerRules is fake short-window config
+func FakeShortGasPowerRules() GasPowerRules {
+	config := DefaultShortGasPowerRules()
 	config.AllocPerSec *= 1000
 	return config
 }
