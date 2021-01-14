@@ -79,7 +79,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 	s.SetBlockState(blockproc.BlockState{
 		LastBlock:             highestBlock,
 		LastStateRoot:         hash.Hash(evmBlock.Root),
-		EpochBlocks:           0,
+		EpochGas:              0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
 		DirtyRules:            g.Rules,
@@ -111,7 +111,6 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	bs, es := s.GetBlockState(), s.GetEpochState()
 	bs.LastBlock++
-	bs.EpochBlocks++
 
 	blockCtx := blockproc.BlockCtx{
 		Idx:  bs.LastBlock,
@@ -166,7 +165,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		e := inter.MutableEventPayload{}
 		// for nice-looking ID
 		e.SetEpoch(g.FirstEpoch - 1)
-		e.SetLamport(idx.Lamport(g.Rules.Dag.MaxEpochBlocks))
+		e.SetLamport(1)
 		// actual data hashed
 		e.SetExtra(append(root[:], g.ExtraData...))
 		e.SetCreationTime(g.Time)

@@ -70,7 +70,6 @@ func consensusCallbackBeginBlockFn(
 		}
 
 		bs.LastBlock++
-		bs.EpochBlocks++
 
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 

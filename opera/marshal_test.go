@@ -10,7 +10,7 @@ func TestUpdateRules(t *testing.T) {
 	require := require.New(t)
 
 	var exp Rules
-	exp.Dag.MaxEpochBlocks = 99
+	exp.Dag.MaxEpochGas = 99
 
 	exp.Dag.MaxParents = 5
 	exp.Economy.BlockMissedSlack = 7

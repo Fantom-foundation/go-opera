@@ -45,7 +45,7 @@ type DagConfig struct {
 	MaxParents     idx.Event
 	MaxFreeParents idx.Event // maximum number of parents with no gas cost
 
-	MaxEpochBlocks   idx.Block
+	MaxEpochGas      uint64
 	MaxEpochDuration inter.Timestamp
 }
 
@@ -132,14 +132,14 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:       10,
 		MaxFreeParents:   3,
-		MaxEpochBlocks:   1000,
+		MaxEpochGas:      420000000,
 		MaxEpochDuration: inter.Timestamp(4 * time.Hour),
 	}
 }
 
 func FakeNetDagConfig() DagConfig {
 	cfg := DefaultDagConfig()
-	cfg.MaxEpochBlocks = 200
+	cfg.MaxEpochGas /= 5
 	cfg.MaxEpochDuration = inter.Timestamp(10 * time.Minute)
 	return cfg
 }
