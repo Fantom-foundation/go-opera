@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 var (
@@ -28,7 +27,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 	// node version
 	if e.Seq() <= 1 && len(s.config.Emitter.VersionToPublish) > 0 {
 		version := []byte("v-" + s.config.Emitter.VersionToPublish)
-		if len(version) <= params.MaxExtraData {
+		if uint32(len(version)) <= s.store.GetRules().Dag.MaxExtraData {
 			e.SetExtra(version)
 		}
 	}
@@ -47,7 +46,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
 
 	// calc initial GasPower
-	e.SetGasPowerUsed(epochcheck.CalcGasPowerUsed(e, s.store.GetRules().Dag))
+	e.SetGasPowerUsed(epochcheck.CalcGasPowerUsed(e, s.store.GetRules()))
 	var selfParent *inter.Event
 	if e.SelfParent() != nil {
 		selfParent = s.store.GetEvent(*e.SelfParent())

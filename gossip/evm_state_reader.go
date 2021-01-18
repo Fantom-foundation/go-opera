@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 type EvmStateReader struct {
@@ -28,7 +27,11 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 }
 
 func (r *EvmStateReader) MinGasPrice() *big.Int {
-	return params.MinGasPrice
+	return r.store.GetRules().Economy.MinGasPrice
+}
+
+func (r *EvmStateReader) MaxGasLimit() uint64 {
+	return (r.store.GetRules().Economy.Gas.MaxEventGas - r.store.GetRules().Economy.Gas.EventGas) * 2 / 3
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
@@ -68,46 +71,46 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 		return nil
 	}
 
-	transactions := make(types.Transactions, 0, len(block.Events)*10)
+	var transactions types.Transactions
 	if readTxs {
+		transactions = make(types.Transactions, 0, len(block.Txs)+len(block.InternalTxs)+len(block.Events)*10)
+		for _, txid := range block.InternalTxs {
+			tx := r.store.evm.GetTx(txid)
+			if tx == nil {
+				log.Crit("Internal tx not found", "tx", txid.String())
+				continue
+			}
+			transactions = append(transactions, tx)
+		}
+		for _, txid := range block.Txs {
+			tx := r.store.evm.GetTx(txid)
+			if tx == nil {
+				log.Crit("Tx not found", "tx", txid.String())
+				continue
+			}
+			transactions = append(transactions, tx)
+		}
 		txCount := uint32(0)
 		skipCount := 0
-		if len(block.Txs) != 0 {
-			for _, txid := range block.Txs {
-				tx := r.store.evm.GetTx(txid)
-				if tx == nil {
-					log.Crit("Tx not found", "tx", txid.String())
-					continue
-				}
-				transactions = append(transactions, tx)
+		for _, id := range block.Events {
+			e := r.store.GetEventPayload(id)
+			if e == nil {
+				log.Crit("Block event not found", "event", id.String())
+				continue
 			}
-		} else {
-			for _, id := range block.Events {
-				e := r.store.GetEventPayload(id)
-				if e == nil {
-					log.Crit("Block event not found", "event", id.String())
-					continue
-				}
 
-				// appends txs except skipped ones
-				for _, tx := range e.Txs() {
-					if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
-						skipCount++
-					} else {
-						transactions = append(transactions, tx)
-					}
-					txCount++
+			// appends txs except skipped ones
+			for _, tx := range e.Txs() {
+				if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
+					skipCount++
+				} else {
+					transactions = append(transactions, tx)
 				}
+				txCount++
 			}
 		}
-	}
-	for _, txid := range block.InternalTxs {
-		tx := r.store.evm.GetTx(txid)
-		if tx == nil {
-			log.Crit("Block tx not found", "tx", txid.String())
-			continue
-		}
-		transactions = append(transactions, tx)
+	} else {
+		transactions = make(types.Transactions, 0)
 	}
 
 	var prev hash.Event
@@ -118,12 +121,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	evmBlock := &evmcore.EvmBlock{
 		EvmHeader: *evmHeader,
 	}
-
-	if readTxs {
-		evmBlock.Transactions = transactions
-	} else {
-		evmBlock.Transactions = make(types.Transactions, 0)
-	}
+	evmBlock.Transactions = transactions
 
 	return evmBlock
 }

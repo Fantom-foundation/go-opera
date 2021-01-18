@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	_params "github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
-	"github.com/Fantom-foundation/go-opera/opera/params"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 // EmitIntervals is the configuration of emit intervals.
@@ -50,7 +50,7 @@ type Config struct {
 // DefaultConfig returns the default configurations for the events emitter.
 func DefaultConfig() Config {
 	return Config{
-		VersionToPublish: _params.VersionWithMeta(),
+		VersionToPublish: params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
 			Min:                        120 * time.Millisecond,
@@ -66,9 +66,9 @@ func DefaultConfig() Config {
 
 		MaxParents: 0,
 
-		LimitedTpsThreshold: (params.EventGas + params.TxGas) * 500,
-		NoTxsThreshold:      params.EventGas * 30,
-		EmergencyThreshold:  params.EventGas * 5,
+		LimitedTpsThreshold: (opera.DefaultEventMaxGas + params.TxGas) * 500,
+		NoTxsThreshold:      opera.DefaultEventMaxGas * 30,
+		EmergencyThreshold:  opera.DefaultEventMaxGas * 5,
 	}
 }
 

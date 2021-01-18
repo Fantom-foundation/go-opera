@@ -32,7 +32,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -74,7 +73,7 @@ func newTestEnv() *testEnv {
 	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
 
-	genesis.Rules.Dag.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
+	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
 	dbs := flushable.NewSyncedPool(
 		memorydb.NewProducer(""), []byte{0})
@@ -183,7 +182,7 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transacti
 	env.incNonce(sender)
 	key := env.privateKey(from)
 	receiver := env.Address(to)
-	gp := params.MinGasPrice
+	gp := env.store.GetRules().Economy.MinGasPrice
 	tx := types.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
 	tx, err := types.SignTx(tx, env.signer, key)
 	if err != nil {
@@ -198,7 +197,7 @@ func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Trans
 	nonce, _ := env.PendingNonceAt(nil, sender)
 	env.incNonce(sender)
 	key := env.privateKey(from)
-	gp := params.MinGasPrice
+	gp := env.store.GetRules().Economy.MinGasPrice
 	data := hexutil.MustDecode(hex)
 	tx := types.NewContractCreation(nonce, amount, gasLimit*100000, gp, data)
 	tx, err := types.SignTx(tx, env.signer, key)
@@ -333,7 +332,7 @@ func (env *testEnv) PendingNonceAt(ctx context.Context, account common.Address) 
 // SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (env *testEnv) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	return params.MinGasPrice, nil
+	return env.store.GetRules().Economy.MinGasPrice, nil
 }
 
 // EstimateGas tries to estimate the gas needed to execute a specific

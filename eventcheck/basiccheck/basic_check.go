@@ -9,14 +9,12 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 var (
 	ErrZeroTime      = errors.New("event has zero timestamp")
 	ErrNegativeValue = errors.New("negative value")
 	ErrIntrinsicGas  = errors.New("intrinsic gas too low")
-	ErrUnderpriced   = errors.New("event transaction underpriced")
 )
 
 type Checker struct {
@@ -45,9 +43,6 @@ func (v *Checker) validateTx(tx *types.Transaction) error {
 	}
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
-	}
-	if tx.GasPrice().Cmp(params.MinGasPrice) < 0 {
-		return ErrUnderpriced
 	}
 	return nil
 }

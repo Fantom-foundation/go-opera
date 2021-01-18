@@ -10,12 +10,12 @@ func TestUpdateRules(t *testing.T) {
 	require := require.New(t)
 
 	var exp Rules
-	exp.Dag.MaxEpochGas = 99
+	exp.Epochs.MaxEpochGas = 99
 
 	exp.Dag.MaxParents = 5
 	exp.Economy.BlockMissedSlack = 7
-	exp.Blocks.BlockGasHardLimit = 1000
-	got, err := UpdateRules(exp, []byte(`{"Dag":{"MaxParents":5},"Economy":{"BlockMissedSlack":7},"Blocks":{"BlockGasHardLimit":1000}}`))
+	exp.Blocks.MaxBlockGas = 1000
+	got, err := UpdateRules(exp, []byte(`{"Dag":{"MaxParents":5},"Economy":{"BlockMissedSlack":7},"Blocks":{"MaxBlockGas":1000}}`))
 	require.NoError(err)
 	require.Equal(exp, got, "mutate fields")
 

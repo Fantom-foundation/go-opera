@@ -32,8 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
-
-	operaparams "github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 const (
@@ -131,6 +129,8 @@ type stateReader interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 
 	MinGasPrice() *big.Int
+
+	MaxGasLimit() uint64
 
 	SubscribeNewBlock(ch chan<- ChainHeadNotify) notify.Subscription
 }
@@ -1189,10 +1189,7 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	}
 	pool.currentState = statedb
 	pool.pendingNonces = newTxNoncer(statedb)
-	pool.currentMaxGas = newHead.GasLimit
-	if pool.currentMaxGas > operaparams.MaxGasPowerUsed/2 {
-		pool.currentMaxGas = operaparams.MaxGasPowerUsed / 2
-	}
+	pool.currentMaxGas = pool.chain.MaxGasLimit()
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
