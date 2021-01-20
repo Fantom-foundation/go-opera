@@ -192,13 +192,11 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		}
 
 		// Write state changes to db
-		root, err := statedb.Commit(config.IsEIP158(b.header.Number))
+		root, err := flush(statedb, config.IsEIP158(b.header.Number))
 		if err != nil {
-			panic(fmt.Sprintf("state write error: %v", err))
+			panic(fmt.Sprintf("state flush error: %v", err))
 		}
-		if err := statedb.Database().TrieDB().Commit(root, false, nil); err != nil {
-			panic(fmt.Sprintf("trie write error: %v", err))
-		}
+
 		b.header = block.Header()
 		block.Root = root
 
