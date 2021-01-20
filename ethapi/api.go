@@ -1047,8 +1047,12 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber) (hexutil.Uint64, error) {
-	return DoEstimateGas(ctx, s.b, args, blockNr, s.b.RPCGasCap())
+func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs, blockNr *rpc.BlockNumber) (hexutil.Uint64, error) {
+	if blockNr == nil {
+		latest := rpc.LatestBlockNumber
+		blockNr = &latest
+	}
+	return DoEstimateGas(ctx, s.b, args, *blockNr, s.b.RPCGasCap())
 }
 
 // ExecutionResult groups all structured logs emitted by the EVM
