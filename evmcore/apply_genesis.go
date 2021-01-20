@@ -70,6 +70,11 @@ func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
 	if err != nil {
 		return
 	}
+
+	if !clean {
+		err = statedb.Database().TrieDB().Cap(0)
+	}
+
 	return
 }
 
