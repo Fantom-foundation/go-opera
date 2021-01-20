@@ -61,16 +61,16 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 	return block, nil
 }
 
-func flush(statedb *state.StateDB) (common.Hash, error) {
-	root, err := statedb.Commit(true)
+func flush(statedb *state.StateDB) (root common.Hash, err error) {
+	root, err = statedb.Commit(true)
 	if err != nil {
-		return common.Hash{}, err
+		return
 	}
 	err = statedb.Database().TrieDB().Commit(root, false, nil)
 	if err != nil {
-		return common.Hash{}, err
+		return
 	}
-	return root, nil
+	return
 }
 
 // genesisBlock makes genesis block with pretty hash.
