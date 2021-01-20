@@ -86,8 +86,13 @@ func (s *Store) Commit(root hash.Hash) error {
 	return err
 }
 
-func (s *Store) Cap(max int) {
-	_ = s.table.EvmState.TrieDB().Cap(common.StorageSize(max))
+func (s *Store) Cap(max, min int) {
+	maxSize := common.StorageSize(max)
+	minSize := common.StorageSize(min)
+	size, _ := s.table.EvmState.TrieDB().Size()
+	if size >= maxSize {
+		_ = s.table.EvmState.TrieDB().Cap(minSize)
+	}
 }
 
 // StateDB returns state database.

@@ -137,8 +137,9 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 		s.dbs.NotFlushedSizeEst() > size
 }
 
-func (s *Store) Cap() {
-	s.evm.Cap(s.cfg.MaxNonFlushedSize / 4)
+// flushEVM data to the DB if exceeds maximum RAM limit.
+func (s *Store) flushEVM() {
+	s.evm.Cap(s.cfg.MaxNonFlushedSize/2, s.cfg.MaxNonFlushedSize/4)
 }
 
 // Commit changes.
