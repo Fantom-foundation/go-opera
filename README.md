@@ -135,6 +135,9 @@ ok  	github.com/Fantom-foundation/go-opera/gossip/filters	1.250s
 ok  	github.com/Fantom-foundation/go-opera/integration	21.640s
 ```
 
+Also it is tested with [fuzzing](./FUZZING.md).
+
+
 ### Operating a private network (fakenet)
 
 Fakenet is a private network optimized for your private testing.

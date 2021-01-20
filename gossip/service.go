@@ -31,12 +31,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -81,6 +86,18 @@ type BlockProc struct {
 	PostTxTransactor    blockproc.TxTransactor
 	EventsModule        blockproc.ConfirmedEventsModule
 	EVMModule           blockproc.EVM
+}
+
+func DefaultBlockProc(g opera.Genesis) BlockProc {
+	return BlockProc{
+		SealerModule:        sealmodule.New(),
+		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
+		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(g),
+		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
+		EventsModule:        eventmodule.New(),
+		EVMModule:           evmmodule.New(),
+	}
 }
 
 // Service implements go-ethereum/node.Service interface.

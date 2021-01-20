@@ -11,8 +11,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum"
@@ -25,10 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
@@ -75,19 +69,8 @@ func newTestEnv() *testEnv {
 
 	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 
-	dbs := flushable.NewSyncedPool(
-		memorydb.NewProducer(""), []byte{0})
-	store := NewStore(dbs, LiteStoreConfig())
-	blockProc := BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(genesis),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
-	}
-
+	store := NewMemStore()
+	blockProc := DefaultBlockProc(genesis)
 	_, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
 		panic(err)
