@@ -76,6 +76,7 @@ func (w *VerWarcher) Start() {
 	go func() {
 		defer w.wg.Done()
 		ticker := time.NewTicker(w.cfg.WarningIfNotUpgradedEvery)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:

@@ -850,6 +850,7 @@ func (pm *ProtocolManager) broadcastProgress() {
 // Progress broadcast loop
 func (pm *ProtocolManager) progressBroadcastLoop() {
 	ticker := time.NewTicker(pm.config.Protocol.ProgressBroadcastPeriod)
+	defer ticker.Stop()
 	defer pm.loopsWg.Done()
 	// automatically stops if unsubscribe
 	for {
