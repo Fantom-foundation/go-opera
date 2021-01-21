@@ -194,10 +194,12 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		return nil
 	}
 
-	for _, tt := range poolTxs {
-		for _, t := range tt {
-			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
-			defer span.Finish()
+	if tracing.Enabled() {
+		for _, tt := range poolTxs {
+			for _, t := range tt {
+				span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
+				defer span.Finish()
+			}
 		}
 	}
 
@@ -224,9 +226,11 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
 
 	// metrics
-	for _, t := range e.Txs() {
-		span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent()")
-		defer span.Finish()
+	if tracing.Enabled() {
+		for _, t := range e.Txs() {
+			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent()")
+			defer span.Finish()
+		}
 	}
 
 	return e

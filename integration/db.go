@@ -110,6 +110,6 @@ func (p *DummyFlushableProducer) NotFlushedSizeEst() int {
 	return 0
 }
 
-func (p *DummyFlushableProducer) Flush(id []byte) error {
+func (p *DummyFlushableProducer) Flush(_ []byte) error {
 	return nil
 }

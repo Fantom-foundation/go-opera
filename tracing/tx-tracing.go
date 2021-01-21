@@ -19,6 +19,10 @@ func SetEnabled(val bool) {
 	enabled = val
 }
 
+func Enabled() bool {
+	return enabled
+}
+
 func StartTx(tx common.Hash, operation string) {
 	if !enabled {
 		return
