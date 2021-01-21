@@ -139,12 +139,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
-				atomic.StoreUint32(blockBusyFlag, 1)
-				wg.Add(1)
-				err := parallelTasks.Enqueue(func() {
-					defer atomic.StoreUint32(blockBusyFlag, 0)
-					defer wg.Done()
-
+				blockFn := func() {
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
@@ -259,9 +254,20 @@ func consensusCallbackBeginBlockFn(
 
 					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
-				})
-				if err != nil {
-					panic(err)
+				}
+				if confirmedEvents.Len() != 0 {
+					atomic.StoreUint32(blockBusyFlag, 1)
+					wg.Add(1)
+					err := parallelTasks.Enqueue(func() {
+						defer atomic.StoreUint32(blockBusyFlag, 0)
+						defer wg.Done()
+						blockFn()
+					})
+					if err != nil {
+						panic(err)
+					}
+				} else {
+					blockFn()
 				}
 
 				return
