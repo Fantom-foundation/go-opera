@@ -35,9 +35,8 @@ const (
 	// maxQueuedItems is the maximum number of items to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
 	// contain a single transaction, or thousands.
-	maxOrderedQueueItems   = 4096
-	maxUnorderedQueueItems = 4096
-	maxQueuedSize          = protocolMaxMsgSize + 1024
+	maxQueuedItems = 4096
+	maxQueuedSize  = protocolMaxMsgSize + 1024
 
 	handshakeTimeout = 5 * time.Second
 )
@@ -65,8 +64,7 @@ type peer struct {
 
 	knownTxs            mapset.Set         // Set of transaction hashes known to be known by this peer
 	knownEvents         mapset.Set         // Set of event hashes known to be known by this peer
-	unorderedQueue      chan broadcastItem // queue of items to send
-	orderedQueue        chan broadcastItem // queue of items to send
+	queue               chan broadcastItem // queue of items to send
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
@@ -117,9 +115,8 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		id:                  fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		knownTxs:            mapset.NewSet(),
 		knownEvents:         mapset.NewSet(),
-		unorderedQueue:      make(chan broadcastItem, maxUnorderedQueueItems),
-		orderedQueue:        make(chan broadcastItem, maxOrderedQueueItems),
-		queuedDataSemaphore: datasemaphore.New(dag.Metric{maxUnorderedQueueItems + maxOrderedQueueItems, maxQueuedSize}, warningFn),
+		queue:               make(chan broadcastItem, maxQueuedItems),
+		queuedDataSemaphore: datasemaphore.New(dag.Metric{maxQueuedItems, maxQueuedSize}, warningFn),
 		term:                make(chan struct{}),
 	}
 }
@@ -506,10 +503,7 @@ func (ps *peerSet) Register(p *peer) error {
 		return errAlreadyRegistered
 	}
 	ps.peers[p.id] = p
-	go p.broadcast(p.orderedQueue)
-	for i := 0; i < 2; i++ {
-		go p.broadcast(p.unorderedQueue)
-	}
+	go p.broadcast(p.queue)
 
 	return nil
 }
