@@ -15,13 +15,11 @@ func New(m *sync.RWMutex, wg *sync.WaitGroup) *WgMutex {
 }
 
 func (m *WgMutex) Lock() {
-	m.wg.Wait() // wait once before locking for better concurrency
 	m.RWMutex.Lock()
 	m.wg.Wait()
 }
 
 func (m *WgMutex) RLock() {
-	m.wg.Wait() // wait once before locking for better concurrency
 	m.RWMutex.RLock()
 	m.wg.Wait()
 }

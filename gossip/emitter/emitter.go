@@ -44,6 +44,8 @@ type EmitterWorld struct {
 	Build    func(*inter.MutableEventPayload, func()) error
 	DagIndex *vecmt.Index
 
+	IsBusy func() bool
+
 	IsSynced func() bool
 	PeersNum func() int
 }
@@ -135,12 +137,14 @@ func (em *Emitter) Start() {
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(21 * time.Millisecond)
+		tick := 21 * time.Millisecond
+		timer := time.NewTimer(tick)
+		defer timer.Stop()
 		for {
 			select {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
-			case <-ticker.C:
+			case <-timer.C:
 				// track synced time
 				if em.world.PeersNum() == 0 {
 					// connected time ~= last time when it's true that "not connected yet"
@@ -150,14 +154,20 @@ func (em *Emitter) Start() {
 					// synced time ~= last time when it's true that "not synced yet"
 					em.syncStatus.p2pSynced = time.Now()
 				}
-				em.recheckChallenges()
+				if em.world.IsBusy() {
+					// Heuristic to avoid locking mutexes and hurting the concurrency
+					timer.Reset(tick / 3)
+					continue
+				}
 
+				em.recheckChallenges()
 				if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
 					_ = em.EmitEvent()
 				}
 			case <-done:
 				return
 			}
+			timer.Reset(tick)
 		}
 	}()
 }

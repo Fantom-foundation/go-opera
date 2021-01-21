@@ -119,6 +119,7 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 	callback := consensusCallbackBeginBlockFn(
 		env.blockProcTasks,
 		&env.blockProcWg,
+		new(uint32),
 		env.store,
 		env.blockProcModules,
 		txIndex,

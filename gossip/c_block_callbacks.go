@@ -3,6 +3,7 @@ package gossip
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -31,6 +32,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 		BeginBlock: consensusCallbackBeginBlockFn(
 			s.blockProcTasks,
 			&s.blockProcWg,
+			&s.blockBusyFlag,
 			s.store,
 			s.blockProcModules,
 			s.config.TxIndex,
@@ -48,6 +50,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 func consensusCallbackBeginBlockFn(
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
+	blockBusyFlag *uint32,
 	store *Store,
 	blockProc BlockProc,
 	txIndex bool,
@@ -136,8 +139,10 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
+				atomic.StoreUint32(blockBusyFlag, 1)
 				wg.Add(1)
 				err := parallelTasks.Enqueue(func() {
+					defer atomic.StoreUint32(blockBusyFlag, 0)
 					defer wg.Done()
 
 					// Execute post-internal transactions

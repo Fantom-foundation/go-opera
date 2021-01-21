@@ -135,6 +135,9 @@ type Service struct {
 	blockProcTasks   *workers.Workers
 	blockProcModules BlockProc
 
+	blockBusyFlag uint32
+	eventBusyFlag uint32
+
 	feed ServiceFeed
 
 	// application protocol
@@ -270,6 +273,9 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 			},
 			Build:    s.buildEvent,
 			DagIndex: s.dagIndexer,
+			IsBusy: func() bool {
+				return atomic.LoadUint32(&s.eventBusyFlag) != 0 || atomic.LoadUint32(&s.blockBusyFlag) != 0
+			},
 			IsSynced: func() bool {
 				return atomic.LoadUint32(&s.pm.synced) != 0
 			},
