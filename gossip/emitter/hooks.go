@@ -71,17 +71,16 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	if !em.isValidator() {
 		return
 	}
-	if he.NoTxs() {
-		return
-	}
-	e := em.world.Store.GetEventPayload(he.ID())
-	for _, tx := range e.Txs() {
-		addr, _ := types.Sender(em.world.TxSigner, tx)
-		em.originatedTxs.Dec(addr)
-	}
-	if em.pendingGas > e.GasPowerUsed() {
-		em.pendingGas -= e.GasPowerUsed()
+	if em.pendingGas > he.GasPowerUsed() {
+		em.pendingGas -= he.GasPowerUsed()
 	} else {
 		em.pendingGas = 0
+	}
+	if !he.NoTxs() {
+		e := em.world.Store.GetEventPayload(he.ID())
+		for _, tx := range e.Txs() {
+			addr, _ := types.Sender(em.world.TxSigner, tx)
+			em.originatedTxs.Dec(addr)
+		}
 	}
 }
