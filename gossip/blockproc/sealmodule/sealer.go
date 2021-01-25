@@ -1,6 +1,8 @@
 package sealmodule
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
@@ -40,13 +42,6 @@ func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochSt
 }
 
 func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
-	// add final uptime for validators
-	for _, info := range s.bs.ValidatorStates {
-		if s.bs.LastBlock-info.LastBlock <= s.es.Rules.Economy.BlockMissedSlack {
-			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastMedianTime) - info.LastMedianTime
-		}
-	}
-
 	// Select new validators
 	oldValidators := s.es.Validators
 	builder := pos.NewBigBuilder()
@@ -62,10 +57,15 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	newValidatorBlockStates := make([]blockproc.ValidatorBlockState, newValidators.Len())
 	for newValIdx := idx.Validator(0); newValIdx < newValidators.Len(); newValIdx++ {
 		// default values
-		newValidatorBlockStates[newValIdx] = blockproc.DefaultValidatorBlockState
+		newValidatorBlockStates[newValIdx] = blockproc.ValidatorBlockState{
+			Originated: new(big.Int),
+		}
 		// inherit validator's state from previous epoch, if any
 		valID := newValidators.GetID(newValIdx)
 		if !oldValidators.Exists(valID) {
+			// new validator
+			newValidatorBlockStates[newValIdx].LastBlock = s.block.Idx
+			newValidatorBlockStates[newValIdx].LastOnlineTime = s.block.Time
 			continue
 		}
 		oldValIdx := oldValidators.GetIdx(valID)
@@ -78,6 +78,14 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.es.ValidatorStates = newValidatorEpochStates
 	s.bs.ValidatorStates = newValidatorBlockStates
 	s.es.Validators = newValidators
+
+	// add final uptime for validators
+	for i, info := range s.bs.ValidatorStates {
+		if s.bs.LastBlock <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
+			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastOnlineTime) - info.LastOnlineTime
+		}
+		s.bs.ValidatorStates[i] = info
+	}
 
 	// dirty data becomes active
 	s.es.PrevEpochStart = s.es.EpochStart

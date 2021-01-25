@@ -17,15 +17,11 @@ type ValidatorBlockState struct {
 	Cheater          bool
 	LastEvent        hash.Event
 	Uptime           inter.Timestamp
-	LastMedianTime   inter.Timestamp
+	LastOnlineTime   inter.Timestamp
 	LastGasPowerLeft inter.GasPowerLeft
 	LastBlock        idx.Block
 	DirtyGasRefund   uint64
 	Originated       *big.Int
-}
-
-var DefaultValidatorBlockState = ValidatorBlockState{
-	Originated: new(big.Int),
 }
 
 type ValidatorEpochState struct {

@@ -44,11 +44,13 @@ func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.
 			continue
 		}
 		info := p.bs.ValidatorStates[creatorIdx]
-		if block.Idx-info.LastBlock <= p.es.Rules.Economy.BlockMissedSlack {
-			info.Uptime += e.MedianTime() - info.LastMedianTime
+		if block.Idx <= info.LastBlock+p.es.Rules.Economy.BlockMissedSlack {
+			if e.MedianTime() > info.LastOnlineTime {
+				info.Uptime += e.MedianTime() - info.LastOnlineTime
+			}
 		}
 		info.LastGasPowerLeft = e.GasPowerLeft()
-		info.LastMedianTime = e.MedianTime()
+		info.LastOnlineTime = e.MedianTime()
 		info.LastBlock = p.bs.LastBlock
 		info.LastEvent = e.ID()
 		p.bs.ValidatorStates[creatorIdx] = info
