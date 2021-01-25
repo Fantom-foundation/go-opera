@@ -83,6 +83,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.es.PrevEpochStart = s.es.EpochStart
 	s.es.EpochStart = s.block.Time
 	s.es.Rules = s.bs.DirtyRules
+	s.es.EpochStateRoot = s.bs.FinalizedStateRoot
 
 	s.bs.EpochGas = 0
 	newEpoch := s.es.Epoch + 1
