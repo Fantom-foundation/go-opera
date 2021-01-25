@@ -34,9 +34,9 @@ type ValidatorEpochState struct {
 }
 
 type BlockState struct {
-	LastBlock             idx.Block
-	LastCompleteStateRoot hash.Hash
-	EpochGas              uint64
+	LastBlock          idx.Block
+	FinalizedStateRoot hash.Hash
+	EpochGas           uint64
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles

@@ -149,7 +149,7 @@ func (s *Store) Commit() error {
 	// Flush the DBs
 	s.FlushBlockState()
 	s.FlushEpochState()
-	err := s.evm.Commit(s.GetBlockState().LastCompleteStateRoot)
+	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot)
 	if err != nil {
 		return err
 	}
