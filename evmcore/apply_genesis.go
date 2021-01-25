@@ -38,7 +38,7 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 		statedb.SetNonce(addr, account.Nonce)
 		mem += 1024 + len(account.Code)
 		if mem > maxMemoryUsage {
-			_, _ = flush(statedb)
+			_, _ = flush(statedb, true)
 			mem = 0
 		}
 	})
@@ -46,13 +46,13 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 		statedb.SetState(addr, key, value)
 		mem += 1024
 		if mem > maxMemoryUsage {
-			_, _ = flush(statedb)
+			_, _ = flush(statedb, true)
 			mem = 0
 		}
 	})
 
 	// initial block
-	root, err := flush(statedb)
+	root, err := flush(statedb, true)
 	if err != nil {
 		return nil, err
 	}
@@ -61,16 +61,21 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 	return block, nil
 }
 
-func flush(statedb *state.StateDB) (common.Hash, error) {
-	root, err := statedb.Commit(true)
+func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
+	root, err = statedb.Commit(clean)
 	if err != nil {
-		return common.Hash{}, err
+		return
 	}
 	err = statedb.Database().TrieDB().Commit(root, false, nil)
 	if err != nil {
-		return common.Hash{}, err
+		return
 	}
-	return root, nil
+
+	if !clean {
+		err = statedb.Database().TrieDB().Cap(0)
+	}
+
+	return
 }
 
 // genesisBlock makes genesis block with pretty hash.
