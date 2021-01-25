@@ -64,7 +64,7 @@ func consensusCallbackBeginBlockFn(
 		es := store.GetEpochState()
 
 		// Get stateDB
-		statedb, err := store.evm.StateDB(bs.LastStateRoot)
+		statedb, err := store.evm.StateDB(bs.LastCompleteStateRoot)
 		if err != nil {
 			log.Crit("Failed to open StateDB", "err", err)
 		}
@@ -104,7 +104,7 @@ func consensusCallbackBeginBlockFn(
 					CBlock: *cBlock,
 				}
 
-				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to don't mutate the bs, it is unclear
+				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to not mutate the bs, it is unclear
 
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
@@ -129,7 +129,7 @@ func consensusCallbackBeginBlockFn(
 				// Seal epoch if requested
 				if sealing {
 					sealer.Update(bs, es)
-					bs, es = sealer.SealEpoch() // TODO: refactor to don't mutate the bs, it is unclear
+					bs, es = sealer.SealEpoch() // TODO: refactor to not mutate the bs, it is unclear
 					newValidators = es.Validators
 					store.SetEpochState(es)
 					txListener.Update(bs, es)
@@ -206,8 +206,8 @@ func consensusCallbackBeginBlockFn(
 						}
 						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
-					bs = txListener.Finalize() // TODO: refactor to don't mutate the bs
-					bs.LastStateRoot = block.Root
+					bs = txListener.Finalize() // TODO: refactor to not mutate the bs
+					bs.LastCompleteStateRoot = block.Root
 					// At this point, block state is finalized
 
 					// Build index for not skipped txs

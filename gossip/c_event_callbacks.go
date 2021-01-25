@@ -18,6 +18,7 @@ import (
 var (
 	errStopped         = errors.New("service is stopped")
 	errWrongMedianTime = errors.New("wrong event median time")
+	errWrongEpochHash  = errors.New("wrong event epoch hash")
 )
 
 func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) error {
@@ -30,6 +31,12 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 		if uint32(len(version)) <= s.store.GetRules().Dag.MaxExtraData {
 			e.SetExtra(version)
 		}
+	}
+
+	// set PrevEpochHash
+	if e.Lamport() <= 1 {
+		prevEpochHash := s.store.GetEpochState().Hash()
+		e.SetPrevEpochHash(&prevEpochHash)
 	}
 
 	// indexing event without saving
@@ -88,8 +95,16 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	// check median time
-	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart)/inter.MinEventTime*inter.MinEventTime {
+	es := s.store.GetEpochState()
+	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), es.EpochStart)/inter.MinEventTime*inter.MinEventTime {
 		return errWrongMedianTime
+	}
+
+	// check prev epoch hash
+	if e.PrevEpochHash() != nil {
+		if *e.PrevEpochHash() != es.Hash() {
+			return errWrongEpochHash
+		}
 	}
 
 	// aBFT processing

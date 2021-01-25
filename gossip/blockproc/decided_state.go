@@ -1,11 +1,13 @@
 package blockproc
 
 import (
+	"crypto/sha256"
 	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -32,9 +34,9 @@ type ValidatorEpochState struct {
 }
 
 type BlockState struct {
-	LastBlock     idx.Block
-	LastStateRoot hash.Hash
-	EpochGas      uint64
+	LastBlock             idx.Block
+	LastCompleteStateRoot hash.Hash
+	EpochGas              uint64
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
@@ -54,6 +56,8 @@ type EpochState struct {
 	EpochStart     inter.Timestamp
 	PrevEpochStart inter.Timestamp
 
+	EpochStateRoot hash.Hash
+
 	Validators        *pos.Validators
 	ValidatorStates   []ValidatorEpochState
 	ValidatorProfiles ValidatorProfiles
@@ -66,6 +70,15 @@ func (es *EpochState) GetValidatorState(id idx.ValidatorID, validators *pos.Vali
 	return &es.ValidatorStates[validatorIdx]
 }
 
-func (es *EpochState) Duration() inter.Timestamp {
+func (es EpochState) Duration() inter.Timestamp {
 	return es.EpochStart - es.PrevEpochStart
+}
+
+func (es EpochState) Hash() hash.Hash {
+	hasher := sha256.New()
+	err := rlp.Encode(hasher, &es)
+	if err != nil {
+		panic("can't hash: " + err.Error())
+	}
+	return hash.BytesToHash(hasher.Sum(nil))
 }
