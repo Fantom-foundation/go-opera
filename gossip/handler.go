@@ -684,11 +684,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		if len(rawEvents) != 0 {
-			if len(rawEvents) == 1 {
-				p.EnqueueSendEventsRLP(rawEvents, ids, p.unorderedQueue)
-			} else {
-				p.EnqueueSendEventsRLP(rawEvents, ids, p.orderedQueue)
-			}
+			p.EnqueueSendEventsRLP(rawEvents, ids, p.queue)
 		}
 
 	case msg.Code == RequestEventsStream:
@@ -801,11 +797,11 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.EventPayload, passed time
 	fullBroadcast := peers[:fullRecipients]
 	hashBroadcast := peers[fullRecipients:]
 	for _, peer := range fullBroadcast {
-		peer.AsyncSendEvents(inter.EventPayloads{event}, peer.unorderedQueue)
+		peer.AsyncSendEvents(inter.EventPayloads{event}, peer.queue)
 	}
 	// Broadcast of event hash to the rest peers
 	for _, peer := range hashBroadcast {
-		peer.AsyncSendEventIDs(hash.Events{event.ID()}, peer.unorderedQueue)
+		peer.AsyncSendEventIDs(hash.Events{event.ID()}, peer.queue)
 	}
 	log.Trace("Broadcast event", "hash", id, "fullRecipients", len(fullBroadcast), "hashRecipients", len(hashBroadcast))
 	return len(peers)
@@ -826,7 +822,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		peer.AsyncSendTransactions(txs, peer.unorderedQueue)
+		peer.AsyncSendTransactions(txs, peer.queue)
 	}
 }
 
@@ -847,13 +843,14 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 func (pm *ProtocolManager) broadcastProgress() {
 	progress := pm.myProgress()
 	for _, peer := range pm.peers.List() {
-		peer.AsyncSendProgress(progress, peer.unorderedQueue)
+		peer.AsyncSendProgress(progress, peer.queue)
 	}
 }
 
 // Progress broadcast loop
 func (pm *ProtocolManager) progressBroadcastLoop() {
 	ticker := time.NewTicker(pm.config.Protocol.ProgressBroadcastPeriod)
+	defer ticker.Stop()
 	defer pm.loopsWg.Done()
 	// automatically stops if unsubscribe
 	for {

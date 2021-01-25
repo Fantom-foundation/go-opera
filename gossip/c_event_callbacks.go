@@ -3,6 +3,7 @@ package gossip
 import (
 	"errors"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -68,6 +69,8 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	if s.stopped {
 		return errStopped
 	}
+	atomic.StoreUint32(&s.eventBusyFlag, 1)
+	defer atomic.StoreUint32(&s.eventBusyFlag, 0)
 
 	// repeat the checks under the mutex which may depend on volatile data
 	if s.store.HasEvent(e.ID()) {

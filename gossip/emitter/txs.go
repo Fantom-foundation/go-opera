@@ -108,6 +108,9 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 	}
 
 	maxGasUsed := em.maxGasPowerToUse(e)
+	if maxGasUsed <= e.GasPowerUsed() {
+		return
+	}
 
 	validators, epoch := em.world.Store.GetEpochValidators()
 

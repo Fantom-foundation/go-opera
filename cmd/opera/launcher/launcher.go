@@ -229,11 +229,11 @@ func lachesisMain(ctx *cli.Context) error {
 	}
 
 	// TODO: tracing flags
-	tracingStop, err := tracing.Start(ctx)
-	if err != nil {
-		return err
-	}
-	defer tracingStop()
+	//tracingStop, err := tracing.Start(ctx)
+	//if err != nil {
+	//	return err
+	//}
+	//defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
 	genesisPath := getOperaGenesis(ctx)
