@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 )
@@ -213,4 +214,14 @@ func FakeShortGasPowerRules() GasPowerRules {
 	config := DefaultShortGasPowerRules()
 	config.AllocPerSec *= 1000
 	return config
+}
+
+func (r Rules) Copy() Rules {
+	b, err := rlp.EncodeToBytes(r)
+	if err != nil {
+		panic("failed to copy rules")
+	}
+	cp := Rules{}
+	_ = rlp.DecodeBytes(b, &cp)
+	return cp
 }
