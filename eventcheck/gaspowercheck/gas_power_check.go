@@ -41,6 +41,7 @@ type Config struct {
 	Idx                int
 	AllocPerSec        uint64
 	MaxAllocPeriod     inter.Timestamp
+	MinEnsuredAlloc    uint64
 	StartupAllocPeriod inter.Timestamp
 	MinStartupGas      uint64
 }
@@ -150,6 +151,9 @@ func calcValidatorGasPowerPerSec(
 	perSec = validatorGasPowerPerSecBn.Uint64()
 
 	maxGasPower = perSec * (uint64(gas.MaxAllocPeriod) / uint64(time.Second))
+	if maxGasPower < gas.MinEnsuredAlloc {
+		maxGasPower = gas.MinEnsuredAlloc
+	}
 
 	startup = perSec * (uint64(gas.StartupAllocPeriod) / uint64(time.Second))
 	if startup < gas.MinStartupGas {
