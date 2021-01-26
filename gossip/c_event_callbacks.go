@@ -51,7 +51,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 		onIndexed()
 	}
 
-	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
+	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart))
 
 	// calc initial GasPower
 	e.SetGasPowerUsed(epochcheck.CalcGasPowerUsed(e, s.store.GetRules()))
@@ -99,7 +99,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 
 	// check median time
 	es := s.store.GetEpochState()
-	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), es.EpochStart)/inter.MinEventTime*inter.MinEventTime {
+	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), es.EpochStart) {
 		return errWrongMedianTime
 	}
 

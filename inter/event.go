@@ -42,8 +42,8 @@ type mutableBaseEvent struct {
 }
 
 type extEventData struct {
-	creationTime  uint64
-	medianTime    uint64
+	creationTime  Timestamp
+	medianTime    Timestamp
 	prevEpochHash *hash.Hash
 	txHash        hash.Hash
 	gasPowerLeft  GasPowerLeft
@@ -95,9 +95,9 @@ func (e *EventPayload) Size() int {
 	return e._size
 }
 
-func (e *extEventData) CreationTime() Timestamp { return Timestamp(e.creationTime * MinEventTime) }
+func (e *extEventData) CreationTime() Timestamp { return e.creationTime }
 
-func (e *extEventData) MedianTime() Timestamp { return Timestamp(e.medianTime * MinEventTime) }
+func (e *extEventData) MedianTime() Timestamp { return e.medianTime }
 
 func (e *extEventData) PrevEpochHash() *hash.Hash { return e.prevEpochHash }
 
@@ -115,9 +115,9 @@ func (e *sigData) Sig() Signature { return e.sig }
 
 func (e *payloadData) Txs() types.Transactions { return e.txs }
 
-func (e *MutableEventPayload) SetCreationTime(v Timestamp) { e.creationTime = uint64(v / MinEventTime) }
+func (e *MutableEventPayload) SetCreationTime(v Timestamp) { e.creationTime = v }
 
-func (e *MutableEventPayload) SetMedianTime(v Timestamp) { e.medianTime = uint64(v / MinEventTime) }
+func (e *MutableEventPayload) SetMedianTime(v Timestamp) { e.medianTime = v }
 
 func (e *MutableEventPayload) SetPrevEpochHash(v *hash.Hash) { e.prevEpochHash = v }
 

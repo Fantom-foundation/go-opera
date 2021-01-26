@@ -306,7 +306,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 
 	mutEvent.SetParents(parents)
 	mutEvent.SetLamport(maxLamport + 1)
-	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+inter.MinEventTime))
+	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1))
 
 	// set consensus fields
 	var metric ancestor.Metric
