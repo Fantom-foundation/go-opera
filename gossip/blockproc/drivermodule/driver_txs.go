@@ -90,7 +90,7 @@ func (p *DriverTxGenesisTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ block
 	buildTx := internalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 15)
 	// initialization
-	calldata := netinitcall.InitializeAll(es.Epoch, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, p.g.DriverOwner)
+	calldata := netinitcall.InitializeAll(es.Epoch-1, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, p.g.DriverOwner)
 	internalTxs = append(internalTxs, buildTx(calldata, netinit.ContractAddress))
 	// push genesis validators
 	for _, v := range p.g.Validators {
