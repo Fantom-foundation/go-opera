@@ -109,7 +109,7 @@ func (s *Store) initCache() {
 	s.cache.Events = s.makeCache(s.cfg.Cache.EventsSize, s.cfg.Cache.EventsNum)
 	s.cache.Blocks = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
 	s.cache.EventsHeaders = s.makeCache(s.cfg.Cache.EventsHeadersSize, s.cfg.Cache.EventsHeadersNum)
-	s.cache.BlockHashes = s.makeCache(uint(s.cfg.Cache.BlocksNum), s.cfg.Cache.BlocksNum)
+	s.cache.BlockHashes = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
 }
 
 // Close leaves underlying database.
