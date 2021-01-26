@@ -31,7 +31,11 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 }
 
 func (r *EvmStateReader) MaxGasLimit() uint64 {
-	return (r.store.GetRules().Economy.Gas.MaxEventGas - r.store.GetRules().Economy.Gas.EventGas) * 2 / 3
+	rules := r.store.GetRules()
+	if rules.Economy.Gas.MaxEventGas < rules.Economy.Gas.EventGas {
+		return 0
+	}
+	return (rules.Economy.Gas.MaxEventGas - rules.Economy.Gas.EventGas) * 2 / 3
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
