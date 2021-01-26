@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/prometheus/common/log"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
