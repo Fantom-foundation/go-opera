@@ -72,8 +72,12 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
-func getTxRoundIndex(now, txTime time.Time, validators idx.Validator) int {
-	return int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(validators))
+func getTxRoundIndex(now, txTime time.Time, validatorsNum idx.Validator) int {
+	passed := now.Sub(txTime)
+	if passed < 0 {
+		passed = 0
+	}
+	return int((passed / TxTurnPeriod) % time.Duration(validatorsNum))
 }
 
 func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
