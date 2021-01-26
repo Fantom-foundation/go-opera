@@ -313,7 +313,7 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		}
 	}
 	// Advance epochs
-	if l.Topics[0] == driverpos.Topics.UpdateNetworkRules && len(l.Data) >= 32 {
+	if l.Topics[0] == driverpos.Topics.AdvanceEpochs && len(l.Data) >= 32 {
 		// epochsNum < 2^24 to avoid overflow
 		epochsNum := new(big.Int).SetBytes(l.Data[29:32]).Uint64()
 
