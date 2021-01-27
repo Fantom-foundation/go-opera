@@ -3,7 +3,6 @@ package gossip
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -182,7 +181,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for p.knownTxs.Cardinality() >= maxKnownTxs {
 		p.knownTxs.Pop()
 	}
-	return p2p.Send(p.rw, EvmTxMsg, txs)
+	return p2p.Send(p.rw, EvmTxsMsg, txs)
 }
 
 func memSize(v rlp.RawValue) dag.Metric {
@@ -240,7 +239,7 @@ func (p *peer) enqueueSendNonEncodedItem(value interface{}, code uint64, queue c
 }
 
 func (p *peer) asyncSendTransactions(txs types.Transactions, queue chan broadcastItem) {
-	if p.asyncSendNonEncodedItem(txs, EvmTxMsg, queue) {
+	if p.asyncSendNonEncodedItem(txs, EvmTxsMsg, queue) {
 		// Mark all the transactions as known, but ensure we don't overflow our limits
 		for _, tx := range txs {
 			p.knownTxs.Add(tx.Hash())
@@ -401,16 +400,14 @@ func (p *peer) RequestEventsStream(r dagstream.Request) error {
 func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
-	var status ethStatusData // safe to read after two values have been received from errc
+	var handshake handshakeData // safe to read after two values have been received from errc
 
 	go func() {
-		// send both EthStatusMsg and ProgressMsg, eth62 clients will understand only status
-		err := p2p.Send(p.rw, EthStatusMsg, &ethStatusData{
+		// send both HandshakeMsg and ProgressMsg
+		err := p2p.Send(p.rw, HandshakeMsg, &handshakeData{
 			ProtocolVersion:   uint32(p.version),
 			NetworkID:         network,
 			Genesis:           genesis,
-			DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
-			DummyCurrentBlock: common.Hash(progress.LastBlock),
 		})
 		if err != nil {
 			errc <- err
@@ -418,7 +415,7 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.H
 		errc <- p.SendProgress(progress)
 	}()
 	go func() {
-		errc <- p.readStatus(network, &status, genesis)
+		errc <- p.readStatus(network, &handshake, genesis)
 		// do not expect ProgressMsg here, because eth62 clients won't send it
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
@@ -440,29 +437,29 @@ func (p *peer) SendProgress(progress PeerProgress) error {
 	return p2p.Send(p.rw, ProgressMsg, progress)
 }
 
-func (p *peer) readStatus(network uint64, status *ethStatusData, genesis common.Hash) (err error) {
+func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
 	}
-	if msg.Code != EthStatusMsg {
-		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, EthStatusMsg)
+	if msg.Code != HandshakeMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, HandshakeMsg)
 	}
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
 	// Decode the handshake and make sure everything matches
-	if err := msg.Decode(&status); err != nil {
+	if err := msg.Decode(&handshake); err != nil {
 		return errResp(ErrDecode, "msg %v: %v", msg, err)
 	}
-	if status.Genesis != genesis {
-		return errResp(ErrGenesisMismatch, "%x (!= %x)", status.Genesis[:8], genesis[:8])
+	if handshake.Genesis != genesis {
+		return errResp(ErrGenesisMismatch, "%x (!= %x)", handshake.Genesis[:8], genesis[:8])
 	}
-	if status.NetworkID != network {
-		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", status.NetworkID, network)
+	if handshake.NetworkID != network {
+		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", handshake.NetworkID, network)
 	}
-	if int(status.ProtocolVersion) != p.version {
-		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", status.ProtocolVersion, p.version)
+	if int(handshake.ProtocolVersion) != p.version {
+		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", handshake.ProtocolVersion, p.version)
 	}
 	return nil
 }

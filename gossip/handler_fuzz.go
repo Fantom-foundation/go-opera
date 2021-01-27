@@ -116,8 +116,8 @@ func newFuzzMsg(data []byte) (*p2p.Msg, error) {
 
 	var (
 		codes = []uint64{
-			EthStatusMsg,
-			EvmTxMsg,
+			HandshakeMsg,
+			EvmTxsMsg,
 			ProgressMsg,
 			NewEventIDsMsg,
 			GetEventsMsg,

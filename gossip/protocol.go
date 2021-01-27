@@ -1,8 +1,6 @@
 package gossip
 
 import (
-	"math/big"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,32 +29,32 @@ const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a prot
 
 // protocol message codes
 const (
-	// Protocol messages belonging to eth/62
-	EthStatusMsg = 0x00
-	EvmTxMsg     = 0x02
-
-	// Protocol messages belonging to opera/62
+	HandshakeMsg = 0
 
 	// Signals about the current synchronization status.
 	// The current peer's status is used during packs downloading,
 	// and to estimate may peer be interested in the new event or not
 	// (based on peer's epoch).
-	ProgressMsg = 0xf0
+	ProgressMsg = 1
+
+	EvmTxsMsg      = 2
+	EvmTxHashesMsg = 3
+	GetEvmTxsMsg   = 4
 
 	// Non-aggressive events propagation. Signals about newly-connected
 	// batch of events, sending only their IDs.
-	NewEventIDsMsg = 0xf1
+	NewEventIDsMsg = 5
 
 	// Request the batch of events by IDs
-	GetEventsMsg = 0xf2
+	GetEventsMsg = 6
 	// Contains the batch of events.
 	// May be an answer to GetEventsMsg, or be sent during aggressive events propagation.
-	EventsMsg = 0xf3
+	EventsMsg = 7
 
 	// Request a range of events by a selector
-	RequestEventsStream = 0xf4
+	RequestEventsStream = 8
 	// Contains the requested events by RequestEventsStream
-	EventsStreamResponse = 0xf5
+	EventsStreamResponse = 9
 )
 
 type errCode int
@@ -105,13 +103,11 @@ type txPool interface {
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 }
 
-// ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.
-type ethStatusData struct {
-	ProtocolVersion   uint32
-	NetworkID         uint64
-	DummyTD           *big.Int
-	DummyCurrentBlock common.Hash
-	Genesis           common.Hash
+// handshakeData is the network packet for the initial handshake message
+type handshakeData struct {
+	ProtocolVersion uint32
+	NetworkID       uint64
+	Genesis         common.Hash
 }
 
 // PeerProgress is synchronization status of a peer

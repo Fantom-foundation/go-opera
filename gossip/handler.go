@@ -601,7 +601,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == EthStatusMsg:
+	case msg.Code == HandshakeMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 
@@ -640,7 +640,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		_ = pm.fetcher.NotifyReceived(events.IDs())
 		pm.handleEvents(p, events.Bases(), events.Len() >= softLimitItems/2)
 
-	case msg.Code == EvmTxMsg:
+	case msg.Code == EvmTxsMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if atomic.LoadUint32(&pm.synced) == 0 {
 			break
