@@ -37,9 +37,9 @@ const (
 	// (based on peer's epoch).
 	ProgressMsg = 1
 
-	EvmTxsMsg      = 2
-	EvmTxHashesMsg = 3
-	GetEvmTxsMsg   = 4
+	EvmTxsMsg         = 2
+	NewEvmTxHashesMsg = 3
+	GetEvmTxsMsg      = 4
 
 	// Non-aggressive events propagation. Signals about newly-connected
 	// batch of events, sending only their IDs.
@@ -101,6 +101,11 @@ type txPool interface {
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+
+	Get(common.Hash) *types.Transaction
+
+	OnlyNotExisting(hashes []common.Hash) []common.Hash
+	SampleHashes(max int) []common.Hash
 }
 
 // handshakeData is the network packet for the initial handshake message

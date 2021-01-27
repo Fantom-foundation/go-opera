@@ -20,6 +20,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -508,6 +509,10 @@ func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return pending, nil
 }
 
+func (pool *TxPool) SampleHashes(max int) []common.Hash {
+	return pool.all.SampleHashes(max)
+}
+
 // Locals retrieves the accounts currently considered local by the pool.
 func (pool *TxPool) Locals() []common.Address {
 	pool.mu.Lock()
@@ -894,6 +899,10 @@ func (pool *TxPool) Get(hash common.Hash) *types.Transaction {
 // given hash.
 func (pool *TxPool) Has(hash common.Hash) bool {
 	return pool.all.Get(hash) != nil
+}
+
+func (pool *TxPool) OnlyNotExisting(hashes []common.Hash) []common.Hash {
+	return pool.all.OnlyNotExisting(hashes)
 }
 
 // removeTx removes a single transaction from the queue, moving all subsequent
@@ -1554,6 +1563,28 @@ func newTxLookup() *txLookup {
 	}
 }
 
+func (t *txLookup) SampleHashes(max int) []common.Hash {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	res := make([]common.Hash, 0, max)
+	skip := 0
+	if len(t.all) > max {
+		skip = rand.Intn(len(t.all) - max)
+	}
+	for key := range t.all {
+		if len(res) >= max {
+			break
+		}
+		if skip > 0 {
+			skip--
+			continue
+		}
+		res = append(res, key)
+	}
+	return res
+}
+
 // Range calls f on each key and value present in the map.
 func (t *txLookup) Range(f func(hash common.Hash, tx *types.Transaction) bool) {
 	t.lock.RLock()
@@ -1572,6 +1603,19 @@ func (t *txLookup) Get(hash common.Hash) *types.Transaction {
 	defer t.lock.RUnlock()
 
 	return t.all[hash]
+}
+
+func (t *txLookup) OnlyNotExisting(hashes []common.Hash) []common.Hash {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	notExisting := make([]common.Hash, 0, len(hashes))
+	for _, txid := range hashes {
+		if t.all[txid] == nil {
+			notExisting = append(notExisting, txid)
+		}
+	}
+	return notExisting
 }
 
 // Count returns the current number of items in the lookup.

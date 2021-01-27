@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"math/rand"
 	"sort"
 	"sync"
 
@@ -51,4 +52,50 @@ func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
 	return p.txFeed.Subscribe(ch)
+}
+
+func (p *dummyTxPool) Map() map[common.Hash]*types.Transaction {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	res := make(map[common.Hash]*types.Transaction, len(p.pool))
+	for _, tx := range p.pool {
+		res[tx.Hash()] = tx
+	}
+	return nil
+}
+
+func (p *dummyTxPool) Get(txid common.Hash) *types.Transaction {
+	return p.Map()[txid]
+}
+
+func (p *dummyTxPool) OnlyNotExisting(txids []common.Hash) []common.Hash {
+	m := p.Map()
+	notExisting := make([]common.Hash, 0, len(txids))
+	for _, txid := range txids {
+		if m[txid] == nil {
+			notExisting = append(notExisting, txid)
+		}
+	}
+	return notExisting
+}
+
+func (p *dummyTxPool) SampleHashes(max int) []common.Hash {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	res := make([]common.Hash, 0, max)
+	skip := 0
+	if len(p.pool) > max {
+		skip = rand.Intn(len(p.pool) - max)
+	}
+	for _, tx := range p.pool {
+		if len(res) >= max {
+			break
+		}
+		if skip > 0 {
+			skip--
+			continue
+		}
+		res = append(res, tx.Hash())
+	}
+	return res
 }

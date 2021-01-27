@@ -4,15 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/gossip/dagfetcher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
+	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -79,11 +80,12 @@ type ProtocolManager struct {
 	txsCh  chan evmcore.NewTxsNotify
 	txsSub notify.Subscription
 
-	leecher   *streamleecher.Leecher
-	seeder    *streamseeder.Seeder
-	fetcher   *dagfetcher.Fetcher
-	processor *dagprocessor.Processor
-	checkers  *eventcheck.Checkers
+	leecher    *streamleecher.Leecher
+	seeder     *streamseeder.Seeder
+	dagFetcher *itemsfetcher.Fetcher
+	txFetcher  *itemsfetcher.Fetcher
+	processor  *dagprocessor.Processor
+	checkers   *eventcheck.Checkers
 
 	msgSemaphore *datasemaphore.DataSemaphore
 
@@ -98,7 +100,7 @@ type ProtocolManager struct {
 	newEpochsSub         notify.Subscription
 	quitProgressBradcast chan struct{}
 
-	// channels for fetcher, syncer, txsyncLoop
+	// channels for syncer, txsyncLoop
 	newPeerCh   chan *peer
 	txsyncCh    chan *txsync
 	quitSync    chan struct{}
@@ -156,8 +158,23 @@ func NewProtocolManager(
 
 	pm.SetName("PM")
 
-	pm.fetcher = pm.makeFetcher()
-	pm.processor = pm.makeProcessor(checkers, pm.fetcher)
+	pm.dagFetcher = itemsfetcher.New(pm.config.Protocol.DagFetcher, itemsfetcher.Callback{
+		OnlyInterested: func(ids []interface{}) []interface{} {
+			return pm.onlyInterestedEventsI(ids)
+		},
+		Suspend: func() bool {
+			return false
+		},
+	})
+	pm.txFetcher = itemsfetcher.New(pm.config.Protocol.TxFetcher, itemsfetcher.Callback{
+		OnlyInterested: func(txids []interface{}) []interface{} {
+			return txidsToInterfaces(pm.txpool.OnlyNotExisting(interfacesToTxids(txids)))
+		},
+		Suspend: func() bool {
+			return false
+		},
+	})
+	pm.processor = pm.makeProcessor(checkers, pm.dagFetcher)
 	pm.leecher = streamleecher.New(pm.store.GetEpoch(), false, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
 		OnlyNotConnected: pm.onlyNotConnectedEvents,
 		RequestChunk: func(peer string, r dagstream.Request) error {
@@ -168,7 +185,7 @@ func NewProtocolManager(
 			return p.RequestEventsStream(r)
 		},
 		Suspend: func(_ string) bool {
-			return pm.fetcher.Overloaded() || pm.processor.Overloaded()
+			return pm.dagFetcher.Overloaded() || pm.processor.Overloaded()
 		},
 		PeerEpoch: func(peer string) idx.Epoch {
 			p := pm.peers.Peer(peer)
@@ -198,15 +215,7 @@ func (pm *ProtocolManager) peerMisbehaviour(peer string, err error) bool {
 	return false
 }
 
-func (pm *ProtocolManager) makeFetcher() *dagfetcher.Fetcher {
-	newFetcher := dagfetcher.New(pm.config.Protocol.Fetcher, dagfetcher.Callback{
-		OnlyInterested:   pm.onlyInterestedEvents,
-		PeerMisbehaviour: pm.peerMisbehaviour,
-	})
-	return newFetcher
-}
-
-func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers, fetcher *dagfetcher.Fetcher) *dagprocessor.Processor {
+func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers, fetcher *itemsfetcher.Fetcher) *dagprocessor.Processor {
 	// checkers
 	lightCheck := func(e dag.Event) error {
 		if pm.processor.IsBuffered(e.ID()) {
@@ -304,10 +313,6 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers, fetcher 
 			OnlyInterested: pm.onlyInterestedEvents,
 		},
 		PeerMisbehaviour: pm.peerMisbehaviour,
-		NotifyAnnounces: func(peer string, ids hash.Events, time time.Time, fetchEvents dagfetcher.EventsRequesterFn) error {
-			err := fetcher.NotifyAnnounces(peer, ids, time, fetchEvents)
-			return err
-		},
 	})
 
 	return newProcessor
@@ -328,21 +333,40 @@ func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
 	return notConnected
 }
 
+func (pm *ProtocolManager) isEventInterested(id hash.Event, epoch idx.Epoch) bool {
+	if id.Epoch() != epoch {
+		return false
+	}
+	if pm.processor.IsBuffered(id) || pm.store.HasEvent(id) {
+		return false
+	}
+	return true
+}
+
+func (pm *ProtocolManager) onlyInterestedEventsI(ids []interface{}) []interface{} {
+	if len(ids) == 0 {
+		return ids
+	}
+	epoch := pm.store.GetEpoch()
+	interested := make([]interface{}, 0, len(ids))
+	for _, id := range ids {
+		if pm.isEventInterested(id.(hash.Event), epoch) {
+			interested = append(interested, id)
+		}
+	}
+	return interested
+}
+
 func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	if len(ids) == 0 {
 		return ids
 	}
 	epoch := pm.store.GetEpoch()
-
 	interested := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
-		if id.Epoch() != epoch {
-			continue
+		if pm.isEventInterested(id, epoch) {
+			interested = append(interested, id)
 		}
-		if pm.processor.IsBuffered(id) || pm.store.HasEvent(id) {
-			continue
-		}
-		interested.Add(id)
 	}
 	return interested
 }
@@ -439,7 +463,8 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// start sync handlers
 	go pm.syncer()
 	go pm.txsyncLoop()
-	pm.fetcher.Start()
+	pm.dagFetcher.Start()
+	pm.txFetcher.Start()
 	pm.checkers.Heavycheck.Start()
 	pm.processor.Start()
 	pm.seeder.Start()
@@ -453,7 +478,8 @@ func (pm *ProtocolManager) Stop() {
 	pm.seeder.Stop()
 	pm.processor.Stop()
 	pm.checkers.Heavycheck.Stop()
-	pm.fetcher.Stop()
+	pm.txFetcher.Stop()
+	pm.dagFetcher.Stop()
 
 	close(pm.quitProgressBradcast)
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
@@ -543,7 +569,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
-	pm.syncTransactions(p)
+	pm.syncTransactions(p, pm.txpool.SampleHashes(pm.config.Protocol.MaxInitialTxHashesSend))
 
 	// Handle incoming messages until the connection is torn down
 	for {
@@ -554,13 +580,68 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 }
 
-func (pm *ProtocolManager) handleHashes(p *peer, announces hash.Events) {
+func interfacesToEventIDs(ids []interface{}) hash.Events {
+	res := make(hash.Events, len(ids))
+	for i, id := range ids {
+		res[i] = id.(hash.Event)
+	}
+	return res
+}
+
+func eventIDsToInterfaces(ids hash.Events) []interface{} {
+	res := make([]interface{}, len(ids))
+	for i, id := range ids {
+		res[i] = id
+	}
+	return res
+}
+
+func interfacesToTxids(ids []interface{}) []common.Hash {
+	res := make([]common.Hash, len(ids))
+	for i, id := range ids {
+		res[i] = id.(common.Hash)
+	}
+	return res
+}
+
+func txidsToInterfaces(ids []common.Hash) []interface{} {
+	res := make([]interface{}, len(ids))
+	for i, id := range ids {
+		res[i] = id
+	}
+	return res
+}
+
+func (pm *ProtocolManager) handleTxHashes(p *peer, announces []common.Hash) {
+	// Mark the hashes as present at the remote node
+	for _, id := range announces {
+		p.MarkTransaction(id)
+	}
+	// Schedule all the unknown hashes for retrieval
+	requestTransactions := func(ids []interface{}) error {
+		return p.RequestTransactions(interfacesToTxids(ids))
+	}
+	_ = pm.txFetcher.NotifyAnnounces(p.id, txidsToInterfaces(announces), time.Now(), requestTransactions)
+}
+
+func (pm *ProtocolManager) handleTxs(p *peer, txs types.Transactions) {
+	// Mark the hashes as present at the remote node
+	for _, tx := range txs {
+		p.MarkTransaction(tx.Hash())
+	}
+	pm.txpool.AddRemotes(txs)
+}
+
+func (pm *ProtocolManager) handleEventHashes(p *peer, announces hash.Events) {
 	// Mark the hashes as present at the remote node
 	for _, id := range announces {
 		p.MarkEvent(id)
 	}
 	// Schedule all the unknown hashes for retrieval
-	_ = pm.fetcher.NotifyAnnounces(p.id, announces, time.Now(), p.RequestEvents)
+	requestEvents := func(ids []interface{}) error {
+		return p.RequestEvents(interfacesToEventIDs(ids))
+	}
+	_ = pm.dagFetcher.NotifyAnnounces(p.id, eventIDsToInterfaces(announces), time.Now(), requestEvents)
 }
 
 func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool) {
@@ -571,7 +652,13 @@ func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool
 	// Schedule all the events for connection
 	peer := *p
 	now := time.Now()
-	_ = pm.processor.Enqueue(peer.id, events, ordered, now, peer.RequestEvents, nil)
+	requestEvents := func(ids []interface{}) error {
+		return peer.RequestEvents(interfacesToEventIDs(ids))
+	}
+	notifyAnnounces := func(ids hash.Events) {
+		_ = pm.dagFetcher.NotifyAnnounces(peer.id, eventIDsToInterfaces(ids), now, requestEvents)
+	}
+	_ = pm.processor.Enqueue(peer.id, events, ordered, notifyAnnounces, nil)
 }
 
 // handleMsg is invoked whenever an inbound message is received from a remote
@@ -615,6 +702,74 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
 		}
 
+	case msg.Code == EvmTxsMsg:
+		// Transactions arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
+			break
+		}
+		// Transactions can be processed, parse all of them and deliver to the pool
+		var txs types.Transactions
+		if err := msg.Decode(&txs); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(txs), txs); err != nil {
+			return err
+		}
+		txids := make([]interface{}, txs.Len())
+		for i, tx := range txs {
+			txids[i] = tx.Hash()
+		}
+		_ = pm.txFetcher.NotifyReceived(txids)
+		pm.handleTxs(p, txs)
+
+	case msg.Code == NewEvmTxHashesMsg:
+		// Transactions arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
+			break
+		}
+		// Transactions can be processed, parse all of them and deliver to the pool
+		var txHashes []common.Hash
+		if err := msg.Decode(&txHashes); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(txHashes), txHashes); err != nil {
+			return err
+		}
+		pm.handleTxHashes(p, txHashes)
+
+	case msg.Code == GetEvmTxsMsg:
+		// Transactions can be processed, parse all of them and deliver to the pool
+		var requests []common.Hash
+		if err := msg.Decode(&requests); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(requests), requests); err != nil {
+			return err
+		}
+
+		txs := make(types.Transactions, 0, len(requests))
+		for _, txid := range requests {
+			tx := pm.txpool.Get(txid)
+			if tx == nil {
+				continue
+			}
+			txs = append(txs, tx)
+		}
+		SplitTransactions(txs, func(batch types.Transactions) {
+			p.EnqueueSendTransactions(batch, p.queue)
+		})
+
+	case msg.Code == EventsMsg:
+		var events inter.EventPayloads
+		if err := msg.Decode(&events); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(events), events); err != nil {
+			return err
+		}
+		_ = pm.dagFetcher.NotifyReceived(eventIDsToInterfaces(events.IDs()))
+		pm.handleEvents(p, events.Bases(), events.Len() >= softLimitItems/2)
+
 	case msg.Code == NewEventIDsMsg:
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
 		if atomic.LoadUint32(&pm.synced) == 0 {
@@ -627,37 +782,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := checkLenLimits(len(announces), announces); err != nil {
 			return err
 		}
-		pm.handleHashes(p, announces)
-
-	case msg.Code == EventsMsg:
-		var events inter.EventPayloads
-		if err := msg.Decode(&events); err != nil {
-			return errResp(ErrDecode, "%v: %v", msg, err)
-		}
-		if err := checkLenLimits(len(events), events); err != nil {
-			return err
-		}
-		_ = pm.fetcher.NotifyReceived(events.IDs())
-		pm.handleEvents(p, events.Bases(), events.Len() >= softLimitItems/2)
-
-	case msg.Code == EvmTxsMsg:
-		// Transactions arrived, make sure we have a valid and fresh graph to handle them
-		if atomic.LoadUint32(&pm.synced) == 0 {
-			break
-		}
-		// Transactions can be processed, parse all of them and deliver to the pool
-		var txs types.Transactions
-		if err := msg.Decode(&txs); err != nil {
-			return errResp(ErrDecode, "msg %v: %v", msg, err)
-		}
-		for i, tx := range txs {
-			// Validate and mark the remote transaction
-			if tx == nil {
-				return errResp(ErrDecode, "transaction %d is nil", i)
-			}
-			p.MarkTransaction(tx.Hash())
-		}
-		pm.txpool.AddRemotes(txs)
+		pm.handleEventHashes(p, announces)
 
 	case msg.Code == GetEventsMsg:
 		var requests hash.Events
@@ -725,7 +850,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		var last hash.Event
 		if len(chunk.IDs) != 0 {
-			pm.handleHashes(p, chunk.IDs)
+			pm.handleEventHashes(p, chunk.IDs)
 			last = chunk.IDs[len(chunk.IDs)-1]
 		}
 		if len(chunk.Events) != 0 {
@@ -813,16 +938,30 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
 
 	// Broadcast transactions to a batch of peers not knowing about it
+	totalSize := common.StorageSize(0)
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
 			txset[peer] = append(txset[peer], tx)
 		}
+		totalSize += tx.Size()
 		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
-	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
+	fullRecipients := pm.decideBroadcastAggressiveness(int(totalSize), time.Second, len(txset))
+	i := 0
 	for peer, txs := range txset {
-		peer.AsyncSendTransactions(txs, peer.queue)
+		SplitTransactions(txs, func(batch types.Transactions) {
+			if i < fullRecipients {
+				peer.AsyncSendTransactions(batch, peer.queue)
+			} else {
+				txids := make([]common.Hash, batch.Len())
+				for i, tx := range batch {
+					txids[i] = tx.Hash()
+				}
+				peer.AsyncSendTransactionHashes(txids, peer.queue)
+			}
+		})
+		i++
 	}
 }
 
@@ -890,6 +1029,8 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 }
 
 func (pm *ProtocolManager) txBroadcastLoop() {
+	ticker := time.NewTicker(pm.config.Protocol.RandomTxHashesSendPeriod)
+	defer ticker.Stop()
 	defer pm.loopsWg.Done()
 	for {
 		select {
@@ -899,6 +1040,14 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
 			return
+
+		case <-ticker.C:
+			peers := pm.peers.List()
+			if len(peers) == 0 {
+				continue
+			}
+			randPeer := peers[rand.Intn(len(peers))]
+			pm.syncTransactions(randPeer, pm.txpool.SampleHashes(pm.config.Protocol.MaxRandomTxHashesSend))
 		}
 	}
 }

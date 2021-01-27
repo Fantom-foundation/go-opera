@@ -140,9 +140,9 @@ func importFile(srv *gossip.Service, fn string) error {
 			return nil
 		}
 		done := make(chan struct{})
-		err := srv.DagProcessor().Enqueue("", batch.Bases(), true, time.Now(), func(_ hash.Events) error {
-			return nil
-		}, done)
+		err := srv.DagProcessor().Enqueue("", batch.Bases(), true, nil, func() {
+			done <- struct{}{}
+		})
 		if err != nil {
 			return err
 		}
