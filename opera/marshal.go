@@ -3,10 +3,10 @@ package opera
 import "encoding/json"
 
 func UpdateRules(src Rules, diff []byte) (res Rules, err error) {
-	changed := src
+	changed := src.Copy()
 	err = json.Unmarshal(diff, &changed)
 	if err != nil {
-		return
+		return src, err
 	}
 	// protect readonly fields
 	res = changed

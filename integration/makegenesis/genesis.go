@@ -72,7 +72,7 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 
 	genStore.SetMetadata(genesisstore.Metadata{
 		Validators:    validators,
-		FirstEpoch:    1,
+		FirstEpoch:    2,
 		Time:          FakeGenesisTime,
 		PrevEpochTime: FakeGenesisTime - inter.Timestamp(time.Hour),
 		ExtraData:     []byte("fake"),

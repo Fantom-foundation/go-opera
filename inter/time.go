@@ -11,10 +11,6 @@ type (
 	Timestamp uint64
 )
 
-const (
-	MinEventTime = 1e5 // 100 usec
-)
-
 // Bytes gets the byte representation of the index.
 func (t Timestamp) Bytes() []byte {
 	return bigendian.Uint64ToBytes(uint64(t))

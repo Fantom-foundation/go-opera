@@ -32,6 +32,7 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 		Idx:                inter.ShortTermGas,
 		AllocPerSec:        short.AllocPerSec,
 		MaxAllocPeriod:     short.MaxAllocPeriod,
+		MinEnsuredAlloc:    cfg.Gas.MaxEventGas,
 		StartupAllocPeriod: short.StartupAllocPeriod,
 		MinStartupGas:      short.MinStartupGas,
 	}
@@ -41,6 +42,7 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 		Idx:                inter.LongTermGas,
 		AllocPerSec:        long.AllocPerSec,
 		MaxAllocPeriod:     long.MaxAllocPeriod,
+		MinEnsuredAlloc:    cfg.Gas.MaxEventGas,
 		StartupAllocPeriod: long.StartupAllocPeriod,
 		MinStartupGas:      long.MinStartupGas,
 	}

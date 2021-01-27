@@ -72,8 +72,12 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
-func getTxRoundIndex(now, txTime time.Time, validators idx.Validator) int {
-	return int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(validators))
+func getTxRoundIndex(now, txTime time.Time, validatorsNum idx.Validator) int {
+	passed := now.Sub(txTime)
+	if passed < 0 {
+		passed = 0
+	}
+	return int((passed / TxTurnPeriod) % time.Duration(validatorsNum))
 }
 
 func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
@@ -121,6 +125,11 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		sender, _ := types.Sender(em.world.TxSigner, tx)
 		if senderTxs[sender] >= em.config.MaxTxsPerAddress {
+			sorted.Pop()
+			continue
+		}
+		// check transaction is not underpriced
+		if tx.GasPrice().Cmp(em.world.Store.GetRules().Economy.MinGasPrice) < 0 {
 			sorted.Pop()
 			continue
 		}

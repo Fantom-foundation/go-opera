@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/prometheus/common/log"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -90,7 +90,7 @@ func (p *DriverTxGenesisTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ block
 	buildTx := internalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 15)
 	// initialization
-	calldata := netinitcall.InitializeAll(es.Epoch, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, p.g.DriverOwner)
+	calldata := netinitcall.InitializeAll(es.Epoch-1, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, p.g.DriverOwner)
 	internalTxs = append(internalTxs, buildTx(calldata, netinit.ContractAddress))
 	// push genesis validators
 	for _, v := range p.g.Validators {
@@ -106,6 +106,13 @@ func (p *DriverTxGenesisTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ block
 		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
 	})
 	return internalTxs
+}
+
+func maxBlockIdx(a, b idx.Block) idx.Block {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs blockproc.BlockState, es blockproc.EpochState, sealing bool, statedb *state.StateDB) types.Transactions {
@@ -129,8 +136,8 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 		for oldValIdx := idx.Validator(0); oldValIdx < es.Validators.Len(); oldValIdx++ {
 			info := bs.ValidatorStates[oldValIdx]
 			missed := opera.BlocksMissed{
-				BlocksNum: block.Idx - info.LastBlock,
-				Period:    inter.MaxTimestamp(block.Time, info.LastMedianTime) - info.LastMedianTime,
+				BlocksNum: maxBlockIdx(block.Idx, info.LastBlock) - info.LastBlock,
+				Period:    inter.MaxTimestamp(block.Time, info.LastOnlineTime) - info.LastOnlineTime,
 			}
 			if missed.BlocksNum <= es.Rules.Economy.BlockMissedSlack {
 				missed = opera.BlocksMissed{}
@@ -203,7 +210,13 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		if weight.Sign() == 0 {
 			delete(p.bs.NextValidatorProfiles, validatorID)
 		} else {
-			profile := p.bs.NextValidatorProfiles[validatorID]
+			profile, ok := p.bs.NextValidatorProfiles[validatorID]
+			if !ok {
+				profile.PubKey = validatorpk.PubKey{
+					Type: 0,
+					Raw:  []byte{},
+				}
+			}
 			profile.Weight = weight
 			p.bs.NextValidatorProfiles[validatorID] = profile
 		}
@@ -217,7 +230,11 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 			return
 		}
 
-		profile := p.bs.NextValidatorProfiles[validatorID]
+		profile, ok := p.bs.NextValidatorProfiles[validatorID]
+		if !ok {
+			log.Warn("Unexpected UpdatedValidatorPubkey Driver event")
+			return
+		}
 		profile.PubKey, _ = validatorpk.FromBytes(pubkey)
 		p.bs.NextValidatorProfiles[validatorID] = profile
 	}
@@ -296,7 +313,7 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		}
 	}
 	// Advance epochs
-	if l.Topics[0] == driverpos.Topics.UpdateNetworkRules && len(l.Data) >= 32 {
+	if l.Topics[0] == driverpos.Topics.AdvanceEpochs && len(l.Data) >= 32 {
 		// epochsNum < 2^24 to avoid overflow
 		epochsNum := new(big.Int).SetBytes(l.Data[29:32]).Uint64()
 

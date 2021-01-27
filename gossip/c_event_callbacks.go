@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
@@ -51,7 +52,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 		onIndexed()
 	}
 
-	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) / inter.MinEventTime * inter.MinEventTime)
+	e.SetMedianTime(s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart))
 
 	// calc initial GasPower
 	e.SetGasPowerUsed(epochcheck.CalcGasPowerUsed(e, s.store.GetRules()))
@@ -68,6 +69,39 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 	}
 	e.SetGasPowerLeft(availableGasPower.Sub(e.GasPowerUsed()))
 	return s.engine.Build(e)
+}
+
+// processSavedEvent performs processing which depends on event being saved in DB
+func (s *Service) processSavedEvent(e *inter.EventPayload, es *blockproc.EpochState) error {
+	err := s.dagIndexer.Add(e)
+	if err != nil {
+		return err
+	}
+
+	// check median time
+	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), es.EpochStart) {
+		return errWrongMedianTime
+	}
+
+	// aBFT processing
+	return s.engine.Process(e)
+}
+
+// saveAndProcessEvent deletes event in a case if it fails validation during event processing
+func (s *Service) saveAndProcessEvent(e *inter.EventPayload, es *blockproc.EpochState) error {
+	// indexing event
+	s.store.SetEvent(e)
+	defer s.dagIndexer.DropNotFlushed()
+
+	err := s.processSavedEvent(e, es)
+	if err != nil {
+		s.store.DelEvent(e.ID())
+		return err
+	}
+
+	// save event index after success
+	s.dagIndexer.Flush()
+	return nil
 }
 
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
@@ -88,37 +122,20 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	oldEpoch := s.store.GetEpoch()
-
-	// indexing event
-	s.store.SetEvent(e)
-	defer s.dagIndexer.DropNotFlushed()
-	err := s.dagIndexer.Add(e)
-	if err != nil {
-		return err
-	}
-
-	// check median time
 	es := s.store.GetEpochState()
-	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), es.EpochStart)/inter.MinEventTime*inter.MinEventTime {
-		return errWrongMedianTime
-	}
 
 	// check prev epoch hash
 	if e.PrevEpochHash() != nil {
 		if *e.PrevEpochHash() != es.Hash() {
+			s.store.DelEvent(e.ID())
 			return errWrongEpochHash
 		}
 	}
 
-	// aBFT processing
-	err = s.engine.Process(e)
+	err := s.saveAndProcessEvent(e, &es)
 	if err != nil {
-		s.store.DelEvent(e.ID())
 		return err
 	}
-
-	// save event index after success
-	s.dagIndexer.Flush()
 
 	newEpoch := s.store.GetEpoch()
 
