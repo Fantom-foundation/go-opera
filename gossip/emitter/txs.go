@@ -128,6 +128,11 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			sorted.Pop()
 			continue
 		}
+		// check transaction is not underpriced
+		if tx.GasPrice().Cmp(em.world.Store.GetRules().Economy.MinGasPrice) < 0 {
+			sorted.Pop()
+			continue
+		}
 		// check there's enough gas power to originate the transaction
 		if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
 			sorted.Pop()
