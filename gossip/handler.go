@@ -875,7 +875,7 @@ func (pm *ProtocolManager) decideBroadcastAggressiveness(size int, passed time.D
 		latencyVsThroughputTradeoff = (cfg.LatencyImportance * percents) / cfg.ThroughputImportance
 	}
 
-	broadcastCost := passed * time.Duration(128 + size) / 128
+	broadcastCost := passed * time.Duration(128+size) / 128
 	broadcastAllCostTarget := time.Duration(latencyVsThroughputTradeoff) * (700 * time.Millisecond) / time.Duration(percents)
 	broadcastSqrtCostTarget := broadcastAllCostTarget * 10
 
@@ -1041,6 +1041,9 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 			return
 
 		case <-ticker.C:
+			if atomic.LoadUint32(&pm.synced) == 0 {
+				continue
+			}
 			peers := pm.peers.List()
 			if len(peers) == 0 {
 				continue
