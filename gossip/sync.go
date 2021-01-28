@@ -4,33 +4,21 @@ import (
 	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
-const (
-	// This is the target size for the packs of transactions sent by txsyncLoop.
-	// A pack can get larger than this if a single transactions exceeds this size.
-	txsyncPackSize = 100 * 1024
-)
-
 type txsync struct {
-	p   *peer
-	txs []*types.Transaction
+	p     *peer
+	txids []common.Hash
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
-func (pm *ProtocolManager) syncTransactions(p *peer) {
-	var txs types.Transactions
-	pending, _ := pm.txpool.Pending()
-	for _, batch := range pending {
-		txs = append(txs, batch...)
-	}
-	if len(txs) == 0 {
+func (pm *ProtocolManager) syncTransactions(p *peer, txids []common.Hash) {
+	if len(txids) == 0 {
 		return
 	}
 	select {
-	case pm.txsyncCh <- &txsync{p, txs}:
+	case pm.txsyncCh <- &txsync{p, txids}:
 	case <-pm.quitSync:
 	}
 }
@@ -50,22 +38,26 @@ func (pm *ProtocolManager) txsyncLoop() {
 	// send starts a sending a pack of transactions from the sync.
 	send := func(s *txsync) {
 		// Fill pack with transactions up to the target size.
-		size := common.StorageSize(0)
 		pack.p = s.p
-		pack.txs = pack.txs[:0]
-		for i := 0; i < len(s.txs) && size < txsyncPackSize; i++ {
-			pack.txs = append(pack.txs, s.txs[i])
-			size += s.txs[i].Size()
+		pack.txids = pack.txids[:0]
+		for i := 0; i < len(s.txids) && len(pack.txids) < softLimitItems; i++ {
+			pack.txids = append(pack.txids, s.txids[i])
 		}
 		// Remove the transactions that will be sent.
-		s.txs = s.txs[:copy(s.txs, s.txs[len(pack.txs):])]
-		if len(s.txs) == 0 {
+		s.txids = s.txids[len(pack.txids):]
+		if len(s.txids) == 0 {
 			delete(pending, s.p.ID())
 		}
 		// Send the pack in the background.
-		s.p.Log().Trace("Sending batch of transactions", "count", len(pack.txs), "bytes", size)
+		s.p.Log().Trace("Sending batch of transaction hashes", "count", len(pack.txids))
 		sending = true
-		go func() { done <- pack.p.SendTransactions(pack.txs) }()
+		go func() {
+			if len(pack.txids) != 0 {
+				done <- pack.p.SendTransactionHashes(pack.txids)
+			} else {
+				done <- nil
+			}
+		}()
 	}
 
 	// pick chooses the next pending sync.

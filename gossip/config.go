@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/gossip/dagfetcher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
+	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -35,9 +35,14 @@ type (
 
 		Processor dagprocessor.Config
 
-		Fetcher       dagfetcher.Config
+		DagFetcher    itemsfetcher.Config
+		TxFetcher     itemsfetcher.Config
 		StreamLeecher streamleecher.Config
 		StreamSeeder  streamseeder.Config
+
+		MaxInitialTxHashesSend   int
+		MaxRandomTxHashesSend    int
+		RandomTxHashesSendPeriod time.Duration
 	}
 	// Config for the gossip service.
 	Config struct {
@@ -122,10 +127,30 @@ func DefaultConfig() Config {
 			MsgsSemaphoreTimeout:    10 * time.Second,
 			ProgressBroadcastPeriod: 10 * time.Second,
 
-			Processor:     dagprocessor.DefaultConfig(),
-			Fetcher:       dagfetcher.DefaultConfig(),
-			StreamLeecher: streamleecher.DefaultConfig(),
-			StreamSeeder:  streamseeder.DefaultConfig(),
+			Processor: dagprocessor.DefaultConfig(),
+			DagFetcher: itemsfetcher.Config{
+				ForgetTimeout:       1 * time.Minute,
+				ArriveTimeout:       1000 * time.Millisecond,
+				GatherSlack:         100 * time.Millisecond,
+				HashLimit:           20000,
+				MaxBatch:            512,
+				MaxQueuedBatches:    32,
+				MaxParallelRequests: 192,
+			},
+			TxFetcher: itemsfetcher.Config{
+				ForgetTimeout:       1 * time.Minute,
+				ArriveTimeout:       1000 * time.Millisecond,
+				GatherSlack:         100 * time.Millisecond,
+				HashLimit:           20000,
+				MaxBatch:            512,
+				MaxQueuedBatches:    32,
+				MaxParallelRequests: 64,
+			},
+			StreamLeecher:            streamleecher.DefaultConfig(),
+			StreamSeeder:             streamseeder.DefaultConfig(),
+			MaxInitialTxHashesSend:   20000,
+			MaxRandomTxHashesSend:    128,
+			RandomTxHashesSendPeriod: 20 * time.Second,
 		},
 
 		GPO: gasprice.Config{

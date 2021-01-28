@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.14
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20210125055356-3ffe8de45bd0
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20210127171125-ce23cadf3eb9
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
@@ -38,7 +38,6 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
-	github.com/prometheus/common v0.7.0
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.7.0 // indirect
