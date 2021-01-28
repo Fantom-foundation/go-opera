@@ -875,10 +875,9 @@ func (pm *ProtocolManager) decideBroadcastAggressiveness(size int, passed time.D
 		latencyVsThroughputTradeoff = (cfg.LatencyImportance * percents) / cfg.ThroughputImportance
 	}
 
-	byteCost := time.Millisecond / 2
-	broadcastCost := passed + time.Duration(size)*byteCost
+	broadcastCost := passed * time.Duration(128 + size) / 128
 	broadcastAllCostTarget := time.Duration(latencyVsThroughputTradeoff) * (700 * time.Millisecond) / time.Duration(percents)
-	broadcastSqrtCostTarget := broadcastAllCostTarget * 20
+	broadcastSqrtCostTarget := broadcastAllCostTarget * 10
 
 	fullRecipients := 0
 	if latencyVsThroughputTradeoff >= maxPercents {
