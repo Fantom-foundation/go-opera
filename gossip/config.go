@@ -19,6 +19,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 )
 
+const nominalSize uint = 1
+
 type (
 	// ProtocolConfig is config for p2p protocol
 	ProtocolConfig struct {
@@ -81,8 +83,7 @@ type (
 		EventsNum  int
 		EventsSize uint
 		// Cache size for event headers
-		EventsHeadersNum  int
-		EventsHeadersSize uint
+		EventsHeadersNum int
 		// Cache size for Blocks.
 		BlocksNum  int
 		BlocksSize uint
@@ -183,12 +184,11 @@ func FakeConfig(num int) Config {
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:         5000,
-			EventsSize:        6 * opt.MiB,
-			EventsHeadersNum:  5000,
-			EventsHeadersSize: 5 * opt.MiB,
-			BlocksNum:         1000,
-			BlocksSize:        512 * opt.KiB,
+			EventsNum:        5000,
+			EventsSize:       6 * opt.MiB,
+			EventsHeadersNum: 5000,
+			BlocksNum:        1000,
+			BlocksSize:       512 * opt.KiB,
 		},
 		EVM:                 evmstore.DefaultStoreConfig(),
 		MaxNonFlushedSize:   16 * opt.MiB,
@@ -200,12 +200,11 @@ func DefaultStoreConfig() StoreConfig {
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:         500,
-			EventsSize:        512 * opt.KiB,
-			EventsHeadersNum:  500,
-			EventsHeadersSize: 512 * opt.KiB,
-			BlocksNum:         100,
-			BlocksSize:        50 * opt.KiB,
+			EventsNum:        500,
+			EventsSize:       512 * opt.KiB,
+			EventsHeadersNum: 500,
+			BlocksNum:        100,
+			BlocksSize:       50 * opt.KiB,
 		},
 		EVM:                 evmstore.LiteStoreConfig(),
 		MaxNonFlushedSize:   400 * opt.KiB,
