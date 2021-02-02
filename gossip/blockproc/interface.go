@@ -2,7 +2,6 @@ package blockproc
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -10,12 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
-
-type BlockCtx struct {
-	Idx    idx.Block
-	Time   inter.Timestamp
-	CBlock lachesis.Block
-}
 
 type TxListener interface {
 	OnNewLog(*types.Log)

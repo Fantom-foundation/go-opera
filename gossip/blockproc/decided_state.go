@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -29,8 +30,15 @@ type ValidatorEpochState struct {
 	PrevEpochEvent hash.Event
 }
 
+type BlockCtx struct {
+	Idx      idx.Block
+	Time     inter.Timestamp
+	Atropos  hash.Event
+	Cheaters lachesis.Cheaters
+}
+
 type BlockState struct {
-	LastBlock          idx.Block
+	LastBlock          BlockCtx
 	FinalizedStateRoot hash.Hash
 	EpochGas           uint64
 

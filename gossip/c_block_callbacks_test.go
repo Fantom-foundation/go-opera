@@ -49,7 +49,7 @@ func TestConsensusCallback(t *testing.T) {
 
 		// some acts to check data race
 		bs := env.store.GetBlockState()
-		require.LessOrEqual(n+2, uint64(bs.LastBlock))
+		require.LessOrEqual(n+2, uint64(bs.LastBlock.Idx))
 	}
 
 	// check balances

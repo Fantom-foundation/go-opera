@@ -34,7 +34,7 @@ func (s *OperaEpochsSealer) EpochSealing() bool {
 	sealEpoch := s.bs.EpochGas >= s.es.Rules.Epochs.MaxEpochGas
 	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= s.es.Rules.Epochs.MaxEpochDuration
 	sealEpoch = sealEpoch || s.bs.AdvanceEpochs > 0
-	return sealEpoch || s.block.CBlock.Cheaters.Len() != 0
+	return sealEpoch || s.block.Cheaters.Len() != 0
 }
 
 func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochState) {
@@ -81,7 +81,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 
 	// add final uptime for validators
 	for i, info := range s.bs.ValidatorStates {
-		if s.bs.LastBlock <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
+		if s.block.Idx <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
 			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastOnlineTime) - info.LastOnlineTime
 		}
 		s.bs.ValidatorStates[i] = info

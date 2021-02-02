@@ -72,8 +72,6 @@ func consensusCallbackBeginBlockFn(
 			log.Crit("Failed to open StateDB", "err", err)
 		}
 
-		bs.LastBlock++
-
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
 		var atropos inter.EventI
@@ -95,19 +93,34 @@ func consensusCallbackBeginBlockFn(
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
-				// Note: it's possible that i'th Atropos observes i+1's Atropos,
-				// hence ApplyEvent may be not called at all
+				// Note: it's possible that i'th Atropos observes i-1's Atropos, or i'th is identical to a previous Atropos
+				// It's true when and only when ApplyEvent wasn't called
+				// We have to skip block in this case to ensure that every block ID is unique
+				skipBlock := false
 				if atropos == nil {
 					atropos = store.GetEvent(cBlock.Atropos)
+					skipBlock = true
 				}
-
+				// Finalize the progress of eventProcessor
 				blockCtx := blockproc.BlockCtx{
-					Idx:    bs.LastBlock,
-					Time:   atropos.MedianTime(),
-					CBlock: *cBlock,
+					Idx:      bs.LastBlock.Idx + 1,
+					Time:     atropos.MedianTime(),
+					Atropos:  cBlock.Atropos,
+					Cheaters: cBlock.Cheaters,
 				}
-
+				if blockCtx.Time < bs.LastBlock.Time {
+					blockCtx.Time = bs.LastBlock.Time + 1
+				}
 				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to not mutate the bs, it is unclear
+				// Check if empty block should be pruned
+				emptyBlock := confirmedEvents.Len() == 0 && cBlock.Cheaters.Len() == 0
+				skipBlock = skipBlock || (emptyBlock && blockCtx.Time < bs.LastBlock.Time+es.Rules.Blocks.MaxEmptyBlockSkipPeriod)
+				if skipBlock {
+					// save the latest block state even if block is skipped
+					store.SetBlockState(bs)
+					log.Debug("Frame is skipped", "atropos", atropos.ID().String())
+					return nil
+				}
 
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
@@ -188,7 +201,7 @@ func consensusCallbackBeginBlockFn(
 					for i, tx := range evmBlock.Transactions {
 						// not skipped txs only
 						position := txPositions[tx.Hash()]
-						position.Block = bs.LastBlock
+						position.Block = blockCtx.Idx
 						position.BlockOffset = uint32(i)
 						txPositions[tx.Hash()] = position
 					}
@@ -219,7 +232,7 @@ func consensusCallbackBeginBlockFn(
 
 						// Index receipts
 						if allReceipts.Len() != 0 {
-							store.evm.SetReceipts(bs.LastBlock, allReceipts)
+							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
 
 							for _, r := range allReceipts {
 								store.evm.IndexLogs(r.Logs...)
@@ -230,7 +243,8 @@ func consensusCallbackBeginBlockFn(
 						store.evm.SetTx(tx.Hash(), tx)
 					}
 
-					store.SetBlock(bs.LastBlock, block)
+					store.SetBlock(blockCtx.Idx, block)
+					bs.LastBlock = blockCtx
 					store.SetBlockState(bs)
 
 					// Notify about new block and txs
@@ -252,7 +266,7 @@ func consensusCallbackBeginBlockFn(
 
 					store.capEVM()
 
-					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
+					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 				}
 				if confirmedEvents.Len() != 0 {
@@ -270,7 +284,7 @@ func consensusCallbackBeginBlockFn(
 					blockFn()
 				}
 
-				return
+				return newValidators
 			},
 		}
 	}

@@ -514,13 +514,12 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 }
 
 func (pm *ProtocolManager) myProgress() PeerProgress {
-	blockI := pm.store.GetLatestBlockIndex()
-	block := pm.store.GetBlock(blockI).Atropos
+	bs := pm.store.GetBlockState()
 	epoch := pm.store.GetEpoch()
 	return PeerProgress{
-		Epoch:       epoch,
-		NumOfBlocks: blockI,
-		LastBlock:   block,
+		Epoch:            epoch,
+		LastBlockIdx:     bs.LastBlock.Idx,
+		LastBlockAtropos: bs.LastBlock.Atropos,
 	}
 }
 
@@ -528,7 +527,7 @@ func (pm *ProtocolManager) highestPeerProgress() PeerProgress {
 	peers := pm.peers.List()
 	max := pm.myProgress()
 	for _, peer := range peers {
-		if max.NumOfBlocks < peer.progress.NumOfBlocks {
+		if max.LastBlockIdx < peer.progress.LastBlockIdx {
 			max = peer.progress
 		}
 	}
@@ -546,7 +545,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 
 	// Execute the handshake
 	var (
-		genesis    = pm.store.GetBlock(0).Atropos
+		genesis    = *pm.store.GetGenesisHash()
 		myProgress = pm.myProgress()
 	)
 	if err := p.Handshake(pm.net.NetworkID, myProgress, common.Hash(genesis)); err != nil {
@@ -1069,7 +1068,7 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	numOfBlocks := pm.store.GetLatestBlockIndex()
 	return &NodeInfo{
 		Network:     pm.net.NetworkID,
-		Genesis:     common.Hash(pm.store.GetBlock(0).Atropos),
+		Genesis:     common.Hash(*pm.store.GetGenesisHash()),
 		Epoch:       pm.store.GetEpoch(),
 		NumOfBlocks: numOfBlocks,
 	}

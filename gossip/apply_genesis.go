@@ -39,7 +39,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 	}
 
 	// write genesis blocks
-	var highestBlock idx.Block
+	var highestBlock blockproc.BlockCtx
 	g.Blocks.ForEach(func(index idx.Block, block genesis.Block) {
 		txHashes := make([]common.Hash, len(block.Txs))
 		internalTxHashes := make([]common.Hash, len(block.InternalTxs))
@@ -73,7 +73,10 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 			Root:        block.Root,
 		})
 		s.SetBlockIndex(block.Atropos, index)
-		highestBlock = index
+		highestBlock.Idx = index
+		highestBlock.Atropos = block.Atropos
+		highestBlock.Time = block.Time
+		highestBlock.Cheaters = lachesis.Cheaters{}
 	})
 
 	s.SetBlockState(blockproc.BlockState{
@@ -111,15 +114,12 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}
 
 	bs, es := s.GetBlockState(), s.GetEpochState()
-	bs.LastBlock++
 
 	blockCtx := blockproc.BlockCtx{
-		Idx:  bs.LastBlock,
-		Time: g.Time,
-		CBlock: lachesis.Block{
-			Atropos:  hash.Event{},
-			Cheaters: make(lachesis.Cheaters, 0),
-		},
+		Idx:      bs.LastBlock.Idx + 1,
+		Time:     g.Time,
+		Atropos:  hash.Event{},
+		Cheaters: make(lachesis.Cheaters, 0),
 	}
 
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
@@ -160,6 +160,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	bs = txListener.Finalize()
 	bs.FinalizedStateRoot = hash.Hash(evmBlock.Root)
 
+	bs.LastBlock = blockCtx
 	s.SetBlockState(bs)
 
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {

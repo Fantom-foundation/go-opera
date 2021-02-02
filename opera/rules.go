@@ -83,7 +83,8 @@ type EconomyRules struct {
 
 // BlocksRules contains blocks constants
 type BlocksRules struct {
-	MaxBlockGas uint64 // technical hard limit, gas is mostly governed by gas power allocation
+	MaxBlockGas             uint64 // technical hard limit, gas is mostly governed by gas power allocation
+	MaxEmptyBlockSkipPeriod inter.Timestamp
 }
 
 // EvmChainConfig returns ChainConfig for transactions signing and execution
@@ -101,7 +102,8 @@ func MainNetRules() Rules {
 		Epochs:    DefaultEpochsRules(),
 		Economy:   DefaultEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas: 20000000,
+			MaxBlockGas:             20000000,
+			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
 		},
 	}
 }
@@ -114,7 +116,8 @@ func TestNetRules() Rules {
 		Epochs:    DefaultEpochsRules(),
 		Economy:   DefaultEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas: 20000000,
+			MaxBlockGas:             20000000,
+			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
 		},
 	}
 }
@@ -127,7 +130,8 @@ func FakeNetRules() Rules {
 		Epochs:    FakeNetEpochsRules(),
 		Economy:   FakeEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas: 20000000,
+			MaxBlockGas:             20000000,
+			MaxEmptyBlockSkipPeriod: inter.Timestamp(3 * time.Second),
 		},
 	}
 }

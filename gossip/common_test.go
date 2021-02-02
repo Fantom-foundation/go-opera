@@ -68,6 +68,7 @@ func newTestEnv() *testEnv {
 	genesis := genStore.GetGenesis()
 
 	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
+	genesis.Rules.Blocks.MaxEmptyBlockSkipPeriod = 0
 
 	store := NewMemStore()
 	blockProc := DefaultBlockProc(genesis)
@@ -136,6 +137,7 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 	env.lastBlockTime = env.lastBlockTime.Add(spent)
 
 	eBuilder := inter.MutableEventPayload{}
+	eBuilder.SetMedianTime(inter.Timestamp(env.lastBlockTime.UnixNano()))
 	eBuilder.SetTxs(txs)
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
