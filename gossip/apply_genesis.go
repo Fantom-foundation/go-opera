@@ -76,13 +76,13 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		highestBlock.Idx = index
 		highestBlock.Atropos = block.Atropos
 		highestBlock.Time = block.Time
-		highestBlock.Cheaters = lachesis.Cheaters{}
 	})
 
 	s.SetBlockState(blockproc.BlockState{
 		LastBlock:             highestBlock,
 		FinalizedStateRoot:    hash.Hash(evmBlock.Root),
 		EpochGas:              0,
+		EpochCheaters:         lachesis.Cheaters{},
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
 		DirtyRules:            g.Rules,
@@ -119,7 +119,6 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		Idx:      bs.LastBlock.Idx + 1,
 		Time:     g.Time,
 		Atropos:  hash.Event{},
-		Cheaters: make(lachesis.Cheaters, 0),
 	}
 
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)

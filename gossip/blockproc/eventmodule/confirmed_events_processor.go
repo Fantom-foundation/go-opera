@@ -35,7 +35,7 @@ func (p *ValidatorEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 }
 
 func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.BlockState {
-	for _, v := range block.Cheaters {
+	for _, v := range p.bs.EpochCheaters {
 		creatorIdx := p.es.Validators.GetIdx(v)
 		p.validatorHighestEvents[creatorIdx] = nil
 	}

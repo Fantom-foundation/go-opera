@@ -66,6 +66,11 @@ func consensusCallbackBeginBlockFn(
 		bs := store.GetBlockState()
 		es := store.GetEpochState()
 
+		// merge cheaters to ensure that every cheater will get punished even if only previous (not current) Atropos observed a doublesign
+		// this feature is needed because blocks may be skipped even if cheaters list isn't empty
+		// otherwise cheaters would get punished after a first block where cheaters are observed
+		bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, cBlock.Cheaters)
+
 		// Get stateDB
 		statedb, err := store.evm.StateDB(bs.FinalizedStateRoot)
 		if err != nil {
@@ -103,10 +108,9 @@ func consensusCallbackBeginBlockFn(
 				}
 				// Finalize the progress of eventProcessor
 				blockCtx := blockproc.BlockCtx{
-					Idx:      bs.LastBlock.Idx + 1,
-					Time:     atropos.MedianTime(),
-					Atropos:  cBlock.Atropos,
-					Cheaters: cBlock.Cheaters,
+					Idx:     bs.LastBlock.Idx + 1,
+					Time:    atropos.MedianTime(),
+					Atropos: cBlock.Atropos,
 				}
 				if blockCtx.Time < bs.LastBlock.Time {
 					blockCtx.Time = bs.LastBlock.Time + 1
@@ -318,4 +322,24 @@ func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*i
 		}
 	}
 	return block, fullEvents
+}
+
+func mergeCheaters(a, b lachesis.Cheaters) lachesis.Cheaters {
+	if len(b) == 0 {
+		return a
+	}
+	if len(a) == 0 {
+		return b
+	}
+	aSet := a.Set()
+	merged := make(lachesis.Cheaters, 0, len(b)+len(a))
+	for _, v := range a {
+		merged = append(merged, v)
+	}
+	for _, v := range b {
+		if _, ok := aSet[v]; !ok {
+			merged = append(merged, v)
+		}
+	}
+	return merged
 }

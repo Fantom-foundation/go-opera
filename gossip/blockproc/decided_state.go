@@ -31,16 +31,17 @@ type ValidatorEpochState struct {
 }
 
 type BlockCtx struct {
-	Idx      idx.Block
-	Time     inter.Timestamp
-	Atropos  hash.Event
-	Cheaters lachesis.Cheaters
+	Idx     idx.Block
+	Time    inter.Timestamp
+	Atropos hash.Event
 }
 
 type BlockState struct {
 	LastBlock          BlockCtx
 	FinalizedStateRoot hash.Hash
-	EpochGas           uint64
+
+	EpochGas      uint64
+	EpochCheaters lachesis.Cheaters
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
