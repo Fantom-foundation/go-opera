@@ -89,8 +89,8 @@ func (s *Store) Commit(root hash.Hash) error {
 func (s *Store) Cap(max, min int) {
 	maxSize := common.StorageSize(max)
 	minSize := common.StorageSize(min)
-	size, _ := s.table.EvmState.TrieDB().Size()
-	if size >= maxSize {
+	size, preimagesSize := s.table.EvmState.TrieDB().Size()
+	if size >= maxSize || preimagesSize >= maxSize {
 		_ = s.table.EvmState.TrieDB().Cap(minSize)
 	}
 }
