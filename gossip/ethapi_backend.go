@@ -380,15 +380,15 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	p2pProgress := b.svc.pm.myProgress()
 	highestP2pProgress := b.svc.pm.highestPeerProgress()
 	b.svc.engineMu.RLock()
-	lastBlock := b.svc.store.GetBlock(p2pProgress.NumOfBlocks)
+	lastBlock := b.svc.store.GetBlock(p2pProgress.LastBlockIdx)
 	b.svc.engineMu.RUnlock()
 
 	return ethapi.PeerProgress{
 		CurrentEpoch:     p2pProgress.Epoch,
-		CurrentBlock:     p2pProgress.NumOfBlocks,
-		CurrentBlockHash: p2pProgress.LastBlock,
+		CurrentBlock:     p2pProgress.LastBlockIdx,
+		CurrentBlockHash: p2pProgress.LastBlockAtropos,
 		CurrentBlockTime: lastBlock.Time,
-		HighestBlock:     highestP2pProgress.NumOfBlocks,
+		HighestBlock:     highestP2pProgress.LastBlockIdx,
 		HighestEpoch:     highestP2pProgress.Epoch,
 	}
 }

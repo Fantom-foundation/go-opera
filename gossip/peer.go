@@ -97,7 +97,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	if a.Epoch != b.Epoch {
 		return a.Epoch < b.Epoch
 	}
-	return a.NumOfBlocks < b.NumOfBlocks
+	return a.LastBlockIdx < b.LastBlockIdx
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -147,7 +147,7 @@ func (p *peer) Info() *PeerInfo {
 	return &PeerInfo{
 		Version:     p.version,
 		Epoch:       p.progress.Epoch,
-		NumOfBlocks: p.progress.NumOfBlocks,
+		NumOfBlocks: p.progress.LastBlockIdx,
 	}
 }
 

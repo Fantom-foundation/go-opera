@@ -324,8 +324,7 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
-	var genesis hash.Event
-	genesis = s.store.GetBlock(0).Atropos
+	genesis := *s.store.GetGenesisHash()
 	s.Topic = discv5.Topic("opera@" + genesis.Hex())
 
 	if s.p2pServer.DiscV5 != nil {

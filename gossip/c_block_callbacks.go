@@ -66,24 +66,29 @@ func consensusCallbackBeginBlockFn(
 		bs := store.GetBlockState()
 		es := store.GetEpochState()
 
+		// merge cheaters to ensure that every cheater will get punished even if only previous (not current) Atropos observed a doublesign
+		// this feature is needed because blocks may be skipped even if cheaters list isn't empty
+		// otherwise cheaters would get punished after a first block where cheaters were observed
+		bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, cBlock.Cheaters)
+
 		// Get stateDB
 		statedb, err := store.evm.StateDB(bs.FinalizedStateRoot)
 		if err != nil {
 			log.Crit("Failed to open StateDB", "err", err)
 		}
 
-		bs.LastBlock++
-
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
-		var atropos inter.EventI
+		atroposTime := bs.LastBlock.Time + 1
+		atroposDegenerate := true
 		confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
 				e := _e.(inter.EventI)
 				if cBlock.Atropos == e.ID() {
-					atropos = e
+					atroposTime = e.MedianTime()
+					atroposDegenerate = false
 				}
 				if !e.NoTxs() {
 					// non-empty events only
@@ -95,19 +100,34 @@ func consensusCallbackBeginBlockFn(
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
-				// Note: it's possible that i'th Atropos observes i+1's Atropos,
-				// hence ApplyEvent may be not called at all
-				if atropos == nil {
-					atropos = store.GetEvent(cBlock.Atropos)
+				if atroposTime <= bs.LastBlock.Time {
+					atroposTime = bs.LastBlock.Time + 1
 				}
-
 				blockCtx := blockproc.BlockCtx{
-					Idx:    bs.LastBlock,
-					Time:   atropos.MedianTime(),
-					CBlock: *cBlock,
+					Idx:     bs.LastBlock.Idx + 1,
+					Time:    atroposTime,
+					Atropos: cBlock.Atropos,
 				}
-
-				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to not mutate the bs, it is unclear
+				// Note:
+				// it's possible that a previous Atropos observes current Atropos (1)
+				// (even stronger statement is true - it's possible that current Atropos is equal to a previous Atropos).
+				// (1) is true when and only when ApplyEvent wasn't called.
+				// In other words, we should assume that every non-cheater root may be elected as an Atropos in any order,
+				// even if typically every previous Atropos happened-before current Atropos
+				// We have to skip block in case (1) to ensure that every block ID is unique.
+				// If Atropos ID wasn't used as a block ID, it wouldn't be required.
+				skipBlock := atroposDegenerate
+				// Check if empty block should be pruned
+				emptyBlock := confirmedEvents.Len() == 0 && cBlock.Cheaters.Len() == 0
+				skipBlock = skipBlock || (emptyBlock && blockCtx.Time < bs.LastBlock.Time+es.Rules.Blocks.MaxEmptyBlockSkipPeriod)
+				// Finalize the progress of eventProcessor
+				bs = eventProcessor.Finalize(blockCtx, skipBlock) // TODO: refactor to not mutate the bs, it is unclear
+				if skipBlock {
+					// save the latest block state even if block is skipped
+					store.SetBlockState(bs)
+					log.Debug("Frame is skipped", "atropos", cBlock.Atropos.String())
+					return nil
+				}
 
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
@@ -188,7 +208,7 @@ func consensusCallbackBeginBlockFn(
 					for i, tx := range evmBlock.Transactions {
 						// not skipped txs only
 						position := txPositions[tx.Hash()]
-						position.Block = bs.LastBlock
+						position.Block = blockCtx.Idx
 						position.BlockOffset = uint32(i)
 						txPositions[tx.Hash()] = position
 					}
@@ -219,7 +239,7 @@ func consensusCallbackBeginBlockFn(
 
 						// Index receipts
 						if allReceipts.Len() != 0 {
-							store.evm.SetReceipts(bs.LastBlock, allReceipts)
+							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
 
 							for _, r := range allReceipts {
 								store.evm.IndexLogs(r.Logs...)
@@ -230,7 +250,8 @@ func consensusCallbackBeginBlockFn(
 						store.evm.SetTx(tx.Hash(), tx)
 					}
 
-					store.SetBlock(bs.LastBlock, block)
+					store.SetBlock(blockCtx.Idx, block)
+					bs.LastBlock = blockCtx
 					store.SetBlockState(bs)
 
 					// Notify about new block and txs
@@ -252,7 +273,7 @@ func consensusCallbackBeginBlockFn(
 
 					store.capEVM()
 
-					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
+					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 				}
 				if confirmedEvents.Len() != 0 {
@@ -270,7 +291,7 @@ func consensusCallbackBeginBlockFn(
 					blockFn()
 				}
 
-				return
+				return newValidators
 			},
 		}
 	}
@@ -304,4 +325,24 @@ func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*i
 		}
 	}
 	return block, fullEvents
+}
+
+func mergeCheaters(a, b lachesis.Cheaters) lachesis.Cheaters {
+	if len(b) == 0 {
+		return a
+	}
+	if len(a) == 0 {
+		return b
+	}
+	aSet := a.Set()
+	merged := make(lachesis.Cheaters, 0, len(b)+len(a))
+	for _, v := range a {
+		merged = append(merged, v)
+	}
+	for _, v := range b {
+		if _, ok := aSet[v]; !ok {
+			merged = append(merged, v)
+		}
+	}
+	return merged
 }

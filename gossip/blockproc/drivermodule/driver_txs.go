@@ -120,7 +120,7 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 	internalTxs := make(types.Transactions, 0, 8)
 
 	// write cheaters
-	for _, validatorID := range block.CBlock.Cheaters {
+	for _, validatorID := range bs.EpochCheaters {
 		valIdx := es.Validators.GetIdx(validatorID)
 		if bs.ValidatorStates[valIdx].Cheater {
 			continue

@@ -34,8 +34,8 @@ func (p *ValidatorEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 	p.bs.EpochGas += e.GasPowerUsed()
 }
 
-func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.BlockState {
-	for _, v := range block.CBlock.Cheaters {
+func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx, _ bool) blockproc.BlockState {
+	for _, v := range p.bs.EpochCheaters {
 		creatorIdx := p.es.Validators.GetIdx(v)
 		p.validatorHighestEvents[creatorIdx] = nil
 	}
@@ -51,7 +51,7 @@ func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx) blockproc.
 		}
 		info.LastGasPowerLeft = e.GasPowerLeft()
 		info.LastOnlineTime = e.MedianTime()
-		info.LastBlock = p.bs.LastBlock
+		info.LastBlock = block.Idx
 		info.LastEvent = e.ID()
 		p.bs.ValidatorStates[creatorIdx] = info
 	}

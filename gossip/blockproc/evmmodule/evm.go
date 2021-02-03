@@ -59,7 +59,7 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 	return &evmcore.EvmBlock{
 		EvmHeader: evmcore.EvmHeader{
 			Number:     p.blockIdx,
-			Hash:       common.Hash(p.block.CBlock.Atropos),
+			Hash:       common.Hash(p.block.Atropos),
 			ParentHash: p.prevBlockHash,
 			Root:       common.Hash{},
 			TxHash:     common.Hash{},

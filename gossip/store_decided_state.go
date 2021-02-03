@@ -77,7 +77,7 @@ func (s *Store) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 
 // GetEpoch retrieves the current block number
 func (s *Store) GetLatestBlockIndex() idx.Block {
-	return s.GetBlockState().LastBlock
+	return s.GetBlockState().LastBlock.Idx
 }
 
 // GetRules retrieves current network rules

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -34,7 +35,7 @@ func (s *OperaEpochsSealer) EpochSealing() bool {
 	sealEpoch := s.bs.EpochGas >= s.es.Rules.Epochs.MaxEpochGas
 	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= s.es.Rules.Epochs.MaxEpochDuration
 	sealEpoch = sealEpoch || s.bs.AdvanceEpochs > 0
-	return sealEpoch || s.block.CBlock.Cheaters.Len() != 0
+	return sealEpoch || s.bs.EpochCheaters.Len() != 0
 }
 
 func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochState) {
@@ -81,7 +82,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 
 	// add final uptime for validators
 	for i, info := range s.bs.ValidatorStates {
-		if s.bs.LastBlock <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
+		if s.block.Idx <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
 			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastOnlineTime) - info.LastOnlineTime
 		}
 		s.bs.ValidatorStates[i] = info
@@ -94,6 +95,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.es.EpochStateRoot = s.bs.FinalizedStateRoot
 
 	s.bs.EpochGas = 0
+	s.bs.EpochCheaters = lachesis.Cheaters{}
 	newEpoch := s.es.Epoch + 1
 	s.es.Epoch = newEpoch
 
