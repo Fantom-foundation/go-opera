@@ -116,9 +116,9 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	bs, es := s.GetBlockState(), s.GetEpochState()
 
 	blockCtx := blockproc.BlockCtx{
-		Idx:      bs.LastBlock.Idx + 1,
-		Time:     g.Time,
-		Atropos:  hash.Event{},
+		Idx:     bs.LastBlock.Idx + 1,
+		Time:    g.Time,
+		Atropos: hash.Event{},
 	}
 
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)

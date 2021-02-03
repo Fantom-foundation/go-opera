@@ -68,7 +68,7 @@ func consensusCallbackBeginBlockFn(
 
 		// merge cheaters to ensure that every cheater will get punished even if only previous (not current) Atropos observed a doublesign
 		// this feature is needed because blocks may be skipped even if cheaters list isn't empty
-		// otherwise cheaters would get punished after a first block where cheaters are observed
+		// otherwise cheaters would get punished after a first block where cheaters were observed
 		bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, cBlock.Cheaters)
 
 		// Get stateDB
@@ -79,14 +79,16 @@ func consensusCallbackBeginBlockFn(
 
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
-		var atropos inter.EventI
+		atroposTime := bs.LastBlock.Time + 1
+		atroposDegenerate := true
 		confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
 				e := _e.(inter.EventI)
 				if cBlock.Atropos == e.ID() {
-					atropos = e
+					atroposTime = e.MedianTime()
+					atroposDegenerate = false
 				}
 				if !e.NoTxs() {
 					// non-empty events only
@@ -98,31 +100,32 @@ func consensusCallbackBeginBlockFn(
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
-				// Note: it's possible that i'th Atropos observes i-1's Atropos, or i'th is identical to a previous Atropos
-				// It's true when and only when ApplyEvent wasn't called
-				// We have to skip block in this case to ensure that every block ID is unique
-				skipBlock := false
-				if atropos == nil {
-					atropos = store.GetEvent(cBlock.Atropos)
-					skipBlock = true
+				if atroposTime <= bs.LastBlock.Time {
+					atroposTime = bs.LastBlock.Time + 1
 				}
-				// Finalize the progress of eventProcessor
 				blockCtx := blockproc.BlockCtx{
 					Idx:     bs.LastBlock.Idx + 1,
-					Time:    atropos.MedianTime(),
+					Time:    atroposTime,
 					Atropos: cBlock.Atropos,
 				}
-				if blockCtx.Time < bs.LastBlock.Time {
-					blockCtx.Time = bs.LastBlock.Time + 1
-				}
-				bs = eventProcessor.Finalize(blockCtx) // TODO: refactor to not mutate the bs, it is unclear
+				// Note:
+				// it's possible that a previous Atropos observes current Atropos (1)
+				// (even stronger statement is true - it's possible that current Atropos is equal to a previous Atropos).
+				// (1) is true when and only when ApplyEvent wasn't called.
+				// In other words, we should assume that every non-cheater root may be elected as an Atropos in any order,
+				// even if typically every previous Atropos happened-before current Atropos
+				// We have to skip block in case (1) to ensure that every block ID is unique.
+				// If Atropos ID wasn't used as a block ID, it wouldn't be required.
+				skipBlock := atroposDegenerate
 				// Check if empty block should be pruned
 				emptyBlock := confirmedEvents.Len() == 0 && cBlock.Cheaters.Len() == 0
 				skipBlock = skipBlock || (emptyBlock && blockCtx.Time < bs.LastBlock.Time+es.Rules.Blocks.MaxEmptyBlockSkipPeriod)
+				// Finalize the progress of eventProcessor
+				bs = eventProcessor.Finalize(blockCtx, skipBlock) // TODO: refactor to not mutate the bs, it is unclear
 				if skipBlock {
 					// save the latest block state even if block is skipped
 					store.SetBlockState(bs)
-					log.Debug("Frame is skipped", "atropos", atropos.ID().String())
+					log.Debug("Frame is skipped", "atropos", cBlock.Atropos.String())
 					return nil
 				}
 

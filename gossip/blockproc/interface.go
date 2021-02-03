@@ -37,7 +37,7 @@ type SealerModule interface {
 
 type ConfirmedEventsProcessor interface {
 	ProcessConfirmedEvent(inter.EventI)
-	Finalize(block BlockCtx) BlockState
+	Finalize(block BlockCtx, blockSkipped bool) BlockState
 }
 
 type ConfirmedEventsModule interface {
