@@ -21,6 +21,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver/drivercall"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver/driverpos"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
 	netinitcall "github.com/Fantom-foundation/go-opera/opera/genesis/netinit/netinitcalls"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
@@ -90,7 +91,7 @@ func (p *DriverTxGenesisTransactor) PopInternalTxs(_ blockproc.BlockCtx, _ block
 	buildTx := internalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 15)
 	// initialization
-	calldata := netinitcall.InitializeAll(es.Epoch-1, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, p.g.DriverOwner)
+	calldata := netinitcall.InitializeAll(es.Epoch-1, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, evmwriter.ContractAddress, p.g.DriverOwner)
 	internalTxs = append(internalTxs, buildTx(calldata, netinit.ContractAddress))
 	// push genesis validators
 	for _, v := range p.g.Validators {
@@ -237,66 +238,6 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 		}
 		profile.PubKey, _ = validatorpk.FromBytes(pubkey)
 		p.bs.NextValidatorProfiles[validatorID] = profile
-	}
-	// Add balance
-	if l.Topics[0] == driverpos.Topics.IncBalance && len(l.Topics) > 1 && len(l.Data) >= 32 {
-		acc := common.BytesToAddress(l.Topics[1][12:])
-		value := new(big.Int).SetBytes(l.Data[0:32])
-
-		p.statedb.AddBalance(acc, value)
-	}
-	// Set balance
-	if l.Topics[0] == driverpos.Topics.SetBalance && len(l.Topics) > 1 && len(l.Data) >= 32 {
-		acc := common.BytesToAddress(l.Topics[1][12:])
-		value := new(big.Int).SetBytes(l.Data[0:32])
-
-		p.statedb.SetBalance(acc, value)
-	}
-	// Subtract balance
-	if l.Topics[0] == driverpos.Topics.SubBalance && len(l.Topics) > 1 && len(l.Data) >= 32 {
-		acc := common.BytesToAddress(l.Topics[1][12:])
-		value := new(big.Int).SetBytes(l.Data[0:32])
-
-		if p.statedb.GetBalance(acc).Cmp(value) <= 0 {
-			p.statedb.SetBalance(acc, new(big.Int))
-		} else {
-			p.statedb.SubBalance(acc, value)
-		}
-	}
-	// Set code
-	if l.Topics[0] == driverpos.Topics.SetCode && len(l.Topics) > 2 {
-		acc := common.BytesToAddress(l.Topics[1][12:])
-		from := common.BytesToAddress(l.Topics[2][12:])
-
-		code := p.statedb.GetCode(from)
-		if code == nil {
-			code = []byte{}
-		}
-		p.statedb.SetCode(acc, code)
-	}
-	// Swap code
-	if l.Topics[0] == driverpos.Topics.SwapCode && len(l.Topics) > 2 {
-		acc0 := common.BytesToAddress(l.Topics[1][12:])
-		acc1 := common.BytesToAddress(l.Topics[2][12:])
-
-		code0 := p.statedb.GetCode(acc0)
-		if code0 == nil {
-			code0 = []byte{}
-		}
-		code1 := p.statedb.GetCode(acc1)
-		if code1 == nil {
-			code1 = []byte{}
-		}
-		p.statedb.SetCode(acc0, code1)
-		p.statedb.SetCode(acc1, code0)
-	}
-	// Set storage
-	if l.Topics[0] == driverpos.Topics.SetStorage && len(l.Topics) > 1 && len(l.Data) >= 64 {
-		acc := common.BytesToAddress(l.Topics[1][12:])
-		key := common.BytesToHash(l.Data[0:32])
-		value := common.BytesToHash(l.Data[32:64])
-
-		p.statedb.SetState(acc, key, value)
 	}
 	// Update rules
 	if l.Topics[0] == driverpos.Topics.UpdateNetworkRules && len(l.Data) >= 64 {

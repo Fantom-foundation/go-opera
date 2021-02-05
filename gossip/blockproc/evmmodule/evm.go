@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -78,7 +77,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
-	receipts, _, gasUsed, skipped, err := evmProcessor.Process(evmBlock, p.statedb, vm.Config{}, internal, func(log *types.Log, _ *state.StateDB) {
+	receipts, _, gasUsed, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVmConfig, internal, func(log *types.Log, _ *state.StateDB) {
 		p.onNewLog(log)
 	})
 	if err != nil {
