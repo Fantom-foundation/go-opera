@@ -1,8 +1,6 @@
 package validatorpk
 
 import (
-	"encoding/hex"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 )
@@ -35,11 +33,7 @@ func (pk *PubKey) Bytes() []byte {
 }
 
 func FromString(str string) (PubKey, error) {
-	b, err := hex.DecodeString(str)
-	if err != nil {
-		return PubKey{}, err
-	}
-	return FromBytes(b)
+	return FromBytes(common.FromHex(str))
 }
 
 func FromBytes(b []byte) (PubKey, error) {
