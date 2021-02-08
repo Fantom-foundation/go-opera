@@ -18,6 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
@@ -108,6 +109,12 @@ func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 	// pre deploy SFC
 	genStore.SetEvmAccount(sfc.ContractAddress, genesis.Account{
 		Code:    sfc.GetContractBin(),
+		Balance: new(big.Int),
+		Nonce:   0,
+	})
+	// set non-zero code for pre-compiled contracts
+	genStore.SetEvmAccount(evmwriter.ContractAddress, genesis.Account{
+		Code:    []byte{0},
 		Balance: new(big.Int),
 		Nonce:   0,
 	})

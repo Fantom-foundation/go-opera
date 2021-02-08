@@ -47,6 +47,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 const (
@@ -932,7 +933,7 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNr r
 	if overrides != nil {
 		accounts = *overrides
 	}
-	result, err := DoCall(ctx, s.b, args, blockNr, accounts, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
+	result, err := DoCall(ctx, s.b, args, blockNr, accounts, opera.DefaultVmConfig, 5*time.Second, s.b.RPCGasCap())
 	if err != nil {
 		return nil, err
 	}
@@ -999,7 +1000,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	executable := func(gas uint64) (bool, *evmcore.ExecutionResult, error) {
 		args.Gas = (*hexutil.Uint64)(&gas)
 
-		result, err := DoCall(ctx, b, args, blockNr, nil, vm.Config{}, 0, gasCap)
+		result, err := DoCall(ctx, b, args, blockNr, nil, opera.DefaultVmConfig, 0, gasCap)
 		if err != nil {
 			if errors.Is(err, evmcore.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit
