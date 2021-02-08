@@ -174,7 +174,7 @@ func DefaultDagRules() DagRules {
 
 func DefaultEpochsRules() EpochsRules {
 	return EpochsRules{
-		MaxEpochGas:      420000000,
+		MaxEpochGas:      1500000000,
 		MaxEpochDuration: inter.Timestamp(4 * time.Hour),
 	}
 }
