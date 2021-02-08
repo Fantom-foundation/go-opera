@@ -109,6 +109,7 @@ func init() {
 		utils.GpoMaxGasPriceFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
+		utils.LightKDFFlag,
 		configFileFlag,
 		validatorIDFlag,
 		validatorPubkeyFlag,
