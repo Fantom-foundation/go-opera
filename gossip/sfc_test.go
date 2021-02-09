@@ -25,11 +25,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfcproxy"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
-	"github.com/Fantom-foundation/go-opera/utils"
-
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 func TestSFC(t *testing.T) {
@@ -79,6 +79,16 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis Driver contract")
 
 			// TODO: compare with hexutil.MustDecode( .ContractBinRuntime) also
+		}) &&
+
+		t.Run("Network initializer", func(t *testing.T) {
+			require := require.New(t)
+
+			exp := netinit.GetContractBin()
+			got, err := env.CodeAt(nil, netinit.ContractAddress, nil)
+			require.NoError(err)
+			require.NotEmpty(exp, "genesis NetworkInitializer contract")
+			require.Empty(got, "genesis NetworkInitializer should be destructed")
 		}) &&
 
 		t.Run("Some transfers I", func(t *testing.T) {
