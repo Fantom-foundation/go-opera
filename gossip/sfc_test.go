@@ -27,6 +27,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/utils"
+
+	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
 )
 
 func TestSFC(t *testing.T) {
@@ -45,7 +48,7 @@ func TestSFC(t *testing.T) {
 
 	_ = true &&
 
-		t.Run("Genesis", func(t *testing.T) {
+		t.Run("Genesis SFC", func(t *testing.T) {
 			require := require.New(t)
 
 			exp := sfc.GetContractBin()
@@ -54,6 +57,28 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis SFC contract")
 
 			// TODO: compare with hexutil.MustDecode(sfc100.ContractBinRuntime) also
+		}) &&
+
+		t.Run("Genesis DriverAuth", func(t *testing.T) {
+			require := require.New(t)
+
+			exp := driverauth.GetContractBin()
+			got, err := env.CodeAt(nil, driverauth.ContractAddress, nil)
+			require.NoError(err)
+			require.Equal(exp, got, "genesis DriverAuth contract")
+
+			// TODO: compare with hexutil.MustDecode( .ContractBinRuntime) also
+		}) &&
+
+		t.Run("Genesis Driver", func(t *testing.T) {
+			require := require.New(t)
+
+			exp := driver.GetContractBin()
+			got, err := env.CodeAt(nil, driver.ContractAddress, nil)
+			require.NoError(err)
+			require.Equal(exp, got, "genesis Driver contract")
+
+			// TODO: compare with hexutil.MustDecode( .ContractBinRuntime) also
 		}) &&
 
 		t.Run("Some transfers I", func(t *testing.T) {
