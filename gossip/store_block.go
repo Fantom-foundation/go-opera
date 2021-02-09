@@ -57,7 +57,7 @@ func (s *Store) SetBlockIndex(id hash.Event, n idx.Block) {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 
-	s.cache.BlockHashes.Add(id, n, 1)
+	s.cache.BlockHashes.Add(id, n, nominalSize)
 }
 
 // GetBlockIndex returns stored block index.
@@ -79,7 +79,7 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 	}
 	n := idx.BytesToBlock(buf)
 
-	s.cache.BlockHashes.Add(id, n, 1)
+	s.cache.BlockHashes.Add(id, n, nominalSize)
 
 	return &n
 }

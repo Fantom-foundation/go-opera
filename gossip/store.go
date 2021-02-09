@@ -108,7 +108,10 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 func (s *Store) initCache() {
 	s.cache.Events = s.makeCache(s.cfg.Cache.EventsSize, s.cfg.Cache.EventsNum)
 	s.cache.Blocks = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
-	s.cache.BlockHashes = s.makeCache(s.cfg.Cache.BlocksSize, s.cfg.Cache.BlocksNum)
+
+	blockHashesNum := s.cfg.Cache.BlocksNum
+	blockHashesCacheSize := nominalSize * uint(blockHashesNum)
+	s.cache.BlockHashes = s.makeCache(blockHashesCacheSize, blockHashesNum)
 
 	eventsHeadersCacheSize := nominalSize * uint(s.cfg.Cache.EventsHeadersNum)
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, s.cfg.Cache.EventsHeadersNum)
