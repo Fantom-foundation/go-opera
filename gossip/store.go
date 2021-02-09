@@ -113,8 +113,9 @@ func (s *Store) initCache() {
 	blockHashesCacheSize := nominalSize * uint(blockHashesNum)
 	s.cache.BlockHashes = s.makeCache(blockHashesCacheSize, blockHashesNum)
 
-	eventsHeadersCacheSize := nominalSize * uint(s.cfg.Cache.EventsHeadersNum)
-	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, s.cfg.Cache.EventsHeadersNum)
+	eventsHeadersNum := s.cfg.Cache.EventsNum
+	eventsHeadersCacheSize := nominalSize * uint(eventsHeadersNum)
+	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
 }
 
 // Close leaves underlying database.
