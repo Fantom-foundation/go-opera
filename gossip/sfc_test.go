@@ -3,11 +3,11 @@ package gossip
 // SFC contracts
 // NOTE: assumed that opera-sfc repo is in the same dir than go-opera repo
 // sfc proxy
-//go:generate bash -c "cd ../../opera-sfc && git checkout main && docker run --rm -v $(pwd):/src -v $(pwd)/../go-opera/gossip/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src/contracts --overwrite /src/contracts/sfc/Migrations.sol"
+//go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd):/src -v $(pwd)/../go-opera/gossip/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src/contracts --overwrite /src/contracts/sfc/Migrations.sol"
 //go:generate mkdir -p ./contract/sfcproxy
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/Migrations.bin --abi=./contract/solc/Migrations.abi --pkg=sfcproxy --type=Contract --out=contract/sfcproxy/contract.go
 // main (genesis)
-//go:generate bash -c "cd ../../opera-sfc && git checkout main && docker run --rm -v $(pwd)/../go-opera/gossip/contract/solc:/src/build/contracts -v $(pwd):/src -w /src node:10.23.0 bash -c 'NPM_CONFIG_PREFIX=~ npm install'"
+//go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd)/../go-opera/gossip/contract/solc:/src/build/contracts -v $(pwd):/src -w /src node:10.23.0 bash -c 'NPM_CONFIG_PREFIX=~ npm install'"
 //go:generate bash -c "docker run --rm -v $(pwd)/../../opera-sfc:/src -v $(pwd)/contract:/dst ethereum/solc:0.5.12 @openzeppelin/contracts/math=/src/node_modules/@openzeppelin/contracts/math --optimize --optimize-runs=2000 --bin --abi --allow-paths /src --overwrite -o /dst/solc/ /src/contracts/sfc/SFC.sol"
 //go:generate mkdir -p ./contract/sfc100
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/SFC.bin --abi=./contract/solc/SFC.abi --pkg=sfc100 --type=Contract --out=contract/sfc100/contract.go
