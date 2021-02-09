@@ -45,46 +45,42 @@ func TestSFC(t *testing.T) {
 
 	_ = true &&
 
-		t.Run("Genesis v1.0.0", func(t *testing.T) {
+		t.Run("Genesis", func(t *testing.T) {
 			require := require.New(t)
 
-			rr := env.ApplyBlock(nextEpoch,
-				env.Contract(1, utils.ToFtm(0), sfc100.ContractBin),
-			)
-			testingCode, err := env.CodeAt(nil, rr[0].ContractAddress, nil)
+			exp := sfc.GetContractBin()
+			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
 			require.NoError(err)
+			require.Equal(exp, got, "genesis SFC contract")
 
-			genesisCode, err := env.CodeAt(nil, sfc.ContractAddress, nil)
-			require.NoError(err)
-			require.Equal(genesisCode, testingCode, "01")
-
-			genesisCode = sfc.GetContractBin()
-			require.Equal(genesisCode, testingCode, "02")
-
-			testingCode = hexutil.MustDecode(sfc100.ContractBinRuntime)
-			require.Equal(genesisCode, testingCode, "03")
-
+			// TODO: compare with hexutil.MustDecode(sfc100.ContractBinRuntime) also
 		}) &&
 
 		t.Run("Some transfers I", func(t *testing.T) {
 			cicleTransfers(t, env, 1)
 		}) &&
 
-		t.Run("Upgrade to v1.0.0", func(t *testing.T) {
+		// TODO: up to v1.0.0
+		t.Run("Upgrade to develop", func(t *testing.T) {
 			require := require.New(t)
+			admin := 1
 
 			rr := env.ApplyBlock(nextEpoch,
-				env.Contract(1, utils.ToFtm(0), sfc100.ContractBin),
+				env.Contract(admin, utils.ToFtm(0), sfc100.ContractBin),
 			)
 			newImpl := rr[0].ContractAddress
 
-			admin := env.Payer(1)
-			tx, err := sfcProxy.ContractTransactor.Upgrade(admin, newImpl)
+			tx, err := sfcProxy.ContractTransactor.Upgrade(env.Payer(admin), newImpl)
 			require.NoError(err)
 			env.ApplyBlock(sameEpoch, tx)
 
 			sfc10, err = sfc100.NewContract(sfc.ContractAddress, env)
 			require.NoError(err)
+
+			exp := hexutil.MustDecode(sfc100.ContractBinRuntime)
+			got, err := env.CodeAt(nil, newImpl, nil)
+			require.NoError(err)
+			require.Equal(exp, got, "new SFC contract")
 
 			epoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
 			require.NoError(err)
