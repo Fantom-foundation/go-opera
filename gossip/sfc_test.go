@@ -3,20 +3,22 @@ package gossip
 // SFC contracts
 // NOTE: assumed that opera-sfc repo is in the same dir than go-opera repo
 // sfc proxy
-//go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd):/src -v $(pwd)/../go-opera/gossip/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src/contracts --overwrite /src/contracts/sfc/Migrations.sol"
+//go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd):/src -v $(pwd)/../go-opera/gossip/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin-runtime --abi --allow-paths /src/contracts --overwrite /src/contracts/sfc/Migrations.sol"
 //go:generate mkdir -p ./contract/sfcproxy
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/Migrations.bin --abi=./contract/solc/Migrations.abi --pkg=sfcproxy --type=Contract --out=contract/sfcproxy/contract.go
 // main (genesis)
 //go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd)/../go-opera/gossip/contract/solc:/src/build/contracts -v $(pwd):/src -w /src node:10.23.0 bash -c 'NPM_CONFIG_PREFIX=~ npm install'"
-//go:generate bash -c "docker run --rm -v $(pwd)/../../opera-sfc:/src -v $(pwd)/contract:/dst ethereum/solc:0.5.12 @openzeppelin/contracts/math=/src/node_modules/@openzeppelin/contracts/math --optimize --optimize-runs=2000 --bin --abi --allow-paths /src --overwrite -o /dst/solc/ /src/contracts/sfc/SFC.sol"
+//go:generate bash -c "docker run --rm -v $(pwd)/../../opera-sfc:/src -v $(pwd)/contract:/dst ethereum/solc:0.5.12 @openzeppelin/contracts/math=/src/node_modules/@openzeppelin/contracts/math --optimize --optimize-runs=2000 --bin-runtime --abi --allow-paths /src --overwrite -o /dst/solc/ /src/contracts/sfc/SFC.sol"
 //go:generate mkdir -p ./contract/sfc100
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/SFC.bin --abi=./contract/solc/SFC.abi --pkg=sfc100 --type=Contract --out=contract/sfc100/contract.go
+//go:generate bash -c "(echo -ne '\nvar ContractBinRuntime = \"0x'; cat contract/solc/SFC.bin-runtime; echo '\"') >> contract/sfc100/contract.go"
 
 import (
 	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +46,24 @@ func TestSFC(t *testing.T) {
 	_ = true &&
 
 		t.Run("Genesis v1.0.0", func(t *testing.T) {
-			// nothing to do
+			require := require.New(t)
+
+			rr := env.ApplyBlock(nextEpoch,
+				env.Contract(1, utils.ToFtm(0), sfc100.ContractBin),
+			)
+			testingCode, err := env.CodeAt(nil, rr[0].ContractAddress, nil)
+			require.NoError(err)
+
+			genesisCode, err := env.CodeAt(nil, sfc.ContractAddress, nil)
+			require.NoError(err)
+			require.Equal(genesisCode, testingCode, "01")
+
+			genesisCode = sfc.GetContractBin()
+			require.Equal(genesisCode, testingCode, "02")
+
+			testingCode = hexutil.MustDecode(sfc100.ContractBinRuntime)
+			require.Equal(genesisCode, testingCode, "03")
+
 		}) &&
 
 		t.Run("Some transfers I", func(t *testing.T) {
@@ -54,10 +73,10 @@ func TestSFC(t *testing.T) {
 		t.Run("Upgrade to v1.0.0", func(t *testing.T) {
 			require := require.New(t)
 
-			r := env.ApplyBlock(nextEpoch,
+			rr := env.ApplyBlock(nextEpoch,
 				env.Contract(1, utils.ToFtm(0), sfc100.ContractBin),
 			)
-			newImpl := r[0].ContractAddress
+			newImpl := rr[0].ContractAddress
 
 			admin := env.Payer(1)
 			tx, err := sfcProxy.ContractTransactor.Upgrade(admin, newImpl)
@@ -71,7 +90,6 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			require.Equal(0, epoch.Cmp(big.NewInt(3)), "current epoch %s", epoch.String())
 		})
-
 }
 
 func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
