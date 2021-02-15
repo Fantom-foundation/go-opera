@@ -139,7 +139,7 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 
 // capEVM cache if exceeds maximum RAM limit.
 func (s *Store) capEVM() {
-	s.evm.Cap(s.cfg.MaxNonFlushedSize/2, s.cfg.MaxNonFlushedSize/4)
+	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
 // Commit changes.

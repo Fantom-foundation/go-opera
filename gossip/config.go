@@ -164,6 +164,7 @@ func DefaultConfig() Config {
 			WarningIfNotUpgradedEvery: 5 * time.Second,
 		},
 	}
+	cfg.Protocol.StreamLeecher.MaxSessionRestart = 4 * time.Minute
 
 	return cfg
 }
@@ -214,7 +215,7 @@ func DefaultStoreConfig() StoreConfig {
 			BlocksSize:       512 * opt.KiB,
 		},
 		EVM:                 evmstore.DefaultStoreConfig(),
-		MaxNonFlushedSize:   16 * opt.MiB,
+		MaxNonFlushedSize:   22 * opt.MiB,
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
@@ -230,7 +231,7 @@ func LiteStoreConfig() StoreConfig {
 			BlocksSize:       50 * opt.KiB,
 		},
 		EVM:                 evmstore.LiteStoreConfig(),
-		MaxNonFlushedSize:   400 * opt.KiB,
+		MaxNonFlushedSize:   800 * opt.KiB,
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
