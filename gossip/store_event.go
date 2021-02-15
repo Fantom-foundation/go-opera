@@ -38,7 +38,7 @@ func (s *Store) SetEvent(e *inter.EventPayload) {
 	// Add to LRU cache.
 	s.cache.Events.Add(e.ID(), e, uint(e.Size()))
 	eh := e.Event
-	s.cache.EventsHeaders.Add(e.ID(), &eh, 1)
+	s.cache.EventsHeaders.Add(e.ID(), &eh, nominalSize)
 }
 
 // GetEventPayload returns stored event.
@@ -55,7 +55,7 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	if w != nil {
 		s.cache.Events.Add(id, w, uint(w.Size()))
 		eh := w.Event
-		s.cache.EventsHeaders.Add(id, &eh, 1)
+		s.cache.EventsHeaders.Add(id, &eh, nominalSize)
 	}
 
 	return w
@@ -63,7 +63,6 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 
 // GetEventPayload returns stored event.
 func (s *Store) GetEvent(id hash.Event) *inter.Event {
-
 	// Get event from LRU cache first.
 	if ev, ok := s.cache.EventsHeaders.Get(id); ok {
 		return ev.(*inter.Event)
@@ -78,7 +77,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	// Put event to LRU cache.
 	s.cache.Events.Add(id, w, uint(w.Size()))
-	s.cache.EventsHeaders.Add(id, &eh, 1)
+	s.cache.EventsHeaders.Add(id, &eh, nominalSize)
 
 	return &eh
 }
