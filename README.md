@@ -12,20 +12,18 @@ make opera
 ```
 The build output is ```build/opera``` executable.
 
-Do not clone the project into $GOPATH, due to the Go Modules. Instead, use any other location.
-
 ## Running `opera`
 
 Going through all the possible command line flags is out of scope here,
 but we've enumerated a few common parameter combos to get you up to speed quickly
 on how you can run your own `opera` instance.
 
-### Mainnet
+### Launching a network
 
-Launching `opera` for mainnet with default settings:
+Launching `opera` for a network:
 
 ```shell
-$ opera
+$ opera --genesis /path/to/genesis.g
 ```
 
 ### Configuration
@@ -42,35 +40,6 @@ export your existing configuration:
 
 ```shell
 $ opera --your-favourite-flags dumpconfig
-```
-
-#### Docker quick start
-
-One of the quickest ways to get Lachesis up and running on your machine is by using
-Docker:
-
-```shell
-make opera-image
-docker run -d --name opera-node -v /home/alice/opera:/root \
-           -p 5050:5050 \
-          "opera" \
-          --port 5050 \
-          --nat extip:YOUR_IP
-```
-
-This will start `opera` with ```--port 5050 --nat extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/opera/.opera```
-
-Do not forget `--http.addr 0.0.0.0`, if you plan to access RPC from other containers
-and/or hosts. By default, `opera` binds to the local interface and RPC endpoints is not
-accessible from the outside.
-
-To find out your enode ID, use:
-```shell
-docker exec -i opera-node /opera --exec "admin.nodeInfo.enode" attach
-```
-To get the logs:
-```
-docker logs opera-node
 ```
 
 #### Validator
@@ -95,12 +64,17 @@ $ opera --nat extip:1.2.3.4
 
 ### Running testnet
 
-To run a testnet node, you have to add `--testnet` flag every time you use `opera`:
-
+The network is specified only by its genesis file, so running a testnet node is equivalent to
+using a testnet genesis file instead of a mainnet genesis file:
 ```shell
-$ opera --testnet # launch node
-$ opera --testnet attach # attach to IPC
-$ opera --testnet account new # create new account
+$ opera --genesis /path/to/testnet.g # launch node
+```
+
+It may be convenient to use a separate datadir for your testnet node to avoid collisions with other networks:
+```shell
+$ opera --genesis /path/to/testnet.g --datadir /path/to/datadir # launch node
+$ opera --datadir /path/to/datadir account new # create new account
+$ opera --datadir /path/to/datadir attach # attach to IPC
 ```
 
 ### Testing
