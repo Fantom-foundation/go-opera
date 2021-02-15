@@ -80,15 +80,22 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return blk, nil
 }
 
-func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error) {
-	if number == rpc.PendingBlockNumber {
-		return nil, nil, errors.New("pending block request isn't allowed")
-	}
+func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *evmcore.EvmHeader, error) {
 	var header *evmcore.EvmHeader
-	if number == rpc.LatestBlockNumber {
+	if number, ok := blockNrOrHash.Number(); ok && number == rpc.PendingBlockNumber {
+		return nil, nil, errors.New("pending block request isn't allowed")
+	} else if number, ok := blockNrOrHash.Number(); ok && number == rpc.LatestBlockNumber {
 		header = &b.state.CurrentBlock().EvmHeader
-	} else {
+	} else if number, ok := blockNrOrHash.Number(); ok {
 		header = b.state.GetHeader(common.Hash{}, uint64(number))
+	} else if h, ok := blockNrOrHash.Hash(); ok {
+		index := b.svc.store.GetBlockIndex(hash.Event(h))
+		if index == nil {
+			return nil, nil, errors.New("header not found")
+		}
+		header = b.state.GetHeader(common.Hash{}, uint64(*index))
+	} else {
+		return nil, nil, errors.New("unknown header selector")
 	}
 	if header == nil {
 		return nil, nil, errors.New("header not found")
@@ -220,7 +227,7 @@ func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
 	return b.svc.store.GetValidators()
 }
 
-func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
+func (b *EthAPIBackend) BlockByHash(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
 	index := b.svc.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
