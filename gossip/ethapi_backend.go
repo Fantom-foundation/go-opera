@@ -66,7 +66,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmco
 // BlockByNumber returns block by its number.
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
 	if number == rpc.PendingBlockNumber {
-		return nil, errors.New("pending block request isn't allowed")
+		number = rpc.LatestBlockNumber
 	}
 	// Otherwise resolve and return the block
 	var blk *evmcore.EvmBlock
@@ -82,9 +82,7 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 
 func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *evmcore.EvmHeader, error) {
 	var header *evmcore.EvmHeader
-	if number, ok := blockNrOrHash.Number(); ok && number == rpc.PendingBlockNumber {
-		return nil, nil, errors.New("pending block request isn't allowed")
-	} else if number, ok := blockNrOrHash.Number(); ok && number == rpc.LatestBlockNumber {
+	if number, ok := blockNrOrHash.Number(); ok && (number == rpc.LatestBlockNumber || number == rpc.PendingBlockNumber) {
 		header = &b.state.CurrentBlock().EvmHeader
 	} else if number, ok := blockNrOrHash.Number(); ok {
 		header = b.state.GetHeader(common.Hash{}, uint64(number))
@@ -255,7 +253,7 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 	}
 
 	if number == rpc.PendingBlockNumber {
-		return nil, errors.New("pending block request isn't allowed")
+		number = rpc.LatestBlockNumber
 	}
 	if number == rpc.LatestBlockNumber {
 		header := b.state.CurrentHeader()
