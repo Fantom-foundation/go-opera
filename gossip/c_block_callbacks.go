@@ -251,6 +251,7 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					store.SetBlock(blockCtx.Idx, block)
+					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
 					bs.LastBlock = blockCtx
 					store.SetBlockState(bs)
 
