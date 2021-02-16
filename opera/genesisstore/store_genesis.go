@@ -116,6 +116,13 @@ func (s *Store) SetBlock(index idx.Block, block genesis.Block) {
 	s.rlp.Set(s.table.Blocks, index.Bytes(), &block)
 }
 
+func (s *Store) SetRawEvmItem(key, value []byte) {
+	err := s.table.RawEvmItems.Put(key, value)
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+}
+
 func (s *Store) GetMetadata() Metadata {
 	metadata := s.rlp.Get(s.table.Metadata, []byte("m"), &Metadata{}).(*Metadata)
 	return *metadata
@@ -141,6 +148,7 @@ func (s *Store) GetGenesis() opera.Genesis {
 		Storage:       s.EvmStorage(),
 		Delegations:   s.Delegations(),
 		Blocks:        s.Blocks(),
+		RawEvmItems:   s.table.RawEvmItems,
 		Validators:    meatadata.Validators,
 		FirstEpoch:    meatadata.FirstEpoch,
 		PrevEpochTime: meatadata.PrevEpochTime,

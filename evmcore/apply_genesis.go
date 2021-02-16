@@ -33,7 +33,7 @@ import (
 func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (*EvmBlock, error) {
 	mem := 0
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
-		statedb.AddBalance(addr, account.Balance)
+		statedb.SetBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
 		mem += 1024 + len(account.Code)
