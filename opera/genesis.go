@@ -17,6 +17,7 @@ type Genesis struct {
 	Storage     genesis.Storage
 	Delegations genesis.Delegations
 	Blocks      genesis.Blocks
+	RawEvmItems genesis.RawEvmItems
 	Validators  gpos.Validators
 
 	FirstEpoch    idx.Epoch

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -25,6 +26,7 @@ type (
 	Blocks interface {
 		ForEach(fn func(idx.Block, Block))
 	}
+	RawEvmItems kvdb.Iteratee
 
 	Delegation struct {
 		Stake              *big.Int

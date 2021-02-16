@@ -32,14 +32,9 @@ func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash 
 }
 
 func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
-	// apply app genesis
-	evmBlock, err = s.evm.ApplyGenesis(g)
-	if err != nil {
-		return evmBlock, err
-	}
-
 	// write genesis blocks
 	var highestBlock blockproc.BlockCtx
+	var startingRoot hash.Hash
 	g.Blocks.ForEach(func(index idx.Block, block genesis.Block) {
 		txHashes := make([]common.Hash, len(block.Txs))
 		internalTxHashes := make([]common.Hash, len(block.InternalTxs))
@@ -76,7 +71,14 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		highestBlock.Idx = index
 		highestBlock.Atropos = block.Atropos
 		highestBlock.Time = block.Time
+		startingRoot = block.Root
 	})
+
+	// apply EVM genesis
+	evmBlock, err = s.evm.ApplyGenesis(g, startingRoot)
+	if err != nil {
+		return evmBlock, err
+	}
 
 	s.SetBlockState(blockproc.BlockState{
 		LastBlock:             highestBlock,
