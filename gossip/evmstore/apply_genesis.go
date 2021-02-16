@@ -12,13 +12,22 @@ import (
 func (s *Store) applyRawEvmItems(db kvdb.Iteratee) (err error) {
 	it := db.NewIterator(nil, nil)
 	defer it.Release()
+	batch := s.table.Evm.NewBatch()
+	defer batch.Reset()
 	for it.Next() {
 		err = s.table.Evm.Put(it.Key(), it.Value())
 		if err != nil {
 			return err
 		}
+		if batch.ValueSize() > kvdb.IdealBatchSize {
+			err = batch.Write()
+			if err != nil {
+				return err
+			}
+			batch.Reset()
+		}
 	}
-	return nil
+	return batch.Write()
 }
 
 // ApplyGenesis writes initial state.
@@ -33,5 +42,5 @@ func (s *Store) ApplyGenesis(g opera.Genesis, startingRoot hash.Hash) (evmBlock 
 	if err != nil {
 		return nil, err
 	}
-	return evmcore.ApplyGenesis(statedb, g, 32*opt.MiB)
+	return evmcore.ApplyGenesis(statedb, g, 128*opt.MiB)
 }

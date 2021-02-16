@@ -32,23 +32,23 @@ import (
 // ApplyGenesis writes or updates the genesis block in db.
 func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (*EvmBlock, error) {
 	mem := 0
+	capEvm := func(usage int) {
+		mem += usage
+		if mem > maxMemoryUsage {
+			_, _ = statedb.Commit(true)
+			_ = statedb.Database().TrieDB().Cap(common.StorageSize(maxMemoryUsage/8))
+			mem = 0
+		}
+	}
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
 		statedb.SetBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
-		mem += 1024 + len(account.Code)
-		if mem > maxMemoryUsage {
-			_ = statedb.Database().TrieDB().Cap(0)
-			mem = 0
-		}
+		capEvm(1024 + len(account.Code))
 	})
 	g.Storage.ForEach(func(addr common.Address, key common.Hash, value common.Hash) {
 		statedb.SetState(addr, key, value)
-		mem += 1024
-		if mem > maxMemoryUsage {
-			_ = statedb.Database().TrieDB().Cap(0)
-			mem = 0
-		}
+		capEvm(512)
 	})
 
 	// initial block
