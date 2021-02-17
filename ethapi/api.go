@@ -55,7 +55,8 @@ const (
 )
 
 var (
-	noUncles = []evmcore.EvmHeader{}
+	noUncles   = []evmcore.EvmHeader{}
+	emptyBloom = types.Bloom{}
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
@@ -1502,6 +1503,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
+		"logsBloom":         &emptyBloom,
 	}
 
 	// Assign receipt status or post state.
