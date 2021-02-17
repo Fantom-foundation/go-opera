@@ -110,7 +110,6 @@ type Service struct {
 	// server
 	p2pServer *p2p.Server
 	Name      string
-	Topic     discv5.Topic
 
 	serverPool *serverPool
 
@@ -325,22 +324,22 @@ func (s *Service) APIs() []rpc.API {
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
 	genesis := *s.store.GetGenesisHash()
-	s.Topic = discv5.Topic("opera@" + genesis.Hex())
+	topic := discv5.Topic("opera@" + genesis.Hex())
 
 	if s.p2pServer.DiscV5 != nil {
 		go func(topic discv5.Topic) {
-			s.Log.Info("Starting topic registration")
-			defer s.Log.Info("Terminated topic registration")
-
+			s.Log.Info("Starting DiscoveryV5 topic registration")
+			defer s.Log.Info("Terminated DiscoveryV5 topic registration")
 			s.p2pServer.DiscV5.RegisterTopic(topic, s.done)
-		}(s.Topic)
+			s.Log.Warn("Using of DiscoveryV5 can lead to memory leaks.")
+		}(topic)
 	}
 
 	s.blockProcTasks.Start(1)
 
 	s.pm.Start(s.p2pServer.MaxPeers)
 
-	s.serverPool.start(s.p2pServer, s.Topic)
+	s.serverPool.start(s.p2pServer, topic)
 
 	s.emitter.Start()
 
