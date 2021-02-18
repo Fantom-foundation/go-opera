@@ -164,6 +164,11 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicSfcAPI(apiBackend),
 			Public:    false,
+		}, {
+			Namespace: "abft",
+			Version:   "1.0",
+			Service:   NewPublicAbftAPI(apiBackend),
+			Public:    false,
 		},
 	}
 
