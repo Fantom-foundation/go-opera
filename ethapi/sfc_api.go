@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 )
@@ -16,13 +17,18 @@ type PublicSfcAPI struct {
 	b Backend
 }
 
+func sfcApiDeprecated() {
+	log.Warn("SFC web3 API namepsace is deprecated. Consider retrieving data from SFC v3 contract.")
+}
+
 // NewPublicSfcAPI creates a new SFC protocol API.
 func NewPublicSfcAPI(b Backend) *PublicSfcAPI {
 	return &PublicSfcAPI{b}
 }
 
-// GetUptime returns staker's ValidationScore.
+// GetValidationScore returns staker's ValidationScore.
 func (s *PublicSfcAPI) GetValidationScore(ctx context.Context, stakerID hexutil.Uint) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetUptime(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -30,8 +36,9 @@ func (s *PublicSfcAPI) GetValidationScore(ctx context.Context, stakerID hexutil.
 	return (*hexutil.Big)(v), err
 }
 
-// GetOriginatedFee returns staker's OriginationScore.
+// GetOriginationScore returns staker's OriginationScore.
 func (s *PublicSfcAPI) GetOriginationScore(ctx context.Context, stakerID hexutil.Uint) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetOriginatedFee(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -41,6 +48,7 @@ func (s *PublicSfcAPI) GetOriginationScore(ctx context.Context, stakerID hexutil
 
 // GetRewardWeights returns staker's reward weights.
 func (s *PublicSfcAPI) GetRewardWeights(ctx context.Context, stakerID hexutil.Uint) (map[string]interface{}, error) {
+	sfcApiDeprecated()
 	baseRewardWeight, txRewardWeight, err := s.b.GetRewardWeights(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -56,6 +64,7 @@ func (s *PublicSfcAPI) GetRewardWeights(ctx context.Context, stakerID hexutil.Ui
 
 // GetStakerPoI returns staker's PoI.
 func (s *PublicSfcAPI) GetStakerPoI(ctx context.Context, stakerID hexutil.Uint) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetStakerPoI(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -65,6 +74,7 @@ func (s *PublicSfcAPI) GetStakerPoI(ctx context.Context, stakerID hexutil.Uint) 
 
 // GetDowntime returns staker's Downtime.
 func (s *PublicSfcAPI) GetDowntime(ctx context.Context, stakerID hexutil.Uint) (map[string]interface{}, error) {
+	sfcApiDeprecated()
 	blocks, period, err := s.b.GetDowntime(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -77,6 +87,7 @@ func (s *PublicSfcAPI) GetDowntime(ctx context.Context, stakerID hexutil.Uint) (
 
 // GetDelegationClaimedRewards returns sum of claimed rewards in past, by this delegation
 func (s *PublicSfcAPI) GetDelegationClaimedRewards(ctx context.Context, addr common.Address, stakerID hexutil.Uint) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetDelegationClaimedRewards(ctx, sfcapi.DelegationID{addr, idx.ValidatorID(stakerID)})
 	if err != nil {
 		return nil, err
@@ -86,6 +97,7 @@ func (s *PublicSfcAPI) GetDelegationClaimedRewards(ctx context.Context, addr com
 
 // GetStakerClaimedRewards returns sum of claimed rewards in past, by this staker
 func (s *PublicSfcAPI) GetStakerClaimedRewards(ctx context.Context, stakerID hexutil.Uint64) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetStakerClaimedRewards(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -95,6 +107,7 @@ func (s *PublicSfcAPI) GetStakerClaimedRewards(ctx context.Context, stakerID hex
 
 // GetStakerDelegationsClaimedRewards returns sum of claimed rewards in past, by this delegations of this staker
 func (s *PublicSfcAPI) GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID hexutil.Uint64) (*hexutil.Big, error) {
+	sfcApiDeprecated()
 	v, err := s.b.GetStakerDelegationsClaimedRewards(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -122,7 +135,7 @@ func RPCMarshalStaker(it sfcapi.SfcStakerAndID) map[string]interface{} {
 }
 
 func (s *PublicSfcAPI) addStakerMetricFields(ctx context.Context, res map[string]interface{}, stakerID idx.ValidatorID) (map[string]interface{}, error) {
-	blocks, period, err := s.b.GetDowntime(ctx, idx.ValidatorID(stakerID))
+	blocks, period, err := s.b.GetDowntime(ctx, stakerID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +195,7 @@ func (s *PublicSfcAPI) addDelegationMetricFields(ctx context.Context, res map[st
 // GetStaker returns SFC staker's info
 // Verbosity. Number. If >= 1, then include base field. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetStaker(ctx context.Context, stakerID hexutil.Uint, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	sfcApiDeprecated()
 	staker, err := s.b.GetStaker(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -203,6 +217,7 @@ func (s *PublicSfcAPI) GetStaker(ctx context.Context, stakerID hexutil.Uint, ver
 // GetStakerByAddress returns SFC staker's info by address
 // Verbosity. Number. If 0, then include only stakerID. If >= 1, then include base field. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetStakerByAddress(ctx context.Context, address common.Address, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	sfcApiDeprecated()
 	stakerID, err := s.b.GetStakerID(ctx, address)
 	if err != nil {
 		return nil, err
@@ -222,6 +237,7 @@ func (s *PublicSfcAPI) GetStakerByAddress(ctx context.Context, address common.Ad
 // GetStakers returns SFC stakers info
 // Verbosity. Number. If 0, then include only stakerIDs. If >= 1, then include base field. If >= 2, then include metrics (including downtime if validator).
 func (s *PublicSfcAPI) GetStakers(ctx context.Context, verbosity hexutil.Uint64) ([]interface{}, error) {
+	sfcApiDeprecated()
 	stakers, err := s.b.GetStakers(ctx)
 	if err != nil {
 		return nil, err
@@ -267,6 +283,7 @@ func RPCMarshalDelegation(it sfcapi.SfcDelegationAndID) map[string]interface{} {
 // GetDelegationsOf returns SFC delegations who delegated to a staker
 // Verbosity. Number. If 0, then include only addresses. If >= 1, then include base fields. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetDelegationsOf(ctx context.Context, stakerID hexutil.Uint64, verbosity hexutil.Uint64) ([]interface{}, error) {
+	sfcApiDeprecated()
 	delegations, err := s.b.GetDelegationsOf(ctx, idx.ValidatorID(stakerID))
 	if err != nil {
 		return nil, err
@@ -299,6 +316,7 @@ func (s *PublicSfcAPI) GetDelegationsOf(ctx context.Context, stakerID hexutil.Ui
 // GetDelegation returns SFC delegation info
 // Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetDelegation(ctx context.Context, addr common.Address, stakerID hexutil.Uint, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	sfcApiDeprecated()
 	id := sfcapi.DelegationID{addr, idx.ValidatorID(stakerID)}
 	delegation, err := s.b.GetDelegation(ctx, id)
 	if err != nil {
@@ -321,6 +339,7 @@ func (s *PublicSfcAPI) GetDelegation(ctx context.Context, addr common.Address, s
 // GetDelegationsByAddress returns SFC delegations by address
 // Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetDelegationsByAddress(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) ([]interface{}, error) {
+	sfcApiDeprecated()
 	delegations, err := s.b.GetDelegationsByAddress(ctx, addr)
 	if err != nil {
 		return nil, err
