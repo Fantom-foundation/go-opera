@@ -36,7 +36,7 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 		mem += usage
 		if mem > maxMemoryUsage {
 			_, _ = statedb.Commit(true)
-			_ = statedb.Database().TrieDB().Cap(common.StorageSize(maxMemoryUsage/8))
+			_ = statedb.Database().TrieDB().Cap(common.StorageSize(maxMemoryUsage / 8))
 			mem = 0
 		}
 	}

@@ -11,7 +11,7 @@ const (
 
 // SetNetworkVersion stores network version.
 func (s *Store) SetNetworkVersion(v uint64) {
-	err := s.mainDb.Put([]byte(nvKey), bigendian.Uint64ToBytes(v))
+	err := s.mainDB.Put([]byte(nvKey), bigendian.Uint64ToBytes(v))
 	if err != nil {
 		s.Log.Crit("Failed to put key", "err", err)
 	}
@@ -19,7 +19,7 @@ func (s *Store) SetNetworkVersion(v uint64) {
 
 // GetNetworkVersion returns stored network version.
 func (s *Store) GetNetworkVersion() uint64 {
-	valBytes, err := s.mainDb.Get([]byte(nvKey))
+	valBytes, err := s.mainDB.Get([]byte(nvKey))
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
@@ -32,7 +32,7 @@ func (s *Store) GetNetworkVersion() uint64 {
 
 // SetMissedVersion stores non-supported network upgrade.
 func (s *Store) SetMissedVersion(v uint64) {
-	err := s.mainDb.Put([]byte(mvKey), bigendian.Uint64ToBytes(v))
+	err := s.mainDB.Put([]byte(mvKey), bigendian.Uint64ToBytes(v))
 	if err != nil {
 		s.Log.Crit("Failed to put key", "err", err)
 	}
@@ -40,7 +40,7 @@ func (s *Store) SetMissedVersion(v uint64) {
 
 // GetMissedVersion returns stored non-supported network upgrade.
 func (s *Store) GetMissedVersion() uint64 {
-	valBytes, err := s.mainDb.Get([]byte(mvKey))
+	valBytes, err := s.mainDB.Get([]byte(mvKey))
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}

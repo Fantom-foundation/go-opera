@@ -95,6 +95,7 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 		mainDB:        mainDB,
 		Instance:      logger.MakeInstance(),
 		prevFlushTime: time.Now(),
+		rlp:           rlpstore.Helper{logger.MakeInstance()},
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
@@ -165,28 +166,6 @@ func (s *Store) Commit() error {
 /*
  * Utils:
  */
-
-func (s *Store) rmPrefix(t kvdb.Store, prefix string) {
-	it := t.NewIterator([]byte(prefix), nil)
-	defer it.Release()
-
-	s.dropTable(it, t)
-}
-
-func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
-	keys := make([][]byte, 0, 500) // don't write during iteration
-
-	for it.Next() {
-		keys = append(keys, it.Key())
-	}
-
-	for i := range keys {
-		err := t.Delete(keys[i])
-		if err != nil {
-			s.Log.Crit("Failed to erase key-value", "err", err)
-		}
-	}
-}
 
 func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 	cache, err := wlru.New(weight, size)
