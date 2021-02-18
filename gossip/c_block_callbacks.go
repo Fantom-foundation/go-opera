@@ -124,7 +124,7 @@ func consensusCallbackBeginBlockFn(
 				bs = eventProcessor.Finalize(blockCtx, skipBlock) // TODO: refactor to not mutate the bs, it is unclear
 				if skipBlock {
 					// save the latest block state even if block is skipped
-					store.SetBlockState(bs)
+					store.SetBlockEpochState(bs, es)
 					log.Debug("Frame is skipped", "atropos", cBlock.Atropos.String())
 					return nil
 				}
@@ -153,8 +153,8 @@ func consensusCallbackBeginBlockFn(
 				if sealing {
 					sealer.Update(bs, es)
 					bs, es = sealer.SealEpoch() // TODO: refactor to not mutate the bs, it is unclear
+					store.SetBlockEpochState(bs, es)
 					newValidators = es.Validators
-					store.SetEpochState(es)
 					txListener.Update(bs, es)
 				}
 
@@ -253,7 +253,7 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlock(blockCtx.Idx, block)
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
 					bs.LastBlock = blockCtx
-					store.SetBlockState(bs)
+					store.SetBlockEpochState(bs, es)
 
 					// Notify about new block and txs
 					if feed != nil {

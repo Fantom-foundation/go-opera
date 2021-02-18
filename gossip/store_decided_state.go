@@ -9,54 +9,48 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-const lbKey = "d"
+const sKey = "s"
 
-const leKey = "e"
-
-// SetBlockState stores the latest block state in memory
-func (s *Store) SetBlockState(v blockproc.BlockState) {
-	s.cache.BlockState.Store(&v)
+type BlockEpochState struct {
+	BlockState *blockproc.BlockState
+	EpochState *blockproc.EpochState
 }
 
-// FlushEpochState stores the latest block state in DB
-func (s *Store) FlushBlockState() {
-	s.rlp.Set(s.table.BlockState, []byte(lbKey), s.GetBlockState())
+// SetBlockEpochState stores the latest block and epoch state in memory
+func (s *Store) SetBlockEpochState(bs blockproc.BlockState, es blockproc.EpochState) {
+	s.cache.BlockEpochState.Store(&BlockEpochState{&bs, &es})
+}
+
+func (s *Store) getBlockEpochState() BlockEpochState {
+	if v := s.cache.BlockEpochState.Load(); v != nil {
+		return *v.(*BlockEpochState)
+	}
+	v, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochState{}).(*BlockEpochState)
+	if !ok {
+		log.Crit("Epoch state reading failed: genesis not applied")
+	}
+	s.cache.BlockEpochState.Store(v)
+	return *v
+}
+
+// FlushEpochState stores the latest epoch and block state in DB
+func (s *Store) FlushBlockEpochState() {
+	s.rlp.Set(s.table.BlockEpochState, []byte(sKey), s.getBlockEpochState())
 }
 
 // GetBlockState retrieves the latest block state
 func (s *Store) GetBlockState() blockproc.BlockState {
-	if v := s.cache.BlockState.Load(); v != nil {
-		return *v.(*blockproc.BlockState)
-	}
-	v, ok := s.rlp.Get(s.table.BlockState, []byte(lbKey), &blockproc.BlockState{}).(*blockproc.BlockState)
-	if !ok {
-		log.Crit("Block state reading failed: genesis not applied")
-	}
-	s.cache.BlockState.Store(v)
-	return *v
-}
-
-// SetEpochState stores the latest block state in memory
-func (s *Store) SetEpochState(v blockproc.EpochState) {
-	s.cache.EpochState.Store(&v)
-}
-
-// FlushEpochState stores the latest epoch state in DB
-func (s *Store) FlushEpochState() {
-	s.rlp.Set(s.table.EpochState, []byte(leKey), s.GetEpochState())
+	return *s.getBlockEpochState().BlockState
 }
 
 // GetEpochState retrieves the latest epoch state
 func (s *Store) GetEpochState() blockproc.EpochState {
-	if v := s.cache.EpochState.Load(); v != nil {
-		return *v.(*blockproc.EpochState)
-	}
-	v, ok := s.rlp.Get(s.table.EpochState, []byte(leKey), &blockproc.EpochState{}).(*blockproc.EpochState)
-	if !ok {
-		log.Crit("Epoch state reading failed: genesis not applied")
-	}
-	s.cache.EpochState.Store(v)
-	return *v
+	return *s.getBlockEpochState().EpochState
+}
+
+func (s *Store) GetBlockEpochState() (blockproc.BlockState, blockproc.EpochState) {
+	bes := s.getBlockEpochState()
+	return *bes.BlockState, *bes.EpochState
 }
 
 // GetEpoch retrieves the current epoch

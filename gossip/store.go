@@ -32,13 +32,12 @@ type Store struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
-		BlockState kvdb.Store `table:"z"`
-		EpochState kvdb.Store `table:"D"`
-		Events     kvdb.Store `table:"e"`
-		Blocks     kvdb.Store `table:"b"`
-		Packs      kvdb.Store `table:"P"`
-		PacksNum   kvdb.Store `table:"n"`
-		Genesis    kvdb.Store `table:"g"`
+		BlockEpochState kvdb.Store `table:"D"`
+		Events          kvdb.Store `table:"e"`
+		Blocks          kvdb.Store `table:"b"`
+		Packs           kvdb.Store `table:"P"`
+		PacksNum        kvdb.Store `table:"n"`
+		Genesis         kvdb.Store `table:"g"`
 
 		// Network version
 		NetworkVersion kvdb.Store `table:"V"`
@@ -52,12 +51,11 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events        *wlru.Cache  `cache:"-"` // store by pointer
-		EventsHeaders *wlru.Cache  `cache:"-"` // store by pointer
-		Blocks        *wlru.Cache  `cache:"-"` // store by pointer
-		BlockHashes   *wlru.Cache  `cache:"-"` // store by pointer
-		BlockState    atomic.Value // store by pointer
-		EpochState    atomic.Value // store by pointer
+		Events          *wlru.Cache  `cache:"-"` // store by pointer
+		EventsHeaders   *wlru.Cache  `cache:"-"` // store by pointer
+		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
+		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
+		BlockEpochState atomic.Value // store by pointer
 	}
 
 	mutex struct {
@@ -154,8 +152,7 @@ func (s *Store) Commit() error {
 	s.prevFlushTime = time.Now()
 	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
-	s.FlushBlockState()
-	s.FlushEpochState()
+	s.FlushBlockEpochState()
 	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot)
 	if err != nil {
 		return err

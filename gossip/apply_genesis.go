@@ -142,7 +142,6 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	if sealing {
 		sealer.Update(bs, es)
 		bs, es = sealer.SealEpoch()
-		s.SetEpochState(es)
 		txListener.Update(bs, es)
 	}
 
@@ -162,7 +161,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	bs.FinalizedStateRoot = hash.Hash(evmBlock.Root)
 
 	bs.LastBlock = blockCtx
-	s.SetBlockState(bs)
+	s.SetBlockEpochState(bs, es)
 
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
 		e := inter.MutableEventPayload{}
