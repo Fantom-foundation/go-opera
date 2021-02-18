@@ -25,8 +25,11 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
@@ -219,10 +222,6 @@ func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNu
 
 	b.svc.store.ForEachEpochEvent(requested, onEvent)
 	return nil
-}
-
-func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
-	return b.svc.store.GetValidators()
 }
 
 func (b *EthAPIBackend) BlockByHash(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
@@ -441,4 +440,156 @@ func (b *EthAPIBackend) MinGasPrice() *big.Int {
 }
 func (b *EthAPIBackend) MaxGasLimit() uint64 {
 	return b.state.MaxGasLimit()
+}
+
+func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
+	return b.svc.store.GetValidators()
+}
+
+func (b *EthAPIBackend) GetUptime(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error) {
+	// Note: loads bs and es atomically to avoid a race condition
+	bs, es := b.svc.store.GetBlockEpochState()
+	if !es.Validators.Exists(stakerID) {
+		return nil, nil
+	}
+	return new(big.Int).SetUint64(uint64(bs.GetValidatorState(stakerID, es.Validators).Uptime)), nil
+}
+
+func (b *EthAPIBackend) GetOriginatedFee(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error) {
+	// Note: loads bs and es atomically to avoid a race condition
+	bs, es := b.svc.store.GetBlockEpochState()
+	if !es.Validators.Exists(stakerID) {
+		return nil, nil
+	}
+	return bs.GetValidatorState(stakerID, es.Validators).Originated, nil
+}
+
+func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, *big.Int, error) {
+	if b.svc.store.GetValidators().Get(stakerID) == 0 {
+		return nil, nil, nil
+	}
+	return big.NewInt(1), big.NewInt(1), nil
+}
+
+func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error) {
+	if b.svc.store.GetValidators().Get(stakerID) == 0 {
+		return nil, nil
+	}
+	return big.NewInt(1), nil
+}
+
+func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.ValidatorID) (idx.Block, inter.Timestamp, error) {
+	// Note: loads bs and es atomically to avoid a race condition
+	bs, es := b.svc.store.GetBlockEpochState()
+	if !es.Validators.Exists(stakerID) {
+		return 0, 0, nil
+	}
+	vs := bs.GetValidatorState(stakerID, es.Validators)
+	missedBlocks := idx.Block(0)
+	if bs.LastBlock.Idx > vs.LastBlock {
+		missedBlocks = bs.LastBlock.Idx - vs.LastBlock
+	}
+	missedTime := inter.Timestamp(0)
+	if bs.LastBlock.Time > vs.LastOnlineTime {
+		missedTime = bs.LastBlock.Time - vs.LastOnlineTime
+	}
+	if missedBlocks < es.Rules.Economy.BlockMissedSlack {
+		return 0, 0, nil
+	}
+	return missedBlocks, missedTime, nil
+}
+
+func (b *EthAPIBackend) GetDelegationClaimedRewards(ctx context.Context, id sfcapi.DelegationID) (*big.Int, error) {
+	return b.svc.store.sfcapi.GetDelegationClaimedRewards(id), nil
+}
+
+func (b *EthAPIBackend) GetStakerClaimedRewards(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error) {
+	staker := b.svc.store.sfcapi.GetSfcStaker(stakerID)
+	if staker == nil {
+		return nil, nil
+	}
+	return b.svc.store.sfcapi.GetDelegationClaimedRewards(sfcapi.DelegationID{staker.Address, stakerID}), nil
+}
+
+func (b *EthAPIBackend) GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error) {
+	return b.svc.store.sfcapi.GetStakerDelegationsClaimedRewards(stakerID), nil
+}
+
+func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.SfcStaker, bs blockproc.BlockState, es blockproc.EpochState) *sfcapi.SfcStaker {
+	selfDelegation := b.svc.store.sfcapi.GetSfcDelegation(sfcapi.DelegationID{staker.Address, stakerID})
+	if selfDelegation != nil {
+		staker.StakeAmount = selfDelegation.Amount
+	} else {
+		staker.StakeAmount = new(big.Int)
+	}
+	weight := bs.NextValidatorProfiles[stakerID].Weight
+	if weight != nil {
+		staker.DelegatedMe = new(big.Int).Sub(weight, staker.StakeAmount)
+	}
+	if staker.DelegatedMe == nil || staker.DelegatedMe.Sign() < 0 {
+		staker.DelegatedMe = new(big.Int)
+	}
+	staker.IsValidator = es.Validators.Exists(stakerID)
+	if staker.Status == drivertype.DoublesignBit {
+		staker.Status = sfcapi.ForkBit
+	}
+	if staker.Status == 1<<3 {
+		staker.Status = sfcapi.OfflineBit
+	}
+	if staker.Status == 1 {
+		staker.Status = 0
+	}
+	return staker
+}
+
+func (b *EthAPIBackend) GetStaker(ctx context.Context, stakerID idx.ValidatorID) (*sfcapi.SfcStaker, error) {
+	staker := b.svc.store.sfcapi.GetSfcStaker(stakerID)
+	if staker == nil {
+		return nil, nil
+	}
+	// Note: loads bs and es atomically to avoid a race condition
+	bs, es := b.svc.store.GetBlockEpochState()
+	return b.extendStaker(stakerID, staker, bs, es), nil
+}
+
+func (b *EthAPIBackend) GetStakerID(ctx context.Context, addr common.Address) (idx.ValidatorID, error) {
+	var found *idx.ValidatorID
+	b.svc.store.sfcapi.ForEachSfcStaker(func(id sfcapi.SfcStakerAndID) {
+		if id.Staker.Address == addr {
+			found = &id.StakerID
+		}
+	})
+	if found == nil {
+		return 0, nil
+	}
+	return *found, nil
+}
+
+func (b *EthAPIBackend) GetStakers(ctx context.Context) ([]sfcapi.SfcStakerAndID, error) {
+	stakers := make([]sfcapi.SfcStakerAndID, 0, 200)
+	// Note: loads bs and es atomically to avoid a race condition
+	bs, es := b.svc.store.GetBlockEpochState()
+	b.svc.store.sfcapi.ForEachSfcStaker(func(it sfcapi.SfcStakerAndID) {
+		it.Staker = b.extendStaker(it.StakerID, it.Staker, bs, es)
+		stakers = append(stakers, it)
+	})
+	return stakers, nil
+}
+
+func (b *EthAPIBackend) GetDelegationsOf(ctx context.Context, stakerID idx.ValidatorID) ([]sfcapi.SfcDelegationAndID, error) {
+	delegations := make([]sfcapi.SfcDelegationAndID, 0, 200)
+	b.svc.store.sfcapi.ForEachSfcDelegation(func(it sfcapi.SfcDelegationAndID) {
+		if it.ID.StakerID == stakerID {
+			delegations = append(delegations, it)
+		}
+	})
+	return delegations, nil
+}
+
+func (b *EthAPIBackend) GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfcapi.SfcDelegationAndID, error) {
+	return b.svc.store.sfcapi.GetSfcDelegationsByAddr(addr, 1000), nil
+}
+
+func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfcapi.DelegationID) (*sfcapi.SfcDelegation, error) {
+	return b.svc.store.sfcapi.GetSfcDelegation(id), nil
 }

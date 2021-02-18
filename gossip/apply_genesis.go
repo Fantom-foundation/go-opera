@@ -8,10 +8,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -35,7 +37,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 	// write genesis blocks
 	var highestBlock blockproc.BlockCtx
 	var startingRoot hash.Hash
-	g.Blocks.ForEach(func(index idx.Block, block genesis.Block) {
+	g.Blocks.ForEach(func(blockIdx idx.Block, block genesis.Block) {
 		txHashes := make([]common.Hash, len(block.Txs))
 		internalTxHashes := make([]common.Hash, len(block.InternalTxs))
 		for i, tx := range block.Txs {
@@ -46,7 +48,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		}
 		for i, tx := range append(block.InternalTxs, block.Txs...) {
 			s.evm.SetTxPosition(tx.Hash(), evmstore.TxPosition{
-				Block:       index,
+				Block:       blockIdx,
 				BlockOffset: uint32(i),
 			})
 			s.evm.SetTx(tx.Hash(), tx)
@@ -54,10 +56,25 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		gasUsed := uint64(0)
 		if len(block.Receipts) != 0 {
 			gasUsed = block.Receipts[len(block.Receipts)-1].CumulativeGasUsed
-			s.evm.SetRawReceipts(index, block.Receipts)
+			s.evm.SetRawReceipts(blockIdx, block.Receipts)
+			allTxs := block.Txs
+			if block.InternalTxs.Len() > 0 {
+				allTxs = append(block.InternalTxs, block.Txs...)
+			}
+			logIdx := uint(0)
+			for i, r := range block.Receipts {
+				for _, l := range r.Logs {
+					l.BlockNumber = uint64(blockIdx)
+					l.TxHash = allTxs[i].Hash()
+					l.Index = logIdx
+					l.TxIndex = uint(i)
+					logIdx++
+				}
+				s.evm.IndexLogs(r.Logs...)
+			}
 		}
 
-		s.SetBlock(index, &inter.Block{
+		s.SetBlock(blockIdx, &inter.Block{
 			Time:        block.Time,
 			Atropos:     block.Atropos,
 			Events:      hash.Events{},
@@ -67,8 +84,8 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 			GasUsed:     gasUsed,
 			Root:        block.Root,
 		})
-		s.SetBlockIndex(block.Atropos, index)
-		highestBlock.Idx = index
+		s.SetBlockIndex(block.Atropos, blockIdx)
+		highestBlock.Idx = blockIdx
 		highestBlock.Atropos = block.Atropos
 		highestBlock.Time = block.Time
 		startingRoot = block.Root
@@ -80,7 +97,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		return evmBlock, err
 	}
 
-	s.SetBlockState(blockproc.BlockState{
+	s.SetBlockEpochState(blockproc.BlockState{
 		LastBlock:             highestBlock,
 		FinalizedStateRoot:    hash.Hash(evmBlock.Root),
 		EpochGas:              0,
@@ -88,8 +105,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
 		DirtyRules:            g.Rules,
-	})
-	s.SetEpochState(blockproc.EpochState{
+	}, blockproc.EpochState{
 		Epoch:             g.FirstEpoch - 1,
 		EpochStart:        g.PrevEpochTime,
 		PrevEpochStart:    g.PrevEpochTime - 1,
@@ -126,7 +142,10 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 	sealing := true
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
-	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog, es.Rules)
+	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, func(l *types.Log) {
+		txListener.OnNewLog(l)
+		sfcapi.OnNewLog(s.sfcapi, l)
+	}, es.Rules)
 
 	// Execute genesis-internal transactions
 	genesisInternalTxs := blockProc.GenesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -194,11 +213,19 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 			BlockOffset: uint32(i),
 		})
 	}
-	s.evm.SetReceipts(blockCtx.Idx, receipts)
+	if receipts.Len() != 0 {
+		s.evm.SetReceipts(blockCtx.Idx, receipts)
+		for _, r := range receipts {
+			s.evm.IndexLogs(r.Logs...)
+		}
+	}
 
 	s.SetBlock(blockCtx.Idx, block)
 	s.SetBlockIndex(genesisAtropos, blockCtx.Idx)
 	s.SetGenesisBlockIndex(blockCtx.Idx)
+
+	// index data for legacy SFC API
+	sfcapi.ApplyGenesis(s.sfcapi, s.evm.EvmLogs())
 
 	return nil
 }

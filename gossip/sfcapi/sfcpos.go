@@ -18,6 +18,7 @@ var (
 	// Topics of SFC contract logs
 	Topics = struct {
 		ClaimedRewards          common.Hash
+		RestakedRewards         common.Hash
 		ClaimedDelegationReward common.Hash
 		ClaimedValidatorReward  common.Hash
 		CreatedValidator        common.Hash
@@ -26,7 +27,8 @@ var (
 		Delegated               common.Hash
 		Undelegated             common.Hash
 	}{
-		ClaimedRewards:          crypto.Keccak256Hash([]byte("ClaimedRewards(address,uint256,uint256)")),
+		ClaimedRewards:          crypto.Keccak256Hash([]byte("ClaimedRewards(address,uint256,uint256,uint256,uint256)")),
+		RestakedRewards:         crypto.Keccak256Hash([]byte("RestakedRewards(address,uint256,uint256,uint256,uint256)")),
 		ClaimedDelegationReward: crypto.Keccak256Hash([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
 		ClaimedValidatorReward:  crypto.Keccak256Hash([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
 		CreatedValidator:        crypto.Keccak256Hash([]byte("CreatedValidator(uint256,address,uint256,uint256)")),

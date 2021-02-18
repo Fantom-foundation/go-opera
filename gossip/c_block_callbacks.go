@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
@@ -141,6 +142,7 @@ func consensusCallbackBeginBlockFn(
 					if verWatcher != nil {
 						verWatcher.OnNewLog(l)
 					}
+					sfcapi.OnNewLog(store.sfcapi, l)
 				}
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
 
@@ -240,7 +242,6 @@ func consensusCallbackBeginBlockFn(
 						// Index receipts
 						if allReceipts.Len() != 0 {
 							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
-
 							for _, r := range allReceipts {
 								store.evm.IndexLogs(r.Logs...)
 							}

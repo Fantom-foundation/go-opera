@@ -11,10 +11,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
@@ -28,6 +28,7 @@ type Store struct {
 
 	mainDB kvdb.Store
 	evm    *evmstore.Store
+	sfcapi *sfcapi.Store
 	table  struct {
 		Version kvdb.Store `table:"_"`
 
@@ -44,6 +45,7 @@ type Store struct {
 
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
+		SfcApi      kvdb.Store `table:"S"`
 	}
 
 	prevFlushTime time.Time
@@ -100,6 +102,7 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 
 	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+	s.sfcapi = sfcapi.NewStore(s.table.SfcApi)
 
 	return s
 }
@@ -117,7 +120,7 @@ func (s *Store) initCache() {
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
 }
 
-// Close leaves underlying database.
+// Close closes underlying database.
 func (s *Store) Close() {
 	setnil := func() interface{} {
 		return nil
@@ -128,6 +131,7 @@ func (s *Store) Close() {
 
 	_ = s.mainDB.Close()
 	s.async.Close()
+	s.sfcapi.Close()
 	_ = s.closeEpochStore()
 }
 

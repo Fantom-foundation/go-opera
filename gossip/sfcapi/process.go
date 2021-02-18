@@ -116,10 +116,13 @@ func OnNewLog(s *Store, l *types.Log) {
 	}
 
 	// Track rewards
-	if l.Topics[0] == Topics.ClaimedRewards && len(l.Topics) > 2 && len(l.Data) >= 32 {
+	if (l.Topics[0] == Topics.ClaimedRewards || l.Topics[0] == Topics.RestakedRewards) && len(l.Topics) > 2 && len(l.Data) >= 96 {
 		address := common.BytesToAddress(l.Topics[1][12:])
 		stakerID := idx.ValidatorID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
-		reward := new(big.Int).SetBytes(l.Data[0:32])
+		reward0 := new(big.Int).SetBytes(l.Data[0:32])
+		reward1 := new(big.Int).SetBytes(l.Data[32:64])
+		reward2 := new(big.Int).SetBytes(l.Data[64:96])
+		reward := new(big.Int).Add(reward0.Add(reward0, reward1), reward2)
 
 		s.IncDelegationClaimedRewards(DelegationID{address, stakerID}, reward)
 		s.IncStakerDelegationsClaimedRewards(stakerID, reward)
