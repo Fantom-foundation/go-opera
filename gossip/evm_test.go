@@ -1,8 +1,8 @@
 package gossip
 
 // Simple ballot contract
-//go generate bash -c "docker run --rm -v $(pwd)/contract/ballot:/src -v $(pwd)/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src --overwrite /src/Ballot.sol"
-//go generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=contract/solc/Ballot.bin --abi=contract/solc/Ballot.abi --pkg=ballot --type=Contract --out=contract/ballot/contract.go
+//go:generate bash -c "docker run --rm -v $(pwd)/contract/ballot:/src -v $(pwd)/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src --overwrite /src/Ballot.sol"
+//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=contract/solc/Ballot.bin --abi=contract/solc/Ballot.abi --pkg=ballot --type=Contract --out=contract/ballot/contract.go
 
 import (
 	"math/big"
