@@ -20,10 +20,9 @@ func TestUpdateRules(t *testing.T) {
 	exp.Epochs.MaxEpochGas = 99
 
 	exp.Dag.MaxParents = 5
-	exp.Economy.BlockMissedSlack = 7
+	exp.Economy.MinGasPrice = big.NewInt(7)
 	exp.Blocks.MaxBlockGas = 1000
-	exp.Economy.MinGasPrice = new(big.Int)
-	got, err := UpdateRules(exp, []byte(`{"Dag":{"MaxParents":5},"Economy":{"BlockMissedSlack":7},"Blocks":{"MaxBlockGas":1000}}`))
+	got, err := UpdateRules(exp, []byte(`{"Dag":{"MaxParents":5},"Economy":{"MinGasPrice":7},"Blocks":{"MaxBlockGas":1000}}`))
 	require.NoError(err)
 	require.Equal(serialize(exp), serialize(got), "mutate fields")
 
