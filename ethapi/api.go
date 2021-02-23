@@ -1129,23 +1129,23 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 // RPCMarshalEventHeader converts the given header to the RPC output .
 func RPCMarshalEventHeader(header inter.EventI) map[string]interface{} {
 	return map[string]interface{}{
-		"epoch":            header.Epoch(),
-		"seq":              header.Seq(),
+		"epoch":            hexutil.Uint64(header.Epoch()),
+		"seq":              hexutil.Uint64(header.Seq()),
 		"id":               hexutil.Bytes(header.ID().Bytes()),
-		"frame":            header.Frame(),
-		"creator":          header.Creator(),
+		"frame":            hexutil.Uint64(header.Frame()),
+		"creator":          hexutil.Uint64(header.Creator()),
 		"prevEpochHash":    header.PrevEpochHash(),
 		"parents":          eventIDsToHex(header.Parents()),
-		"lamport":          header.Lamport(),
-		"creationTime":     header.CreationTime(),
-		"medianTime":       header.MedianTime(),
+		"lamport":          hexutil.Uint64(header.Lamport()),
+		"creationTime":     hexutil.Uint64(header.CreationTime()),
+		"medianTime":       hexutil.Uint64(header.MedianTime()),
 		"extraData":        hexutil.Bytes(header.Extra()),
 		"transactionsRoot": hexutil.Bytes(header.TxHash().Bytes()),
 		"gasPowerLeft": map[string]interface{}{
-			"shortTerm": header.GasPowerLeft().Gas[inter.ShortTermGas],
-			"longTerm":  header.GasPowerLeft().Gas[inter.LongTermGas],
+			"shortTerm": hexutil.Uint64(header.GasPowerLeft().Gas[inter.ShortTermGas]),
+			"longTerm":  hexutil.Uint64(header.GasPowerLeft().Gas[inter.LongTermGas]),
 		},
-		"gasPowerUsed": header.GasPowerUsed(),
+		"gasPowerUsed": hexutil.Uint64(header.GasPowerUsed()),
 	}
 }
 
@@ -1154,7 +1154,7 @@ func RPCMarshalEventHeader(header inter.EventI) map[string]interface{} {
 // transaction hashes.
 func RPCMarshalEvent(event inter.EventPayloadI, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields := RPCMarshalEventHeader(event)
-	fields["size"] = event.Size()
+	fields["size"] = hexutil.Uint64(event.Size())
 
 	if inclTx {
 		formatTx := func(tx *types.Transaction) (interface{}, error) {
