@@ -64,8 +64,9 @@ func consensusCallbackBeginBlockFn(
 		wg.Wait()
 		start := time.Now()
 
-		bs := store.GetBlockState()
-		es := store.GetEpochState()
+		// Note: take copies to avoid race conditions with API calls
+		bs := store.GetBlockState().Copy()
+		es := store.GetEpochState().Copy()
 
 		// merge cheaters to ensure that every cheater will get punished even if only previous (not current) Atropos observed a doublesign
 		// this feature is needed because blocks may be skipped even if cheaters list isn't empty
