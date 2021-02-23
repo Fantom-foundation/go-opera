@@ -1214,7 +1214,7 @@ func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
 // transaction hashes.
 func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields := RPCMarshalHeader(block.Header())
-	fields["size"] = block.EthBlock().Size()
+	fields["size"] = hexutil.Uint64(block.EthBlock().Size())
 
 	if inclTx {
 		formatTx := func(tx *types.Transaction) (interface{}, error) {
