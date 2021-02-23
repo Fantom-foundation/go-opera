@@ -220,6 +220,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		}
 	}
 
+	s.commitEVM()
 	s.SetBlock(blockCtx.Idx, block)
 	s.SetBlockIndex(genesisAtropos, blockCtx.Idx)
 	s.SetGenesisBlockIndex(blockCtx.Idx)

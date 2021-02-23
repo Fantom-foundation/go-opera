@@ -273,7 +273,7 @@ func consensusCallbackBeginBlockFn(
 						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 					}
 
-					store.capEVM()
+					store.commitEVM()
 
 					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))

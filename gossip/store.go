@@ -146,8 +146,12 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 		s.dbs.NotFlushedSizeEst() > size
 }
 
-// capEVM cache if exceeds maximum RAM limit.
-func (s *Store) capEVM() {
+// commitEVM commits EVM storage
+func (s *Store) commitEVM() {
+	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot)
+	if err != nil {
+		s.Log.Crit("Failed to commit EVM storage", "err", err)
+	}
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
@@ -157,10 +161,6 @@ func (s *Store) Commit() error {
 	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
 	s.FlushBlockEpochState()
-	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot)
-	if err != nil {
-		return err
-	}
 	return s.dbs.Flush(flushID)
 }
 
