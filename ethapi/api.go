@@ -50,13 +50,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-const (
-	defaultGasPrice = params.GWei
-)
-
 var (
-	noUncles   = []evmcore.EvmHeader{}
-	emptyBloom = types.Bloom{}
+	noUncles = []evmcore.EvmHeader{}
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
@@ -1499,6 +1494,12 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 
+	for _, l := range receipt.Logs {
+		l.TxHash = hash
+		l.BlockHash = header.Hash
+		l.BlockNumber = blockNumber
+	}
+
 	var signer types.Signer = types.FrontierSigner{}
 	if tx.Protected() {
 		signer = types.NewEIP155Signer(tx.ChainId())
@@ -1516,7 +1517,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
-		"logsBloom":         &emptyBloom,
+		"logsBloom":         &receipt.Bloom,
 	}
 
 	// Assign receipt status or post state.
