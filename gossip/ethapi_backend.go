@@ -593,3 +593,7 @@ func (b *EthAPIBackend) GetDelegationsByAddress(ctx context.Context, addr common
 func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfcapi.DelegationID) (*sfcapi.SfcDelegation, error) {
 	return b.svc.store.sfcapi.GetSfcDelegation(id), nil
 }
+
+func (b *EthAPIBackend) CalcLogsBloom() bool {
+	return b.svc.config.RPCLogsBloom
+}

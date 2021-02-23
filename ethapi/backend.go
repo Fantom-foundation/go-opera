@@ -61,6 +61,7 @@ type Backend interface {
 	ExtRPCEnabled() bool
 	RPCGasCap() uint64    // global gas cap for eth_call over rpc: DoS protection
 	RPCTxFeeCap() float64 // global tx fee cap for all transaction related APIs
+	CalcLogsBloom() bool
 
 	// Blockchain API
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)

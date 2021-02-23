@@ -639,7 +639,7 @@ func (s *PublicBlockChainAPI) GetProof(ctx context.Context, address common.Addre
 func (s *PublicBlockChainAPI) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (map[string]interface{}, error) {
 	header, err := s.b.HeaderByNumber(ctx, number)
 	if header != nil && err == nil {
-		response := s.rpcMarshalHeader(header)
+		response := s.rpcMarshalHeader(header, s.calculateLogsBloom(ctx, number))
 		if number == rpc.PendingBlockNumber {
 			// Pending header need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
@@ -655,9 +655,22 @@ func (s *PublicBlockChainAPI) GetHeaderByNumber(ctx context.Context, number rpc.
 func (s *PublicBlockChainAPI) GetHeaderByHash(ctx context.Context, hash common.Hash) map[string]interface{} {
 	header, _ := s.b.HeaderByHash(ctx, hash)
 	if header != nil {
-		return s.rpcMarshalHeader(header)
+		return s.rpcMarshalHeader(header, s.calculateLogsBloom(ctx, rpc.BlockNumber(header.Number.Uint64())))
 	}
 	return nil
+}
+
+func (s *PublicBlockChainAPI) calculateLogsBloom(ctx context.Context, blkNumber rpc.BlockNumber) types.Bloom {
+	if s.b.CalcLogsBloom() && blkNumber != rpc.EarliestBlockNumber {
+		receipts, err := s.b.GetReceiptsByNumber(ctx, blkNumber)
+		if err != nil {
+			return types.Bloom{}
+		}
+		if receipts != nil {
+			return types.CreateBloom(receipts)
+		}
+	}
+	return types.Bloom{}
 }
 
 // GetBlockByNumber returns the requested canonical block.
@@ -668,7 +681,7 @@ func (s *PublicBlockChainAPI) GetHeaderByHash(ctx context.Context, hash common.H
 func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByNumber(ctx, number)
 	if block != nil && err == nil {
-		response, err := s.rpcMarshalBlock(block, true, fullTx)
+		response, err := s.rpcMarshalBlock(block, s.calculateLogsBloom(ctx, number), true, fullTx)
 		if err == nil && number == rpc.PendingBlockNumber {
 			// Pending blocks need to nil out a few fields
 			for _, field := range []string{"hash", "nonce", "miner"} {
@@ -685,7 +698,7 @@ func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.B
 func (s *PublicBlockChainAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.BlockByHash(ctx, hash)
 	if block != nil {
-		return s.rpcMarshalBlock(block, true, fullTx)
+		return s.rpcMarshalBlock(block, s.calculateLogsBloom(ctx, rpc.BlockNumber(block.NumberU64())), true, fullTx)
 	}
 	return nil, err
 }
@@ -1186,7 +1199,7 @@ func eventIDToHex(id hash.Event) hexutil.Bytes {
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
-func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
+func RPCMarshalHeader(head *evmcore.EvmHeader, bloom types.Bloom) map[string]interface{} {
 	return map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
 		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
@@ -1194,7 +1207,7 @@ func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
 		"nonce":            types.BlockNonce{},
 		"mixHash":          common.Hash{},
 		"sha3Uncles":       types.EmptyUncleHash,
-		"logsBloom":        types.Bloom{},
+		"logsBloom":        bloom,
 		"stateRoot":        head.Root,
 		"miner":            head.Coinbase,
 		"difficulty":       (*hexutil.Big)(new(big.Int)),
@@ -1212,8 +1225,8 @@ func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
 // RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
-	fields := RPCMarshalHeader(block.Header())
+func RPCMarshalBlock(block *evmcore.EvmBlock, bloom types.Bloom, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+	fields := RPCMarshalHeader(block.Header(), bloom)
 	fields["size"] = hexutil.Uint64(block.EthBlock().Size())
 
 	if inclTx {
@@ -1247,16 +1260,16 @@ func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[str
 
 // rpcMarshalHeader uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evmcore.EvmHeader) map[string]interface{} {
-	fields := RPCMarshalHeader(header)
+func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evmcore.EvmHeader, bloom types.Bloom) map[string]interface{} {
+	fields := RPCMarshalHeader(header, bloom)
 	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(header.Hash))
 	return fields
 }
 
 // rpcMarshalBlock uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
-	fields, err := RPCMarshalBlock(b, inclTx, fullTx)
+func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evmcore.EvmBlock, bloom types.Bloom, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+	fields, err := RPCMarshalBlock(b, bloom, inclTx, fullTx)
 	if err != nil {
 		return nil, err
 	}

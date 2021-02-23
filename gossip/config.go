@@ -82,6 +82,8 @@ type (
 		RPCTxFeeCap float64 `toml:",omitempty"`
 
 		ExtRPCEnabled bool
+
+		RPCLogsBloom bool
 	}
 	StoreCacheConfig struct {
 		// Cache size for full events.
@@ -163,6 +165,7 @@ func DefaultConfig() Config {
 			ShutDownIfNotUpgraded:     false,
 			WarningIfNotUpgradedEvery: 5 * time.Second,
 		},
+		RPCLogsBloom: true,
 	}
 	cfg.Protocol.StreamLeecher.MaxSessionRestart = 4 * time.Minute
 
