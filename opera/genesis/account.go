@@ -39,9 +39,10 @@ type (
 	}
 	// Account is an account in the state of the genesis block.
 	Account struct {
-		Code    []byte
-		Balance *big.Int
-		Nonce   uint64
+		Code         []byte
+		Balance      *big.Int
+		Nonce        uint64
+		SelfDestruct bool
 	}
 
 	Block struct {
