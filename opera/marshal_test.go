@@ -1,17 +1,11 @@
 package opera
 
 import (
-	"encoding/json"
 	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func serialize(r Rules) string {
-	b, _ := json.Marshal(&r)
-	return string(b)
-}
 
 func TestUpdateRules(t *testing.T) {
 	require := require.New(t)
@@ -24,16 +18,16 @@ func TestUpdateRules(t *testing.T) {
 	exp.Blocks.MaxBlockGas = 1000
 	got, err := UpdateRules(exp, []byte(`{"Dag":{"MaxParents":5},"Economy":{"MinGasPrice":7},"Blocks":{"MaxBlockGas":1000}}`))
 	require.NoError(err)
-	require.Equal(serialize(exp), serialize(got), "mutate fields")
+	require.Equal(exp.String(), got.String(), "mutate fields")
 
 	exp.Dag.MaxParents = 0
 	got, err = UpdateRules(exp, []byte(`{"Name":"xxx","NetworkID":1,"Dag":{"MaxParents":0}}`))
 	require.NoError(err)
-	require.Equal(serialize(exp), serialize(got), "readonly fields")
+	require.Equal(exp.String(), got.String(), "readonly fields")
 
 	got, err = UpdateRules(exp, []byte(`{}`))
 	require.NoError(err)
-	require.Equal(serialize(exp), serialize(got), "empty diff")
+	require.Equal(exp.String(), got.String(), "empty diff")
 
 	_, err = UpdateRules(exp, []byte(`}{`))
 	require.Error(err)

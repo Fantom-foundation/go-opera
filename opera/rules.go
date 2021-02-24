@@ -1,6 +1,7 @@
 package opera
 
 import (
+	"encoding/json"
 	"math/big"
 	"time"
 
@@ -97,9 +98,9 @@ type BlocksRules struct {
 }
 
 // EvmChainConfig returns ChainConfig for transactions signing and execution
-func (c Rules) EvmChainConfig() *ethparams.ChainConfig {
+func (r Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
-	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
+	cfg.ChainID = new(big.Int).SetUint64(r.NetworkID)
 	return &cfg
 }
 
@@ -233,4 +234,9 @@ func (r Rules) Copy() Rules {
 	cp := r
 	cp.Economy.MinGasPrice = new(big.Int).Set(r.Economy.MinGasPrice)
 	return cp
+}
+
+func (r Rules) String() string {
+	b, _ := json.Marshal(&r)
+	return string(b)
 }
