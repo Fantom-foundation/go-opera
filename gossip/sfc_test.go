@@ -1,7 +1,7 @@
 package gossip
 
 // compile SFC with truffle
-//go:generate bash -c "cd ../../opera-sfc && git checkout develop && docker run --rm -v $(pwd)/../go-opera/gossip/contract/solc:/src/build/contracts -v $(pwd):/src -w /src node:10.23.0 bash -c 'export NPM_CONFIG_PREFIX=~; npm install; npm install truffle; npm run build'"
+//go:generate bash -c "cd ../../opera-sfc && git checkout e939c3c3e59e253dd7811e3e119e084159b0326e && docker run --rm -v $(pwd)/../go-opera/gossip/contract/solc:/src/build/contracts -v $(pwd):/src -w /src node:10.23.0 bash -c 'export NPM_CONFIG_PREFIX=~; npm install; npm install truffle; npm run build'"
 //go:generate bash -c "cd ./contract/solc && for f in *.json; do jq -j .bytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin; jq -j .deployedBytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin-runtime; jq -c .abi $DOLLAR{f} > $DOLLAR{f%.json}.abi; done"
 // wrap SFC with golang
 //go:generate mkdir -p ./contract/sfc100
@@ -56,6 +56,7 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis SFC contract")
 
 			// TODO: compare with hexutil.MustDecode(sfc100.ContractBinRuntime) also
+			//require.Equal(len(exp), len(hexutil.MustDecode(sfc100.ContractBinRuntime)), "genesis SFC contract")
 			require.Equal(exp, hexutil.MustDecode(sfc100.ContractBinRuntime), "genesis SFC contract")
 		}) &&
 
