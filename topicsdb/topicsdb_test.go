@@ -24,6 +24,17 @@ func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
 	return
 }
 
+// FindInBlocks wraps ForEachInBlocks() for tests.
+func (tt *Index) FindInBlocks(blockFrom, blockTo uint64, topics [][]common.Hash) (all []*types.Log, err error) {
+	err = tt.ForEachInBlocks(blockFrom, blockTo, topics, func(item *types.Log) (next bool) {
+		all = append(all, item)
+		next = true
+		return
+	})
+
+	return
+}
+
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
 	var (
@@ -75,7 +86,6 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 				}
 			}
 		}
-		require.Equal(len(testdata), count)
 	}
 
 	t.Run("With no addresses", func(t *testing.T) {
@@ -87,6 +97,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 			{hash1, hash2, hash3, hash4},
 		})
 		require.NoError(err)
+		require.Equal(4, len(got))
 		check(require, got)
 	})
 
@@ -99,6 +110,20 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 			{hash1, hash2, hash3, hash4},
 		})
 		require.NoError(err)
+		require.Equal(4, len(got))
+		check(require, got)
+	})
+
+	t.Run("With by blocks", func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.FindInBlocks(500, 999, [][]common.Hash{
+			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+			{hash1, hash2, hash3, hash4},
+			{},
+			{hash1, hash2, hash3, hash4},
+		})
+		require.NoError(err)
+		require.Equal(2, len(got))
 		check(require, got)
 	})
 }
