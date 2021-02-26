@@ -52,11 +52,11 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 	}
 
 	ok := false
-	for _, alternative := range topics {
-		if len(alternative) > MaxCount {
+	for _, variants := range topics {
+		if len(variants) > MaxCount {
 			return ErrTooManyTopics
 		}
-		ok = ok || len(alternative) > 0
+		ok = ok || len(variants) > 0
 	}
 	if !ok {
 		return ErrEmptyTopics
