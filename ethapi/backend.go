@@ -94,6 +94,7 @@ type Backend interface {
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
 	CurrentEpoch(ctx context.Context) idx.Epoch
+	SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp)
 
 	// Lachesis SFC API
 	GetValidators(ctx context.Context) *pos.Validators

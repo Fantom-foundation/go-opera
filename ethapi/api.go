@@ -538,6 +538,11 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
+// CurrentEpoch returns current epoch number.
+func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
+	return hexutil.Uint64(s.b.CurrentEpoch(ctx))
+}
+
 // ChainID returns the chainID value for transaction replay protection.
 func (s *PublicBlockChainAPI) ChainID() *hexutil.Big {
 	return (*hexutil.Big)(s.b.ChainConfig().ChainID)

@@ -597,3 +597,8 @@ func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfcapi.DelegationI
 func (b *EthAPIBackend) CalcLogsBloom() bool {
 	return b.svc.config.RPCLogsBloom
 }
+
+func (b *EthAPIBackend) SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp) {
+	es := b.svc.store.GetEpochState()
+	return es.PrevEpochStart, es.EpochStart
+}
