@@ -44,7 +44,7 @@ func New(db kvdb.Store) *Index {
 // ForEach matches log records by topics. 1st topics element is an address.
 func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if err := checkTopics(topics); err != nil {
-		return nil
+		return err
 	}
 
 	return tt.fetchLazy(topics, nil, onLog)
@@ -53,7 +53,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 // ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
 func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if err := checkTopics(topics); err != nil {
-		return nil
+		return err
 	}
 
 	bm := blocksMask(blockFrom, blockTo)
