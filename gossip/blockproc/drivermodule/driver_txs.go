@@ -136,16 +136,20 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 		metrics := make([]drivercall.ValidatorEpochMetric, es.Validators.Len())
 		for oldValIdx := idx.Validator(0); oldValIdx < es.Validators.Len(); oldValIdx++ {
 			info := bs.ValidatorStates[oldValIdx]
+			// forgive downtime if below BlockMissedSlack
 			missed := opera.BlocksMissed{
 				BlocksNum: maxBlockIdx(block.Idx, info.LastBlock) - info.LastBlock,
 				Period:    inter.MaxTimestamp(block.Time, info.LastOnlineTime) - info.LastOnlineTime,
 			}
+			uptime := info.Uptime
 			if missed.BlocksNum <= es.Rules.Economy.BlockMissedSlack {
 				missed = opera.BlocksMissed{}
+				prevOnlineTime := inter.MaxTimestamp(info.LastOnlineTime, es.EpochStart)
+				uptime += inter.MaxTimestamp(block.Time, prevOnlineTime) - prevOnlineTime
 			}
 			metrics[oldValIdx] = drivercall.ValidatorEpochMetric{
 				Missed:          missed,
-				Uptime:          info.Uptime,
+				Uptime:          uptime,
 				OriginatedTxFee: info.Originated,
 			}
 		}
