@@ -28,8 +28,6 @@ type Index struct {
 		// (blockN+TxHash+logIndex) -> blockHash, data
 		Logrec kvdb.Store `table:"r"`
 	}
-
-	fetchMethod func(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error
 }
 
 // New Index instance.
@@ -37,8 +35,6 @@ func New(db kvdb.Store) *Index {
 	tt := &Index{
 		db: db,
 	}
-
-	tt.fetchMethod = tt.fetchLazy
 
 	table.MigrateTables(&tt.table, tt.db)
 
@@ -62,7 +58,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 		return ErrEmptyTopics
 	}
 
-	return tt.fetchMethod(topics, onLog)
+	return tt.fetchLazy(topics, onLog)
 }
 
 // MustPush calls Write() and panics if error.
