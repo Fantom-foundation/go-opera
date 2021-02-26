@@ -45,6 +45,20 @@ func (id *ID) Index() uint {
 		(*id)[uint64Size+hashSize : uint64Size+hashSize+uint64Size]))
 }
 
+func blocksMask(from, to uint64) []byte {
+	a := uintToBytes(from)
+	b := uintToBytes(to)
+
+	mask := make([]byte, 0, uint64Size)
+	for i, ai := range a {
+		if ai != b[i] {
+			break
+		}
+		mask = append(mask, ai)
+	}
+	return mask
+}
+
 func topicKey(topic common.Hash, pos uint8, logrec ID) []byte {
 	key := make([]byte, 0, topicKeySize)
 
