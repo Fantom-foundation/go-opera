@@ -46,6 +46,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 	if err := checkTopics(topics); err != nil {
 		return nil
 	}
+
 	return tt.fetchLazy(topics, nil, onLog)
 }
 
@@ -56,7 +57,18 @@ func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Ha
 	}
 
 	bm := blocksMask(blockFrom, blockTo)
-	return tt.fetchLazy(topics, bm, onLog)
+
+	if blockFrom > blockTo {
+		blockFrom, blockTo = blockTo, blockFrom
+	}
+	moreAccurate := func(l *types.Log) (gonext bool) {
+		if blockFrom > l.BlockNumber || l.BlockNumber > blockTo {
+			return true
+		}
+		return onLog(l)
+	}
+
+	return tt.fetchLazy(topics, bm, moreAccurate)
 }
 
 func checkTopics(topics [][]common.Hash) error {
