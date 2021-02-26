@@ -41,8 +41,25 @@ func New(db kvdb.Store) *Index {
 	return tt
 }
 
-// ForEach log records by conditions. 1st topics element is an address.
+// ForEach matches log records by topics. 1st topics element is an address.
 func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if err := checkTopics(topics); err != nil {
+		return nil
+	}
+	return tt.fetchLazy(topics, nil, onLog)
+}
+
+// ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
+func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if err := checkTopics(topics); err != nil {
+		return nil
+	}
+
+	bm := blocksMask(blockFrom, blockTo)
+	return tt.fetchLazy(topics, bm, onLog)
+}
+
+func checkTopics(topics [][]common.Hash) error {
 	if len(topics) > MaxCount {
 		return ErrTooManyTopics
 	}
@@ -58,7 +75,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 		return ErrEmptyTopics
 	}
 
-	return tt.fetchLazy(topics, onLog)
+	return nil
 }
 
 // MustPush calls Write() and panics if error.

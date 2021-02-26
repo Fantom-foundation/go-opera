@@ -5,13 +5,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchLazy(topics [][]common.Hash, onLog func(*types.Log) bool) (err error) {
-	_, err = tt.walk(nil, topics, 0, onLog)
+func (tt *Index) fetchLazy(topics [][]common.Hash, blocksMask []byte, onLog func(*types.Log) bool) (err error) {
+	_, err = tt.walk(nil, blocksMask, topics, 0, onLog)
 	return
 }
 
 func (tt *Index) walk(
-	rec *logrec, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+	rec *logrec, blocksMask []byte, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
 ) (
 	gonext bool, err error,
 ) {
@@ -49,6 +49,9 @@ func (tt *Index) walk(
 		if rec != nil {
 			copy(prefix[prefLen:], rec.ID.Bytes())
 			prefLen += logrecKeySize
+		} else {
+			copy(prefix[prefLen:], blocksMask)
+			prefLen += len(blocksMask)
 		}
 
 		it := tt.table.Topic.NewIterator(prefix[:prefLen], nil)
@@ -56,7 +59,7 @@ func (tt *Index) walk(
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())
 			newRec := newLogrec(id, topicCount)
-			gonext, err = tt.walk(newRec, topics, pos+1, onLog)
+			gonext, err = tt.walk(newRec, nil, topics, pos+1, onLog)
 			if err != nil || !gonext {
 				it.Release()
 				return
