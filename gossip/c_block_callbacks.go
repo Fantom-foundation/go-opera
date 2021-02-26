@@ -151,6 +151,11 @@ func consensusCallbackBeginBlockFn(
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true)
 				bs = txListener.Finalize()
+				for _, r := range preInternalReceipts {
+					if r.Status == 0 {
+						log.Warn("Pre-internal transaction reverted", "txid", r.TxHash.String())
+					}
+				}
 
 				// Seal epoch if requested
 				if sealing {
@@ -166,6 +171,11 @@ func consensusCallbackBeginBlockFn(
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
+					for _, r := range internalReceipts {
+						if r.Status == 0 {
+							log.Warn("Internal transaction reverted", "txid", r.TxHash.String())
+						}
+					}
 
 					// sort events by Lamport time
 					sort.Sort(confirmedEvents)
