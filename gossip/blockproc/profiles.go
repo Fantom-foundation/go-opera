@@ -12,6 +12,14 @@ import (
 
 type ValidatorProfiles map[idx.ValidatorID]drivertype.Validator
 
+func (vv ValidatorProfiles) Copy() ValidatorProfiles {
+	cp := make(ValidatorProfiles, len(vv))
+	for k, v := range vv {
+		cp[k] = v
+	}
+	return cp
+}
+
 func (vv ValidatorProfiles) SortedArray() []drivertype.ValidatorAndID {
 	builder := pos.NewBigBuilder()
 	for id, profile := range vv {

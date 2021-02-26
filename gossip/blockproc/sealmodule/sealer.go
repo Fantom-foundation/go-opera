@@ -51,7 +51,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	}
 	newValidators := builder.Build()
 	s.es.Validators = newValidators
-	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles
+	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles.Copy()
 
 	// Build new []ValidatorEpochState and []ValidatorBlockState
 	newValidatorEpochStates := make([]blockproc.ValidatorEpochState, newValidators.Len())
