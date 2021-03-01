@@ -3,6 +3,7 @@ package topicsdb
 import (
 	"testing"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,8 +23,8 @@ func TestBlocksMask(t *testing.T) {
 	require := require.New(t)
 
 	for i, tt := range []struct {
-		from uint64
-		to   uint64
+		from idx.Block
+		to   idx.Block
 		mask []byte
 	}{
 		{0x00110021, 0x00110022, []byte{0, 0, 0, 0, 0x00, 0x11, 0x00}},

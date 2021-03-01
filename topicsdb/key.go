@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -45,9 +46,9 @@ func (id *ID) Index() uint {
 		(*id)[uint64Size+hashSize : uint64Size+hashSize+uint64Size]))
 }
 
-func blocksMask(from, to uint64) []byte {
-	a := uintToBytes(from)
-	b := uintToBytes(to)
+func blocksMask(from, to idx.Block) []byte {
+	a := uintToBytes(uint64(from))
+	b := uintToBytes(uint64(to))
 
 	mask := make([]byte, 0, uint64Size)
 	for i, ai := range a {

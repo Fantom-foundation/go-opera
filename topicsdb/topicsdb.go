@@ -3,6 +3,7 @@ package topicsdb
 import (
 	"fmt"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 
@@ -51,8 +52,8 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 }
 
 // ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
-func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
-	if blockFrom > blockTo {
+func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if from > to {
 		return nil
 	}
 
@@ -61,13 +62,13 @@ func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Ha
 	}
 
 	moreAccurate := func(l *types.Log) (gonext bool) {
-		if blockFrom > l.BlockNumber || l.BlockNumber > blockTo {
+		if uint64(from) > l.BlockNumber || l.BlockNumber > uint64(to) {
 			return true
 		}
 		return onLog(l)
 	}
 
-	bm := blocksMask(blockFrom, blockTo)
+	bm := blocksMask(from, to)
 	return tt.fetchLazy(topics, bm, moreAccurate)
 }
 
