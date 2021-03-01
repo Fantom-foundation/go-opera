@@ -64,8 +64,9 @@ func consensusCallbackBeginBlockFn(
 		wg.Wait()
 		start := time.Now()
 
-		bs := store.GetBlockState()
-		es := store.GetEpochState()
+		// Note: take copies to avoid race conditions with API calls
+		bs := store.GetBlockState().Copy()
+		es := store.GetEpochState().Copy()
 
 		// merge cheaters to ensure that every cheater will get punished even if only previous (not current) Atropos observed a doublesign
 		// this feature is needed because blocks may be skipped even if cheaters list isn't empty
@@ -150,6 +151,11 @@ func consensusCallbackBeginBlockFn(
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true)
 				bs = txListener.Finalize()
+				for _, r := range preInternalReceipts {
+					if r.Status == 0 {
+						log.Warn("Pre-internal transaction reverted", "txid", r.TxHash.String())
+					}
+				}
 
 				// Seal epoch if requested
 				if sealing {
@@ -165,6 +171,11 @@ func consensusCallbackBeginBlockFn(
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs, true)
+					for _, r := range internalReceipts {
+						if r.Status == 0 {
+							log.Warn("Internal transaction reverted", "txid", r.TxHash.String())
+						}
+					}
 
 					// sort events by Lamport time
 					sort.Sort(confirmedEvents)
@@ -273,7 +284,7 @@ func consensusCallbackBeginBlockFn(
 						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 					}
 
-					store.capEVM()
+					store.commitEVM()
 
 					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))

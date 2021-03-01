@@ -120,6 +120,8 @@ type PeerProgress struct {
 	Epoch            idx.Epoch
 	LastBlockIdx     idx.Block
 	LastBlockAtropos hash.Event
+	// Currently unused
+	HighestLamport idx.Lamport
 }
 
 type epochChunk struct {

@@ -1,6 +1,7 @@
 package opera
 
 import (
+	"encoding/json"
 	"math/big"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
@@ -28,6 +28,7 @@ var DefaultVmConfig = vm.Config{
 }
 
 // Rules describes opera net.
+// Note keep track of all the non-copiable variables in Copy()
 type Rules struct {
 	Name      string
 	NetworkID uint64
@@ -97,9 +98,9 @@ type BlocksRules struct {
 }
 
 // EvmChainConfig returns ChainConfig for transactions signing and execution
-func (c Rules) EvmChainConfig() *ethparams.ChainConfig {
+func (r Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
-	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
+	cfg.ChainID = new(big.Int).SetUint64(r.NetworkID)
 	return &cfg
 }
 
@@ -230,11 +231,12 @@ func FakeShortGasPowerRules() GasPowerRules {
 }
 
 func (r Rules) Copy() Rules {
-	b, err := rlp.EncodeToBytes(r)
-	if err != nil {
-		panic("failed to copy rules")
-	}
-	cp := Rules{}
-	_ = rlp.DecodeBytes(b, &cp)
+	cp := r
+	cp.Economy.MinGasPrice = new(big.Int).Set(r.Economy.MinGasPrice)
 	return cp
+}
+
+func (r Rules) String() string {
+	b, _ := json.Marshal(&r)
+	return string(b)
 }

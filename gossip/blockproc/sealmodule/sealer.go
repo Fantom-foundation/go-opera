@@ -8,7 +8,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
-	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 type OperaEpochsSealerModule struct{}
@@ -42,6 +41,7 @@ func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochSt
 	p.bs, p.es = bs, es
 }
 
+// SealEpoch is called after pre-internal transactions are executed
 func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
 	// Select new validators
 	oldValidators := s.es.Validators
@@ -51,7 +51,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	}
 	newValidators := builder.Build()
 	s.es.Validators = newValidators
-	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles
+	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles.Copy()
 
 	// Build new []ValidatorEpochState and []ValidatorBlockState
 	newValidatorEpochStates := make([]blockproc.ValidatorEpochState, newValidators.Len())
@@ -80,15 +80,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.bs.ValidatorStates = newValidatorBlockStates
 	s.es.Validators = newValidators
 
-	// add final uptime for validators
-	for i, info := range s.bs.ValidatorStates {
-		if s.block.Idx <= info.LastBlock+s.es.Rules.Economy.BlockMissedSlack {
-			info.Uptime += inter.MaxTimestamp(s.block.Time, info.LastOnlineTime) - info.LastOnlineTime
-		}
-		s.bs.ValidatorStates[i] = info
-	}
-
-	// dirty data become active
+	// dirty data becomes active
 	s.es.PrevEpochStart = s.es.EpochStart
 	s.es.EpochStart = s.block.Time
 	s.es.Rules = s.bs.DirtyRules.Copy()

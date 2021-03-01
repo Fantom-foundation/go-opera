@@ -41,6 +41,10 @@ func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (
 		}
 	}
 	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
+		if account.SelfDestruct {
+			statedb.Suicide(addr)
+			_, _ = statedb.Commit(true)
+		}
 		statedb.SetBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)

@@ -51,6 +51,20 @@ type BlockState struct {
 	AdvanceEpochs idx.Epoch
 }
 
+func (bs BlockState) Copy() BlockState {
+	cp := bs
+	cp.EpochCheaters = make(lachesis.Cheaters, len(bs.EpochCheaters))
+	copy(cp.EpochCheaters, bs.EpochCheaters)
+	cp.ValidatorStates = make([]ValidatorBlockState, len(bs.ValidatorStates))
+	copy(cp.ValidatorStates, bs.ValidatorStates)
+	cp.NextValidatorProfiles = make(ValidatorProfiles, len(bs.NextValidatorProfiles))
+	for k, v := range bs.NextValidatorProfiles {
+		cp.NextValidatorProfiles[k] = v
+	}
+	cp.DirtyRules = bs.DirtyRules.Copy()
+	return cp
+}
+
 func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorBlockState {
 	validatorIdx := validators.GetIdx(id)
 	return &bs.ValidatorStates[validatorIdx]
@@ -86,4 +100,16 @@ func (es EpochState) Hash() hash.Hash {
 		panic("can't hash: " + err.Error())
 	}
 	return hash.BytesToHash(hasher.Sum(nil))
+}
+
+func (es EpochState) Copy() EpochState {
+	cp := es
+	cp.ValidatorStates = make([]ValidatorEpochState, len(es.ValidatorStates))
+	copy(cp.ValidatorStates, es.ValidatorStates)
+	cp.ValidatorProfiles = make(ValidatorProfiles, len(es.ValidatorProfiles))
+	for k, v := range es.ValidatorProfiles {
+		cp.ValidatorProfiles[k] = v
+	}
+	cp.Rules = es.Rules.Copy()
+	return cp
 }

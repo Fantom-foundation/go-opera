@@ -18,6 +18,7 @@ type BlockEpochState struct {
 
 // SetBlockEpochState stores the latest block and epoch state in memory
 func (s *Store) SetBlockEpochState(bs blockproc.BlockState, es blockproc.EpochState) {
+	bs, es = bs.Copy(), es.Copy()
 	s.cache.BlockEpochState.Store(&BlockEpochState{&bs, &es})
 }
 
