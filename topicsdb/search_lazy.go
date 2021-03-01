@@ -10,6 +10,7 @@ func (tt *Index) fetchLazy(topics [][]common.Hash, blocksMask []byte, onLog func
 	return
 }
 
+// walk for topics recursive.
 func (tt *Index) walk(
 	rec *logrec, blocksMask []byte, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
 ) (
@@ -17,6 +18,7 @@ func (tt *Index) walk(
 ) {
 	gonext = true
 	for {
+		// Max recursion depth is equal to len(topics) and limited by MaxCount.
 		if pos >= uint8(len(topics)) {
 			if rec == nil {
 				return

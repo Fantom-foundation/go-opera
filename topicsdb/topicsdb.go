@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const MaxCount = 0xff
+const MaxTopicsCount = 0xff
 
 var (
 	ErrTooManyTopics = fmt.Errorf("Too many topics")
@@ -72,13 +72,13 @@ func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Ha
 }
 
 func checkTopics(topics [][]common.Hash) error {
-	if len(topics) > MaxCount {
+	if len(topics) > MaxTopicsCount {
 		return ErrTooManyTopics
 	}
 
 	ok := false
 	for _, variants := range topics {
-		if len(variants) > MaxCount {
+		if len(variants) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
 		ok = ok || len(variants) > 0
@@ -101,7 +101,7 @@ func (tt *Index) MustPush(recs ...*types.Log) {
 // Write log record to database.
 func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
-		if len(rec.Topics) > MaxCount {
+		if len(rec.Topics) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
 		count := posToBytes(uint8(1 + len(rec.Topics)))
