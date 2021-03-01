@@ -52,15 +52,14 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 
 // ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
 func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if blockFrom > blockTo {
+		return nil
+	}
+
 	if err := checkTopics(topics); err != nil {
 		return err
 	}
 
-	bm := blocksMask(blockFrom, blockTo)
-
-	if blockFrom > blockTo {
-		blockFrom, blockTo = blockTo, blockFrom
-	}
 	moreAccurate := func(l *types.Log) (gonext bool) {
 		if blockFrom > l.BlockNumber || l.BlockNumber > blockTo {
 			return true
@@ -68,6 +67,7 @@ func (tt *Index) ForEachInBlocks(blockFrom, blockTo uint64, topics [][]common.Ha
 		return onLog(l)
 	}
 
+	bm := blocksMask(blockFrom, blockTo)
 	return tt.fetchLazy(topics, bm, moreAccurate)
 }
 
