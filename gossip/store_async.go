@@ -27,5 +27,5 @@ func newAsyncStore(db kvdb.Store) *asyncStore {
 func (s *asyncStore) Close() {
 	table.MigrateTables(&s.table, nil)
 
-	s.mainDB.Close()
+	_ = s.mainDB.Close()
 }

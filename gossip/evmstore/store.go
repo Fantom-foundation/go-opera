@@ -25,7 +25,7 @@ import (
 type Store struct {
 	cfg StoreConfig
 
-	mainDb kvdb.Store
+	mainDB kvdb.Store
 	table  struct {
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
@@ -52,19 +52,20 @@ type Store struct {
 }
 
 // NewStore creates store over key-value db.
-func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
+func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
-		mainDb:   mainDb,
+		mainDB:   mainDB,
 		Instance: logger.MakeInstance(),
+		rlp:      rlpstore.Helper{logger.MakeInstance()},
 	}
 
-	table.MigrateTables(&s.table, s.mainDb)
+	table.MigrateTables(&s.table, s.mainDB)
 
-	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
+	evmTable := nokeyiserr.Wrap(table.New(s.mainDB, []byte("M"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, cfg.Cache.EvmDatabase/opt.MiB, "")
-	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
+	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
 
 	s.initCache()
 
@@ -119,21 +120,6 @@ func (s *Store) EvmLogs() *topicsdb.Index {
 /*
  * Utils:
  */
-
-func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
-	keys := make([][]byte, 0, 500) // don't write during iteration
-
-	for it.Next() {
-		keys = append(keys, it.Key())
-	}
-
-	for i := range keys {
-		err := t.Delete(keys[i])
-		if err != nil {
-			s.Log.Crit("Failed to erase key-value", "err", err)
-		}
-	}
-}
 
 func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 	cache, err := wlru.New(weight, size)

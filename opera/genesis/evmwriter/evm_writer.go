@@ -30,13 +30,13 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			return nil, 0, vm.ErrOutOfGas
 		}
 		suppliedGas -= params.CallValueTransferGas
-		if len(input) < 64 {
+		if len(input) != 64 {
 			return nil, 0, vm.ErrExecutionReverted
 		}
 
 		acc := common.BytesToAddress(input[12:32])
 		input = input[32:]
-		value := new(big.Int).SetBytes(input)
+		value := new(big.Int).SetBytes(input[:32])
 
 		if acc == ctx.Origin {
 			// Origin balance shouldn't decrease during his transaction
@@ -58,6 +58,9 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			return nil, 0, vm.ErrOutOfGas
 		}
 		suppliedGas -= params.CreateGas
+		if len(input) != 64 {
+			return nil, 0, vm.ErrExecutionReverted
+		}
 
 		accTo := common.BytesToAddress(input[12:32])
 		input = input[32:]
@@ -83,6 +86,9 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			return nil, 0, vm.ErrOutOfGas
 		}
 		suppliedGas -= cost
+		if len(input) != 64 {
+			return nil, 0, vm.ErrExecutionReverted
+		}
 
 		acc0 := common.BytesToAddress(input[12:32])
 		input = input[32:]
@@ -113,6 +119,9 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			return nil, 0, vm.ErrOutOfGas
 		}
 		suppliedGas -= params.SstoreInitGasEIP2200
+		if len(input) != 96 {
+			return nil, 0, vm.ErrExecutionReverted
+		}
 		acc := common.BytesToAddress(input[12:32])
 		input = input[32:]
 		key := common.BytesToHash(input[:32])

@@ -11,10 +11,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
@@ -28,23 +28,24 @@ type Store struct {
 
 	mainDB kvdb.Store
 	evm    *evmstore.Store
+	sfcapi *sfcapi.Store
 	table  struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
-		BlockState kvdb.Store `table:"z"`
-		EpochState kvdb.Store `table:"D"`
-		Events     kvdb.Store `table:"e"`
-		Blocks     kvdb.Store `table:"b"`
-		Packs      kvdb.Store `table:"P"`
-		PacksNum   kvdb.Store `table:"n"`
-		Genesis    kvdb.Store `table:"g"`
+		BlockEpochState kvdb.Store `table:"D"`
+		Events          kvdb.Store `table:"e"`
+		Blocks          kvdb.Store `table:"b"`
+		Packs           kvdb.Store `table:"P"`
+		PacksNum        kvdb.Store `table:"n"`
+		Genesis         kvdb.Store `table:"g"`
 
 		// Network version
 		NetworkVersion kvdb.Store `table:"V"`
 
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
+		SfcApi      kvdb.Store `table:"S"`
 	}
 
 	prevFlushTime time.Time
@@ -52,12 +53,11 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events        *wlru.Cache  `cache:"-"` // store by pointer
-		EventsHeaders *wlru.Cache  `cache:"-"` // store by pointer
-		Blocks        *wlru.Cache  `cache:"-"` // store by pointer
-		BlockHashes   *wlru.Cache  `cache:"-"` // store by pointer
-		BlockState    atomic.Value // store by pointer
-		EpochState    atomic.Value // store by pointer
+		Events          *wlru.Cache  `cache:"-"` // store by pointer
+		EventsHeaders   *wlru.Cache  `cache:"-"` // store by pointer
+		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
+		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
+		BlockEpochState atomic.Value // store by pointer
 	}
 
 	mutex struct {
@@ -95,12 +95,14 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 		mainDB:        mainDB,
 		Instance:      logger.MakeInstance(),
 		prevFlushTime: time.Now(),
+		rlp:           rlpstore.Helper{logger.MakeInstance()},
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
 
 	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+	s.sfcapi = sfcapi.NewStore(s.table.SfcApi)
 
 	return s
 }
@@ -118,7 +120,7 @@ func (s *Store) initCache() {
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
 }
 
-// Close leaves underlying database.
+// Close closes underlying database.
 func (s *Store) Close() {
 	setnil := func() interface{} {
 		return nil
@@ -129,6 +131,7 @@ func (s *Store) Close() {
 
 	_ = s.mainDB.Close()
 	s.async.Close()
+	s.sfcapi.Close()
 	_ = s.closeEpochStore()
 }
 
@@ -153,8 +156,7 @@ func (s *Store) Commit() error {
 	s.prevFlushTime = time.Now()
 	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
-	s.FlushBlockState()
-	s.FlushEpochState()
+	s.FlushBlockEpochState()
 	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot)
 	if err != nil {
 		return err
@@ -165,28 +167,6 @@ func (s *Store) Commit() error {
 /*
  * Utils:
  */
-
-func (s *Store) rmPrefix(t kvdb.Store, prefix string) {
-	it := t.NewIterator([]byte(prefix), nil)
-	defer it.Release()
-
-	s.dropTable(it, t)
-}
-
-func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
-	keys := make([][]byte, 0, 500) // don't write during iteration
-
-	for it.Next() {
-		keys = append(keys, it.Key())
-	}
-
-	for i := range keys {
-		err := t.Delete(keys[i])
-		if err != nil {
-			s.Log.Crit("Failed to erase key-value", "err", err)
-		}
-	}
-}
 
 func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 	cache, err := wlru.New(weight, size)
