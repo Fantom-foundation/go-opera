@@ -22,7 +22,7 @@ func newLogrec(rec ID, topicCount uint8) *logrec {
 
 // FetchLog record's data.
 func (rec *logrec) FetchLog(
-	othersTable kvdb.Iteratee,
+	othersTable kvdb.Reader,
 	logrecTable kvdb.Reader,
 ) (r *types.Log, err error) {
 	r = &types.Log{
@@ -32,31 +32,31 @@ func (rec *logrec) FetchLog(
 		Topics:      make([]common.Hash, rec.topicsCount),
 	}
 
-	it := othersTable.NewIterator(rec.ID.Bytes(), nil)
-	defer it.Release()
-	for it.Next() {
-		pos := extractTopicPos(it.Key())
-		topic := common.BytesToHash(it.Value())
-		r.Topics[pos] = topic
-	}
+	var buf []byte
 
-	err = it.Error()
+	// topics
+	buf, err = othersTable.Get(rec.ID.Bytes())
 	if err != nil {
 		return
 	}
+	pos := 0
+	for offset := 0; offset < len(buf); offset += common.HashLength {
+		topic := common.BytesToHash(buf[offset : offset+common.HashLength])
+		r.Topics[pos] = topic
+		pos++
+	}
 
 	// fields
-	buf, err := logrecTable.Get(rec.ID.Bytes())
+	buf, err = logrecTable.Get(rec.ID.Bytes())
 	if err != nil {
 		return
 	}
 	offset := 0
 	r.BlockHash = common.BytesToHash(buf[offset : offset+common.HashLength])
 	offset += common.HashLength
+	r.Address = common.BytesToAddress(buf[offset : offset+common.AddressLength])
+	offset += common.AddressLength
 	r.Data = buf[offset:]
-
-	r.Address = common.BytesToAddress(r.Topics[0].Bytes())
-	r.Topics = r.Topics[1:]
 
 	return
 }

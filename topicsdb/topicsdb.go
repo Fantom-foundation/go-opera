@@ -22,11 +22,11 @@ var (
 type Index struct {
 	db    kvdb.Store
 	table struct {
-		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count
+		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count (where topicN=0 is for address)
 		Topic kvdb.Store `table:"t"`
-		// (blockN+TxHash+logIndex) + topicN -> topic (where topicN=0 is for address)
+		// (blockN+TxHash+logIndex) -> ordered topics
 		Other kvdb.Store `table:"o"`
-		// (blockN+TxHash+logIndex) -> blockHash, data
+		// (blockN+TxHash+logIndex) -> blockHash, address, data
 		Logrec kvdb.Store `table:"r"`
 	}
 }
@@ -105,43 +105,43 @@ func (tt *Index) Push(recs ...*types.Log) error {
 		if len(rec.Topics) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
-		count := posToBytes(uint8(1 + len(rec.Topics)))
 
-		id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
-
-		var pos int
-		push := func(topic common.Hash) error {
+		var (
+			buf   []byte
+			id    = NewID(rec.BlockNumber, rec.TxHash, rec.Index)
+			count = posToBytes(uint8(len(rec.Topics)))
+			pos   int
+		)
+		pushIndex := func(topic common.Hash) error {
 			key := topicKey(topic, uint8(pos), id)
-			err := tt.table.Topic.Put(key, count)
-			if err != nil {
+			if err := tt.table.Topic.Put(key, count); err != nil {
 				return err
 			}
-
-			key = otherKey(id, uint8(pos))
-			err = tt.table.Other.Put(key, topic.Bytes())
-			if err != nil {
-				return err
-			}
-
 			pos++
 			return nil
 		}
 
-		if err := push(rec.Address.Hash()); err != nil {
+		if err := pushIndex(rec.Address.Hash()); err != nil {
 			return err
 		}
+
+		buf = make([]byte, 0, common.HashLength*len(rec.Topics))
 		for _, topic := range rec.Topics {
-			if err := push(topic); err != nil {
+			if err := pushIndex(topic); err != nil {
 				return err
 			}
+			buf = append(buf, topic.Bytes()...)
+		}
+		if err := tt.table.Other.Put(id.Bytes(), buf); err != nil {
+			return err
 		}
 
-		buf := make([]byte, 0, common.HashLength+len(rec.Data))
+		buf = make([]byte, 0, common.HashLength+common.AddressLength+len(rec.Data))
 		buf = append(buf, rec.BlockHash.Bytes()...)
+		buf = append(buf, rec.Address.Bytes()...)
 		buf = append(buf, rec.Data...)
 
-		err := tt.table.Logrec.Put(id.Bytes(), buf)
-		if err != nil {
+		if err := tt.table.Logrec.Put(id.Bytes(), buf); err != nil {
 			return err
 		}
 	}

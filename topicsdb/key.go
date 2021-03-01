@@ -70,15 +70,6 @@ func topicKey(topic common.Hash, pos uint8, logrec ID) []byte {
 	return key
 }
 
-func otherKey(logrec ID, pos uint8) []byte {
-	key := make([]byte, 0, otherKeySize)
-
-	key = append(key, logrec.Bytes()...)
-	key = append(key, posToBytes(pos)...)
-
-	return key
-}
-
 func posToBytes(pos uint8) []byte {
 	return []byte{pos}
 }
@@ -100,16 +91,6 @@ func extractLogrecID(key []byte) (id ID) {
 	case topicKeySize:
 		copy(id[:], key[hashSize+uint8Size:])
 		return
-	default:
-		panic("wrong key type")
-	}
-}
-
-func extractTopicPos(key []byte) uint8 {
-	switch len(key) {
-	case otherKeySize:
-		return bytesToPos(
-			key[logrecKeySize : logrecKeySize+uint8Size])
 	default:
 		panic("wrong key type")
 	}
