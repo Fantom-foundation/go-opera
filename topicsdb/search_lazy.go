@@ -5,14 +5,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchLazy(topics [][]common.Hash, blocksMask []byte, onLog func(*types.Log) bool) (err error) {
-	_, err = tt.walk(nil, blocksMask, topics, 0, onLog)
+func (tt *Index) fetchLazy(topics [][]common.Hash, blockStart []byte, onLog func(*types.Log) bool) (err error) {
+	_, err = tt.walk(nil, blockStart, topics, 0, onLog)
 	return
 }
 
 // walk for topics recursive.
 func (tt *Index) walk(
-	rec *logrec, blocksMask []byte, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+	rec *logrec, blockStart []byte, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
 ) (
 	gonext bool, err error,
 ) {
@@ -51,12 +51,9 @@ func (tt *Index) walk(
 		if rec != nil {
 			copy(prefix[prefLen:], rec.ID.Bytes())
 			prefLen += logrecKeySize
-		} else {
-			copy(prefix[prefLen:], blocksMask)
-			prefLen += len(blocksMask)
 		}
 
-		it := tt.table.Topic.NewIterator(prefix[:prefLen], nil)
+		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
 		for it.Next() {
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())

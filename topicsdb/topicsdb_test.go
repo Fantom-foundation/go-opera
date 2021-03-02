@@ -53,7 +53,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		Address:     addr1,
 		Topics:      []common.Hash{hash1, hash1, hash1},
 	}, {
-		BlockNumber: 2,
+		BlockNumber: 3,
 		Address:     addr2,
 		Topics:      []common.Hash{hash2, hash2, hash2},
 	}, {
@@ -117,7 +117,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 	t.Run("With by blocks", func(t *testing.T) {
 		require := require.New(t)
-		got, err := index.FindInBlocks(500, 999, [][]common.Hash{
+		got, err := index.FindInBlocks(2, 998, [][]common.Hash{
 			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
 			{hash1, hash2, hash3, hash4},
 			{},

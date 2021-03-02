@@ -2,7 +2,6 @@ package topicsdb
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -44,20 +43,6 @@ func (id *ID) TxHash() (tx common.Hash) {
 func (id *ID) Index() uint {
 	return uint(bytesToUint(
 		(*id)[uint64Size+hashSize : uint64Size+hashSize+uint64Size]))
-}
-
-func blocksMask(from, to idx.Block) []byte {
-	a := uintToBytes(uint64(from))
-	b := uintToBytes(uint64(to))
-
-	mask := make([]byte, 0, uint64Size)
-	for i, ai := range a {
-		if ai != b[i] {
-			break
-		}
-		mask = append(mask, ai)
-	}
-	return mask
 }
 
 func topicKey(topic common.Hash, pos uint8, logrec ID) []byte {

@@ -62,14 +62,13 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onL
 	}
 
 	moreAccurate := func(l *types.Log) (gonext bool) {
-		if uint64(from) > l.BlockNumber || l.BlockNumber > uint64(to) {
-			return true
+		if l.BlockNumber > uint64(to) {
+			return false
 		}
 		return onLog(l)
 	}
 
-	bm := blocksMask(from, to)
-	return tt.fetchLazy(topics, bm, moreAccurate)
+	return tt.fetchLazy(topics, uintToBytes(uint64(from)), moreAccurate)
 }
 
 func checkTopics(topics [][]common.Hash) error {
