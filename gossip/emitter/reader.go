@@ -21,9 +21,7 @@ var (
 
 // Reader is a callback for getting events from an external storage.
 type Reader interface {
-	GetEpoch() idx.Epoch
 	GetLatestBlockIndex() idx.Block
-	GetValidators() *pos.Validators
 	GetEpochValidators() (*pos.Validators, idx.Epoch)
 	GetEvent(hash.Event) *inter.Event
 	GetEventPayload(hash.Event) *inter.EventPayload

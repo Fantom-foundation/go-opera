@@ -116,8 +116,6 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 		return
 	}
 
-	validators, epoch := em.world.Store.GetEpochValidators()
-
 	// sort transactions by price and nonce
 	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
 
@@ -144,7 +142,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			continue
 		}
 		// my turn, i.e. try to not include the same tx simultaneously by different validators
-		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), validators, e.Creator(), epoch) {
+		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), em.validators, e.Creator(), em.epoch) {
 			sorted.Pop()
 			continue
 		}

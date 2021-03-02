@@ -23,6 +23,8 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 		em.maxParents = rules.Dag.MaxParents
 	}
 
+	em.validators, em.epoch = newValidators, newEpoch
+
 	if !em.isValidator() {
 		return
 	}
@@ -45,7 +47,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.payloadIndexer = ancestor.NewPayloadIndexer(PayloadIndexerSize)
 }
 
-// OnEventConncected tracks new events to find out am I properly synced or not
+// OnEventConncected tracks new events
 func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 	if !em.isValidator() {
 		return

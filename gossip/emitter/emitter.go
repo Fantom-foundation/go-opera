@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -64,6 +65,11 @@ type Emitter struct {
 	prevEmittedAtBlock idx.Block
 	originatedTxs      *originatedtxs.Buffer
 	pendingGas         uint64
+
+	// note: track validators and epoch internally to avoid referring to
+	// validators of a future epoch inside OnEventConnected of last epoch event
+	validators *pos.Validators
+	epoch      idx.Epoch
 
 	// challenges is deadlines when each validator should emit an event
 	challenges map[idx.ValidatorID]time.Time
@@ -237,7 +243,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	prevEventID := em.world.Store.GetLastEvent(em.world.Store.GetEpoch(), em.config.Validator.ID)
+	prevEventID := em.world.Store.GetLastEvent(em.epoch, em.config.Validator.ID)
 	if prevEventID == nil {
 		return em.prevEmittedAtTime
 	}
@@ -260,8 +266,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	var (
-		epoch          = em.world.Store.GetEpoch()
-		validators     = em.world.Store.GetValidators()
 		selfParentSeq  idx.Event
 		selfParentTime inter.Timestamp
 		parents        hash.Events
@@ -269,7 +273,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	)
 
 	// Find parents
-	selfParent, parents, ok := em.chooseParents(epoch, em.config.Validator.ID)
+	selfParent, parents, ok := em.chooseParents(em.epoch, em.config.Validator.ID)
 	if !ok {
 		return nil
 	}
@@ -300,7 +304,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	mutEvent := &inter.MutableEventPayload{}
-	mutEvent.SetEpoch(epoch)
+	mutEvent.SetEpoch(em.epoch)
 	mutEvent.SetSeq(selfParentSeq + 1)
 	mutEvent.SetCreator(em.config.Validator.ID)
 
@@ -317,7 +321,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	if err != nil {
 		if err == NotEnoughGasPower {
 			em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
-				"stake%", 100*float64(validators.Get(em.config.Validator.ID))/float64(validators.TotalWeight()))
+				"stake%", 100*float64(em.validators.Get(em.config.Validator.ID))/float64(em.validators.TotalWeight()))
 		} else {
 			em.Log.Warn("Dropped event while emitting", "err", err)
 		}
@@ -365,7 +369,7 @@ func (em *Emitter) idle() bool {
 }
 
 func (em *Emitter) isValidator() bool {
-	return em.config.Validator.ID != 0 && em.world.Store.GetValidators().Get(em.config.Validator.ID) != 0
+	return em.config.Validator.ID != 0 && em.validators.Get(em.config.Validator.ID) != 0
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.EventPayload) {

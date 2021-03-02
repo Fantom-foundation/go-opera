@@ -46,8 +46,7 @@ func (em *Emitter) recheckChallenges() {
 	now := time.Now()
 	if !em.idle() {
 		// give challenges to all the non-spare validators if network isn't idle
-		validators := em.world.Store.GetValidators()
-		for _, vid := range validators.IDs() {
+		for _, vid := range em.validators.IDs() {
 			if em.offlineValidators[vid] {
 				continue
 			}
@@ -68,7 +67,7 @@ func (em *Emitter) recheckChallenges() {
 		}
 	}
 	if recount {
-		em.recountValidators(em.world.Store.GetValidators())
+		em.recountValidators(em.validators)
 	}
 	em.prevRecheckedChallenges = now
 }

@@ -48,11 +48,10 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft().Min() <= threshold {
 			if selfParent != nil && e.GasPowerLeft().Min() < selfParent.GasPowerLeft().Min() {
-				validators := em.world.Store.GetValidators()
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting",
 					"power", e.GasPowerLeft().String(),
 					"selfParentPower", selfParent.GasPowerLeft().String(),
-					"stake%", 100*float64(validators.Get(e.Creator()))/float64(validators.TotalWeight()))
+					"stake%", 100*float64(em.validators.Get(e.Creator()))/float64(em.validators.TotalWeight()))
 				return false
 			}
 		}
