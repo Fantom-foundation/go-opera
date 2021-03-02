@@ -25,7 +25,7 @@ func (tt *Index) walk(
 			}
 
 			var r *types.Log
-			r, err = rec.FetchLog(tt.table.Other, tt.table.Logrec)
+			r, err = rec.FetchLog(tt.table.Logrec)
 			if err != nil {
 				return
 			}

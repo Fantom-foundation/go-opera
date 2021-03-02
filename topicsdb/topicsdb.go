@@ -24,9 +24,7 @@ type Index struct {
 	table struct {
 		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count (where topicN=0 is for address)
 		Topic kvdb.Store `table:"t"`
-		// (blockN+TxHash+logIndex) -> ordered topics
-		Other kvdb.Store `table:"o"`
-		// (blockN+TxHash+logIndex) -> blockHash, address, data
+		// (blockN+TxHash+logIndex) -> ordered topic_count topics, blockHash, address, data
 		Logrec kvdb.Store `table:"r"`
 	}
 }
@@ -106,7 +104,6 @@ func (tt *Index) Push(recs ...*types.Log) error {
 		}
 
 		var (
-			buf   []byte
 			id    = NewID(rec.BlockNumber, rec.TxHash, rec.Index)
 			count = posToBytes(uint8(len(rec.Topics)))
 			pos   int
@@ -124,18 +121,14 @@ func (tt *Index) Push(recs ...*types.Log) error {
 			return err
 		}
 
-		buf = make([]byte, 0, common.HashLength*len(rec.Topics))
+		buf := make([]byte, 0, common.HashLength*len(rec.Topics)+common.HashLength+common.AddressLength+len(rec.Data))
 		for _, topic := range rec.Topics {
 			if err := pushIndex(topic); err != nil {
 				return err
 			}
 			buf = append(buf, topic.Bytes()...)
 		}
-		if err := tt.table.Other.Put(id.Bytes(), buf); err != nil {
-			return err
-		}
 
-		buf = make([]byte, 0, common.HashLength+common.AddressLength+len(rec.Data))
 		buf = append(buf, rec.BlockHash.Bytes()...)
 		buf = append(buf, rec.Address.Bytes()...)
 		buf = append(buf, rec.Data...)
