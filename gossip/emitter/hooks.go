@@ -37,6 +37,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.offlineValidators = make(map[idx.ValidatorID]bool)
 	em.challenges = make(map[idx.ValidatorID]time.Time)
 	em.expectedEmitIntervals = make(map[idx.ValidatorID]time.Duration)
+	em.stakeRatio = make(map[idx.ValidatorID]uint64)
 
 	em.recountValidators(newValidators)
 

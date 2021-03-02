@@ -14,16 +14,16 @@ var (
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.33 * piecefunc.DecimalUnit,
+			X: 0.34 * piecefunc.DecimalUnit,
 			Y: 1.05 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.66 * piecefunc.DecimalUnit,
+			X: 0.67 * piecefunc.DecimalUnit,
 			Y: 1.20 * piecefunc.DecimalUnit,
 		},
 		{
 			X: 0.8 * piecefunc.DecimalUnit,
-			Y: 1.5 * piecefunc.DecimalUnit,
+			Y: 10.0 * piecefunc.DecimalUnit,
 		},
 		{ // validators >0.8 emit confirming events very rarely
 			X: 1.0 * piecefunc.DecimalUnit,

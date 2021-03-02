@@ -61,6 +61,7 @@ type Emitter struct {
 	syncStatus syncStatus
 
 	gasRate            metrics.Meter
+	prevIdleTime       time.Time
 	prevEmittedAtTime  time.Time
 	prevEmittedAtBlock idx.Block
 	originatedTxs      *originatedtxs.Buffer
@@ -77,6 +78,7 @@ type Emitter struct {
 	// This map may be different on different instances
 	offlineValidators     map[idx.ValidatorID]bool
 	expectedEmitIntervals map[idx.ValidatorID]time.Duration
+	stakeRatio            map[idx.ValidatorID]uint64
 
 	prevRecheckedChallenges time.Time
 
@@ -167,6 +169,7 @@ func (em *Emitter) Start() {
 				}
 
 				em.recheckChallenges()
+				em.recheckIdleTime()
 				if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
 					_ = em.EmitEvent()
 				}
