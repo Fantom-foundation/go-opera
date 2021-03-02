@@ -38,5 +38,5 @@ func Get(x uint64, pieces []Dot) uint64 {
 
 	ratio := Div(x-pieces[p0].X, pieces[p1].X-pieces[p0].X)
 
-	return Mul(pieces[p0].Y, (DecimalUnit-ratio)) + Mul(pieces[p1].Y, ratio)
+	return Mul(pieces[p0].Y, DecimalUnit-ratio) + Mul(pieces[p1].Y, ratio)
 }

@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	//DefaultHTTPHost    = "localhost" // Default host interface for the HTTP RPC server
-	//DefaultWSHost      = "localhost" // Default host interface for the websocket RPC server
-	//DefaultGraphQLHost = "localhost" // Default host interface for the GraphQL server
 	DefaultP2PPort     = 5050  // Default p2p port for listening
 	DefaultHTTPPort    = 18545 // Default TCP port for the HTTP RPC server
 	DefaultWSPort      = 18546 // Default TCP port for the websocket RPC server

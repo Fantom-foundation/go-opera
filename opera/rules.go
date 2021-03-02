@@ -21,7 +21,7 @@ const (
 	DefaultEventMaxGas uint64 = 28000
 )
 
-var DefaultVmConfig = vm.Config{
+var DefaultVMConfig = vm.Config{
 	StatePrecompiles: map[common.Address]vm.PrecompiledStateContract{
 		evmwriter.ContractAddress: &evmwriter.PreCompiledContract{},
 	},

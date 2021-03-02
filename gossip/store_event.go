@@ -61,7 +61,7 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	return w
 }
 
-// GetEventPayload returns stored event.
+// GetEvent returns stored event.
 func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	// Get event from LRU cache first.
 	if ev, ok := s.cache.EventsHeaders.Get(id); ok {

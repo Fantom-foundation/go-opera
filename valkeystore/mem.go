@@ -38,9 +38,9 @@ func (m *MemKeystore) Add(pubkey validatorpk.PubKey, key []byte, _ string) error
 	return nil
 }
 
-func (m *MemKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
+func (m *MemKeystore) Get(pubkey validatorpk.PubKey, _ string) (*encryption.PrivateKey, error) {
 	if !m.Has(pubkey) {
-		return nil, NotFound
+		return nil, ErrNotFound
 	}
 	return m.mem[m.idxOf(pubkey)], nil
 }

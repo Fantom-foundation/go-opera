@@ -5,12 +5,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// SetTxPosition stores transaction block and position.
+// SetTx stores transaction.
 func (s *Store) SetTx(txid common.Hash, tx *types.Transaction) {
 	s.rlp.Set(s.table.Txs, txid.Bytes(), tx)
 }
 
-// GetTxPosition returns stored transaction block and position.
+// GetTx returns stored transaction.
 func (s *Store) GetTx(txid common.Hash) *types.Transaction {
 	tx, _ := s.rlp.Get(s.table.Txs, txid.Bytes(), &types.Transaction{}).(*types.Transaction)
 

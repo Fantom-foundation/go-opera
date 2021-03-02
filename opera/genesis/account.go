@@ -12,8 +12,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
-// Accounts specifies the initial state that is part of the genesis block.
 type (
+	// Accounts specifies the changes to EVM accounts after applying RawEvmItems.
 	Accounts interface {
 		ForEach(fn func(common.Address, Account))
 	}

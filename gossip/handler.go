@@ -174,7 +174,7 @@ func NewProtocolManager(
 			return false
 		},
 	})
-	pm.processor = pm.makeProcessor(checkers, pm.dagFetcher)
+	pm.processor = pm.makeProcessor(checkers)
 	pm.leecher = streamleecher.New(pm.store.GetEpoch(), false, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
 		OnlyNotConnected: pm.onlyNotConnectedEvents,
 		RequestChunk: func(peer string, r dagstream.Request) error {
@@ -215,7 +215,7 @@ func (pm *ProtocolManager) peerMisbehaviour(peer string, err error) bool {
 	return false
 }
 
-func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers, fetcher *itemsfetcher.Fetcher) *dagprocessor.Processor {
+func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagprocessor.Processor {
 	// checkers
 	lightCheck := func(e dag.Event) error {
 		if pm.processor.IsBuffered(e.ID()) {

@@ -77,7 +77,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
-	receipts, _, gasUsed, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVmConfig, internal, func(log *types.Log, _ *state.StateDB) {
+	receipts, _, gasUsed, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, internal, func(log *types.Log, _ *state.StateDB) {
 		p.onNewLog(log)
 	})
 	if err != nil {

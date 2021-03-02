@@ -249,7 +249,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	txSigner := types.NewEIP155Signer(s.store.GetRules().EvmChainConfig().ChainID)
 
 	return emitter.NewEmitter(s.config.Emitter,
-		emitter.EmitterWorld{
+		emitter.World{
 			Store:    s.store,
 			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),
 			Txpool:   s.txpool,

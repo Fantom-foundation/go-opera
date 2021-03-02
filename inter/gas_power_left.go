@@ -43,12 +43,12 @@ func (g GasPowerLeft) Max() uint64 {
 }
 
 // Sub subtracts from all gas power lefts
-func (c GasPowerLeft) Sub(diff uint64) GasPowerLeft {
-	g := c
-	for i := range g.Gas {
-		g.Gas[i] -= diff
+func (g GasPowerLeft) Sub(diff uint64) GasPowerLeft {
+	cp := g
+	for i := range cp.Gas {
+		cp.Gas[i] -= diff
 	}
-	return g
+	return cp
 }
 
 // String returns string representation.

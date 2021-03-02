@@ -45,7 +45,7 @@ type Store struct {
 
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
-		SfcApi      kvdb.Store `table:"S"`
+		SfcAPI      kvdb.Store `table:"S"`
 	}
 
 	prevFlushTime time.Time
@@ -102,7 +102,7 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 
 	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
-	s.sfcapi = sfcapi.NewStore(s.table.SfcApi)
+	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
 
 	return s
 }

@@ -380,10 +380,9 @@ func (p *peer) AsyncSendEvents(events inter.EventPayloads, queue chan broadcastI
 			p.knownEvents.Pop()
 		}
 		return true
-	} else {
-		p.Log().Debug("Dropping event propagation", "count", len(events))
-		return false
 	}
+	p.Log().Debug("Dropping event propagation", "count", len(events))
+	return false
 }
 
 // EnqueueSendEventsRLP queues an entire RLP event for propagation to a remote peer.

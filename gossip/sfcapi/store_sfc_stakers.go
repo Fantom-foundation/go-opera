@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// SetEpochValidator stores EpochValidator
+// SetEpochValidators stores EpochValidators
 func (s *Store) SetEpochValidators(epoch idx.Epoch, vv []SfcStakerAndID) {
 	for _, v := range vv {
 		key := append(epoch.Bytes(), v.StakerID.Bytes()...)

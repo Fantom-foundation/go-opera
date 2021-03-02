@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	NotFound = errors.New("key is not found")
+	ErrNotFound = errors.New("key is not found")
 )
 
 type FileKeystore struct {
@@ -37,7 +37,7 @@ func (f *FileKeystore) Add(pubkey validatorpk.PubKey, key []byte, auth string) e
 
 func (f *FileKeystore) Get(pubkey validatorpk.PubKey, auth string) (*encryption.PrivateKey, error) {
 	if !f.Has(pubkey) {
-		return nil, NotFound
+		return nil, ErrNotFound
 	}
 	return f.enc.ReadKey(pubkey, f.PathOf(pubkey), auth)
 }
