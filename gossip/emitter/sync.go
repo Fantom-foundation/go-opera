@@ -31,7 +31,7 @@ func (em *Emitter) onNewExternalEvent(e inter.EventPayloadI) {
 			"This external event was created %s, %s ago at the time of this error.\n" +
 			"It might mean that a duplicating instance of the same validator is running simultaneously, which may eventually lead to a doublesign.\n" +
 			"The node was stopped by one of the doublesign protection heuristics.\n" +
-			"There's no guaranteed automatic protection against a doublesign," +
+			"There's no guaranteed automatic protection against a doublesign, " +
 			"please always ensure that no more than one instance of the same validator is running."
 		errlock.Permanent(fmt.Errorf(reason, e.ID().String(), em.config.Validator.ID, e.CreationTime().Time().Local().String(), passedSinceEvent.String()))
 		panic("unreachable")

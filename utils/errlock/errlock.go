@@ -39,7 +39,7 @@ func readAll(reader io.Reader, max int) ([]byte, error) {
 		n, err := reader.Read(buf[consumed:])
 		consumed += n
 		if consumed == len(buf) || err == io.EOF {
-			return buf[consumed:], nil
+			return buf[:consumed], nil
 		}
 		if err != nil {
 			return nil, err
