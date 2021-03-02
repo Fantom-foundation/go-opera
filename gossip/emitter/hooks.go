@@ -23,6 +23,8 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 		em.maxParents = rules.Dag.MaxParents
 	}
 
+	em.validators, em.epoch = newValidators, newEpoch
+
 	if !em.isValidator() {
 		return
 	}
@@ -35,6 +37,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.offlineValidators = make(map[idx.ValidatorID]bool)
 	em.challenges = make(map[idx.ValidatorID]time.Time)
 	em.expectedEmitIntervals = make(map[idx.ValidatorID]time.Duration)
+	em.stakeRatio = make(map[idx.ValidatorID]uint64)
 
 	em.recountValidators(newValidators)
 
@@ -45,7 +48,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.payloadIndexer = ancestor.NewPayloadIndexer(PayloadIndexerSize)
 }
 
-// OnEventConncected tracks new events to find out am I properly synced or not
+// OnEventConncected tracks new events
 func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 	if !em.isValidator() {
 		return

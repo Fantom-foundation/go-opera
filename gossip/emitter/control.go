@@ -40,19 +40,30 @@ func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 
 func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric, selfParent *inter.Event) bool {
 	passedTime := e.CreationTime().Time().Sub(em.prevEmittedAtTime)
+	passedTimeIdle := e.CreationTime().Time().Sub(em.prevIdleTime)
+	if em.stakeRatio[e.Creator()] < 0.35*piecefunc.DecimalUnit {
+		// top validators emit event right after transaction is originated
+		passedTimeIdle = passedTime
+	} else if em.stakeRatio[e.Creator()] < 0.7*piecefunc.DecimalUnit {
+		// top validators emit event right after transaction is originated
+		passedTimeIdle = (passedTimeIdle + passedTime) / 2
+	}
+	if passedTimeIdle > passedTime {
+		passedTimeIdle = passedTime
+	}
 	// metric is a decimal (0.0, 1.0], being an estimation of how much the event will advance the consensus
 	adjustedPassedTime := time.Duration(ancestor.Metric(passedTime/piecefunc.DecimalUnit) * metric)
+	adjustedPassedIdleTime := time.Duration(ancestor.Metric(passedTimeIdle/piecefunc.DecimalUnit) * metric)
 	passedBlocks := em.world.Store.GetLatestBlockIndex() - em.prevEmittedAtBlock
 	// Forbid emitting if not enough power and power is decreasing
 	{
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft().Min() <= threshold {
 			if selfParent != nil && e.GasPowerLeft().Min() < selfParent.GasPowerLeft().Min() {
-				validators := em.world.Store.GetValidators()
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting",
 					"power", e.GasPowerLeft().String(),
 					"selfParentPower", selfParent.GasPowerLeft().String(),
-					"stake%", 100*float64(validators.Get(e.Creator()))/float64(validators.TotalWeight()))
+					"stake%", 100*float64(em.validators.Get(e.Creator()))/float64(em.validators.TotalWeight()))
 				return false
 			}
 		}
@@ -101,7 +112,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 			!em.idle() {
 			return false
 		}
-		if adjustedPassedTime < em.intervals.Confirming &&
+		if adjustedPassedIdleTime < em.intervals.Confirming &&
 			!em.idle() &&
 			len(e.Txs()) == 0 {
 			return false
@@ -109,4 +120,12 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	}
 
 	return true
+}
+
+func (em *Emitter) recheckIdleTime() {
+	em.world.EngineMu.Lock()
+	defer em.world.EngineMu.Unlock()
+	if em.idle() {
+		em.prevIdleTime = time.Now()
+	}
 }

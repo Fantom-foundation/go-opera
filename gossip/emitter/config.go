@@ -53,10 +53,10 @@ func DefaultConfig() Config {
 		VersionToPublish: params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
-			Min:                        120 * time.Millisecond,
+			Min:                        110 * time.Millisecond,
 			Max:                        10 * time.Minute,
 			Confirming:                 120 * time.Millisecond,
-			DoublesignProtection:       24 * time.Minute, // should be greater than MaxEmitInterval
+			DoublesignProtection:       27 * time.Minute, // should be greater than MaxEmitInterval
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
@@ -79,9 +79,9 @@ func (cfg EmitIntervals) RandomizeEmitTime(r *rand.Rand) EmitIntervals {
 	if config.Max > 10 {
 		config.Max = config.Max - config.Max/10 + time.Duration(r.Int63n(int64(config.Max/10)))
 	}
-	// value = value + 0.5 * random value
-	if config.DoublesignProtection > 2 {
-		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/2)))
+	// value = value + 0.33 * random value
+	if config.DoublesignProtection > 3 {
+		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/3)))
 	}
 	return config
 }
