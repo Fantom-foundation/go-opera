@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -126,11 +127,11 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.unindexedLogs(ctx, int64(end))
 	}
 
-	return f.indexedLogs(ctx, int64(end))
+	return f.indexedLogs(ctx, idx.Block(f.begin), idx.Block(end))
 }
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
-func (f *Filter) indexedLogs(ctx context.Context, end int64) (logs []*types.Log, err error) {
+func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
 	addresses := make([]common.Hash, len(f.addresses))
 	for i, addr := range f.addresses {
 		addresses[i] = addr.Hash()
@@ -140,15 +141,16 @@ func (f *Filter) indexedLogs(ctx context.Context, end int64) (logs []*types.Log,
 	pattern[0] = addresses
 	pattern = append(pattern, f.topics...)
 
-	err = f.backend.EvmLogIndex().ForEach(pattern, func(l *types.Log) bool {
-		logs = append(logs, l)
-		return true
-	})
+	err = f.backend.EvmLogIndex().ForEachInBlocks(
+		begin, end, pattern,
+		func(l *types.Log) bool {
+			logs = append(logs, l)
+			return true
+		})
 	if err != nil {
 		return
 	}
 
-	logs = filterLogs(logs, big.NewInt(f.begin), big.NewInt(end), nil, nil)
 	return
 }
 
