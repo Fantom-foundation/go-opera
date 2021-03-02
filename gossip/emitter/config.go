@@ -37,8 +37,6 @@ type Config struct {
 
 	MaxTxsPerAddress int
 
-	EpochTailLength idx.Frame // number of frames before event is considered epoch
-
 	MaxParents idx.Event
 
 	// thresholds on GasLeft
@@ -62,7 +60,6 @@ func DefaultConfig() Config {
 
 		MaxGasRateGrowthFactor: 3.0,
 		MaxTxsPerAddress:       TxTurnNonces / 3,
-		EpochTailLength:        1,
 
 		MaxParents: 0,
 
