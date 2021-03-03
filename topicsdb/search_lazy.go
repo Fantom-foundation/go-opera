@@ -2,17 +2,16 @@ package topicsdb
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchLazy(pattern [][]common.Hash, blockStart []byte, onLog func(*types.Log) bool) (err error) {
-	_, err = tt.walk(nil, blockStart, pattern, 0, onLog)
+func (tt *Index) searchLazy(pattern [][]common.Hash, blockStart []byte, onMatched func(*logrec) (bool, error)) (err error) {
+	_, err = tt.walk(nil, blockStart, pattern, 0, onMatched)
 	return
 }
 
 // walk for topics recursive.
 func (tt *Index) walk(
-	rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+	rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched func(*logrec) (bool, error),
 ) (
 	gonext bool, err error,
 ) {
@@ -23,13 +22,7 @@ func (tt *Index) walk(
 			if rec == nil {
 				return
 			}
-
-			var r *types.Log
-			r, err = rec.FetchLog(tt.table.Logrec)
-			if err != nil {
-				return
-			}
-			gonext = onLog(r)
+			gonext, err = onMatched(rec)
 			return
 		}
 		if len(pattern[pos]) < 1 {
@@ -58,7 +51,7 @@ func (tt *Index) walk(
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())
 			newRec := newLogrec(id, topicCount)
-			gonext, err = tt.walk(newRec, nil, pattern, pos+1, onLog)
+			gonext, err = tt.walk(newRec, nil, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
 				return

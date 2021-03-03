@@ -58,7 +58,17 @@ func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext
 		return err
 	}
 
-	return tt.fetchLazy(pattern, nil, onLog)
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		var l *types.Log
+		l, err = rec.FetchLog(tt.table.Logrec)
+		if err != nil {
+			return
+		}
+		gonext = onLog(l)
+		return
+	}
+
+	return tt.searchLazy(pattern, nil, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
@@ -71,14 +81,22 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, on
 		return err
 	}
 
-	moreAccurate := func(l *types.Log) (gonext bool) {
-		if l.BlockNumber > uint64(to) {
-			return false
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		if rec.ID.BlockNumber() > uint64(to) {
+			gonext = false
+			return
 		}
-		return onLog(l)
+
+		var l *types.Log
+		l, err = rec.FetchLog(tt.table.Logrec)
+		if err != nil {
+			return
+		}
+		gonext = onLog(l)
+		return
 	}
 
-	return tt.fetchLazy(pattern, uintToBytes(uint64(from)), moreAccurate)
+	return tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
 }
 
 func checkPattern(pattern [][]common.Hash) error {
