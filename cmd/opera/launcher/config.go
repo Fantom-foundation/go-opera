@@ -62,7 +62,7 @@ var (
 		Value: utils.DirectoryString(DefaultDataDir()),
 	}
 
-	// FakeNetFlag enables special testnet, where validators are automatically created
+	// GenesisFlag specifies network genesis configuration
 	GenesisFlag = cli.StringFlag{
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",

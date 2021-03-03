@@ -31,8 +31,8 @@ const (
 	PayloadIndexerSize    = 5000
 )
 
-// EmitterWorld is emitter's external world
-type EmitterWorld struct {
+// World is emitter's external world
+type World struct {
 	Store    Reader
 	EngineMu sync.Locker
 	Txpool   txPool
@@ -56,7 +56,7 @@ type Emitter struct {
 
 	config Config
 
-	world EmitterWorld
+	world World
 
 	syncStatus syncStatus
 
@@ -98,7 +98,7 @@ type Emitter struct {
 // NewEmitter creation.
 func NewEmitter(
 	config Config,
-	world EmitterWorld,
+	world World,
 ) *Emitter {
 	// Randomize event time to decrease chance of 2 parallel instances emitting event at the same time
 	// It increases the chance of detecting parallel instances
@@ -322,7 +322,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		metric = eventMetric(em.quorumIndexer.GetMetricOf(mutEvent.ID()), mutEvent.Seq())
 	})
 	if err != nil {
-		if err == NotEnoughGasPower {
+		if err == ErrNotEnoughGasPower {
 			em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
 				"stake%", 100*float64(em.validators.Get(em.config.Validator.ID))/float64(em.validators.TotalWeight()))
 		} else {

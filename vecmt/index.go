@@ -23,7 +23,7 @@ type IndexConfig struct {
 	Caches IndexCacheConfig
 }
 
-// Engine is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
+// Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
 	*vecfc.Index
 	Base          *vecfc.Index

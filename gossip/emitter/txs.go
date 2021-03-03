@@ -86,9 +86,8 @@ func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
 		now := time.Now()
 		em.txTime.Add(txHash, now)
 		return now
-	} else {
-		return txTimeI.(time.Time)
 	}
+	return txTimeI.(time.Time)
 }
 
 // safe for concurrent use

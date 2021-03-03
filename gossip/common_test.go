@@ -292,7 +292,7 @@ func (env *testEnv) callContract(
 	evmContext := evmcore.NewEVMContext(msg, block.Header(), env.GetEvmStateReader(), &call.From)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, env.store.GetRules().EvmChainConfig(), opera.DefaultVmConfig)
+	vmenv := vm.NewEVM(evmContext, statedb, env.store.GetRules().EvmChainConfig(), opera.DefaultVMConfig)
 	gaspool := new(evmcore.GasPool).AddGas(math.MaxUint64)
 	res, err := evmcore.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
 

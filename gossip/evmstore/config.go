@@ -3,7 +3,7 @@ package evmstore
 import "github.com/syndtr/goleveldb/leveldb/opt"
 
 type (
-	// StoreConfig is a config for store db.
+	// StoreCacheConfig is a config for the db.
 	StoreCacheConfig struct {
 		// Cache size for Receipts (size in bytes).
 		ReceiptsSize uint

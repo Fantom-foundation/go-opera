@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	NotEnoughGasPower = errors.New("not enough gas power")
+	ErrNotEnoughGasPower = errors.New("not enough gas power")
 )
 
 // Reader is a callback for getting events from an external storage.

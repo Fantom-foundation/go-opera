@@ -101,7 +101,7 @@ func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
 	return state.New(common.Hash(from), s.table.EvmState, nil)
 }
 
-// StateDB returns state database.
+// IndexLogs indexes EVM logs
 func (s *Store) IndexLogs(recs ...*types.Log) {
 	err := s.table.EvmLogs.Push(recs...)
 	if err != nil {

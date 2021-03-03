@@ -54,6 +54,12 @@ func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
 
 func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error) {
 	blk, err := b.BlockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	if blk == nil {
+		return nil, nil
+	}
 	return blk.Header(), err
 }
 
@@ -285,7 +291,7 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, block common.Hash) ([][]*ty
 	return logs, nil
 }
 
-func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
+func (b *EthAPIBackend) GetTd(_ common.Hash) *big.Int {
 	return big.NewInt(0)
 }
 
@@ -295,7 +301,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *
 
 	context := evmcore.NewEVMContext(msg, header, b.state, nil)
 	config := b.ChainConfig()
-	return vm.NewEVM(context, state, config, opera.DefaultVmConfig), vmError, nil
+	return vm.NewEVM(context, state, config, opera.DefaultVMConfig), vmError, nil
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {

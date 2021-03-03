@@ -23,7 +23,7 @@ type (
 	}
 )
 
-// NewHighestBeforeTime creates new HighestBeforeTime vector.
+// NewHighestBefore creates new HighestBefore vector.
 func NewHighestBefore(size idx.Validator) *HighestBefore {
 	return &HighestBefore{
 		VSeq:  vecfc.NewHighestBeforeSeq(size),

@@ -238,8 +238,8 @@ func lachesisMain(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 	genesisPath := getOperaGenesis(ctx)
-	node, _, close := makeNode(ctx, cfg, genesisPath)
-	defer close()
+	node, _, nodeClose := makeNode(ctx, cfg, genesisPath)
+	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
 	return nil

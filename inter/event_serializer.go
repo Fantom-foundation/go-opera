@@ -57,7 +57,7 @@ func (e *Event) MarshalCSER(w *cser.Writer) error {
 	return nil
 }
 
-// MarshalBinary implements encoding.BinaryMarshaler interface.
+// MarshalBinary implements encoding.BinaryMarshaller interface.
 func (e *Event) MarshalBinary() ([]byte, error) {
 	return cser.MarshalBinaryAdapter(e.MarshalCSER)
 }
@@ -171,17 +171,17 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 	return nil
 }
 
-// MarshalBinary implements encoding.BinaryMarshaler interface.
+// MarshalBinary implements encoding.BinaryMarshaller interface.
 func (e *EventPayload) MarshalBinary() ([]byte, error) {
 	return cser.MarshalBinaryAdapter(e.MarshalCSER)
 }
 
-// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements encoding.BinaryUnmarshaller interface.
 func (e *MutableEventPayload) UnmarshalBinary(raw []byte) (err error) {
 	return cser.UnmmrshalBinaryAdapter(raw, e.UnmarshalCSER)
 }
 
-// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements encoding.BinaryUnmarshaller interface.
 func (e *EventPayload) UnmarshalBinary(raw []byte) (err error) {
 	mutE := MutableEventPayload{}
 	err = mutE.UnmarshalBinary(raw)

@@ -34,7 +34,7 @@ func (s *Store) getBlockEpochState() BlockEpochState {
 	return *v
 }
 
-// FlushEpochState stores the latest epoch and block state in DB
+// FlushBlockEpochState stores the latest epoch and block state in DB
 func (s *Store) FlushBlockEpochState() {
 	s.rlp.Set(s.table.BlockEpochState, []byte(sKey), s.getBlockEpochState())
 }
@@ -64,13 +64,13 @@ func (s *Store) GetValidators() *pos.Validators {
 	return s.GetEpochState().Validators
 }
 
-// GetEpoch retrieves the current epoch and validators atomically
+// GetEpochValidators retrieves the current epoch and validators atomically
 func (s *Store) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 	es := s.GetEpochState()
 	return es.Validators, es.Epoch
 }
 
-// GetEpoch retrieves the current block number
+// GetLatestBlockIndex retrieves the current block number
 func (s *Store) GetLatestBlockIndex() idx.Block {
 	return s.GetBlockState().LastBlock.Idx
 }

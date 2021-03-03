@@ -30,7 +30,7 @@ type Reader interface {
 	GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch)
 }
 
-// Check which require only parents list + current epoch info
+// Checker which requires only parents list + current epoch info
 type Checker struct {
 	config   Config
 	txSigner types.Signer

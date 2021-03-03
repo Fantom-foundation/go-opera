@@ -9,7 +9,7 @@ type Writer struct {
 	buf []byte
 }
 
-// NewReader wraps bytes with buffer.
+// NewReader wraps bytes with reading buffer.
 func NewReader(bb []byte) *Reader {
 	return &Reader{
 		buf:    bb,
@@ -17,7 +17,7 @@ func NewReader(bb []byte) *Reader {
 	}
 }
 
-// NewReader wraps bytes with buffer.
+// NewWriter wraps bytes with writing buffer.
 func NewWriter(bb []byte) *Writer {
 	return &Writer{
 		buf: bb,
