@@ -40,22 +40,22 @@ func New(db kvdb.Store) *Index {
 	return tt
 }
 
-// ForEach matches log records by topics. 1st topics element is an address.
-func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
-	if err := checkTopics(topics); err != nil {
+// ForEach matches log records by pattern. 1st pattern element is an address.
+func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if err := checkPattern(pattern); err != nil {
 		return err
 	}
 
-	return tt.fetchLazy(topics, nil, onLog)
+	return tt.fetchLazy(pattern, nil, onLog)
 }
 
-// ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
-func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+// ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
+func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if from > to {
 		return nil
 	}
 
-	if err := checkTopics(topics); err != nil {
+	if err := checkPattern(pattern); err != nil {
 		return err
 	}
 
@@ -66,16 +66,16 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onL
 		return onLog(l)
 	}
 
-	return tt.fetchLazy(topics, uintToBytes(uint64(from)), moreAccurate)
+	return tt.fetchLazy(pattern, uintToBytes(uint64(from)), moreAccurate)
 }
 
-func checkTopics(topics [][]common.Hash) error {
-	if len(topics) > MaxTopicsCount {
+func checkPattern(pattern [][]common.Hash) error {
+	if len(pattern) > MaxTopicsCount {
 		return ErrTooManyTopics
 	}
 
 	ok := false
-	for _, variants := range topics {
+	for _, variants := range pattern {
 		if len(variants) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}

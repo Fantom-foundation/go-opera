@@ -5,21 +5,21 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchLazy(topics [][]common.Hash, blockStart []byte, onLog func(*types.Log) bool) (err error) {
-	_, err = tt.walk(nil, blockStart, topics, 0, onLog)
+func (tt *Index) fetchLazy(pattern [][]common.Hash, blockStart []byte, onLog func(*types.Log) bool) (err error) {
+	_, err = tt.walk(nil, blockStart, pattern, 0, onLog)
 	return
 }
 
 // walk for topics recursive.
 func (tt *Index) walk(
-	rec *logrec, blockStart []byte, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+	rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
 ) (
 	gonext bool, err error,
 ) {
 	gonext = true
 	for {
 		// Max recursion depth is equal to len(topics) and limited by MaxCount.
-		if pos >= uint8(len(topics)) {
+		if pos >= uint8(len(pattern)) {
 			if rec == nil {
 				return
 			}
@@ -32,14 +32,14 @@ func (tt *Index) walk(
 			gonext = onLog(r)
 			return
 		}
-		if len(topics[pos]) < 1 {
+		if len(pattern[pos]) < 1 {
 			pos++
 			continue
 		}
 		break
 	}
 
-	for _, variant := range topics[pos] {
+	for _, variant := range pattern[pos] {
 		var (
 			prefix  [topicKeySize]byte
 			prefLen int
@@ -58,7 +58,7 @@ func (tt *Index) walk(
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())
 			newRec := newLogrec(id, topicCount)
-			gonext, err = tt.walk(newRec, nil, topics, pos+1, onLog)
+			gonext, err = tt.walk(newRec, nil, pattern, pos+1, onLog)
 			if err != nil || !gonext {
 				it.Release()
 				return
