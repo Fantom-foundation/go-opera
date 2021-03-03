@@ -40,6 +40,18 @@ func New(db kvdb.Store) *Index {
 	return tt
 }
 
+// FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
+func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+	err = tt.ForEachInBlocks(
+		from, to, pattern,
+		func(l *types.Log) bool {
+			logs = append(logs, l)
+			return true
+		})
+
+	return
+}
+
 // ForEach matches log records by pattern. 1st pattern element is an address.
 func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if err := checkPattern(pattern); err != nil {

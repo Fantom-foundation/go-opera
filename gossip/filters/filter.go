@@ -131,7 +131,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 }
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
-func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
+func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*types.Log, error) {
 	addresses := make([]common.Hash, len(f.addresses))
 	for i, addr := range f.addresses {
 		addresses[i] = addr.Hash()
@@ -141,17 +141,9 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) (logs []
 	pattern[0] = addresses
 	pattern = append(pattern, f.topics...)
 
-	err = f.backend.EvmLogIndex().ForEachInBlocks(
-		begin, end, pattern,
-		func(l *types.Log) bool {
-			logs = append(logs, l)
-			return true
-		})
-	if err != nil {
-		return
-	}
+	logs, err := f.backend.EvmLogIndex().FindInBlocks(begin, end, pattern)
 
-	return
+	return logs, err
 }
 
 // indexedLogs returns the logs matching the filter criteria based on raw block

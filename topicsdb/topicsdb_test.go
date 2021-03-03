@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,17 +16,6 @@ import (
 // Find wraps ForEach() for tests.
 func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
 	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
-		all = append(all, item)
-		next = true
-		return
-	})
-
-	return
-}
-
-// FindInBlocks wraps ForEachInBlocks() for tests.
-func (tt *Index) FindInBlocks(from, to idx.Block, topics [][]common.Hash) (all []*types.Log, err error) {
-	err = tt.ForEachInBlocks(from, to, topics, func(item *types.Log) (next bool) {
 		all = append(all, item)
 		next = true
 		return
