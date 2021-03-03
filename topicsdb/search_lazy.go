@@ -57,14 +57,13 @@ func (tt *Index) walk(
 				return
 			}
 		}
+
+		err = it.Error()
 		it.Release()
-		// TODO: why the panic ?
-		/*
-			err = it.Error()
-			if err != nil {
-				return
-			}
-		*/
+		if err != nil {
+			return
+		}
+
 	}
 
 	return

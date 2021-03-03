@@ -77,6 +77,7 @@ func (tt *Index) FindInBlocksParallel(from, to idx.Block, pattern [][]common.Has
 			if rec.err != nil {
 				err = rec.err
 				failed = true
+				continue
 			}
 			logs = append(logs, rec.result)
 		}
@@ -84,7 +85,6 @@ func (tt *Index) FindInBlocksParallel(from, to idx.Block, pattern [][]common.Has
 
 	onMatched := func(rec *logrec) (gonext bool, err error) {
 		if rec.ID.BlockNumber() > uint64(to) {
-			gonext = false
 			return
 		}
 
@@ -135,7 +135,6 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, on
 
 	onMatched := func(rec *logrec) (gonext bool, err error) {
 		if rec.ID.BlockNumber() > uint64(to) {
-			gonext = false
 			return
 		}
 
