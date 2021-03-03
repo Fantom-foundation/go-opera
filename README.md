@@ -44,12 +44,20 @@ $ opera --your-favourite-flags dumpconfig
 
 #### Validator
 
-To launch a validator, you have to use `--validator` flag to enable events emitter. Also you have to either use `--unlock` / `--password` flags or unlock
-validator account manually. Validator account should be unlocked for signing events.
+To launch a validator, you have to use `--validator.id` and `--validator.pubkey` flags to enable events emitter.
 
 ```shell
-$ opera --nousb --validator 0xADDRESS --unlock 0xADDRESS --password /path/to/password
+$ opera --nousb --validator.id YOUR_ID --unlock 0xPUBKEY
 ```
+
+The `opera` will prompt you for a password to decrypt the validator private key. Optionally, you can
+specify password with a file using `--validator.password` flag:
+
+```shell
+$ opera --nousb --validator.id YOUR_ID --unlock 0xPUBKEY --validator.password /path/to/password
+```
+
+New validator key may be created with `opera validator new` command.
 
 #### Participation in discovery
 

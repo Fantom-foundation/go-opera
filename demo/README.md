@@ -1,17 +1,16 @@
 # Demo
 
-Contains the scripts to do opera benchmarking (only for fakenet now).
+Contains the scripts to do opera benchmarking (only for fakenet).
 
-## for common purpose
+## Scripts
 
-  - run network: `./start.sh`;
+  - start network: `./start.sh`;
   - stop network: `./stop.sh`;
   - clean data and logs: `./clean.sh`;
 
-You could specify number of validators by setting N environment variable.
+You can specify number of genesis validators by setting N environment variable.
 
-
-## Stake transfer example
+## Balance transfer example
 
 from [`demo/`](./demo/) dir
 
@@ -47,7 +46,7 @@ go run ../cmd/opera attach --exec "ftm.accounts[0]" http://localhost:4001
 * Transfer some amount from node0 to node1 address as receiver (node0 js-console):
 ```js
 ftm.sendTransaction(
-	{from: ftm.accounts[0], to: "0x83e573ad09147fc15dac762653a8edac9b2516d6", value:  "1000000000"},
+	{from: ftm.accounts[0], to: "0x02aff1d0a9ed566e644f06fcfe7efe00a3261d03", value:  "1000000000"},
 	function(err, transactionHash) {
         if (!err)
             console.log(transactionHash + " success");
