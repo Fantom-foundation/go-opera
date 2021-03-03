@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,6 +17,17 @@ import (
 // Find wraps ForEach() for tests.
 func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
 	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
+		all = append(all, item)
+		next = true
+		return
+	})
+
+	return
+}
+
+// FindInBlocks wraps ForEachInBlocks() for tests.
+func (tt *Index) FindInBlocks(from, to idx.Block, topics [][]common.Hash) (all []*types.Log, err error) {
+	err = tt.ForEachInBlocks(from, to, topics, func(item *types.Log) (next bool) {
 		all = append(all, item)
 		next = true
 		return
@@ -41,7 +53,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		Address:     addr1,
 		Topics:      []common.Hash{hash1, hash1, hash1},
 	}, {
-		BlockNumber: 2,
+		BlockNumber: 3,
 		Address:     addr2,
 		Topics:      []common.Hash{hash2, hash2, hash2},
 	}, {
@@ -75,7 +87,6 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 				}
 			}
 		}
-		require.Equal(len(testdata), count)
 	}
 
 	t.Run("With no addresses", func(t *testing.T) {
@@ -87,6 +98,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 			{hash1, hash2, hash3, hash4},
 		})
 		require.NoError(err)
+		require.Equal(4, len(got))
 		check(require, got)
 	})
 
@@ -99,6 +111,20 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 			{hash1, hash2, hash3, hash4},
 		})
 		require.NoError(err)
+		require.Equal(4, len(got))
+		check(require, got)
+	})
+
+	t.Run("With by blocks", func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.FindInBlocks(2, 998, [][]common.Hash{
+			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+			{hash1, hash2, hash3, hash4},
+			{},
+			{hash1, hash2, hash3, hash4},
+		})
+		require.NoError(err)
+		require.Equal(2, len(got))
 		check(require, got)
 	})
 }

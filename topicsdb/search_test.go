@@ -35,7 +35,6 @@ func BenchmarkSearch(b *testing.B) {
 	}
 
 	b.Run("Lazy", func(b *testing.B) {
-		// db.fetchMethod = db.fetchLazy
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {

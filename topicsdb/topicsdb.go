@@ -3,6 +3,7 @@ package topicsdb
 import (
 	"fmt"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const MaxCount = 0xff
+const MaxTopicsCount = 0xff
 
 var (
 	ErrTooManyTopics = fmt.Errorf("Too many topics")
@@ -21,15 +22,11 @@ var (
 type Index struct {
 	db    kvdb.Store
 	table struct {
-		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count
+		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count (where topicN=0 is for address)
 		Topic kvdb.Store `table:"t"`
-		// (blockN+TxHash+logIndex) + topicN -> topic (where topicN=0 is for address)
-		Other kvdb.Store `table:"o"`
-		// (blockN+TxHash+logIndex) -> blockHash, data
+		// (blockN+TxHash+logIndex) -> ordered topic_count topics, blockHash, address, data
 		Logrec kvdb.Store `table:"r"`
 	}
-
-	fetchMethod func(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error
 }
 
 // New Index instance.
@@ -38,31 +35,57 @@ func New(db kvdb.Store) *Index {
 		db: db,
 	}
 
-	tt.fetchMethod = tt.fetchLazy
-
 	table.MigrateTables(&tt.table, tt.db)
 
 	return tt
 }
 
-// ForEach log records by conditions. 1st topics element is an address.
+// ForEach matches log records by topics. 1st topics element is an address.
 func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
-	if len(topics) > MaxCount {
+	if err := checkTopics(topics); err != nil {
+		return err
+	}
+
+	return tt.fetchLazy(topics, nil, onLog)
+}
+
+// ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
+func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if from > to {
+		return nil
+	}
+
+	if err := checkTopics(topics); err != nil {
+		return err
+	}
+
+	moreAccurate := func(l *types.Log) (gonext bool) {
+		if l.BlockNumber > uint64(to) {
+			return false
+		}
+		return onLog(l)
+	}
+
+	return tt.fetchLazy(topics, uintToBytes(uint64(from)), moreAccurate)
+}
+
+func checkTopics(topics [][]common.Hash) error {
+	if len(topics) > MaxTopicsCount {
 		return ErrTooManyTopics
 	}
 
 	ok := false
-	for _, alternative := range topics {
-		if len(alternative) > MaxCount {
+	for _, variants := range topics {
+		if len(variants) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
-		ok = ok || len(alternative) > 0
+		ok = ok || len(variants) > 0
 	}
 	if !ok {
 		return ErrEmptyTopics
 	}
 
-	return tt.fetchMethod(topics, onLog)
+	return nil
 }
 
 // MustPush calls Write() and panics if error.
@@ -76,46 +99,41 @@ func (tt *Index) MustPush(recs ...*types.Log) {
 // Write log record to database.
 func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
-		if len(rec.Topics) > MaxCount {
+		if len(rec.Topics) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
-		count := posToBytes(uint8(1 + len(rec.Topics)))
 
-		id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
-
-		var pos int
-		push := func(topic common.Hash) error {
+		var (
+			id    = NewID(rec.BlockNumber, rec.TxHash, rec.Index)
+			count = posToBytes(uint8(len(rec.Topics)))
+			pos   int
+		)
+		pushIndex := func(topic common.Hash) error {
 			key := topicKey(topic, uint8(pos), id)
-			err := tt.table.Topic.Put(key, count)
-			if err != nil {
+			if err := tt.table.Topic.Put(key, count); err != nil {
 				return err
 			}
-
-			key = otherKey(id, uint8(pos))
-			err = tt.table.Other.Put(key, topic.Bytes())
-			if err != nil {
-				return err
-			}
-
 			pos++
 			return nil
 		}
 
-		if err := push(rec.Address.Hash()); err != nil {
+		if err := pushIndex(rec.Address.Hash()); err != nil {
 			return err
 		}
+
+		buf := make([]byte, 0, common.HashLength*len(rec.Topics)+common.HashLength+common.AddressLength+len(rec.Data))
 		for _, topic := range rec.Topics {
-			if err := push(topic); err != nil {
+			if err := pushIndex(topic); err != nil {
 				return err
 			}
+			buf = append(buf, topic.Bytes()...)
 		}
 
-		buf := make([]byte, 0, common.HashLength+len(rec.Data))
 		buf = append(buf, rec.BlockHash.Bytes()...)
+		buf = append(buf, rec.Address.Bytes()...)
 		buf = append(buf, rec.Data...)
 
-		err := tt.table.Logrec.Put(id.Bytes(), buf)
-		if err != nil {
+		if err := tt.table.Logrec.Put(id.Bytes(), buf); err != nil {
 			return err
 		}
 	}

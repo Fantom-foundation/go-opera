@@ -3,22 +3,17 @@ package topicsdb
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPosToBytes(t *testing.T) {
-	assertar := assert.New(t)
+	require := require.New(t)
 
-	for expect := uint8(0); ; /*see break*/ expect += 0x0f {
+	for i := 0xff / 0x0f; i >= 0; i-- {
+		expect := uint8(0x0f * i)
 		bb := posToBytes(expect)
 		got := bytesToPos(bb)
 
-		if !assertar.Equal(expect, got) {
-			return
-		}
-
-		if expect == 0xff {
-			break
-		}
+		require.Equal(expect, got)
 	}
 }
