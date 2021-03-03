@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,17 +13,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/logger"
 )
-
-// Find wraps ForEach() for tests.
-func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
-	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
-		all = append(all, item)
-		next = true
-		return
-	})
-
-	return
-}
 
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
@@ -77,99 +67,103 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		}
 	}
 
-	t.Run("With no addresses", func(t *testing.T) {
-		require := require.New(t)
-		got, err := index.Find([][]common.Hash{
-			{},
-			{hash1, hash2, hash3, hash4},
-			{},
-			{hash1, hash2, hash3, hash4},
-		})
-		require.NoError(err)
-		require.Equal(4, len(got))
-		check(require, got)
-	})
+	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"serial":   index.FindInBlocks,
+		"parallel": index.FindInBlocksParallel,
+	} {
+		t.Run(dsc, func(t *testing.T) {
 
-	t.Run("With addresses", func(t *testing.T) {
-		require := require.New(t)
-		got, err := index.Find([][]common.Hash{
-			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-			{hash1, hash2, hash3, hash4},
-			{},
-			{hash1, hash2, hash3, hash4},
-		})
-		require.NoError(err)
-		require.Equal(4, len(got))
-		check(require, got)
-	})
+			t.Run("With no addresses", func(t *testing.T) {
+				require := require.New(t)
+				got, err := method(0, 1000, [][]common.Hash{
+					{},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.Equal(4, len(got))
+				check(require, got)
+			})
 
-	t.Run("With block range", func(t *testing.T) {
-		require := require.New(t)
-		got, err := index.FindInBlocks(2, 998, [][]common.Hash{
-			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-			{hash1, hash2, hash3, hash4},
-			{},
-			{hash1, hash2, hash3, hash4},
-		})
-		require.NoError(err)
-		require.Equal(2, len(got))
-		check(require, got)
-	})
+			t.Run("With addresses", func(t *testing.T) {
+				require := require.New(t)
+				got, err := method(0, 1000, [][]common.Hash{
+					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.Equal(4, len(got))
+				check(require, got)
+			})
 
-	t.Run("With block range parallel", func(t *testing.T) {
-		require := require.New(t)
-		got, err := index.FindInBlocksParallel(2, 998, [][]common.Hash{
-			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-			{hash1, hash2, hash3, hash4},
-			{},
-			{hash1, hash2, hash3, hash4},
+			t.Run("With block range", func(t *testing.T) {
+				require := require.New(t)
+				got, err := method(2, 998, [][]common.Hash{
+					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.Equal(2, len(got))
+				check(require, got)
+			})
+
 		})
-		require.NoError(err)
-		require.Equal(2, len(got))
-		check(require, got)
-	})
+	}
 }
 
 func TestIndexSearchSingleVariant(t *testing.T) {
 	logger.SetTestMode(t)
-	require := require.New(t)
 
-	topics, recs, topics4rec := genTestData()
+	topics, recs, topics4rec := genTestData(100)
 
 	index := New(memorydb.New())
 
 	for _, rec := range recs {
 		err := index.Push(rec)
-		require.NoError(err)
+		require.NoError(t, err)
 	}
 
-	for i := 0; i < len(topics); i++ {
-		from, to := topics4rec(i)
-		tt := topics[from : to-1]
+	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"serial":   index.FindInBlocks,
+		"parallel": index.FindInBlocksParallel,
+	} {
+		t.Run(dsc, func(t *testing.T) {
+			require := require.New(t)
 
-		qq := make([][]common.Hash, len(tt)+1)
-		for pos, t := range tt {
-			qq[pos+1] = []common.Hash{t}
-		}
+			for i := 0; i < len(topics); i++ {
+				from, to := topics4rec(i)
+				tt := topics[from : to-1]
 
-		got, err := index.Find(qq)
-		require.NoError(err)
+				qq := make([][]common.Hash, len(tt)+1)
+				for pos, t := range tt {
+					qq[pos+1] = []common.Hash{t}
+				}
 
-		var expect []*types.Log
-		for j, rec := range recs {
-			if f, t := topics4rec(j); f != from || t != to {
-				continue
+				got, err := method(0, 1000, qq)
+				require.NoError(err)
+
+				var expect []*types.Log
+				for j, rec := range recs {
+					if f, t := topics4rec(j); f != from || t != to {
+						continue
+					}
+					expect = append(expect, rec)
+				}
+
+				require.ElementsMatchf(expect, got, "step %d", i)
 			}
-			expect = append(expect, rec)
-		}
 
-		require.ElementsMatchf(expect, got, "step %d", i)
+		})
 	}
 }
 
 func TestIndexSearchSimple(t *testing.T) {
 	logger.SetTestMode(t)
-	require := require.New(t)
 
 	var (
 		hash1 = common.BytesToHash([]byte("topic1"))
@@ -201,7 +195,7 @@ func TestIndexSearchSimple(t *testing.T) {
 
 	for _, l := range testdata {
 		err := index.Push(l)
-		require.NoError(err)
+		require.NoError(t, err)
 	}
 
 	var (
@@ -209,36 +203,45 @@ func TestIndexSearchSimple(t *testing.T) {
 		err error
 	)
 
-	got, err = index.Find([][]common.Hash{
-		{addr.Hash()},
-		{hash1},
-	})
-	require.NoError(err)
-	require.Equal(1, len(got))
+	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"serial":   index.FindInBlocks,
+		"parallel": index.FindInBlocksParallel,
+	} {
+		t.Run(dsc, func(t *testing.T) {
+			require := require.New(t)
 
-	got, err = index.Find([][]common.Hash{
-		{addr.Hash()},
-		{hash2},
-	})
-	require.NoError(err)
-	require.Equal(1, len(got))
+			got, err = method(0, 0xffffffff, [][]common.Hash{
+				{addr.Hash()},
+				{hash1},
+			})
+			require.NoError(err)
+			require.Equal(1, len(got))
 
-	got, err = index.Find([][]common.Hash{
-		{addr.Hash()},
-		{hash3},
-	})
-	require.NoError(err)
-	require.Equal(1, len(got))
+			got, err = method(0, 0xffffffff, [][]common.Hash{
+				{addr.Hash()},
+				{hash2},
+			})
+			require.NoError(err)
+			require.Equal(1, len(got))
+
+			got, err = method(0, 0xffffffff, [][]common.Hash{
+				{addr.Hash()},
+				{hash3},
+			})
+			require.NoError(err)
+			require.Equal(1, len(got))
+		})
+	}
+
 }
 
-func genTestData() (
+func genTestData(count int) (
 	topics []common.Hash,
 	recs []*types.Log,
 	topics4rec func(rec int) (from, to int),
 ) {
 	const (
 		period = 5
-		count  = period * 3
 	)
 
 	topics = make([]common.Hash, period)
