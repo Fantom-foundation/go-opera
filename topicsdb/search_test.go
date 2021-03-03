@@ -4,20 +4,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkSearch(b *testing.B) {
-	topics, recs, topics4rec := genTestData()
+	topics, recs, topics4rec := genTestData(1000)
 
 	mem := memorydb.New()
 	mem.SetDelay(1 * time.Millisecond)
-	db := New(mem)
+	index := New(mem)
 
 	for _, rec := range recs {
-		err := db.Push(rec)
+		err := index.Push(rec)
 		require.NoError(b, err)
 	}
 
@@ -34,13 +36,18 @@ func BenchmarkSearch(b *testing.B) {
 		query = append(query, qq)
 	}
 
-	b.Run("Lazy", func(b *testing.B) {
-		b.ResetTimer()
+	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"serial":   index.FindInBlocks,
+		"parallel": index.FindInBlocksParallel,
+	} {
+		b.Run(dsc, func(b *testing.B) {
+			b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
-			qq := query[i%len(query)]
-			_, err := db.Find(qq)
-			require.NoError(b, err)
-		}
-	})
+			for i := 0; i < b.N; i++ {
+				qq := query[i%len(query)]
+				_, err := method(0, 0xffffffff, qq)
+				require.NoError(b, err)
+			}
+		})
+	}
 }
