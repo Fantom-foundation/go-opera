@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -52,6 +53,57 @@ func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs
 	return
 }
 
+// FindInBlocksParallel returns all log records of block range by pattern. 1st pattern element is an address.
+func (tt *Index) FindInBlocksParallel(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+	if from > to {
+		return
+	}
+
+	err = checkPattern(pattern)
+	if err != nil {
+		return
+	}
+
+	var wg sync.WaitGroup
+	ready := make(chan *logrec)
+	defer close(ready)
+	go func() {
+		failed := false
+		for rec := range ready {
+			wg.Done()
+			if failed {
+				continue
+			}
+			if rec.err != nil {
+				err = rec.err
+				failed = true
+			}
+			logs = append(logs, rec.result)
+		}
+	}()
+
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		if rec.ID.BlockNumber() > uint64(to) {
+			gonext = false
+			return
+		}
+
+		wg.Add(1)
+		go func() {
+			rec.fetch(tt.table.Logrec)
+			ready <- rec
+		}()
+
+		gonext = true
+		return
+	}
+
+	err = tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
+	wg.Wait()
+
+	return
+}
+
 // ForEach matches log records by pattern. 1st pattern element is an address.
 func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if err := checkPattern(pattern); err != nil {
@@ -59,12 +111,12 @@ func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext
 	}
 
 	onMatched := func(rec *logrec) (gonext bool, err error) {
-		var l *types.Log
-		l, err = rec.FetchLog(tt.table.Logrec)
-		if err != nil {
+		rec.fetch(tt.table.Logrec)
+		if rec.err != nil {
+			err = rec.err
 			return
 		}
-		gonext = onLog(l)
+		gonext = onLog(rec.result)
 		return
 	}
 
@@ -87,12 +139,12 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, on
 			return
 		}
 
-		var l *types.Log
-		l, err = rec.FetchLog(tt.table.Logrec)
-		if err != nil {
+		rec.fetch(tt.table.Logrec)
+		if rec.err != nil {
+			err = rec.err
 			return
 		}
-		gonext = onLog(l)
+		gonext = onLog(rec.result)
 		return
 	}
 

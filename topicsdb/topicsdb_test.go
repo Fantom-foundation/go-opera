@@ -103,9 +103,22 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		check(require, got)
 	})
 
-	t.Run("With by blocks", func(t *testing.T) {
+	t.Run("With block range", func(t *testing.T) {
 		require := require.New(t)
 		got, err := index.FindInBlocks(2, 998, [][]common.Hash{
+			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+			{hash1, hash2, hash3, hash4},
+			{},
+			{hash1, hash2, hash3, hash4},
+		})
+		require.NoError(err)
+		require.Equal(2, len(got))
+		check(require, got)
+	})
+
+	t.Run("With block range parallel", func(t *testing.T) {
+		require := require.New(t)
+		got, err := index.FindInBlocksParallel(2, 998, [][]common.Hash{
 			{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
 			{hash1, hash2, hash3, hash4},
 			{},
