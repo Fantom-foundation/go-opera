@@ -42,19 +42,8 @@ func New(db kvdb.Store) *Index {
 }
 
 // FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
+// Fetches log's body async.
 func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
-	err = tt.ForEachInBlocks(
-		from, to, pattern,
-		func(l *types.Log) bool {
-			logs = append(logs, l)
-			return true
-		})
-
-	return
-}
-
-// FindInBlocksParallel returns all log records of block range by pattern. 1st pattern element is an address.
-func (tt *Index) FindInBlocksParallel(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
 	if from > to {
 		return
 	}
@@ -67,6 +56,7 @@ func (tt *Index) FindInBlocksParallel(from, to idx.Block, pattern [][]common.Has
 	var wg sync.WaitGroup
 	ready := make(chan *logrec)
 	defer close(ready)
+
 	go func() {
 		failed := false
 		for rec := range ready {

@@ -37,8 +37,8 @@ func BenchmarkSearch(b *testing.B) {
 	}
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"serial":   index.FindInBlocks,
-		"parallel": index.FindInBlocksParallel,
+		"sync":  index.FindInBlocksSync,
+		"async": index.FindInBlocks,
 	} {
 		b.Run(dsc, func(b *testing.B) {
 			b.ResetTimer()

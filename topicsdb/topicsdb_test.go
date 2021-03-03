@@ -14,6 +14,19 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
+// FindInBlocksSync returns all log records of block range by pattern. 1st pattern element is an address.
+// The same as FindInBlocks but fetches log's body sync.
+func (tt *Index) FindInBlocksSync(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+	err = tt.ForEachInBlocks(
+		from, to, pattern,
+		func(l *types.Log) bool {
+			logs = append(logs, l)
+			return true
+		})
+
+	return
+}
+
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
 	var (
@@ -68,8 +81,8 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	}
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"serial":   index.FindInBlocks,
-		"parallel": index.FindInBlocksParallel,
+		"sync":  index.FindInBlocksSync,
+		"async": index.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 
@@ -129,8 +142,8 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 	}
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"serial":   index.FindInBlocks,
-		"parallel": index.FindInBlocksParallel,
+		"sync":  index.FindInBlocksSync,
+		"async": index.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
@@ -204,8 +217,8 @@ func TestIndexSearchSimple(t *testing.T) {
 	)
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"serial":   index.FindInBlocks,
-		"parallel": index.FindInBlocksParallel,
+		"sync":  index.FindInBlocksSync,
+		"async": index.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
