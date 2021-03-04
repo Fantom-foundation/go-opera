@@ -26,8 +26,12 @@ var (
 			Y: 10.0 * piecefunc.DecimalUnit,
 		},
 		{ // validators >0.8 emit confirming events very rarely
+			X: 0.81 * piecefunc.DecimalUnit,
+			Y: 50.0 * piecefunc.DecimalUnit,
+		},
+		{ // validators >0.8 emit confirming events very rarely
 			X: 1.0 * piecefunc.DecimalUnit,
-			Y: 1000.0 * piecefunc.DecimalUnit,
+			Y: 60.0 * piecefunc.DecimalUnit,
 		},
 	}
 	// eventMetricF is a piecewise function for validator's event metric diff depending on a number of newly observed events
