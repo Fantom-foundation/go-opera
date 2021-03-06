@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("key is not found")
+	ErrNotFound      = errors.New("key is not found")
+	ErrAlreadyExists = errors.New("key already exists")
 )
 
 type FileKeystore struct {
@@ -32,6 +33,9 @@ func (f *FileKeystore) Has(pubkey validatorpk.PubKey) bool {
 }
 
 func (f *FileKeystore) Add(pubkey validatorpk.PubKey, key []byte, auth string) error {
+	if f.Has(pubkey) {
+		return ErrAlreadyExists
+	}
 	return f.enc.StoreKey(f.PathOf(pubkey), pubkey, key, auth)
 }
 
