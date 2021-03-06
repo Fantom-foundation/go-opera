@@ -153,5 +153,6 @@ For the testing purposes, the full demo may be launched using:
 ```shell
 cd demo/
 ./start.sh # start the Opera processes
-./stop.sh # stop the demo and erase the chain data
+./stop.sh # stop the demo
+./clean.sh # erase the chain data
 ```
