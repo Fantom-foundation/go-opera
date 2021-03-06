@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
@@ -55,7 +56,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 			maxGasToUse = rules.Blocks.MaxBlockGas - em.pendingGas
 		}
 	}
-	return rules.Economy.Gas.MaxEventGas
+	return maxGasToUse
 }
 
 // safe for concurrent use
@@ -120,6 +121,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 
 	senderTxs := make(map[common.Address]int)
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
+		// check we don't originate too many txs from the same sender
 		sender, _ := types.Sender(em.world.TxSigner, tx)
 		if senderTxs[sender] >= em.config.MaxTxsPerAddress {
 			sorted.Pop()
@@ -132,6 +134,10 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 		}
 		// check there's enough gas power to originate the transaction
 		if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
+			if params.TxGas >= e.GasPowerLeft().Min() || e.GasPowerUsed()+params.TxGas >= maxGasUsed {
+				// stop if cannot originate even an empty transaction
+				break
+			}
 			sorted.Pop()
 			continue
 		}
