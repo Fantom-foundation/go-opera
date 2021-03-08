@@ -2,7 +2,6 @@ package topicsdb
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -42,54 +41,14 @@ func New(db kvdb.Store) *Index {
 }
 
 // FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
-// Fetches log's body async.
+// The same as FindInBlocksAsync but fetches log's body sync.
 func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
-	if from > to {
-		return
-	}
-
-	err = checkPattern(pattern)
-	if err != nil {
-		return
-	}
-
-	var wg sync.WaitGroup
-	ready := make(chan *logrec)
-	defer close(ready)
-
-	go func() {
-		failed := false
-		for rec := range ready {
-			wg.Done()
-			if failed {
-				continue
-			}
-			if rec.err != nil {
-				err = rec.err
-				failed = true
-				continue
-			}
-			logs = append(logs, rec.result)
-		}
-	}()
-
-	onMatched := func(rec *logrec) (gonext bool, err error) {
-		if rec.ID.BlockNumber() > uint64(to) {
-			return
-		}
-
-		wg.Add(1)
-		go func() {
-			rec.fetch(tt.table.Logrec)
-			ready <- rec
-		}()
-
-		gonext = true
-		return
-	}
-
-	err = tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
-	wg.Wait()
+	err = tt.ForEachInBlocks(
+		from, to, pattern,
+		func(l *types.Log) bool {
+			logs = append(logs, l)
+			return true
+		})
 
 	return
 }

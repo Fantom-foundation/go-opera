@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -14,15 +15,55 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
-// FindInBlocksSync returns all log records of block range by pattern. 1st pattern element is an address.
-// The same as FindInBlocks but fetches log's body sync.
-func (tt *Index) FindInBlocksSync(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
-	err = tt.ForEachInBlocks(
-		from, to, pattern,
-		func(l *types.Log) bool {
-			logs = append(logs, l)
-			return true
-		})
+// FindInBlocksAsync returns all log records of block range by pattern. 1st pattern element is an address.
+// Fetches log's body async.
+func (tt *Index) FindInBlocksAsync(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+	if from > to {
+		return
+	}
+
+	err = checkPattern(pattern)
+	if err != nil {
+		return
+	}
+
+	var wg sync.WaitGroup
+	ready := make(chan *logrec)
+	defer close(ready)
+
+	go func() {
+		failed := false
+		for rec := range ready {
+			wg.Done()
+			if failed {
+				continue
+			}
+			if rec.err != nil {
+				err = rec.err
+				failed = true
+				continue
+			}
+			logs = append(logs, rec.result)
+		}
+	}()
+
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		if rec.ID.BlockNumber() > uint64(to) {
+			return
+		}
+
+		wg.Add(1)
+		go func() {
+			rec.fetch(tt.table.Logrec)
+			ready <- rec
+		}()
+
+		gonext = true
+		return
+	}
+
+	err = tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
+	wg.Wait()
 
 	return
 }
@@ -81,8 +122,8 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	}
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocksSync,
-		"async": index.FindInBlocks,
+		"sync":  index.FindInBlocks,
+		"async": index.FindInBlocksAsync,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 
@@ -142,8 +183,8 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 	}
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocksSync,
-		"async": index.FindInBlocks,
+		"sync":  index.FindInBlocks,
+		"async": index.FindInBlocksAsync,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
@@ -217,8 +258,8 @@ func TestIndexSearchSimple(t *testing.T) {
 	)
 
 	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocksSync,
-		"async": index.FindInBlocks,
+		"sync":  index.FindInBlocks,
+		"async": index.FindInBlocksAsync,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
