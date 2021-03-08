@@ -15,7 +15,7 @@ func (s *Store) applyRawEvmItems(db kvdb.Iteratee) (err error) {
 	batch := s.table.Evm.NewBatch()
 	defer batch.Reset()
 	for it.Next() {
-		err = s.table.Evm.Put(it.Key(), it.Value())
+		err = batch.Put(it.Key(), it.Value())
 		if err != nil {
 			return err
 		}
