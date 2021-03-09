@@ -141,7 +141,7 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 	pattern[0] = addresses
 	pattern = append(pattern, f.topics...)
 
-	logs, err := f.backend.EvmLogIndex().FindInBlocks(begin, end, pattern)
+	logs, err := f.backend.EvmLogIndex().FindInBlocks(ctx, begin, end, pattern)
 
 	return logs, err
 }

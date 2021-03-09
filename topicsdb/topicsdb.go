@@ -1,6 +1,7 @@
 package topicsdb
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -42,9 +43,11 @@ func New(db kvdb.Store) *Index {
 
 // FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
 // The same as FindInBlocksAsync but fetches log's body sync.
-func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+func (tt *Index) FindInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
 	err = tt.ForEachInBlocks(
-		from, to, pattern,
+		ctx,
+		from, to,
+		pattern,
 		func(l *types.Log) bool {
 			logs = append(logs, l)
 			return true
@@ -54,7 +57,7 @@ func (tt *Index) FindInBlocks(from, to idx.Block, pattern [][]common.Hash) (logs
 }
 
 // ForEach matches log records by pattern. 1st pattern element is an address.
-func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if err := checkPattern(pattern); err != nil {
 		return err
 	}
@@ -69,11 +72,11 @@ func (tt *Index) ForEach(pattern [][]common.Hash, onLog func(*types.Log) (gonext
 		return
 	}
 
-	return tt.searchLazy(pattern, nil, onMatched)
+	return tt.searchLazy(ctx, pattern, nil, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
-func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if from > to {
 		return nil
 	}
@@ -96,7 +99,7 @@ func (tt *Index) ForEachInBlocks(from, to idx.Block, pattern [][]common.Hash, on
 		return
 	}
 
-	return tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
+	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
 }
 
 func checkPattern(pattern [][]common.Hash) error {

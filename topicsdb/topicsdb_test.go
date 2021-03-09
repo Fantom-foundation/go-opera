@@ -1,6 +1,7 @@
 package topicsdb
 
 import (
+	"context"
 	"math/rand"
 	"sync"
 	"testing"
@@ -17,7 +18,7 @@ import (
 
 // FindInBlocksAsync returns all log records of block range by pattern. 1st pattern element is an address.
 // Fetches log's body async.
-func (tt *Index) FindInBlocksAsync(from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
 	if from > to {
 		return
 	}
@@ -62,7 +63,7 @@ func (tt *Index) FindInBlocksAsync(from, to idx.Block, pattern [][]common.Hash) 
 		return
 	}
 
-	err = tt.searchLazy(pattern, uintToBytes(uint64(from)), onMatched)
+	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
 	wg.Wait()
 
 	return
@@ -121,7 +122,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		}
 	}
 
-	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
 		"sync":  index.FindInBlocks,
 		"async": index.FindInBlocksAsync,
 	} {
@@ -129,7 +130,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 			t.Run("With no addresses", func(t *testing.T) {
 				require := require.New(t)
-				got, err := method(0, 1000, [][]common.Hash{
+				got, err := method(nil, 0, 1000, [][]common.Hash{
 					{},
 					{hash1, hash2, hash3, hash4},
 					{},
@@ -142,7 +143,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 			t.Run("With addresses", func(t *testing.T) {
 				require := require.New(t)
-				got, err := method(0, 1000, [][]common.Hash{
+				got, err := method(nil, 0, 1000, [][]common.Hash{
 					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
 					{hash1, hash2, hash3, hash4},
 					{},
@@ -155,7 +156,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 			t.Run("With block range", func(t *testing.T) {
 				require := require.New(t)
-				got, err := method(2, 998, [][]common.Hash{
+				got, err := method(nil, 2, 998, [][]common.Hash{
 					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
 					{hash1, hash2, hash3, hash4},
 					{},
@@ -182,7 +183,7 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
 		"sync":  index.FindInBlocks,
 		"async": index.FindInBlocksAsync,
 	} {
@@ -198,7 +199,7 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 					qq[pos+1] = []common.Hash{t}
 				}
 
-				got, err := method(0, 1000, qq)
+				got, err := method(nil, 0, 1000, qq)
 				require.NoError(err)
 
 				var expect []*types.Log
@@ -257,28 +258,28 @@ func TestIndexSearchSimple(t *testing.T) {
 		err error
 	)
 
-	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
 		"sync":  index.FindInBlocks,
 		"async": index.FindInBlocksAsync,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
 
-			got, err = method(0, 0xffffffff, [][]common.Hash{
+			got, err = method(nil, 0, 0xffffffff, [][]common.Hash{
 				{addr.Hash()},
 				{hash1},
 			})
 			require.NoError(err)
 			require.Equal(1, len(got))
 
-			got, err = method(0, 0xffffffff, [][]common.Hash{
+			got, err = method(nil, 0, 0xffffffff, [][]common.Hash{
 				{addr.Hash()},
 				{hash2},
 			})
 			require.NoError(err)
 			require.Equal(1, len(got))
 
-			got, err = method(0, 0xffffffff, [][]common.Hash{
+			got, err = method(nil, 0, 0xffffffff, [][]common.Hash{
 				{addr.Hash()},
 				{hash3},
 			})

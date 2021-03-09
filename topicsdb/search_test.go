@@ -1,6 +1,7 @@
 package topicsdb
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -36,7 +37,7 @@ func BenchmarkSearch(b *testing.B) {
 		query = append(query, qq)
 	}
 
-	for dsc, method := range map[string]func(idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
 		"sync":  index.FindInBlocks,
 		"async": index.FindInBlocksAsync,
 	} {
@@ -45,7 +46,7 @@ func BenchmarkSearch(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				qq := query[i%len(query)]
-				_, err := method(0, 0xffffffff, qq)
+				_, err := method(nil, 0, 0xffffffff, qq)
 				require.NoError(b, err)
 			}
 		})
