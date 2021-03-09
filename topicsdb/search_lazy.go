@@ -53,6 +53,12 @@ func (tt *Index) walk(
 
 		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
 		for it.Next() {
+			err = ctx.Err()
+			if err != nil {
+				it.Release()
+				return
+			}
+
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())
 			newRec := newLogrec(id, topicCount)
