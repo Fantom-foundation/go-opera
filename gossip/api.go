@@ -16,22 +16,17 @@ func NewPublicEthereumAPI(s *Service) *PublicEthereumAPI {
 	return &PublicEthereumAPI{s}
 }
 
-// Etherbase is the validator address
+// Etherbase returns the zero address for web3 compatibility
 func (api *PublicEthereumAPI) Etherbase() (common.Address, error) {
-	return api.Validator()
-}
-
-// Coinbase is the validator address
-func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
-	return api.Validator()
-}
-
-// Validator is the validator address
-func (api *PublicEthereumAPI) Validator() (common.Address, error) {
 	return common.Address{}, nil
 }
 
-// Hashrate returns the POW hashrate
+// Coinbase returns the zero address for web3 compatibility
+func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
+	return common.Address{}, nil
+}
+
+// Hashrate returns the zero POW hashrate for web3 compatibility
 func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(0)
 }
