@@ -105,7 +105,7 @@ func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
 func (s *Store) IndexLogs(recs ...*types.Log) {
 	err := s.table.EvmLogs.Push(recs...)
 	if err != nil {
-		s.Log.Crit("DB logs index", "err", err)
+		s.Log.Crit("DB logs index error", "err", err)
 	}
 }
 
@@ -124,7 +124,7 @@ func (s *Store) EvmLogs() *topicsdb.Index {
 func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 	cache, err := wlru.New(weight, size)
 	if err != nil {
-		s.Log.Crit("Error create LRU cache", "err", err)
+		s.Log.Crit("Failed to create LRU cache", "err", err)
 		return nil
 	}
 	return cache

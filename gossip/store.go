@@ -164,7 +164,7 @@ func (s *Store) Commit() error {
 func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 	cache, err := wlru.New(weight, size)
 	if err != nil {
-		s.Log.Crit("Error create LRU cache", "err", err)
+		s.Log.Crit("Failed to create LRU cache", "err", err)
 		return nil
 	}
 	return cache
