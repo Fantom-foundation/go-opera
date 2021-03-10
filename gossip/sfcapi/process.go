@@ -13,7 +13,7 @@ import (
 )
 
 func ApplyGenesis(s *Store, index *topicsdb.Index) {
-	_ = index.ForEach([][]common.Hash{{sfc.ContractAddress.Hash()}, {Topics.ClaimedValidatorReward, Topics.ClaimedDelegationReward}}, func(l *types.Log) (gonext bool) {
+	_ = index.ForEach(nil, [][]common.Hash{{sfc.ContractAddress.Hash()}, {Topics.ClaimedValidatorReward, Topics.ClaimedDelegationReward}}, func(l *types.Log) (gonext bool) {
 		if l.Topics[0] == Topics.ClaimedValidatorReward && len(l.Topics) > 1 && len(l.Data) >= 32 {
 			stakerID := idx.ValidatorID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 			reward := new(big.Int).SetBytes(l.Data[0:32])

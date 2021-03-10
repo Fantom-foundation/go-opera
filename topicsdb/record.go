@@ -10,6 +10,8 @@ type (
 	logrec struct {
 		ID          ID
 		topicsCount uint8
+		result      *types.Log
+		err         error
 	}
 )
 
@@ -20,11 +22,11 @@ func newLogrec(rec ID, topicCount uint8) *logrec {
 	}
 }
 
-// FetchLog record's data.
-func (rec *logrec) FetchLog(
+// fetch record's data.
+func (rec *logrec) fetch(
 	logrecTable kvdb.Reader,
-) (r *types.Log, err error) {
-	r = &types.Log{
+) {
+	r := &types.Log{
 		BlockNumber: rec.ID.BlockNumber(),
 		TxHash:      rec.ID.TxHash(),
 		Index:       rec.ID.Index(),
@@ -35,8 +37,8 @@ func (rec *logrec) FetchLog(
 		buf    []byte
 		offset int
 	)
-	buf, err = logrecTable.Get(rec.ID.Bytes())
-	if err != nil {
+	buf, rec.err = logrecTable.Get(rec.ID.Bytes())
+	if rec.err != nil {
 		return
 	}
 
@@ -53,5 +55,6 @@ func (rec *logrec) FetchLog(
 	offset += common.AddressLength
 	r.Data = buf[offset:]
 
+	rec.result = r
 	return
 }

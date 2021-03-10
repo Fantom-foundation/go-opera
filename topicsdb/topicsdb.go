@@ -1,6 +1,7 @@
 package topicsdb
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -40,42 +41,74 @@ func New(db kvdb.Store) *Index {
 	return tt
 }
 
-// ForEach matches log records by topics. 1st topics element is an address.
-func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
-	if err := checkTopics(topics); err != nil {
+// FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
+// The same as FindInBlocksAsync but fetches log's body sync.
+func (tt *Index) FindInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+	err = tt.ForEachInBlocks(
+		ctx,
+		from, to,
+		pattern,
+		func(l *types.Log) bool {
+			logs = append(logs, l)
+			return true
+		})
+
+	return
+}
+
+// ForEach matches log records by pattern. 1st pattern element is an address.
+func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+	if err := checkPattern(pattern); err != nil {
 		return err
 	}
 
-	return tt.fetchLazy(topics, nil, onLog)
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		rec.fetch(tt.table.Logrec)
+		if rec.err != nil {
+			err = rec.err
+			return
+		}
+		gonext = onLog(rec.result)
+		return
+	}
+
+	return tt.searchLazy(ctx, pattern, nil, onMatched)
 }
 
-// ForEachInBlocks matches log records of block range by topics. 1st topics element is an address.
-func (tt *Index) ForEachInBlocks(from, to idx.Block, topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+// ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
+func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if from > to {
 		return nil
 	}
 
-	if err := checkTopics(topics); err != nil {
+	if err := checkPattern(pattern); err != nil {
 		return err
 	}
 
-	moreAccurate := func(l *types.Log) (gonext bool) {
-		if l.BlockNumber > uint64(to) {
-			return false
+	onMatched := func(rec *logrec) (gonext bool, err error) {
+		if rec.ID.BlockNumber() > uint64(to) {
+			return
 		}
-		return onLog(l)
+
+		rec.fetch(tt.table.Logrec)
+		if rec.err != nil {
+			err = rec.err
+			return
+		}
+		gonext = onLog(rec.result)
+		return
 	}
 
-	return tt.fetchLazy(topics, uintToBytes(uint64(from)), moreAccurate)
+	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
 }
 
-func checkTopics(topics [][]common.Hash) error {
-	if len(topics) > MaxTopicsCount {
+func checkPattern(pattern [][]common.Hash) error {
+	if len(pattern) > MaxTopicsCount {
 		return ErrTooManyTopics
 	}
 
 	ok := false
-	for _, variants := range topics {
+	for _, variants := range pattern {
 		if len(variants) > MaxTopicsCount {
 			return ErrTooManyTopics
 		}
