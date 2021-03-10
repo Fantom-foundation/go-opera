@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -36,8 +35,6 @@ type Store struct {
 		BlockEpochState kvdb.Store `table:"D"`
 		Events          kvdb.Store `table:"e"`
 		Blocks          kvdb.Store `table:"b"`
-		Packs           kvdb.Store `table:"P"`
-		PacksNum        kvdb.Store `table:"n"`
 		Genesis         kvdb.Store `table:"g"`
 
 		// Network version
@@ -58,10 +55,6 @@ type Store struct {
 		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState atomic.Value // store by pointer
-	}
-
-	mutex struct {
-		Inc sync.Mutex
 	}
 
 	rlp rlpstore.Helper
