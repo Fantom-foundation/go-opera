@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
 	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
@@ -167,6 +168,8 @@ func DefaultConfig() Config {
 		},
 		RPCLogsBloom: true,
 	}
+	cfg.Protocol.Processor.EventsBufferLimit.Num = idx.Event(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Num + softLimitItems
+	cfg.Protocol.Processor.EventsBufferLimit.Size = uint64(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Size + 8*opt.MiB
 	cfg.Protocol.StreamLeecher.MaxSessionRestart = 4 * time.Minute
 
 	return cfg

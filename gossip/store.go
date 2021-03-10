@@ -37,6 +37,9 @@ type Store struct {
 		Blocks          kvdb.Store `table:"b"`
 		Genesis         kvdb.Store `table:"g"`
 
+		// P2P-only
+		HighestLamport kvdb.Store `table:"l"`
+
 		// Network version
 		NetworkVersion kvdb.Store `table:"V"`
 
@@ -55,6 +58,7 @@ type Store struct {
 		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState atomic.Value // store by pointer
+		HighestLamport  atomic.Value // store by pointer
 	}
 
 	rlp rlpstore.Helper
@@ -154,6 +158,7 @@ func (s *Store) Commit() error {
 	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
 	s.FlushBlockEpochState()
+	s.FlushHighestLamport()
 	return s.dbs.Flush(flushID)
 }
 

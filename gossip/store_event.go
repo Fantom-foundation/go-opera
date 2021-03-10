@@ -149,3 +149,46 @@ func (s *Store) HasEvent(h hash.Event) bool {
 	has, _ := s.table.Events.Has(h.Bytes())
 	return has
 }
+
+func (s *Store) loadHighestLamport() idx.Lamport {
+	lamportBytes, err := s.table.HighestLamport.Get([]byte("k"))
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	if lamportBytes == nil {
+		return 0
+	}
+	return idx.BytesToLamport(lamportBytes)
+}
+
+func (s *Store) getCachedHighestLamport() (idx.Lamport, bool) {
+	cache := s.cache.HighestLamport.Load()
+	if cache != nil {
+		return cache.(idx.Lamport), true
+	}
+	return 0, false
+}
+
+func (s *Store) GetHighestLamport() idx.Lamport {
+	cached, ok := s.getCachedHighestLamport()
+	if ok {
+		return cached
+	}
+	lamport := s.loadHighestLamport()
+	s.cache.HighestLamport.Store(lamport)
+	return lamport
+}
+
+func (s *Store) SetHighestLamport(lamport idx.Lamport) {
+	s.cache.HighestLamport.Store(lamport)
+}
+
+func (s *Store) FlushHighestLamport() {
+	cached, ok := s.getCachedHighestLamport()
+	if ok {
+		err := s.table.HighestLamport.Put([]byte("k"), cached.Bytes())
+		if err != nil {
+			s.Log.Crit("Failed to put key-value", "err", err)
+		}
+	}
+}

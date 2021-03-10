@@ -220,6 +220,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.dagIndexer.Reset(svc.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
 		return svc.store.GetEvent(id)
 	})
+	// load caches for mutable values to avoid race condition
+	svc.store.GetBlockEpochState()
+	svc.store.GetHighestLamport()
 
 	svc.emitter = svc.makeEmitter(signer)
 
