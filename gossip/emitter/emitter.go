@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 
@@ -60,7 +59,6 @@ type Emitter struct {
 
 	syncStatus syncStatus
 
-	gasRate            metrics.Meter
 	prevIdleTime       time.Time
 	prevEmittedAtTime  time.Time
 	prevEmittedAtBlock idx.Block
@@ -109,7 +107,6 @@ func NewEmitter(
 	return &Emitter{
 		config:        config,
 		world:         world,
-		gasRate:       metrics.NewMeterForced(),
 		originatedTxs: originatedtxs.New(SenderCountBufferSize),
 		txTime:        txTime,
 		intervals:     config.EmitIntervals,
@@ -229,7 +226,6 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 			return nil
 		}
 	}
-	em.gasRate.Mark(int64(e.GasPowerUsed()))
 	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
 	em.prevEmittedAtBlock = em.world.Store.GetLatestBlockIndex()
 	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))

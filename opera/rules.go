@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	MainNetworkID      uint64 = 0xfa
-	TestNetworkID      uint64 = 0xfa2
-	FakeNetworkID      uint64 = 0xfa3
-	DefaultEventMaxGas uint64 = 28000
+	MainNetworkID   uint64 = 0xfa
+	TestNetworkID   uint64 = 0xfa2
+	FakeNetworkID   uint64 = 0xfa3
+	DefaultEventGas uint64 = 28000
 )
 
 var DefaultVMConfig = vm.Config{
@@ -182,8 +182,8 @@ func DefaultEpochsRules() EpochsRules {
 
 func DefaultGasRules() GasRules {
 	return GasRules{
-		MaxEventGas:  10000000 + DefaultEventMaxGas,
-		EventGas:     DefaultEventMaxGas,
+		MaxEventGas:  10000000 + DefaultEventGas,
+		EventGas:     DefaultEventGas,
 		ParentGas:    2400,
 		ExtraDataGas: 25,
 	}
@@ -199,10 +199,10 @@ func FakeNetEpochsRules() EpochsRules {
 // DefaulLongGasPowerRules is long-window config
 func DefaulLongGasPowerRules() GasPowerRules {
 	return GasPowerRules{
-		AllocPerSec:        100 * DefaultEventMaxGas,
+		AllocPerSec:        100 * DefaultEventGas,
 		MaxAllocPeriod:     inter.Timestamp(60 * time.Minute),
 		StartupAllocPeriod: inter.Timestamp(5 * time.Second),
-		MinStartupGas:      DefaultEventMaxGas * 20,
+		MinStartupGas:      DefaultEventGas * 20,
 	}
 }
 
