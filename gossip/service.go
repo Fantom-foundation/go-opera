@@ -131,9 +131,10 @@ type Service struct {
 	// version watcher
 	verWatcher *verwatcher.VerWarcher
 
-	blockProcWg      sync.WaitGroup
-	blockProcTasks   *workers.Workers
-	blockProcModules BlockProc
+	blockProcWg        sync.WaitGroup
+	blockProcTasks     *workers.Workers
+	blockProcTasksDone chan struct{}
+	blockProcModules   BlockProc
 
 	blockBusyFlag uint32
 	eventBusyFlag uint32
@@ -175,19 +176,20 @@ func NewService(stack *node.Node, config Config, store *Store, signer valkeystor
 
 func newService(config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
-		config:           config,
-		done:             make(chan struct{}),
-		Name:             fmt.Sprintf("Node-%d", rand.Int()),
-		store:            store,
-		engine:           engine,
-		blockProcModules: blockProc,
-		dagIndexer:       dagIndexer,
-		engineMu:         new(sync.RWMutex),
-		uniqueEventIDs:   uniqueID{new(big.Int)},
-		Instance:         logger.MakeInstance(),
+		config:             config,
+		done:               make(chan struct{}),
+		blockProcTasksDone: make(chan struct{}),
+		Name:               fmt.Sprintf("Node-%d", rand.Int()),
+		store:              store,
+		engine:             engine,
+		blockProcModules:   blockProc,
+		dagIndexer:         dagIndexer,
+		engineMu:           new(sync.RWMutex),
+		uniqueEventIDs:     uniqueID{new(big.Int)},
+		Instance:           logger.MakeInstance(),
 	}
 
-	svc.blockProcTasks = workers.New(&svc.wg, svc.done, 1)
+	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
 
 	// create server pool
 	trustedNodes := []string{}
@@ -220,6 +222,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.dagIndexer.Reset(svc.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
 		return svc.store.GetEvent(id)
 	})
+	// load caches for mutable values to avoid race condition
+	svc.store.GetBlockEpochState()
+	svc.store.GetHighestLamport()
 
 	svc.emitter = svc.makeEmitter(signer)
 
@@ -369,6 +374,7 @@ func (s *Service) Stop() error {
 	s.stopped = true
 
 	s.blockProcWg.Wait()
+	close(s.blockProcTasksDone)
 	return s.store.Commit()
 }
 

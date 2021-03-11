@@ -175,7 +175,7 @@ func NewProtocolManager(
 		},
 	})
 	pm.processor = pm.makeProcessor(checkers)
-	pm.leecher = streamleecher.New(pm.store.GetEpoch(), false, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
+	pm.leecher = streamleecher.New(pm.store.GetEpoch(), pm.store.GetHighestLamport() == 0, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
 		OnlyNotConnected: pm.onlyNotConnectedEvents,
 		RequestChunk: func(peer string, r dagstream.Request) error {
 			p := pm.peers.Peer(peer)
@@ -313,6 +313,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 			OnlyInterested: pm.onlyInterestedEvents,
 		},
 		PeerMisbehaviour: pm.peerMisbehaviour,
+		HighestLamport:   pm.store.GetHighestLamport,
 	})
 
 	return newProcessor
@@ -636,17 +637,41 @@ func (pm *ProtocolManager) handleEventHashes(p *peer, announces hash.Events) {
 	for _, id := range announces {
 		p.MarkEvent(id)
 	}
+	// filter too high IDs
+	highestLamport := pm.store.GetHighestLamport()
+	notTooHigh := make(hash.Events, 0, len(announces))
+	sessionCfg := pm.config.Protocol.StreamLeecher.Session
+	for _, id := range announces {
+		if id.Lamport() <= highestLamport+idx.Lamport(sessionCfg.DefaultChunkSize.Num)*idx.Lamport(sessionCfg.ParallelChunksDownload) {
+			notTooHigh = append(notTooHigh, id)
+		}
+	}
+	if len(announces) != len(notTooHigh) {
+		pm.leecher.ForceSyncing()
+	}
 	// Schedule all the unknown hashes for retrieval
 	requestEvents := func(ids []interface{}) error {
 		return p.RequestEvents(interfacesToEventIDs(ids))
 	}
-	_ = pm.dagFetcher.NotifyAnnounces(p.id, eventIDsToInterfaces(announces), time.Now(), requestEvents)
+	_ = pm.dagFetcher.NotifyAnnounces(p.id, eventIDsToInterfaces(notTooHigh), time.Now(), requestEvents)
 }
 
 func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
 	for _, e := range events {
 		p.MarkEvent(e.ID())
+	}
+	// filter too high events
+	highestLamport := pm.store.GetHighestLamport()
+	notTooHigh := make(dag.Events, 0, len(events))
+	sessionCfg := pm.config.Protocol.StreamLeecher.Session
+	for _, e := range events {
+		if e.Lamport() <= highestLamport+idx.Lamport(sessionCfg.DefaultChunkSize.Num)*idx.Lamport(sessionCfg.ParallelChunksDownload) {
+			notTooHigh = append(notTooHigh, e)
+		}
+	}
+	if len(events) != len(notTooHigh) {
+		pm.leecher.ForceSyncing()
 	}
 	// Schedule all the events for connection
 	peer := *p
@@ -657,7 +682,7 @@ func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool
 	notifyAnnounces := func(ids hash.Events) {
 		_ = pm.dagFetcher.NotifyAnnounces(peer.id, eventIDsToInterfaces(ids), now, requestEvents)
 	}
-	_ = pm.processor.Enqueue(peer.id, events, ordered, notifyAnnounces, nil)
+	_ = pm.processor.Enqueue(peer.id, notTooHigh, ordered, notifyAnnounces, nil)
 }
 
 // handleMsg is invoked whenever an inbound message is received from a remote
@@ -767,7 +792,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return err
 		}
 		_ = pm.dagFetcher.NotifyReceived(eventIDsToInterfaces(events.IDs()))
-		pm.handleEvents(p, events.Bases(), events.Len() >= softLimitItems/2)
+		pm.handleEvents(p, events.Bases(), events.Len() > 1)
 
 	case msg.Code == NewEventIDsMsg:
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
