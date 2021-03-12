@@ -33,8 +33,6 @@ type Config struct {
 
 	EmitIntervals EmitIntervals // event emission intervals
 
-	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
-
 	MaxTxsPerAddress int
 
 	MaxParents idx.Event
@@ -58,14 +56,13 @@ func DefaultConfig() Config {
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
-		MaxGasRateGrowthFactor: 3.0,
-		MaxTxsPerAddress:       TxTurnNonces / 3,
+		MaxTxsPerAddress: TxTurnNonces / 3,
 
 		MaxParents: 0,
 
-		LimitedTpsThreshold: (opera.DefaultEventMaxGas + params.TxGas) * 500,
-		NoTxsThreshold:      opera.DefaultEventMaxGas * 30,
-		EmergencyThreshold:  opera.DefaultEventMaxGas * 5,
+		LimitedTpsThreshold: opera.DefaultEventGas * 120,
+		NoTxsThreshold:      opera.DefaultEventGas * 30,
+		EmergencyThreshold:  opera.DefaultEventGas * 5,
 	}
 }
 

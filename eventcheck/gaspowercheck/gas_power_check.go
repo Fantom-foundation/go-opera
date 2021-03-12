@@ -101,10 +101,10 @@ func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContex
 		prevGasPowerLeft += validatorState.GasRefund
 	}
 
-	return calcValidatorGasPower(e, prevTime, prevGasPowerLeft, ctx.Validators, config)
+	return CalcValidatorGasPower(e, e.MedianTime(), prevTime, prevGasPowerLeft, ctx.Validators, config)
 }
 
-func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config Config) uint64 {
+func CalcValidatorGasPower(e inter.EventI, eTime, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config Config) uint64 {
 	gasPowerPerSec, maxGasPower, startup := calcValidatorGasPowerPerSec(e.Creator(), validators, config)
 
 	if e.SelfParent() == nil {
@@ -113,11 +113,11 @@ func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowe
 		}
 	}
 
-	if prevTime > e.MedianTime() {
-		prevTime = e.MedianTime()
+	if prevTime > eTime {
+		prevTime = eTime
 	}
 
-	gasPowerAllocatedBn := new(big.Int).SetUint64(uint64(e.MedianTime() - prevTime))
+	gasPowerAllocatedBn := new(big.Int).SetUint64(uint64(eTime - prevTime))
 	mul(gasPowerAllocatedBn, gasPowerPerSec)
 	div(gasPowerAllocatedBn, uint64(time.Second))
 

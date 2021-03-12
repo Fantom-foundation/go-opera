@@ -83,7 +83,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	}
 	// Slow down emitting if power is low
 	{
-		threshold := em.config.NoTxsThreshold
+		threshold := (em.config.NoTxsThreshold + em.config.EmergencyThreshold) / 2
 		if e.GasPowerLeft().Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
 			minT := float64(em.intervals.Min)
