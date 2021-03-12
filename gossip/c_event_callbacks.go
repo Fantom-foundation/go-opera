@@ -147,15 +147,15 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(oldEpoch, e.Creator(), e.ID())
 	// update highest lamport
-	if e.Lamport() > s.store.GetHighestLamport() {
+	if newEpoch != oldEpoch {
+		s.store.SetHighestLamport(0)
+	} else if e.Lamport() > s.store.GetHighestLamport() {
 		s.store.SetHighestLamport(e.Lamport())
 	}
 
 	s.emitter.OnEventConnected(e)
 
 	if newEpoch != oldEpoch {
-		// reset highest lamport
-		s.store.SetHighestLamport(0)
 		// reset dag indexer
 		s.store.resetEpochStore(newEpoch)
 		es := s.store.getEpochStore(newEpoch)

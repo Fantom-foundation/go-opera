@@ -638,16 +638,19 @@ func (pm *ProtocolManager) handleEventHashes(p *peer, announces hash.Events) {
 		p.MarkEvent(id)
 	}
 	// filter too high IDs
-	highestLamport := pm.store.GetHighestLamport()
 	notTooHigh := make(hash.Events, 0, len(announces))
 	sessionCfg := pm.config.Protocol.StreamLeecher.Session
 	for _, id := range announces {
-		if id.Lamport() <= highestLamport+idx.Lamport(sessionCfg.DefaultChunkSize.Num)*idx.Lamport(sessionCfg.ParallelChunksDownload) {
+		maxLamport := pm.store.GetHighestLamport() + idx.Lamport(sessionCfg.DefaultChunkSize.Num+1)*idx.Lamport(sessionCfg.ParallelChunksDownload)
+		if id.Lamport() <= maxLamport {
 			notTooHigh = append(notTooHigh, id)
 		}
 	}
 	if len(announces) != len(notTooHigh) {
 		pm.leecher.ForceSyncing()
+	}
+	if len(notTooHigh) == 0 {
+		return
 	}
 	// Schedule all the unknown hashes for retrieval
 	requestEvents := func(ids []interface{}) error {
@@ -662,16 +665,19 @@ func (pm *ProtocolManager) handleEvents(p *peer, events dag.Events, ordered bool
 		p.MarkEvent(e.ID())
 	}
 	// filter too high events
-	highestLamport := pm.store.GetHighestLamport()
 	notTooHigh := make(dag.Events, 0, len(events))
 	sessionCfg := pm.config.Protocol.StreamLeecher.Session
 	for _, e := range events {
-		if e.Lamport() <= highestLamport+idx.Lamport(sessionCfg.DefaultChunkSize.Num)*idx.Lamport(sessionCfg.ParallelChunksDownload) {
+		maxLamport := pm.store.GetHighestLamport() + idx.Lamport(sessionCfg.DefaultChunkSize.Num+1)*idx.Lamport(sessionCfg.ParallelChunksDownload)
+		if e.Lamport() <= maxLamport {
 			notTooHigh = append(notTooHigh, e)
 		}
 	}
 	if len(events) != len(notTooHigh) {
 		pm.leecher.ForceSyncing()
+	}
+	if len(notTooHigh) == 0 {
+		return
 	}
 	// Schedule all the events for connection
 	peer := *p
