@@ -171,6 +171,9 @@ func DefaultConfig() Config {
 	cfg.Protocol.Processor.EventsBufferLimit.Num = idx.Event(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Num + softLimitItems
 	cfg.Protocol.Processor.EventsBufferLimit.Size = uint64(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Size + 8*opt.MiB
 	cfg.Protocol.StreamLeecher.MaxSessionRestart = 4 * time.Minute
+	cfg.Protocol.DagFetcher.ArriveTimeout = 4 * time.Second
+	cfg.Protocol.DagFetcher.HashLimit = 10000
+	cfg.Protocol.TxFetcher.HashLimit = 10000
 
 	return cfg
 }
