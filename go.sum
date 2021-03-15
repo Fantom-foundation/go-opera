@@ -16,8 +16,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
 github.com/Fantom-foundation/go-ethereum v1.9.22-ftm-0.5 h1:hyMHsRBFoBIjwur3LgyYa/Lm7WzJqnM7HtK7/vnSkeA=
 github.com/Fantom-foundation/go-ethereum v1.9.22-ftm-0.5/go.mod h1:27ZY0H7YdbxCL0E/d23qHo9WCkjqnmFKHQl9UaUSw8s=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20210312060212-aab452a7a81b h1:E/bpIKVYXdU4wm1SHzEwLPaibU+JKCQpYVctC9pj/PA=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20210312060212-aab452a7a81b/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20210315153108-f8555f132c5c h1:lFirxN7waw7sa/Xafn1++dvLCjrA74L/2GSU7wPObQ0=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20210315153108-f8555f132c5c/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
