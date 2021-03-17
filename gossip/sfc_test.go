@@ -36,9 +36,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 func TestSFC(t *testing.T) {
@@ -48,14 +50,15 @@ func TestSFC(t *testing.T) {
 	env := newTestEnv()
 	defer env.Close()
 
-	/*
-		sfcProxy, err := sfcproxy.NewContract(sfc.ContractAddress, env)
-		require.NoError(t, err)
+	var (
+		sfc10 *sfc100.Contract
+		err   error
+	)
 
-		var (
-			sfc10 *sfc100.Contract
-		)
-	*/
+	authDriver10, err := driverauth100.NewContract(driverauth.ContractAddress, env)
+	require.NoError(t, err)
+	//rootDriver10, err := driverauth100.NewContract(driver.ContractAddress, env)
+	//require.NoError(t, err)
 
 	_ = true &&
 
@@ -100,36 +103,53 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, hexutil.MustDecode(driverauth100.ContractBinRuntime), "genesis DriverAuth contract version")
 		}) &&
 
+		t.Run("Builtin EvmWriter", func(t *testing.T) {
+			require := require.New(t)
+
+			exp := []byte{0}
+			got, err := env.CodeAt(nil, evmwriter.ContractAddress, nil)
+			require.NoError(err)
+			require.Equal(exp, got, "builtin EvmWriter contract")
+		}) &&
+
 		t.Run("Some transfers I", func(t *testing.T) {
 			cicleTransfers(t, env, 1)
-		}) /* &&
+		}) &&
 
-		// TODO: up to v1.0.0
-		t.Run("Upgrade to develop", func(t *testing.T) {
+		t.Run("SFC upgrade", func(t *testing.T) {
 			require := require.New(t)
 			admin := 1
 
+			// create new
 			rr := env.ApplyBlock(nextEpoch,
 				env.Contract(admin, utils.ToFtm(0), sfc100.ContractBin),
 			)
+			require.Equal(1, rr.Len())
+			if rr[0].Status != types.ReceiptStatusSuccessful {
+				codeSize := len(hexutil.MustDecode(sfc100.ContractBin))
+				require.Less(params.MaxCodeSize, codeSize)
+				t.Logf("SFC bytecode size %d > params.MaxCodeSize %d", codeSize, params.MaxCodeSize)
+				return // TODO: increase params.MaxCodeSize or set evm.chainRules.IsEIP158 false
+			}
 			newImpl := rr[0].ContractAddress
-
-			tx, err := sfcProxy.ContractTransactor.Upgrade(env.Payer(admin), newImpl)
+			newSfcContractBinRuntime, err := env.CodeAt(nil, newImpl, nil)
 			require.NoError(err)
-			env.ApplyBlock(sameEpoch, tx)
+			require.Equal(hexutil.MustDecode(sfc100.ContractBinRuntime), newSfcContractBinRuntime)
+
+			tx, err := authDriver10.CopyCode(env.Payer(admin), sfc.ContractAddress, newImpl)
+			require.NoError(err)
+			rr = env.ApplyBlock(sameEpoch, tx)
+			require.Equal(1, rr.Len())
+			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
+			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
+			require.NoError(err)
+			require.Equal(newSfcContractBinRuntime, got, "new SFC contract")
 
 			sfc10, err = sfc100.NewContract(sfc.ContractAddress, env)
 			require.NoError(err)
-
-			exp := hexutil.MustDecode(sfc100.ContractBinRuntime)
-			got, err := env.CodeAt(nil, newImpl, nil)
-			require.NoError(err)
-			require.Equal(exp, got, "new SFC contract")
-
 			epoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
-			require.NoError(err)
 			require.Equal(0, epoch.Cmp(big.NewInt(3)), "current epoch %s", epoch.String())
-		})*/
+		})
 }
 
 func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
