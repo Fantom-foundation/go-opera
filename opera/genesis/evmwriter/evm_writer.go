@@ -3,7 +3,9 @@ package evmwriter
 import (
 	"bytes"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -17,6 +19,35 @@ var (
 	// ContractABI decribes EvmWriter interface
 	ContractABI string = "[{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"setBalance\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"}],\"name\":\"copyCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"with\",\"type\":\"address\"}],\"name\":\"swapCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"value\",\"type\":\"bytes32\"}],\"name\":\"setStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 )
+
+var (
+	setBalanceMethodID []byte
+	copyCodeMethodID   []byte
+	swapCodeMethodID   []byte
+	setStorageMethodID []byte
+)
+
+func init() {
+	abi, err := abi.JSON(strings.NewReader(ContractABI))
+	if err != nil {
+		panic(err)
+	}
+
+	for name, constID := range map[string]*[]byte{
+		"setBalance": &setBalanceMethodID,
+		"copyCode":   &copyCodeMethodID,
+		"swapCode":   &swapCodeMethodID,
+		"setStorage": &setStorageMethodID,
+	} {
+		method, exist := abi.Methods[name]
+		if !exist {
+			panic("unknown EvmWriter method")
+		}
+
+		*constID = make([]byte, len(method.ID))
+		copy(*constID, method.ID)
+	}
+}
 
 type PreCompiledContract struct{}
 
