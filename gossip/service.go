@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
@@ -361,6 +362,7 @@ func (s *Service) WaitBlockEnd() {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+	defer log.Info("Fantom service stopped")
 	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
