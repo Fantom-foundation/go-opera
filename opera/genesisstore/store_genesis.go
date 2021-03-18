@@ -93,7 +93,7 @@ func (s *Store) SetDelegation(addr common.Address, toValidatorID idx.ValidatorID
 }
 
 func (s *Store) GetDelegation(addr common.Address, toValidatorID idx.ValidatorID) genesis.Delegation {
-	w, ok := s.rlp.Get(s.table.EvmAccounts, append(addr.Bytes(), toValidatorID.Bytes()...), &genesis.Delegation{}).(*genesis.Delegation)
+	w, ok := s.rlp.Get(s.table.Delegations, append(addr.Bytes(), toValidatorID.Bytes()...), &genesis.Delegation{}).(*genesis.Delegation)
 	if !ok {
 		return genesis.Delegation{
 			Stake:              new(big.Int),
