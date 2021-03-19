@@ -1,13 +1,17 @@
 package emitter
 
 import (
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -51,6 +55,23 @@ func TestEmitter(t *testing.T) {
 			AnyTimes()
 
 		em.init()
+	})
+
+	t.Run("memorizeTxTimes", func(t *testing.T) {
+		require := require.New(t)
+		tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+
+		_, ok := em.txTime.Get(tx.Hash())
+		require.False(ok)
+
+		before := time.Now()
+		em.memorizeTxTimes(types.Transactions{tx})
+		after := time.Now()
+
+		got, ok := em.txTime.Get(tx.Hash())
+		require.True(ok)
+		require.True(got.(time.Time).After(before))
+		require.True(got.(time.Time).Before(after))
 	})
 
 }
