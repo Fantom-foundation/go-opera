@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -74,10 +75,23 @@ func TestEmitter(t *testing.T) {
 		require.True(got.(time.Time).Before(after))
 	})
 
+	t.Run("tick", func(t *testing.T) {
+		em.tick()
+	})
 }
 
 func fakeWorld(s Reader) World {
 	return World{
-		Store: s,
+		Store:    s,
+		EngineMu: new(sync.Mutex),
+		IsBusy: func() bool {
+			return true
+		},
+		IsSynced: func() bool {
+			return true
+		},
+		PeersNum: func() int {
+			return 3
+		},
 	}
 }

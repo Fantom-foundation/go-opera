@@ -150,25 +150,10 @@ func (em *Emitter) Start() {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
-				// track synced time
-				if em.world.PeersNum() == 0 {
-					// connected time ~= last time when it's true that "not connected yet"
-					em.syncStatus.lastConnected = time.Now()
-				}
-				if !em.world.IsSynced() {
-					// synced time ~= last time when it's true that "not synced yet"
-					em.syncStatus.p2pSynced = time.Now()
-				}
-				if em.world.IsBusy() {
+				if isBusy := em.tick(); isBusy {
 					// Heuristic to avoid locking mutexes and hurting the concurrency
 					timer.Reset(tick / 3)
 					continue
-				}
-
-				em.recheckChallenges()
-				em.recheckIdleTime()
-				if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
-					_ = em.EmitEvent()
 				}
 			case <-done:
 				return
@@ -187,6 +172,29 @@ func (em *Emitter) Stop() {
 	close(em.done)
 	em.done = nil
 	em.wg.Wait()
+}
+
+func (em *Emitter) tick() (isBusy bool) {
+	// track synced time
+	if em.world.PeersNum() == 0 {
+		// connected time ~= last time when it's true that "not connected yet"
+		em.syncStatus.lastConnected = time.Now()
+	}
+	if !em.world.IsSynced() {
+		// synced time ~= last time when it's true that "not synced yet"
+		em.syncStatus.p2pSynced = time.Now()
+	}
+	if em.world.IsBusy() {
+		return true
+	}
+
+	em.recheckChallenges()
+	em.recheckIdleTime()
+	if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
+		_ = em.EmitEvent()
+	}
+
+	return false
 }
 
 func (em *Emitter) EmitEvent() *inter.EventPayload {
