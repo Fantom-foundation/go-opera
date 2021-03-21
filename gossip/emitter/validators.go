@@ -32,7 +32,7 @@ func (em *Emitter) recountValidators(validators *pos.Validators) {
 	em.intervals.Confirming = em.expectedEmitIntervals[em.config.Validator.ID]
 	em.intervals.Max = em.config.EmitIntervals.Max
 	// if network just has started, then relax the doublesign protection
-	if time.Since(em.world.Store.GetGenesisTime().Time()) < networkStartPeriod {
+	if time.Since(em.world.GetGenesisTime().Time()) < networkStartPeriod {
 		em.intervals.Max /= 6
 		em.intervals.DoublesignProtection /= 6
 	}
@@ -42,8 +42,8 @@ func (em *Emitter) recheckChallenges() {
 	if time.Since(em.prevRecheckedChallenges) < validatorChallenge/10 {
 		return
 	}
-	em.world.EngineMu.Lock()
-	defer em.world.EngineMu.Unlock()
+	em.world.Lock()
+	defer em.world.Unlock()
 	now := time.Now()
 	if !em.idle() {
 		// give challenges to all the non-spare validators if network isn't idle

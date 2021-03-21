@@ -15,7 +15,7 @@ import (
 // OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
 	em.maxParents = em.config.MaxParents
-	rules := em.world.Store.GetRules()
+	rules := em.world.GetRules()
 	if em.maxParents == 0 {
 		em.maxParents = rules.Dag.MaxParents
 	}
@@ -41,7 +41,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 	em.recountValidators(newValidators)
 
-	em.quorumIndexer = ancestor.NewQuorumIndexer(newValidators, vecmt2dagidx.Wrap(em.world.DagIndex),
+	em.quorumIndexer = ancestor.NewQuorumIndexer(newValidators, vecmt2dagidx.Wrap(em.world.DagIndex()),
 		func(median, current, update idx.Event, validatorIdx idx.Validator) ancestor.Metric {
 			return updMetric(median, current, update, validatorIdx, newValidators)
 		})
@@ -55,8 +55,9 @@ func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 	}
 	em.quorumIndexer.ProcessEvent(e, e.Creator() == em.config.Validator.ID)
 	em.payloadIndexer.ProcessEvent(e, ancestor.Metric(e.Txs().Len()))
+	var txSigner types.Signer = em.world
 	for _, tx := range e.Txs() {
-		addr, _ := types.Sender(em.world.TxSigner, tx)
+		addr, _ := types.Sender(txSigner, tx)
 		em.originatedTxs.Inc(addr)
 	}
 	em.pendingGas += e.GasPowerUsed()
@@ -80,9 +81,10 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 		em.pendingGas = 0
 	}
 	if !he.NoTxs() {
-		e := em.world.Store.GetEventPayload(he.ID())
+		var txSigner types.Signer = em.world
+		e := em.world.GetEventPayload(he.ID())
 		for _, tx := range e.Txs() {
-			addr, _ := types.Sender(em.world.TxSigner, tx)
+			addr, _ := types.Sender(txSigner, tx)
 			em.originatedTxs.Dec(addr)
 		}
 	}

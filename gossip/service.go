@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"math/rand"
 	"sync"
-	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
@@ -255,39 +254,13 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	txSigner := types.NewEIP155Signer(s.store.GetRules().EvmChainConfig().ChainID)
 
 	return emitter.NewEmitter(s.config.Emitter,
-		emitter.World{
-			Store:    s.store,
-			EngineMu: wgmutex.New(s.engineMu, &s.blockProcWg),
-			Txpool:   s.txpool,
-			Signer:   signer,
-			TxSigner: txSigner,
-			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
-				// sanity check
-				return s.checkers.Validate(emitted, parents.Interfaces())
-			},
-			Process: func(emitted *inter.EventPayload) error {
-				err := s.processEvent(emitted)
-				if err != nil {
-					s.Log.Crit("Self-event connection failed", "err", err.Error())
-				}
-
-				s.feed.newEmittedEvent.Send(emitted) // PM listens and will broadcast it
-				if err != nil {
-					s.Log.Crit("Failed to post self-event", "err", err.Error())
-				}
-				return nil
-			},
-			Build:    s.buildEvent,
-			DagIndex: s.dagIndexer,
-			IsBusy: func() bool {
-				return atomic.LoadUint32(&s.eventBusyFlag) != 0 || atomic.LoadUint32(&s.blockBusyFlag) != 0
-			},
-			IsSynced: func() bool {
-				return atomic.LoadUint32(&s.pm.synced) != 0
-			},
-			PeersNum: func() int {
-				return s.pm.peers.Len()
-			},
+		&emitterWorld{
+			s:       s,
+			Store:   s.store,
+			WgMutex: wgmutex.New(s.engineMu, &s.blockProcWg),
+			TxPool:  s.txpool,
+			SignerI: signer,
+			Signer:  txSigner,
 		},
 	)
 }

@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -13,11 +14,31 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 var (
 	ErrNotEnoughGasPower = errors.New("not enough gas power")
 )
+
+// World is emitter's external world
+type World interface {
+	sync.Locker
+	Reader
+	TxPool
+	valkeystore.SignerI
+	types.Signer
+
+	Check(e *inter.EventPayload, parents inter.Events) error
+	Process(*inter.EventPayload) error
+	Build(*inter.MutableEventPayload, func()) error
+	DagIndex() *vecmt.Index
+
+	IsBusy() bool
+	IsSynced() bool
+	PeersNum() int
+}
 
 // Reader is a callback for getting events from an external storage.
 type Reader interface {
@@ -31,7 +52,7 @@ type Reader interface {
 	GetRules() opera.Rules
 }
 
-type txPool interface {
+type TxPool interface {
 	// Has returns an indicator whether txpool has a transaction cached with the
 	// given hash.
 	Has(hash common.Hash) bool
