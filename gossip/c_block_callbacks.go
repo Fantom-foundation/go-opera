@@ -289,7 +289,8 @@ func consensusCallbackBeginBlockFn(
 					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 				}
-				if confirmedEvents.Len() != 0 {
+				// TODO: enable parallel block processing after more extensive testing
+				if false && confirmedEvents.Len() != 0 {
 					atomic.StoreUint32(blockBusyFlag, 1)
 					wg.Add(1)
 					err := parallelTasks.Enqueue(func() {
