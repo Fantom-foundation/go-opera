@@ -68,6 +68,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 					l.TxHash = allTxs[i].Hash()
 					l.Index = logIdx
 					l.TxIndex = uint(i)
+					l.BlockHash = common.Hash(block.Atropos)
 					logIdx++
 				}
 				s.evm.IndexLogs(r.Logs...)
