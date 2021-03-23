@@ -62,8 +62,11 @@ func TestSFC(t *testing.T) {
 
 	authDriver10, err := driverauth100.NewContract(driverauth.ContractAddress, env)
 	require.NoError(t, err)
-	//rootDriver10, err := driverauth100.NewContract(driver.ContractAddress, env)
+	//rootDriver10, err := driver100.NewContract(driver.ContractAddress, env)
 	//require.NoError(t, err)
+
+	admin := 1
+	adminAddr := env.Address(admin)
 
 	_ = true &&
 
@@ -121,9 +124,19 @@ func TestSFC(t *testing.T) {
 			cicleTransfers(t, env, 1)
 		}) &&
 
+		t.Run("Check owners", func(t *testing.T) {
+			require := require.New(t)
+
+			opts := env.ReadOnly()
+			opts.From = adminAddr
+
+			isOwn, err := authDriver10.IsOwner(opts)
+			require.NoError(err)
+			require.True(isOwn)
+		}) &&
+
 		t.Run("SFC upgrade", func(t *testing.T) {
 			require := require.New(t)
-			admin := 1
 
 			// create new
 			rr := env.ApplyBlock(nextEpoch,
@@ -132,6 +145,7 @@ func TestSFC(t *testing.T) {
 			require.Equal(1, rr.Len())
 			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			newImpl := rr[0].ContractAddress
+			require.NotEqual(sfc.ContractAddress, newImpl)
 			newSfcContractBinRuntime, err := env.CodeAt(nil, newImpl, nil)
 			require.NoError(err)
 			require.Equal(hexutil.MustDecode(sfc100.ContractBinRuntime), newSfcContractBinRuntime)
@@ -140,7 +154,7 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			rr = env.ApplyBlock(sameEpoch, tx)
 			require.Equal(1, rr.Len())
-			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status) // NOTE: failed by "execution reverted"
+			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
 			require.NoError(err)
 			require.Equal(newSfcContractBinRuntime, got, "new SFC contract")
