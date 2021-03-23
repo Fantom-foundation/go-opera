@@ -165,9 +165,9 @@ func DefaultTxPoolConfig() TxPoolConfig {
 		PriceBump:  10,
 
 		AccountSlots: 16,
-		GlobalSlots:  4096,
-		AccountQueue: 64,
-		GlobalQueue:  1024,
+		GlobalSlots:  1536,
+		AccountQueue: 16,
+		GlobalQueue:  384,
 
 		Lifetime: 3 * time.Hour,
 	}
