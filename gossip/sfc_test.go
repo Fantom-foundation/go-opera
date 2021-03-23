@@ -62,8 +62,8 @@ func TestSFC(t *testing.T) {
 
 	authDriver10, err := driverauth100.NewContract(driverauth.ContractAddress, env)
 	require.NoError(t, err)
-	//rootDriver10, err := driver100.NewContract(driver.ContractAddress, env)
-	//require.NoError(t, err)
+	rootDriver10, err := driver100.NewContract(driver.ContractAddress, env)
+	require.NoError(t, err)
 
 	admin := 1
 	adminAddr := env.Address(admin)
@@ -152,6 +152,7 @@ func TestSFC(t *testing.T) {
 
 			tx, err := authDriver10.CopyCode(env.Payer(admin), sfc.ContractAddress, newImpl)
 			require.NoError(err)
+			env.incNonce(adminAddr)
 			rr = env.ApplyBlock(sameEpoch, tx)
 			require.Equal(1, rr.Len())
 			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
@@ -164,6 +165,27 @@ func TestSFC(t *testing.T) {
 			epoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
 			require.Equal(0, epoch.Cmp(big.NewInt(3)), "current epoch %s", epoch.String())
 		})
+
+	t.Run("Direct driver", func(t *testing.T) {
+		require := require.New(t)
+
+		// create new
+		anyContractBin := driver100.ContractBin
+		rr := env.ApplyBlock(nextEpoch,
+			env.Contract(admin, utils.ToFtm(0), anyContractBin),
+		)
+		require.Equal(1, rr.Len())
+		require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
+		newImpl := rr[0].ContractAddress
+
+		tx, err := rootDriver10.CopyCode(env.Payer(admin), sfc.ContractAddress, newImpl)
+		require.NoError(err)
+		env.incNonce(adminAddr)
+		rr = env.ApplyBlock(sameEpoch, tx)
+		require.Equal(1, rr.Len())
+		require.NotEqual(types.ReceiptStatusSuccessful, rr[0].Status)
+	})
+
 }
 
 func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
