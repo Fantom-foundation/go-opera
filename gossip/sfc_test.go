@@ -46,7 +46,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 func TestSFC(t *testing.T) {
@@ -131,12 +130,7 @@ func TestSFC(t *testing.T) {
 				env.Contract(admin, utils.ToFtm(0), sfc100.ContractBin),
 			)
 			require.Equal(1, rr.Len())
-			if rr[0].Status != types.ReceiptStatusSuccessful {
-				codeSize := len(hexutil.MustDecode(sfc100.ContractBin))
-				require.Less(params.MaxCodeSize, codeSize)
-				t.Logf("SFC bytecode size %d > params.MaxCodeSize %d", codeSize, params.MaxCodeSize)
-				return // TODO: increase params.MaxCodeSize or set evm.chainRules.IsEIP158 false
-			}
+			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			newImpl := rr[0].ContractAddress
 			newSfcContractBinRuntime, err := env.CodeAt(nil, newImpl, nil)
 			require.NoError(err)
@@ -146,8 +140,7 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			rr = env.ApplyBlock(sameEpoch, tx)
 			require.Equal(1, rr.Len())
-			return
-			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
+			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status) // NOTE: failed by "execution reverted"
 			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
 			require.NoError(err)
 			require.Equal(newSfcContractBinRuntime, got, "new SFC contract")
