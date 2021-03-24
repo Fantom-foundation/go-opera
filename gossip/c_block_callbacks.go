@@ -202,6 +202,7 @@ func consensusCallbackBeginBlockFn(
 
 					block.SkippedTxs = skippedTxs
 					block.Root = hash.Hash(evmBlock.Root)
+					block.GasUsed = evmBlock.GasUsed
 
 					// memorize event position of each tx
 					txPositions := make(map[common.Hash]evmstore.TxPosition)
