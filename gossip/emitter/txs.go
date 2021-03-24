@@ -23,6 +23,13 @@ const (
 	TxTurnNonces        = 32
 )
 
+func max64(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 	rules := em.world.Store.GetRules()
 	maxGasToUse := rules.Economy.Gas.MaxEventGas
@@ -75,11 +82,12 @@ func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 	}
 	// pendingGas should be below MaxBlockGas
 	{
-		if rules.Blocks.MaxBlockGas <= em.pendingGas {
+		maxPendingGas := max64(rules.Blocks.MaxBlockGas*3/5, rules.Economy.Gas.MaxEventGas+rules.Economy.Gas.EventGas*uint64(em.validators.Len()))
+		if maxPendingGas <= em.pendingGas {
 			return 0
 		}
-		if rules.Blocks.MaxBlockGas < em.pendingGas+maxGasToUse {
-			maxGasToUse = rules.Blocks.MaxBlockGas - em.pendingGas
+		if maxPendingGas < em.pendingGas+maxGasToUse {
+			maxGasToUse = maxPendingGas - em.pendingGas
 		}
 	}
 	// No txs if power is low

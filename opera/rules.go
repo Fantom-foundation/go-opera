@@ -112,7 +112,7 @@ func MainNetRules() Rules {
 		Epochs:    DefaultEpochsRules(),
 		Economy:   DefaultEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas:             20000000,
+			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
 		},
 	}
@@ -126,7 +126,7 @@ func TestNetRules() Rules {
 		Epochs:    DefaultEpochsRules(),
 		Economy:   DefaultEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas:             20000000,
+			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
 		},
 	}
@@ -140,7 +140,7 @@ func FakeNetRules() Rules {
 		Epochs:    FakeNetEpochsRules(),
 		Economy:   FakeEconomyRules(),
 		Blocks: BlocksRules{
-			MaxBlockGas:             20000000,
+			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(3 * time.Second),
 		},
 	}
@@ -208,11 +208,11 @@ func DefaulLongGasPowerRules() GasPowerRules {
 
 // DefaultShortGasPowerRules is short-window config
 func DefaultShortGasPowerRules() GasPowerRules {
-	// 5x faster allocation rate, 12x lower max accumulated gas power
+	// 2x faster allocation rate, 6x lower max accumulated gas power
 	cfg := DefaulLongGasPowerRules()
-	cfg.AllocPerSec *= 5
-	cfg.StartupAllocPeriod /= 5
-	cfg.MaxAllocPeriod /= 5 * 12
+	cfg.AllocPerSec *= 2
+	cfg.StartupAllocPeriod /= 2
+	cfg.MaxAllocPeriod /= 2 * 6
 	return cfg
 }
 
