@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 type EvmStateReader struct {
@@ -90,25 +91,17 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 			}
 			transactions = append(transactions, tx)
 		}
-		txCount := uint32(0)
-		skipCount := 0
 		for _, id := range block.Events {
 			e := r.store.GetEventPayload(id)
 			if e == nil {
 				log.Crit("Block event not found", "event", id.String())
 				continue
 			}
+			transactions = append(transactions, e.Txs()...)
 
-			// appends txs except skipped ones
-			for _, tx := range e.Txs() {
-				if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
-					skipCount++
-				} else {
-					transactions = append(transactions, tx)
-				}
-				txCount++
-			}
 		}
+
+		transactions = inter.FilterSkippedTxs(transactions, block.SkippedTxs)
 	} else {
 		transactions = make(types.Transactions, 0)
 	}
