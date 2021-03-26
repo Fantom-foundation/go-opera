@@ -49,29 +49,34 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm.Config, internal bool, onNewLog func(*types.Log, *state.StateDB)) (types.Receipts, []*types.Log, uint64, []uint32, error) {
+func (p *StateProcessor) Process(
+	block *EvmBlock, statedb *state.StateDB, cfg vm.Config, internal bool, onNewLog func(*types.Log, *state.StateDB),
+) (
+	receipts types.Receipts, allLogs []*types.Log, usedGas uint64, skipped []uint32, err error,
+) {
+	skipped = make([]uint32, 0, len(block.Transactions))
 	var (
-		receipts types.Receipts
-		usedGas  = new(uint64)
-		allLogs  []*types.Log
-		gp       = new(GasPool).AddGas(block.GasLimit)
-		skipped  = make([]uint32, 0, len(block.Transactions))
+		gp      = new(GasPool).AddGas(block.GasLimit)
+		receipt *types.Receipt
+		skip    bool
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash, i)
-		receipt, _, skip, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, usedGas, cfg, internal, onNewLog)
+		receipt, _, skip, err = ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, &usedGas, cfg, internal, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
+			err = nil
 			continue
-		} else if err != nil {
-			return nil, nil, 0, nil, err
+		}
+		if err != nil {
+			return
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 
-	return receipts, allLogs, *usedGas, skipped, nil
+	return
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
