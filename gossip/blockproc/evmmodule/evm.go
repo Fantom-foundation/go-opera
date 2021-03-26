@@ -84,8 +84,10 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 	}
 
 	offset := uint32(len(p.incomingTxs))
-	for i, n := range skipped {
-		skipped[i] = n + offset
+	if offset > 0 {
+		for i, n := range skipped {
+			skipped[i] = n + offset
+		}
 	}
 
 	p.gasUsed += gasUsed
