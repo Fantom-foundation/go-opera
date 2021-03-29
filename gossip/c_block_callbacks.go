@@ -194,7 +194,6 @@ func consensusCallbackBeginBlockFn(
 					txs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)
-						blockEvents = append(blockEvents, e)
 					}
 
 					externalReceipts := evmProcessor.Execute(txs, false)

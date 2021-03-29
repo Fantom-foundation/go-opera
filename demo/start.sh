@@ -26,7 +26,7 @@ do
 	--nat extip:127.0.0.1 \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
-	--nousb --verbosity=3 --tracing &> opera$i.log)&
+	--nousb --verbosity=3 --tracing &>> opera$i.log)&
 
     echo -e "\tnode$i ok"
 done
@@ -36,7 +36,7 @@ attach_and_exec() {
     local CMD=$2
     local RPCP=$(($RPCP_BASE+$i))
 
-    for attempt in $(seq 20)
+    for attempt in $(seq 40)
     do
         if (( attempt > 5 ));
         then 
@@ -57,6 +57,7 @@ attach_and_exec() {
     echo "failed RPC connection to ${NAME}" >&2
     return 1
 }
+
 
 echo -e "\nConnect nodes to ring:\n"
 for ((i=0;i<$N;i+=1))

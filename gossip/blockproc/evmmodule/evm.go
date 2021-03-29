@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -72,7 +73,6 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 }
 
 func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types.Receipts {
-
 	evmProcessor := evmcore.NewStateProcessor(p.net.EvmChainConfig(), p.reader)
 
 	// Process txs
@@ -84,6 +84,13 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 		log.Crit("EVM internal error", "err", err)
 	}
 
+	offset := uint32(len(p.incomingTxs))
+	if offset > 0 {
+		for i, n := range skipped {
+			skipped[i] = n + offset
+		}
+	}
+
 	p.gasUsed += gasUsed
 	p.incomingTxs = append(p.incomingTxs, txs...)
 	p.skippedTxs = append(p.skippedTxs, skipped...)
@@ -93,9 +100,10 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 }
 
 func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts) {
-	evmBlock = p.evmBlockWith(p.incomingTxs)
-	// Filter skipped transactions. Receipts are filtered already
-	evmBlock = filterSkippedTxs(p.skippedTxs, evmBlock)
+	evmBlock = p.evmBlockWith(
+		// Filter skipped transactions. Receipts are filtered already
+		inter.FilterSkippedTxs(p.incomingTxs, p.skippedTxs),
+	)
 
 	// Get state root
 	newStateHash, err := p.statedb.Commit(true)
@@ -105,22 +113,4 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 	evmBlock.Root = newStateHash
 
 	return evmBlock, p.skippedTxs, p.receipts
-}
-
-func filterSkippedTxs(skippedTxs []uint32, evmBlock *evmcore.EvmBlock) *evmcore.EvmBlock {
-	if len(skippedTxs) == 0 {
-		// short circuit if nothing to skip
-		return evmBlock
-	}
-	skipCount := 0
-	filteredTxs := make(types.Transactions, 0, len(evmBlock.Transactions))
-	for i, tx := range evmBlock.Transactions {
-		if skipCount < len(skippedTxs) && skippedTxs[skipCount] == uint32(i) {
-			skipCount++
-		} else {
-			filteredTxs = append(filteredTxs, tx)
-		}
-	}
-	evmBlock.Transactions = filteredTxs
-	return evmBlock
 }
