@@ -13,13 +13,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=emitter -destination=world_test.go github.com/Fantom-foundation/go-opera/gossip/emitter World
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter World
 
 func TestEmitter(t *testing.T) {
 	cfg := DefaultConfig()
@@ -32,7 +33,7 @@ func TestEmitter(t *testing.T) {
 	cfg.Validator.ID = gValidators[0].ID
 
 	ctrl := gomock.NewController(t)
-	world := NewMockWorld(ctrl)
+	world := mock.NewMockWorld(ctrl)
 
 	world.EXPECT().Lock().
 		AnyTimes()
