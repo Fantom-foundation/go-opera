@@ -13,8 +13,8 @@ import (
 	"github.com/status-im/keycard-go/hexutils"
 )
 
-func (s *Store) Export(writer io.Writer) error {
-	it := s.db.NewIterator(nil, nil)
+func WriteDB(writer io.Writer, db kvdb.Store) error {
+	it := db.NewIterator(nil, nil)
 	defer it.Release()
 	for it.Next() {
 		_, err := writer.Write(bigendian.Uint32ToBytes(uint32(len(it.Key()))))
@@ -37,6 +37,10 @@ func (s *Store) Export(writer io.Writer) error {
 	return nil
 }
 
+func (s *Store) Export(writer io.Writer) error {
+	return WriteDB(writer, s.db)
+}
+
 func readAll(reader io.Reader, buf []byte) error {
 	consumed := 0
 	for {
@@ -51,8 +55,8 @@ func readAll(reader io.Reader, buf []byte) error {
 	}
 }
 
-func (s *Store) Import(reader io.Reader) error {
-	batch := s.db.NewBatch()
+func ReadDB(reader io.Reader, db kvdb.Store) error {
+	batch := db.NewBatch()
 	defer batch.Reset()
 	var lenB [4]byte
 	for {
@@ -96,6 +100,10 @@ func (s *Store) Import(reader io.Reader) error {
 		}
 	}
 	return batch.Write()
+}
+
+func (s *Store) Import(reader io.Reader) error {
+	return ReadDB(reader, s.db)
 }
 
 var (

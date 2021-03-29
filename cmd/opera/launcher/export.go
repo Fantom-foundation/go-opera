@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -20,7 +20,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/lachesis-base/hash"
 )
 
 var (
@@ -39,7 +38,7 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb := makeGossipStore(cfg.Node.DataDir, cfg)
+	gdb := makeRawGossipStore(cfg.Node.DataDir, cfg)
 	defer gdb.Close()
 
 	fn := ctx.Args().First()
@@ -88,13 +87,9 @@ func exportEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func makeGossipStore(dataDir string, cfg *config) *gossip.Store {
+func makeRawGossipStore(dataDir string, cfg *config) *gossip.Store {
 	rawProducer := integration.DBProducer(path.Join(dataDir, "chaindata"))
-	dbs := flushable.NewSyncedPool(integration.DBProducer(path.Join(dataDir, "chaindata")), integration.FlushIDKey)
-	err := dbs.Initialize(rawProducer.Names())
-	if err != nil {
-		utils.Fatalf("Failed to open DBs: %v", err)
-	}
+	dbs := &integration.DummyFlushableProducer{rawProducer}
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	gdb.SetName("gossip-db")
 	return gdb

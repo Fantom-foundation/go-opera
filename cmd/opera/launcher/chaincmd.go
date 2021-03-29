@@ -28,15 +28,22 @@ Events are fully verified by default, unless overridden by check=false flag.`,
 				Flags: []cli.Flag{
 					DataDirFlag,
 					EventsCheckFlag,
-					utils.CacheFlag,
-					utils.SyncModeFlag,
-					utils.GCModeFlag,
-					utils.CacheDatabaseFlag,
-					utils.CacheGCFlag,
 				},
 				Description: `
-The import command imports events from an RLP-encoded files.
+The import command imports events from RLP-encoded files.
 Events are fully verified by default, unless overridden by --check=false flag.`,
+			},
+			{
+				Action:    utils.MigrateFlags(importEvm),
+				Name:      "evm",
+				Usage:     "Import EVM storage",
+				ArgsUsage: "<filename> (<filename 2> ... <filename N>)",
+				Flags: []cli.Flag{
+					DataDirFlag,
+					EventsCheckFlag,
+				},
+				Description: `
+The import command imports EVM storage (trie nodes, code, preimages) from files.`,
 			},
 		},
 	}
@@ -53,9 +60,6 @@ Events are fully verified by default, unless overridden by --check=false flag.`,
 				Action:    utils.MigrateFlags(exportEvents),
 				Flags: []cli.Flag{
 					DataDirFlag,
-					utils.CacheFlag,
-					utils.SyncModeFlag,
-					utils.GCModeFlag,
 				},
 				Description: `
     lachesis export events
