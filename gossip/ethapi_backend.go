@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 
@@ -182,7 +183,7 @@ func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*int
 func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
 	current := b.svc.store.GetEpoch()
 
-	requested, err := b.epochWithDefault(ctx, epoch)
+	requested, err := b.epochWithDefault(epoch)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +202,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	return
 }
 
-func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
+func (b *EthAPIBackend) epochWithDefault(epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
 	current := b.svc.store.GetEpoch()
 
 	switch {
@@ -218,16 +219,21 @@ func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNum
 	return requested, nil
 }
 
-// ForEachEpochEvent iterates all the events which are observed by head, and accepted by a filter.
-// filter CANNOT called twice for the same event.
-func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.EventPayload) bool) error {
-	requested, err := b.epochWithDefault(ctx, epoch)
+// ForEachEventRLP iterates all the events starting from epoch.
+func (b *EthAPIBackend) ForEachEventRLP(ctx context.Context, epoch rpc.BlockNumber, onEvent func(key hash.Event, event rlp.RawValue) bool) error {
+	requested, err := b.epochWithDefault(epoch)
 	if err != nil {
 		return err
 	}
 
-	b.svc.store.ForEachEpochEvent(requested, onEvent)
-	return nil
+	b.svc.store.ForEachEventRLP(requested.Bytes(), func(key hash.Event, event rlp.RawValue) bool {
+		if err = ctx.Err(); err != nil {
+			return false
+		}
+		return onEvent(key, event)
+	})
+
+	return err
 }
 
 func (b *EthAPIBackend) BlockByHash(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
