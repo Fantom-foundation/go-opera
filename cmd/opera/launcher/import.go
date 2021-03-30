@@ -26,7 +26,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
 func importEvm(ctx *cli.Context) error {
@@ -40,10 +41,12 @@ func importEvm(ctx *cli.Context) error {
 	defer gdb.Close()
 
 	for _, fn := range ctx.Args() {
+		log.Info("Importing EVM storage from file", "file", fn)
 		if err := importEvmFile(fn, gdb); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
 			return err
 		}
+		log.Info("Imported EVM storage from file", "file", fn)
 	}
 
 	return nil
@@ -65,7 +68,7 @@ func importEvmFile(fn string, gdb *gossip.Store) error {
 		defer reader.(*gzip.Reader).Close()
 	}
 
-	return genesisstore.ReadDB(reader, gdb.EvmStore().EvmKvdbTable())
+	return iodb.Read(reader, gdb.EvmStore().EvmKvdbTable().NewBatch())
 }
 
 func importEvents(ctx *cli.Context) error {
@@ -106,6 +109,7 @@ func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.Input
 	startNode(ctx, node)
 
 	for _, fn := range args {
+		log.Info("Importing events from file", "file", fn)
 		if err := importEventsFile(svc, fn); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
 			return err
@@ -116,12 +120,9 @@ func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.Input
 
 func checkEventsFileHeader(reader io.Reader) error {
 	headerAndVersion := make([]byte, len(eventsFileHeader)+len(eventsFileVersion))
-	n, err := reader.Read(headerAndVersion)
+	err := ioread.ReadAll(reader, headerAndVersion)
 	if err != nil {
 		return err
-	}
-	if n != len(headerAndVersion) {
-		return errors.New("expected an events file, the given file is too short")
 	}
 	if bytes.Compare(headerAndVersion[:len(eventsFileHeader)], eventsFileHeader) != 0 {
 		return errors.New("expected an events file, mismatched file header")
@@ -140,8 +141,6 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
-
-	log.Info("Importing events from file", "file", fn)
 
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
