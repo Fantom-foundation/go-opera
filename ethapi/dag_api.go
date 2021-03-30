@@ -1,14 +1,24 @@
 package ethapi
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
+	"strings"
+	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/status-im/keycard-go/hexutils"
 )
 
 // PublicDAGChainAPI provides an API to access the directed acyclic graph chain.
@@ -57,6 +67,65 @@ func (s *PublicDAGChainAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber)
 	}
 
 	return eventIDsToHex(res), nil
+}
+
+var ( // consts
+	eventsFileHeader  = hexutils.HexToBytes("7e995678")
+	eventsFileVersion = hexutils.HexToBytes("00010001")
+)
+
+// statsReportLimit is the time limit during import and export after which we
+// always print out progress. This avoids the user wondering what's going on.
+const statsReportLimit = 8 * time.Second
+
+// ExportEvents writes RLP-encoded events into file.
+func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo rpc.BlockNumber, fileName string) error {
+	start, reported := time.Now(), time.Time{}
+
+	// Open the file handle and potentially wrap with a gzip stream
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var w io.Writer = f
+	if strings.HasSuffix(fileName, ".gz") {
+		w = gzip.NewWriter(w)
+		defer w.(*gzip.Writer).Close()
+	}
+
+	// Write header and version
+	_, err = w.Write(append(eventsFileHeader, eventsFileVersion...))
+	if err != nil {
+		return err
+	}
+
+	var (
+		from    = idx.Epoch(epochFrom)
+		to      = idx.Epoch(epochTo)
+		counter int
+		last    hash.Event
+	)
+	err = s.b.ForEachEventRLP(ctx, epochFrom, func(id hash.Event, event rlp.RawValue) bool {
+		if to >= from && id.Epoch() > to {
+			return false
+		}
+		counter++
+		_, err = w.Write(event)
+		if err != nil {
+			return false
+		}
+		last = id
+		if counter%100 == 1 && time.Since(reported) >= statsReportLimit {
+			log.Info("Exporting events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+			reported = time.Now()
+		}
+		return true
+	})
+	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+
+	return err
 }
 
 // GetEpochStats returns epoch statistics.

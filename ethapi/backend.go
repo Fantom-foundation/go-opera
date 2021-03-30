@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -90,6 +91,7 @@ type Backend interface {
 	CurrentBlock() *evmcore.EvmBlock
 
 	// Lachesis DAG API
+	ForEachEventRLP(ctx context.Context, epoch rpc.BlockNumber, onEvent func(key hash.Event, event rlp.RawValue) bool) error
 	GetEventPayload(ctx context.Context, shortEventID string) (*inter.EventPayload, error)
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
