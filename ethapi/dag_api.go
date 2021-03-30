@@ -69,6 +69,37 @@ func (s *PublicDAGChainAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber)
 	return eventIDsToHex(res), nil
 }
 
+// GetEpochStats returns epoch statistics.
+// * When epoch is -2 the statistics for latest epoch is returned.
+// * When epoch is -1 the statistics for latest sealed epoch is returned.
+func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
+	log.Warn("GetEpochStats API call is deprecated. Consider retrieving data from SFC v3 contract.")
+	if requestedEpoch != rpc.LatestBlockNumber && requestedEpoch != rpc.BlockNumber(s.b.CurrentEpoch(ctx))-1 {
+		return nil, errors.New("getEpochStats API call doesn't support retrieving previous sealed epochs")
+	}
+	start, end := s.b.SealedEpochTiming(ctx)
+	return map[string]interface{}{
+		"epoch":                 hexutil.Uint64(s.b.CurrentEpoch(ctx) - 1),
+		"start":                 hexutil.Uint64(start),
+		"end":                   hexutil.Uint64(end),
+		"totalFee":              (*hexutil.Big)(new(big.Int)),
+		"totalBaseRewardWeight": (*hexutil.Big)(new(big.Int)),
+		"totalTxRewardWeight":   (*hexutil.Big)(new(big.Int)),
+	}, nil
+}
+
+// PrivateDAGChainAPI provides an API to access the directed acyclic graph chain.
+// It offers methods that operate on public data that is freely available to anyone,
+// but can be hard to execute.
+type PrivateDAGChainAPI struct {
+	b Backend
+}
+
+// NewPrivateDAGChainAPI creates a new DAG chain API.
+func NewPrivateDAGChainAPI(b Backend) *PrivateDAGChainAPI {
+	return &PrivateDAGChainAPI{b}
+}
+
 var ( // consts
 	eventsFileHeader  = hexutils.HexToBytes("7e995678")
 	eventsFileVersion = hexutils.HexToBytes("00010001")
@@ -79,7 +110,7 @@ var ( // consts
 const statsReportLimit = 8 * time.Second
 
 // ExportEvents writes RLP-encoded events into file.
-func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo rpc.BlockNumber, fileName string) error {
+func (s *PrivateDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo rpc.BlockNumber, fileName string) error {
 	start, reported := time.Now(), time.Time{}
 	from := idx.Epoch(epochFrom)
 	to := idx.Epoch(epochTo)
@@ -132,23 +163,4 @@ func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo
 
 	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
-}
-
-// GetEpochStats returns epoch statistics.
-// * When epoch is -2 the statistics for latest epoch is returned.
-// * When epoch is -1 the statistics for latest sealed epoch is returned.
-func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
-	log.Warn("GetEpochStats API call is deprecated. Consider retrieving data from SFC v3 contract.")
-	if requestedEpoch != rpc.LatestBlockNumber && requestedEpoch != rpc.BlockNumber(s.b.CurrentEpoch(ctx))-1 {
-		return nil, errors.New("getEpochStats API call doesn't support retrieving previous sealed epochs")
-	}
-	start, end := s.b.SealedEpochTiming(ctx)
-	return map[string]interface{}{
-		"epoch":                 hexutil.Uint64(s.b.CurrentEpoch(ctx) - 1),
-		"start":                 hexutil.Uint64(start),
-		"end":                   hexutil.Uint64(end),
-		"totalFee":              (*hexutil.Big)(new(big.Int)),
-		"totalBaseRewardWeight": (*hexutil.Big)(new(big.Int)),
-		"totalTxRewardWeight":   (*hexutil.Big)(new(big.Int)),
-	}, nil
 }

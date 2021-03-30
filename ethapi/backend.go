@@ -135,6 +135,10 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Service:   NewPublicDAGChainAPI(apiBackend),
 			Public:    true,
 		}, {
+			Namespace: "dag",
+			Version:   "1.0",
+			Service:   NewPrivateDAGChainAPI(apiBackend),
+		}, {
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   NewPublicTransactionPoolAPI(apiBackend, nonceLock),
