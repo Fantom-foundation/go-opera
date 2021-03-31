@@ -216,8 +216,6 @@ func init() {
 }
 
 func Launch(args []string) error {
-	overrideFlags()
-	overrideParams()
 	return app.Run(args)
 }
 
