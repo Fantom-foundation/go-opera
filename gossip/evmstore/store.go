@@ -117,6 +117,10 @@ func (s *Store) EvmTable() ethdb.Database {
 	return s.table.Evm
 }
 
+func (s *Store) EvmDatabase() state.Database {
+	return s.table.EvmState
+}
+
 func (s *Store) EvmLogs() *topicsdb.Index {
 	return s.table.EvmLogs
 }
