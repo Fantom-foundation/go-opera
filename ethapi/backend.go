@@ -166,17 +166,16 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "personal",
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
-			Public:    false,
 		}, {
 			Namespace: "sfc",
 			Version:   "1.0",
 			Service:   NewPublicSfcAPI(apiBackend),
-			Public:    false,
+			Public:    true,
 		}, {
 			Namespace: "abft",
 			Version:   "1.0",
 			Service:   NewPublicAbftAPI(apiBackend),
-			Public:    false,
+			Public:    true,
 		},
 	}
 
