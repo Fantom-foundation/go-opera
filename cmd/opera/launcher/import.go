@@ -31,6 +31,15 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
+// statsReportLimit is the time limit during import and export after which we
+// always print out progress. This avoids the user wondering what's going on.
+const statsReportLimit = 8 * time.Second
+
+var ( // consts
+	eventsFileHeader  = hexutils.HexToBytes("7e995678")
+	eventsFileVersion = hexutils.HexToBytes("00010001")
+)
+
 func importEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")

@@ -44,6 +44,15 @@ type EthAPIBackend struct {
 	gpo           *gasprice.Oracle
 }
 
+// NewEthAPIBackendOverStore initialises with only store.
+func NewEthAPIBackendOverStore(s *Store) *EthAPIBackend {
+	return &EthAPIBackend{
+		svc: &Service{
+			store: s,
+		},
+	}
+}
+
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.svc.store.GetRules().EvmChainConfig()

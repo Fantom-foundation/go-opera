@@ -81,6 +81,9 @@ const statsReportLimit = 8 * time.Second
 // ExportEvents writes RLP-encoded events into file.
 func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo rpc.BlockNumber, fileName string) error {
 	start, reported := time.Now(), time.Time{}
+	from := idx.Epoch(epochFrom)
+	to := idx.Epoch(epochTo)
+	log.Info("Exporting events to file", "file", fileName, "from", from, "to", to)
 
 	// Open the file handle and potentially wrap with a gzip stream
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
@@ -102,8 +105,6 @@ func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo
 	}
 
 	var (
-		from    = idx.Epoch(epochFrom)
-		to      = idx.Epoch(epochTo)
 		counter int
 		last    hash.Event
 	)
@@ -123,9 +124,14 @@ func (s *PublicDAGChainAPI) ExportEvents(ctx context.Context, epochFrom, epochTo
 		}
 		return true
 	})
-	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 
-	return err
+	if err != nil {
+		log.Error("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)), "err", err)
+		return err
+	}
+
+	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+	return nil
 }
 
 // GetEpochStats returns epoch statistics.
