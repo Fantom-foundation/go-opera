@@ -55,9 +55,8 @@ func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 	}
 	em.quorumIndexer.ProcessEvent(e, e.Creator() == em.config.Validator.ID)
 	em.payloadIndexer.ProcessEvent(e, ancestor.Metric(e.Txs().Len()))
-	var txSigner types.Signer = em.world
 	for _, tx := range e.Txs() {
-		addr, _ := types.Sender(txSigner, tx)
+		addr, _ := types.Sender(em.world.TxSigner, tx)
 		em.originatedTxs.Inc(addr)
 	}
 	em.pendingGas += e.GasPowerUsed()
@@ -81,10 +80,9 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 		em.pendingGas = 0
 	}
 	if !he.NoTxs() {
-		var txSigner types.Signer = em.world
 		e := em.world.GetEventPayload(he.ID())
 		for _, tx := range e.Txs() {
-			addr, _ := types.Sender(txSigner, tx)
+			addr, _ := types.Sender(em.world.TxSigner, tx)
 			em.originatedTxs.Dec(addr)
 		}
 	}

@@ -22,28 +22,34 @@ var (
 	ErrNotEnoughGasPower = errors.New("not enough gas power")
 )
 
-// External world
-type External interface {
-	sync.Locker
-	Reader
-	valkeystore.SignerI
-	types.Signer
+type (
+	// External world
+	External interface {
+		sync.Locker
+		Reader
 
-	Check(e *inter.EventPayload, parents inter.Events) error
-	Process(*inter.EventPayload) error
-	Build(*inter.MutableEventPayload, func()) error
-	DagIndex() *vecmt.Index
+		Check(e *inter.EventPayload, parents inter.Events) error
+		Process(*inter.EventPayload) error
+		Build(*inter.MutableEventPayload, func()) error
+		DagIndex() *vecmt.Index
 
-	IsBusy() bool
-	IsSynced() bool
-	PeersNum() int
-}
+		IsBusy() bool
+		IsSynced() bool
+		PeersNum() int
+	}
 
-// World is an emitter's environment
-type World struct {
-	External
-	TxPool TxPool
-}
+	// aliases for mock generator
+	Signer   valkeystore.SignerI
+	TxSigner types.Signer
+
+	// World is an emitter's environment
+	World struct {
+		External
+		TxPool   TxPool
+		Signer   valkeystore.SignerI
+		TxSigner types.Signer
+	}
+)
 
 // Reader is a callback for getting events from an external storage.
 type Reader interface {

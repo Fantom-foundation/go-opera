@@ -159,14 +159,12 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 		return
 	}
 
-	var txSigner types.Signer = em.world
-
 	// sort transactions by price and nonce
-	sorted := types.NewTransactionsByPriceAndNonce(txSigner, poolTxs)
+	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
 	senderTxs := make(map[common.Address]int)
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		// check we don't originate too many txs from the same sender
-		sender, _ := types.Sender(txSigner, tx)
+		sender, _ := types.Sender(em.world.TxSigner, tx)
 		if senderTxs[sender] >= em.config.MaxTxsPerAddress {
 			sorted.Pop()
 			continue

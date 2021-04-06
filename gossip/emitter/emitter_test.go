@@ -20,7 +20,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool,TxSigner,Signer
 
 func TestEmitter(t *testing.T) {
 	cfg := DefaultConfig()
@@ -35,6 +35,8 @@ func TestEmitter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	external := mock.NewMockExternal(ctrl)
 	txPool := mock.NewMockTxPool(ctrl)
+	signer := mock.NewMockSigner(ctrl)
+	txSigner := mock.NewMockTxSigner(ctrl)
 
 	external.EXPECT().Lock().
 		AnyTimes()
@@ -53,6 +55,8 @@ func TestEmitter(t *testing.T) {
 	em := NewEmitter(cfg, World{
 		External: external,
 		TxPool:   txPool,
+		Signer:   signer,
+		TxSigner: txSigner,
 	})
 
 	t.Run("init", func(t *testing.T) {

@@ -323,7 +323,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs(), new(trie.Trie))))
 
 	// sign
-	bSig, err := em.world.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())
+	bSig, err := em.world.Signer.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())
 	if err != nil {
 		em.Periodic.Error(time.Second, "Failed to sign event", "err", err)
 		return nil

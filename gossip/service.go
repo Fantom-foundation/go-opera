@@ -258,10 +258,10 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 			s:       s,
 			Store:   s.store,
 			WgMutex: wgmutex.New(s.engineMu, &s.blockProcWg),
-			SignerI: signer,
-			Signer:  txSigner,
 		},
-		TxPool: s.txpool,
+		TxPool:   s.txpool,
+		Signer:   signer,
+		TxSigner: txSigner,
 	})
 }
 
