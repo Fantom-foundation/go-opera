@@ -49,10 +49,8 @@ require (
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
 	go.uber.org/atomic v1.5.1 // indirect
-	gopkg.in/urfave/cli.v1 v1.22.1
+	gopkg.in/urfave/cli.v1 v1.20.0
 )
-
-replace gopkg.in/urfave/cli.v1 => github.com/urfave/cli v1.20.0
 
 replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum v1.9.22-ftm-0.5
 
