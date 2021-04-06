@@ -19,7 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/status-im/keycard-go/hexutils"
+
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 // PublicDebugAPI is the collection of Ethereum APIs exposed over the public
@@ -143,11 +144,6 @@ func (api *PrivateDebugAPI) SetHead(number hexutil.Uint64) error {
 	return errors.New("lachesis cannot rewind blocks due to the BFT algorithm")
 }
 
-var ( // consts
-	eventsFileHeader  = hexutils.HexToBytes("7e995678")
-	eventsFileVersion = hexutils.HexToBytes("00010001")
-)
-
 // statsReportLimit is the time limit during import and export after which we
 // always print out progress. This avoids the user wondering what's going on.
 const statsReportLimit = 8 * time.Second
@@ -172,8 +168,7 @@ func (s *PrivateDebugAPI) ExportEvents(ctx context.Context, epochFrom, epochTo r
 		defer w.(*gzip.Writer).Close()
 	}
 
-	// Write header and version
-	_, err = w.Write(append(eventsFileHeader, eventsFileVersion...))
+	w, err = inter.EventsRLPWriter(w)
 	if err != nil {
 		return err
 	}

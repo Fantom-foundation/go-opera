@@ -1,7 +1,9 @@
 package inter
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -9,8 +11,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/utils/cser"
+	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
 var (
@@ -224,4 +228,45 @@ func (e *MutableEventPayload) DecodeRLP(src *rlp.Stream) error {
 	}
 
 	return e.UnmarshalBinary(bytes)
+}
+
+var ( // consts
+	eventsFileHeader  = hexutils.HexToBytes("7e995678")
+	eventsFileVersion = hexutils.HexToBytes("00010001")
+)
+
+func EventsRLPReader(r io.Reader) (*rlp.Stream, error) {
+	if err := checkEventsFileHeader(r); err != nil {
+		return nil, err
+	}
+
+	stream := rlp.NewStream(r, 0)
+	return stream, nil
+}
+
+func EventsRLPWriter(w io.Writer) (io.Writer, error) {
+	// Write header and version
+	_, err := w.Write(append(eventsFileHeader, eventsFileVersion...))
+	if err != nil {
+		return nil, err
+	}
+
+	return w, nil
+}
+
+func checkEventsFileHeader(reader io.Reader) error {
+	headerAndVersion := make([]byte, len(eventsFileHeader)+len(eventsFileVersion))
+	err := ioread.ReadAll(reader, headerAndVersion)
+	if err != nil {
+		return err
+	}
+	if bytes.Compare(headerAndVersion[:len(eventsFileHeader)], eventsFileHeader) != 0 {
+		return errors.New("expected an events file, mismatched file header")
+	}
+	if bytes.Compare(headerAndVersion[len(eventsFileHeader):], eventsFileVersion) != 0 {
+		got := hexutils.BytesToHex(headerAndVersion[len(eventsFileHeader):])
+		expected := hexutils.BytesToHex(eventsFileVersion)
+		return errors.New(fmt.Sprintf("wrong version of events file, got=%s, expected=%s", got, expected))
+	}
+	return nil
 }

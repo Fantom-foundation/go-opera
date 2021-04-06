@@ -1,9 +1,7 @@
 package launcher
 
 import (
-	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -19,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/status-im/keycard-go/hexutils"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -28,17 +24,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils/iodb"
-	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
 // statsReportLimit is the time limit during import and export after which we
 // always print out progress. This avoids the user wondering what's going on.
 const statsReportLimit = 8 * time.Second
-
-var ( // consts
-	eventsFileHeader  = hexutils.HexToBytes("7e995678")
-	eventsFileVersion = hexutils.HexToBytes("00010001")
-)
 
 func importEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
@@ -132,23 +122,6 @@ func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.Input
 	return nil
 }
 
-func checkEventsFileHeader(reader io.Reader) error {
-	headerAndVersion := make([]byte, len(eventsFileHeader)+len(eventsFileVersion))
-	err := ioread.ReadAll(reader, headerAndVersion)
-	if err != nil {
-		return err
-	}
-	if bytes.Compare(headerAndVersion[:len(eventsFileHeader)], eventsFileHeader) != 0 {
-		return errors.New("expected an events file, mismatched file header")
-	}
-	if bytes.Compare(headerAndVersion[len(eventsFileHeader):], eventsFileVersion) != 0 {
-		got := hexutils.BytesToHex(headerAndVersion[len(eventsFileHeader):])
-		expected := hexutils.BytesToHex(eventsFileVersion)
-		return errors.New(fmt.Sprintf("wrong version of events file, got=%s, expected=%s", got, expected))
-	}
-	return nil
-}
-
 func importEventsFile(srv *gossip.Service, fn string) error {
 	// Watch for Ctrl-C while the import is running.
 	// If a signal is received, the import will stop.
@@ -171,12 +144,10 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 		defer reader.(*gzip.Reader).Close()
 	}
 
-	// Check file version and header
-	if err := checkEventsFileHeader(reader); err != nil {
+	stream, err := inter.EventsRLPReader(reader)
+	if err != nil {
 		return err
 	}
-
-	stream := rlp.NewStream(reader, 0)
 
 	start := time.Now()
 	last := hash.Event{}
