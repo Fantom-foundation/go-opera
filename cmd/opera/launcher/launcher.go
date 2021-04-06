@@ -185,6 +185,7 @@ func init() {
 		// See chaincmd.go
 		importCommand,
 		exportCommand,
+		checkCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

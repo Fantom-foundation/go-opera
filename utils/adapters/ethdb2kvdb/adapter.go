@@ -36,5 +36,5 @@ func (db *Adapter) NewBatch() kvdb.Batch {
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
 func (db *Adapter) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
-	return db.NewIterator(prefix, start)
+	return db.KeyValueStore.NewIterator(prefix, start)
 }

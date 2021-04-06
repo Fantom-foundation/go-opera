@@ -162,6 +162,10 @@ func (s *Store) Commit() error {
 	return s.dbs.Flush(flushID)
 }
 
+func (s *Store) EvmStore() *evmstore.Store {
+	return s.evm
+}
+
 /*
  * Utils:
  */

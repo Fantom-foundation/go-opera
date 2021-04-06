@@ -26,7 +26,53 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
+
+func importEvm(ctx *cli.Context) error {
+	if len(ctx.Args()) < 1 {
+		utils.Fatalf("This command requires an argument.")
+	}
+
+	cfg := makeAllConfigs(ctx)
+
+	gdb, err := makeRawGossipStore(cfg.Node.DataDir, cfg)
+	if err != nil {
+		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
+	}
+	defer gdb.Close()
+
+	for _, fn := range ctx.Args() {
+		log.Info("Importing EVM storage from file", "file", fn)
+		if err := importEvmFile(fn, gdb); err != nil {
+			log.Error("Import error", "file", fn, "err", err)
+			return err
+		}
+		log.Info("Imported EVM storage from file", "file", fn)
+	}
+
+	return nil
+}
+
+func importEvmFile(fn string, gdb *gossip.Store) error {
+	// Open the file handle and potentially unwrap the gzip stream
+	fh, err := os.Open(fn)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	var reader io.Reader = fh
+	if strings.HasSuffix(fn, ".gz") {
+		if reader, err = gzip.NewReader(reader); err != nil {
+			return err
+		}
+		defer reader.(*gzip.Reader).Close()
+	}
+
+	return iodb.Read(reader, gdb.EvmStore().EvmKvdbTable().NewBatch())
+}
 
 func importEvents(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
@@ -52,7 +98,7 @@ func importEvents(ctx *cli.Context) error {
 	cfg.Node.P2P.StaticNodes = nil
 	cfg.Node.P2P.TrustedNodes = nil
 
-	err := importToNode(ctx, cfg, genesis, ctx.Args()...)
+	err := importEventsToNode(ctx, cfg, genesis, ctx.Args()...)
 	if err != nil {
 		return err
 	}
@@ -60,13 +106,14 @@ func importEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func importToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
+func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
 	node, svc, nodeClose := makeNode(ctx, cfg, genesis)
 	defer nodeClose()
 	startNode(ctx, node)
 
 	for _, fn := range args {
-		if err := importFile(svc, fn); err != nil {
+		log.Info("Importing events from file", "file", fn)
+		if err := importEventsFile(svc, fn); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
 			return err
 		}
@@ -76,12 +123,9 @@ func importToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesi
 
 func checkEventsFileHeader(reader io.Reader) error {
 	headerAndVersion := make([]byte, len(eventsFileHeader)+len(eventsFileVersion))
-	n, err := reader.Read(headerAndVersion)
+	err := ioread.ReadAll(reader, headerAndVersion)
 	if err != nil {
 		return err
-	}
-	if n != len(headerAndVersion) {
-		return errors.New("expected an events file, the given file is too short")
 	}
 	if bytes.Compare(headerAndVersion[:len(eventsFileHeader)], eventsFileHeader) != 0 {
 		return errors.New("expected an events file, mismatched file header")
@@ -94,14 +138,12 @@ func checkEventsFileHeader(reader io.Reader) error {
 	return nil
 }
 
-func importFile(srv *gossip.Service, fn string) error {
+func importEventsFile(srv *gossip.Service, fn string) error {
 	// Watch for Ctrl-C while the import is running.
 	// If a signal is received, the import will stop.
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
-
-	log.Info("Importing events from file", "file", fn)
 
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)

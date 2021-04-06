@@ -62,7 +62,7 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDB)
 
-	evmTable := nokeyiserr.Wrap(table.New(s.mainDB, []byte("M"))) // ETH expects that "not found" is an error
+	evmTable := nokeyiserr.Wrap(s.EvmKvdbTable()) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, cfg.Cache.EvmDatabase/opt.MiB, "")
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
@@ -109,8 +109,16 @@ func (s *Store) IndexLogs(recs ...*types.Log) {
 	}
 }
 
+func (s *Store) EvmKvdbTable() kvdb.Store {
+	return table.New(s.mainDB, []byte("M"))
+}
+
 func (s *Store) EvmTable() ethdb.Database {
 	return s.table.Evm
+}
+
+func (s *Store) EvmDatabase() state.Database {
+	return s.table.EvmState
 }
 
 func (s *Store) EvmLogs() *topicsdb.Index {
