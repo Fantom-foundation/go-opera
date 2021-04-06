@@ -1,2 +1,4 @@
-*.bin
+*.json
 *.abi
+*.bin
+*.bin-runtime

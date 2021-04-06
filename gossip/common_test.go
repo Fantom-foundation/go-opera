@@ -54,6 +54,7 @@ type testEnv struct {
 	lastBlockTime time.Time
 	lastState     hash.Hash
 	validators    gpos.Validators
+	stateReader   *EvmStateReader
 
 	nonces map[common.Address]uint64
 
@@ -87,6 +88,9 @@ func newTestEnv() *testEnv {
 		lastState:     store.GetBlockState().FinalizedStateRoot,
 		lastBlockTime: genesis.Time.Time(),
 		validators:    genesis.Validators,
+		stateReader: &EvmStateReader{
+			store: store,
+		},
 
 		nonces: make(map[common.Address]uint64),
 
@@ -215,6 +219,9 @@ func (env *testEnv) Payer(n int, amounts ...*big.Int) *bind.TransactOpts {
 	for _, amount := range amounts {
 		t.Value.Add(t.Value, amount)
 	}
+	t.GasLimit = env.stateReader.MaxGasLimit()
+	t.GasPrice = env.stateReader.MinGasPrice()
+
 	return t
 }
 
