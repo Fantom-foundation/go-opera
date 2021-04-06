@@ -51,7 +51,7 @@ func exportEvents(ctx *cli.Context) error {
 	defer gdb.Close()
 
 	backend := gossip.NewEthAPIBackendOverStore(gdb)
-	api := ethapi.NewPrivateDAGChainAPI(backend)
+	api := ethapi.NewPrivateDebugAPI(backend)
 
 	return api.ExportEvents(context.Background(), from, to, fileName)
 }
