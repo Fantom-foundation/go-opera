@@ -3,7 +3,9 @@ package evmwriter
 import (
 	"bytes"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -11,8 +13,41 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
 )
 
-// ContractAddress is the EvmWriter pre-compiled contract address
-var ContractAddress = common.HexToAddress("0xd100ec0000000000000000000000000000000000")
+var (
+	// ContractAddress is the EvmWriter pre-compiled contract address
+	ContractAddress = common.HexToAddress("0xd100ec0000000000000000000000000000000000")
+	// ContractABI is the input ABI used to generate the binding from
+	ContractABI string = "[{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"setBalance\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"}],\"name\":\"copyCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"with\",\"type\":\"address\"}],\"name\":\"swapCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"value\",\"type\":\"bytes32\"}],\"name\":\"setStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+)
+
+var (
+	setBalanceMethodID []byte
+	copyCodeMethodID   []byte
+	swapCodeMethodID   []byte
+	setStorageMethodID []byte
+)
+
+func init() {
+	abi, err := abi.JSON(strings.NewReader(ContractABI))
+	if err != nil {
+		panic(err)
+	}
+
+	for name, constID := range map[string]*[]byte{
+		"setBalance": &setBalanceMethodID,
+		"copyCode":   &copyCodeMethodID,
+		"swapCode":   &swapCodeMethodID,
+		"setStorage": &setStorageMethodID,
+	} {
+		method, exist := abi.Methods[name]
+		if !exist {
+			panic("unknown EvmWriter method")
+		}
+
+		*constID = make([]byte, len(method.ID))
+		copy(*constID, method.ID)
+	}
+}
 
 type PreCompiledContract struct{}
 
@@ -23,7 +58,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 	if len(input) < 4 {
 		return nil, 0, vm.ErrExecutionReverted
 	}
-	if bytes.Equal(input[:4], []byte{0xe3, 0x04, 0x43, 0xbc}) {
+	if bytes.Equal(input[:4], setBalanceMethodID) {
 		input = input[4:]
 		// setBalance
 		if suppliedGas < params.CallValueTransferGas {
@@ -51,7 +86,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			diff := new(big.Int).Sub(value, balance)
 			stateDB.AddBalance(acc, diff)
 		}
-	} else if bytes.Equal(input[:4], []byte{0xd6, 0xa0, 0xc7, 0xaf}) {
+	} else if bytes.Equal(input[:4], copyCodeMethodID) {
 		input = input[4:]
 		// copyCode
 		if suppliedGas < params.CreateGas {
@@ -78,7 +113,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 		if accTo != accFrom {
 			stateDB.SetCode(accTo, code)
 		}
-	} else if bytes.Equal(input[:4], []byte{0x07, 0x69, 0x0b, 0x2a}) {
+	} else if bytes.Equal(input[:4], swapCodeMethodID) {
 		input = input[4:]
 		// swapCode
 		cost := 2 * params.CreateGas
@@ -112,7 +147,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			stateDB.SetCode(acc0, code1)
 			stateDB.SetCode(acc1, code0)
 		}
-	} else if bytes.Equal(input[:4], []byte{0x39, 0xe5, 0x03, 0xab}) {
+	} else if bytes.Equal(input[:4], setStorageMethodID) {
 		input = input[4:]
 		// setStorage
 		if suppliedGas < params.SstoreInitGasEIP2200 {
