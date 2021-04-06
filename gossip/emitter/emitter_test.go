@@ -20,7 +20,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter World
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool
 
 func TestEmitter(t *testing.T) {
 	cfg := DefaultConfig()
@@ -33,38 +33,42 @@ func TestEmitter(t *testing.T) {
 	cfg.Validator.ID = gValidators[0].ID
 
 	ctrl := gomock.NewController(t)
-	world := mock.NewMockWorld(ctrl)
+	external := mock.NewMockExternal(ctrl)
+	txPool := mock.NewMockTxPool(ctrl)
 
-	world.EXPECT().Lock().
+	external.EXPECT().Lock().
 		AnyTimes()
-	world.EXPECT().Unlock().
+	external.EXPECT().Unlock().
 		AnyTimes()
-	world.EXPECT().DagIndex().
+	external.EXPECT().DagIndex().
 		Return((*vecmt.Index)(nil)).
 		AnyTimes()
-	world.EXPECT().IsSynced().
+	external.EXPECT().IsSynced().
 		Return(true).
 		AnyTimes()
-	world.EXPECT().PeersNum().
+	external.EXPECT().PeersNum().
 		Return(int(3)).
 		AnyTimes()
 
-	em := NewEmitter(cfg, world)
+	em := NewEmitter(cfg, World{
+		External: external,
+		TxPool:   txPool,
+	})
 
 	t.Run("init", func(t *testing.T) {
-		world.EXPECT().GetRules().
+		external.EXPECT().GetRules().
 			Return(opera.FakeNetRules()).
 			AnyTimes()
 
-		world.EXPECT().GetEpochValidators().
+		external.EXPECT().GetEpochValidators().
 			Return(validators, idx.Epoch(1)).
 			AnyTimes()
 
-		world.EXPECT().GetLastEvent(idx.Epoch(1), cfg.Validator.ID).
+		external.EXPECT().GetLastEvent(idx.Epoch(1), cfg.Validator.ID).
 			Return((*hash.Event)(nil)).
 			AnyTimes()
 
-		world.EXPECT().GetGenesisTime().
+		external.EXPECT().GetGenesisTime().
 			Return(inter.Timestamp(uint64(time.Now().UnixNano()))).
 			AnyTimes()
 
@@ -75,7 +79,7 @@ func TestEmitter(t *testing.T) {
 		require := require.New(t)
 		tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
 
-		world.EXPECT().IsBusy().
+		external.EXPECT().IsBusy().
 			Return(true).
 			AnyTimes()
 

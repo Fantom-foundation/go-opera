@@ -253,16 +253,16 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	txSigner := types.NewEIP155Signer(s.store.GetRules().EvmChainConfig().ChainID)
 
-	return emitter.NewEmitter(s.config.Emitter,
-		&emitterWorld{
+	return emitter.NewEmitter(s.config.Emitter, emitter.World{
+		External: &emitterWorld{
 			s:       s,
 			Store:   s.store,
 			WgMutex: wgmutex.New(s.engineMu, &s.blockProcWg),
-			TxPool:  s.txpool,
 			SignerI: signer,
 			Signer:  txSigner,
 		},
-	)
+		TxPool: s.txpool,
+	})
 }
 
 // Protocols returns protocols the service can communicate on.

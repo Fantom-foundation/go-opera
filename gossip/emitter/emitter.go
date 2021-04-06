@@ -114,7 +114,7 @@ func (em *Emitter) Start() {
 	em.done = make(chan struct{})
 
 	newTxsCh := make(chan evmcore.NewTxsNotify)
-	em.world.SubscribeNewTxsNotify(newTxsCh)
+	em.world.TxPool.SubscribeNewTxsNotify(newTxsCh)
 
 	done := em.done
 	em.wg.Add(1)
@@ -180,7 +180,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		// short circuit if not a validator
 		return nil
 	}
-	poolTxs, err := em.world.Pending()
+	poolTxs, err := em.world.TxPool.Pending()
 	if err != nil {
 		em.Log.Error("Tx pool transactions fetching error", "err", err)
 		return nil

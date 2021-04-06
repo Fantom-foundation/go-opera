@@ -22,11 +22,10 @@ var (
 	ErrNotEnoughGasPower = errors.New("not enough gas power")
 )
 
-// World is emitter's external world
-type World interface {
+// External world
+type External interface {
 	sync.Locker
 	Reader
-	TxPool
 	valkeystore.SignerI
 	types.Signer
 
@@ -38,6 +37,12 @@ type World interface {
 	IsBusy() bool
 	IsSynced() bool
 	PeersNum() int
+}
+
+// World is an emitter's environment
+type World struct {
+	External
+	TxPool TxPool
 }
 
 // Reader is a callback for getting events from an external storage.

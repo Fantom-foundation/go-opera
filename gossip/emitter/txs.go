@@ -196,7 +196,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			continue
 		}
 		// check transaction is not outdated
-		if !em.world.Has(tx.Hash()) {
+		if !em.world.TxPool.Has(tx.Hash()) {
 			sorted.Pop()
 			continue
 		}
