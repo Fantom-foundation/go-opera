@@ -21,34 +21,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/tracing"
-	"github.com/Fantom-foundation/go-opera/valkeystore"
-	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 const (
 	SenderCountBufferSize = 20000
 	PayloadIndexerSize    = 5000
 )
-
-// World is emitter's external world
-type World struct {
-	Store    Reader
-	EngineMu sync.Locker
-	Txpool   txPool
-	Signer   valkeystore.SignerI
-
-	TxSigner types.Signer
-
-	Check    func(e *inter.EventPayload, parents inter.Events) error
-	Process  func(*inter.EventPayload) error
-	Build    func(*inter.MutableEventPayload, func()) error
-	DagIndex *vecmt.Index
-
-	IsBusy func() bool
-
-	IsSynced func() bool
-	PeersNum func() int
-}
 
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
@@ -119,7 +97,7 @@ func (em *Emitter) init() {
 	em.syncStatus.startup = time.Now()
 	em.syncStatus.lastConnected = time.Now()
 	em.syncStatus.p2pSynced = time.Now()
-	validators, epoch := em.world.Store.GetEpochValidators()
+	validators, epoch := em.world.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
 
@@ -136,7 +114,7 @@ func (em *Emitter) Start() {
 	em.done = make(chan struct{})
 
 	newTxsCh := make(chan evmcore.NewTxsNotify)
-	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
+	em.world.TxPool.SubscribeNewTxsNotify(newTxsCh)
 
 	done := em.done
 	em.wg.Add(1)
@@ -150,25 +128,10 @@ func (em *Emitter) Start() {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
-				// track synced time
-				if em.world.PeersNum() == 0 {
-					// connected time ~= last time when it's true that "not connected yet"
-					em.syncStatus.lastConnected = time.Now()
-				}
-				if !em.world.IsSynced() {
-					// synced time ~= last time when it's true that "not synced yet"
-					em.syncStatus.p2pSynced = time.Now()
-				}
-				if em.world.IsBusy() {
+				if isBusy := em.tick(); isBusy {
 					// Heuristic to avoid locking mutexes and hurting the concurrency
 					timer.Reset(tick / 3)
 					continue
-				}
-
-				em.recheckChallenges()
-				em.recheckIdleTime()
-				if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
-					_ = em.EmitEvent()
 				}
 			case <-done:
 				return
@@ -189,12 +152,35 @@ func (em *Emitter) Stop() {
 	em.wg.Wait()
 }
 
+func (em *Emitter) tick() (isBusy bool) {
+	// track synced time
+	if em.world.PeersNum() == 0 {
+		// connected time ~= last time when it's true that "not connected yet"
+		em.syncStatus.lastConnected = time.Now()
+	}
+	if !em.world.IsSynced() {
+		// synced time ~= last time when it's true that "not synced yet"
+		em.syncStatus.p2pSynced = time.Now()
+	}
+	if em.world.IsBusy() {
+		return true
+	}
+
+	em.recheckChallenges()
+	em.recheckIdleTime()
+	if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
+		_ = em.EmitEvent()
+	}
+
+	return false
+}
+
 func (em *Emitter) EmitEvent() *inter.EventPayload {
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return nil
 	}
-	poolTxs, err := em.world.Txpool.Pending()
+	poolTxs, err := em.world.TxPool.Pending()
 	if err != nil {
 		em.Log.Error("Tx pool transactions fetching error", "err", err)
 		return nil
@@ -209,8 +195,8 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		}
 	}
 
-	em.world.EngineMu.Lock()
-	defer em.world.EngineMu.Unlock()
+	em.world.Lock()
+	defer em.world.Unlock()
 
 	start := time.Now()
 
@@ -220,14 +206,13 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	}
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
-	if em.world.Process != nil {
-		err = em.world.Process(e)
-		if err != nil {
-			return nil
-		}
+	err = em.world.Process(e)
+	if err != nil {
+		return nil
 	}
+
 	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
-	em.prevEmittedAtBlock = em.world.Store.GetLatestBlockIndex()
+	em.prevEmittedAtBlock = em.world.GetLatestBlockIndex()
 	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
 
 	// metrics
@@ -242,11 +227,11 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	prevEventID := em.world.Store.GetLastEvent(em.epoch, em.config.Validator.ID)
+	prevEventID := em.world.GetLastEvent(em.epoch, em.config.Validator.ID)
 	if prevEventID == nil {
 		return em.prevEmittedAtTime
 	}
-	prevEvent := em.world.Store.GetEvent(*prevEventID)
+	prevEvent := em.world.GetEvent(*prevEventID)
 	if prevEvent == nil {
 		return em.prevEmittedAtTime
 	}
@@ -280,7 +265,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// Set parent-dependent fields
 	parentHeaders := make(inter.Events, len(parents))
 	for i, p := range parents {
-		parent := em.world.Store.GetEvent(p)
+		parent := em.world.GetEvent(p)
 		if parent == nil {
 			em.Log.Crit("Emitter: head not found", "mutEvent", p.String())
 		}
@@ -326,7 +311,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		}
 		return nil
 	}
-
 	// Add txs
 	em.addTxs(mutEvent, poolTxs)
 

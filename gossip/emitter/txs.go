@@ -31,7 +31,7 @@ func max64(a, b uint64) uint64 {
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
-	rules := em.world.Store.GetRules()
+	rules := em.world.GetRules()
 	maxGasToUse := rules.Economy.Gas.MaxEventGas
 	if maxGasToUse > e.GasPowerLeft().Min() {
 		maxGasToUse = e.GasPowerLeft().Min()
@@ -161,7 +161,6 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 
 	// sort transactions by price and nonce
 	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
-
 	senderTxs := make(map[common.Address]int)
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		// check we don't originate too many txs from the same sender
@@ -171,7 +170,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			continue
 		}
 		// check transaction is not underpriced
-		if tx.GasPrice().Cmp(em.world.Store.GetRules().Economy.MinGasPrice) < 0 {
+		if tx.GasPrice().Cmp(em.world.GetRules().Economy.MinGasPrice) < 0 {
 			sorted.Pop()
 			continue
 		}
@@ -195,7 +194,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			continue
 		}
 		// check transaction is not outdated
-		if !em.world.Txpool.Has(tx.Hash()) {
+		if !em.world.TxPool.Has(tx.Hash()) {
 			sorted.Pop()
 			continue
 		}

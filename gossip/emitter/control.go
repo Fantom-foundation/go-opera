@@ -54,7 +54,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	// metric is a decimal (0.0, 1.0], being an estimation of how much the event will advance the consensus
 	adjustedPassedTime := time.Duration(ancestor.Metric(passedTime/piecefunc.DecimalUnit) * metric)
 	adjustedPassedIdleTime := time.Duration(ancestor.Metric(passedTimeIdle/piecefunc.DecimalUnit) * metric)
-	passedBlocks := em.world.Store.GetLatestBlockIndex() - em.prevEmittedAtBlock
+	passedBlocks := em.world.GetLatestBlockIndex() - em.prevEmittedAtBlock
 	// Forbid emitting if not enough power and power is decreasing
 	{
 		threshold := em.config.EmergencyThreshold
@@ -70,7 +70,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	}
 	// Enforce emitting if passed too many time/blocks since previous event
 	{
-		rules := em.world.Store.GetRules()
+		rules := em.world.GetRules()
 		maxBlocks := rules.Economy.BlockMissedSlack/2 + 1
 		if rules.Economy.BlockMissedSlack > maxBlocks && maxBlocks < rules.Economy.BlockMissedSlack-5 {
 			maxBlocks = rules.Economy.BlockMissedSlack - 5
@@ -123,8 +123,8 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 }
 
 func (em *Emitter) recheckIdleTime() {
-	em.world.EngineMu.Lock()
-	defer em.world.EngineMu.Unlock()
+	em.world.Lock()
+	defer em.world.Unlock()
 	if em.idle() {
 		em.prevIdleTime = time.Now()
 	}

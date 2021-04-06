@@ -15,7 +15,7 @@ import (
 // OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
 	em.maxParents = em.config.MaxParents
-	rules := em.world.Store.GetRules()
+	rules := em.world.GetRules()
 	if em.maxParents == 0 {
 		em.maxParents = rules.Dag.MaxParents
 	}
@@ -41,7 +41,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 	em.recountValidators(newValidators)
 
-	em.quorumIndexer = ancestor.NewQuorumIndexer(newValidators, vecmt2dagidx.Wrap(em.world.DagIndex),
+	em.quorumIndexer = ancestor.NewQuorumIndexer(newValidators, vecmt2dagidx.Wrap(em.world.DagIndex()),
 		func(median, current, update idx.Event, validatorIdx idx.Validator) ancestor.Metric {
 			return updMetric(median, current, update, validatorIdx, newValidators)
 		})
@@ -80,7 +80,7 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 		em.pendingGas = 0
 	}
 	if !he.NoTxs() {
-		e := em.world.Store.GetEventPayload(he.ID())
+		e := em.world.GetEventPayload(he.ID())
 		for _, tx := range e.Txs() {
 			addr, _ := types.Sender(em.world.TxSigner, tx)
 			em.originatedTxs.Dec(addr)
