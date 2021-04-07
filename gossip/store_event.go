@@ -191,10 +191,11 @@ func (s *Store) SetHighestLamport(lamport idx.Lamport) {
 
 func (s *Store) FlushHighestLamport() {
 	cached, ok := s.getCachedHighestLamport()
-	if ok {
-		err := s.table.HighestLamport.Put([]byte("k"), cached.Bytes())
-		if err != nil {
-			s.Log.Crit("Failed to put key-value", "err", err)
-		}
+	if !ok {
+		return
+	}
+	err := s.table.HighestLamport.Put([]byte("k"), cached.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }

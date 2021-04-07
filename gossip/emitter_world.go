@@ -3,6 +3,8 @@ package gossip
 import (
 	"sync/atomic"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -59,4 +61,8 @@ func (ew *emitterWorld) IsSynced() bool {
 
 func (ew *emitterWorld) PeersNum() int {
 	return ew.s.pm.peers.Len()
+}
+
+func (ew *emitterWorld) GetHeads(epoch idx.Epoch) hash.Events {
+	return ew.Store.GetHeadsSlice(epoch)
 }

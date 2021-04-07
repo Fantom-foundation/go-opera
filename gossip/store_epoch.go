@@ -7,12 +7,19 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skiperrors"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+
+	"github.com/Fantom-foundation/go-opera/logger"
+)
+
+var (
+	errDBClosed = errors.New("database closed")
 )
 
 type (
@@ -24,21 +31,28 @@ type (
 			Heads    kvdb.Store `table:"H"`
 			DagIndex kvdb.Store `table:"v"`
 		}
+		cache struct {
+			Heads atomic.Value
+		}
+
+		logger.Instance
 	}
 )
 
 func newEpochStore(epoch idx.Epoch, db kvdb.DropableStore) *epochStore {
 	es := &epochStore{
-		epoch: epoch,
-		db:    db,
+		epoch:    epoch,
+		db:       db,
+		Instance: logger.MakeInstance(),
 	}
 	table.MigrateTables(&es.table, db)
 
-	err := errors.New("database closed")
-
 	// wrap with skiperrors to skip errors on reading from a dropped DB
-	es.table.Tips = skiperrors.Wrap(es.table.Tips, err)
-	es.table.Heads = skiperrors.Wrap(es.table.Heads, err)
+	es.table.Tips = skiperrors.Wrap(es.table.Tips, errDBClosed)
+	es.table.Heads = skiperrors.Wrap(es.table.Heads, errDBClosed)
+
+	// load heads cache
+	es.GetHeads()
 
 	return es
 }
@@ -48,8 +62,7 @@ func (s *Store) getAnyEpochStore() *epochStore {
 	if _es == nil {
 		return nil
 	}
-	es := _es.(*epochStore)
-	return es
+	return _es.(*epochStore)
 }
 
 // getEpochStore is safe for concurrent use.

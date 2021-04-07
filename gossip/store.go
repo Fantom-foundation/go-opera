@@ -188,6 +188,10 @@ func (s *Store) Commit() error {
 	// Flush the DBs
 	s.FlushBlockEpochState()
 	s.FlushHighestLamport()
+	es := s.getAnyEpochStore()
+	if es != nil {
+		es.FlushHeads()
+	}
 	return s.dbs.Flush(flushID)
 }
 

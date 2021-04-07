@@ -15,6 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 )
 
 var (
@@ -105,6 +106,15 @@ func (s *Service) saveAndProcessEvent(e *inter.EventPayload, es *blockproc.Epoch
 	return nil
 }
 
+func processEventHeads(heads *concurrent.EventsSet, e *inter.EventPayload) *concurrent.EventsSet {
+	// track events with no descendants, i.e. "heads"
+	heads.Lock()
+	defer heads.Unlock()
+	heads.Erase(e.Parents()...)
+	heads.Add(e.ID())
+	return heads
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
@@ -140,11 +150,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 
 	newEpoch := s.store.GetEpoch()
 
-	// track events with no descendants, i.e. heads
-	for _, parent := range e.Parents() {
-		s.store.DelHead(oldEpoch, parent)
-	}
-	s.store.AddHead(oldEpoch, e.ID())
+	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
 	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(oldEpoch, e.Creator(), e.ID())
 	// update highest lamport
