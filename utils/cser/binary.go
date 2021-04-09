@@ -34,12 +34,13 @@ func binaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error
 	raw = raw[:len(raw)-bitsSizeReader.Position()]
 
 	if uint64(len(raw)) < bitsSize {
-		return nil, nil, ErrMalformedEncoding
+		err = ErrMalformedEncoding
+		return
 	}
 
 	bodyBits = &bits.Array{Bytes: raw[uint64(len(raw))-bitsSize:]}
 	bodyBytes = raw[:uint64(len(raw))-bitsSize]
-	return bodyBits, bodyBytes, nil
+	return
 }
 
 func UnmarshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error) (err error) {
@@ -48,15 +49,14 @@ func UnmarshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error
 			err = ErrMalformedEncoding
 		}
 	}()
-	bodyBits, bodyBytes_, err := binaryToCSER(raw)
+	bodyBits, bodyBytes, err := binaryToCSER(raw)
 	if err != nil {
 		return err
 	}
-	bodyBytes := fast.NewReader(bodyBytes_)
 
 	bodyReader := &Reader{
 		BitsR:  bits.NewReader(bodyBits),
-		BytesR: bodyBytes,
+		BytesR: fast.NewReader(bodyBytes),
 	}
 	err = unmarshalCser(bodyReader)
 	if err != nil {

@@ -170,6 +170,13 @@ func (r *Reader) U64fromZero() uint64 {
 }
 
 func (w *Writer) U64fromZero(v uint64) {
+	const max = 1<<(8*7) - 1
+	if v > max {
+		// Note: the true fix is to increase bitsForSize,
+		// but it will lead to the need to change existing data.
+		// So just limit max value.
+		panic("Value too big")
+	}
 	w.writeU64_bits(0, 3, v)
 }
 
