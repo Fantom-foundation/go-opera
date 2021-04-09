@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -53,69 +53,44 @@ func TestEventPayloadSerialization(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		assertar := assert.New(t)
+		require := require.New(t)
 
 		for name, header0 := range ee {
 			buf, err := rlp.EncodeToBytes(&header0)
-			if !assertar.NoError(err) {
-				return
-			}
+			require.NoError(err)
 
 			var header1 EventPayload
 			err = rlp.DecodeBytes(buf, &header1)
-			if !assertar.NoError(err, name) {
-				return
-			}
+			require.NoError(err, name)
 
-			if !assert.EqualValues(t, header0.extEventData, header1.extEventData, name) {
-				return
-			}
-			if !assert.EqualValues(t, header0.sigData, header1.sigData, name) {
-				return
-			}
+			require.EqualValues(header0.extEventData, header1.extEventData, name)
+			require.EqualValues(header0.sigData, header1.sigData, name)
 			for i := range header0.payloadData.txs {
-				if !assert.EqualValues(t, header0.payloadData.txs[i].Hash(), header1.payloadData.txs[i].Hash(), name) {
-					return
-				}
+				require.EqualValues(header0.payloadData.txs[i].Hash(), header1.payloadData.txs[i].Hash(), name)
 			}
-			if !assert.EqualValues(t, header0.baseEvent, header1.baseEvent, name) {
-				return
-			}
-			if !assert.EqualValues(t, header0.ID(), header1.ID(), name) {
-				return
-			}
-			if !assert.EqualValues(t, header0.HashToSign(), header1.HashToSign(), name) {
-				return
-			}
-			if !assert.EqualValues(t, header0.Size(), header1.Size(), name) {
-				return
-			}
+			require.EqualValues(header0.baseEvent, header1.baseEvent, name)
+			require.EqualValues(header0.ID(), header1.ID(), name)
+			require.EqualValues(header0.HashToSign(), header1.HashToSign(), name)
+			require.EqualValues(header0.Size(), header1.Size(), name)
 		}
 	})
 
 	t.Run("err", func(t *testing.T) {
-		assertar := assert.New(t)
+		require := require.New(t)
 
 		for name, header0 := range ee {
 			bin, err := header0.MarshalBinary()
-			if !assertar.NoError(err, name) {
-				return
-			}
+			require.NoError(err, name)
 
 			n := rand.Intn(len(bin) - len(header0.Extra()) - 1)
 			bin = bin[0:n]
 
 			buf, err := rlp.EncodeToBytes(bin)
-			if !assertar.NoError(err, name) {
-				return
-			}
+			require.NoError(err, name)
 
 			var header1 Event
 			err = rlp.DecodeBytes(buf, &header1)
-			if !assertar.Error(err, name) {
-				return
-			}
-			//t.Log(err)
+			require.Error(err, name)
 		}
 	})
 }
