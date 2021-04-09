@@ -1,6 +1,8 @@
 package fast
 
 import (
+	"bytes"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,5 +43,46 @@ func TestBuffer(t *testing.T) {
 		got := r.Read(len(bb))
 		require.Equal(bb, got)
 		require.True(r.Empty())
+	})
+}
+
+func Benchmark(b *testing.B) {
+	b.Run("Write", func(b *testing.B) {
+		b.Run("Std", func(b *testing.B) {
+			w := bytes.NewBuffer(make([]byte, 0, b.N))
+			for i := 0; i < b.N; i++ {
+				w.WriteByte(byte(i))
+			}
+			require.Equal(b, b.N, len(w.Bytes()))
+		})
+		b.Run("Fast", func(b *testing.B) {
+			w := NewWriter(make([]byte, 0, b.N))
+			for i := 0; i < b.N; i++ {
+				w.WriteByte(byte(i))
+			}
+			require.Equal(b, b.N, len(w.Bytes()))
+		})
+	})
+
+	b.Run("Read", func(b *testing.B) {
+		src := make([]byte, 1000)
+		rand.Read(src)
+
+		b.Run("Std", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				r := bytes.NewReader(src)
+				for j := 0; j < len(src); j++ {
+					_, _ = r.ReadByte()
+				}
+			}
+		})
+		b.Run("Fast", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				r := NewReader(src)
+				for j := 0; j < len(src); j++ {
+					_ = r.ReadByte()
+				}
+			}
+		})
 	})
 }
