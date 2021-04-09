@@ -178,7 +178,7 @@ func (e *EventPayload) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaller interface.
 func (e *MutableEventPayload) UnmarshalBinary(raw []byte) (err error) {
-	return cser.UnmmrshalBinaryAdapter(raw, e.UnmarshalCSER)
+	return cser.UnmarshalBinaryAdapter(raw, e.UnmarshalCSER)
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaller interface.

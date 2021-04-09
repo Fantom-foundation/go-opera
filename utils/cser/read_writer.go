@@ -84,8 +84,7 @@ func readUint64BitCompact(bytesR *fast.Reader, size int) uint64 {
 }
 
 func (r *Reader) U8() uint8 {
-	buf := r.BytesR.Read(1)
-	return buf[0]
+	return r.BytesR.ReadByte()
 }
 
 func (w *Writer) U8(v uint8) {

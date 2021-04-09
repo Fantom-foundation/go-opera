@@ -26,8 +26,7 @@ func MarshalBinaryAdapter(marshalCser func(writer *Writer) error) ([]byte, error
 	return bodyBytes.Bytes(), nil
 }
 
-// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
-func BinaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error) {
+func binaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error) {
 	// read bitsArray size
 	bitsSizeBuf := reversed(tail(raw, 9))
 	bitsSizeReader := fast.NewReader(bitsSizeBuf)
@@ -43,13 +42,13 @@ func BinaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error
 	return bodyBits, bodyBytes, nil
 }
 
-func UnmmrshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error) (err error) {
+func UnmarshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = ErrMalformedEncoding
 		}
 	}()
-	bodyBits, bodyBytes_, err := BinaryToCSER(raw)
+	bodyBits, bodyBytes_, err := binaryToCSER(raw)
 	if err != nil {
 		return err
 	}
