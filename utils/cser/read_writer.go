@@ -23,6 +23,15 @@ type Reader struct {
 	BytesR *fast.Reader
 }
 
+func NewWriter() *Writer {
+	bbits := &bits.Array{Bytes: make([]byte, 0, 32)}
+	bbytes := make([]byte, 0, 200)
+	return &Writer{
+		BitsW:  bits.NewWriter(bbits),
+		BytesW: fast.NewWriter(bbytes),
+	}
+}
+
 func writeUint64Compact(bytesW *fast.Writer, v uint64) {
 	for i := 0; ; i++ {
 		chunk := v & 0b01111111
@@ -100,14 +109,6 @@ func (r *Reader) readU64_bits(minSize int, bitsForSize int) uint64 {
 func (w *Writer) writeU64_bits(minSize int, bitsForSize int, v uint64) {
 	size := writeUint64BitCompact(w.BytesW, v, minSize)
 	w.BitsW.Write(bitsForSize, uint(size-minSize))
-}
-
-func (r *Reader) readU64_var() uint64 {
-	return readUint64Compact(r.BytesR)
-}
-
-func (w *Writer) writeU64_var(v uint64) {
-	writeUint64Compact(w.BytesW, v)
 }
 
 func (r *Reader) U16() uint16 {

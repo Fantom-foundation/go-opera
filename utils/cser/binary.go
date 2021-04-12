@@ -5,19 +5,14 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/fast"
 )
 
-func MarshalBinaryAdapter(marshalCser func(writer *Writer) error) ([]byte, error) {
-	bodyBits := &bits.Array{Bytes: make([]byte, 0, 32)}
-	bodyBytes := fast.NewWriter(make([]byte, 0, 200))
-	bodyWriter := &Writer{
-		BitsW:  bits.NewWriter(bodyBits),
-		BytesW: bodyBytes,
-	}
-	err := marshalCser(bodyWriter)
+func MarshalBinaryAdapter(marshalCser func(*Writer) error) ([]byte, error) {
+	w := NewWriter()
+	err := marshalCser(w)
 	if err != nil {
 		return nil, err
 	}
 
-	return binaryFromCSER(bodyBits, bodyBytes.Bytes())
+	return binaryFromCSER(w.BitsW.Array, w.BytesW.Bytes())
 }
 
 // binaryFromCSER packs body bytes and bits into raw
@@ -56,14 +51,14 @@ func UnmarshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error
 		}
 	}()
 
-	bodyBits, bodyBytes, err := binaryToCSER(raw)
+	bbits, bbytes, err := binaryToCSER(raw)
 	if err != nil {
 		return err
 	}
 
 	bodyReader := &Reader{
-		BitsR:  bits.NewReader(bodyBits),
-		BytesR: fast.NewReader(bodyBytes),
+		BitsR:  bits.NewReader(bbits),
+		BytesR: fast.NewReader(bbytes),
 	}
 	err = unmarshalCser(bodyReader)
 	if err != nil {
