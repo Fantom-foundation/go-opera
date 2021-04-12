@@ -165,16 +165,13 @@ func (w *Writer) I64(v int64) {
 	}
 }
 
-func (r *Reader) U64fromZero() uint64 {
+func (r *Reader) U56() uint64 {
 	return r.readU64_bits(0, 3)
 }
 
-func (w *Writer) U64fromZero(v uint64) {
+func (w *Writer) U56(v uint64) {
 	const max = 1<<(8*7) - 1
 	if v > max {
-		// Note: the true fix is to increase bitsForSize,
-		// but it will lead to the need to change existing data.
-		// So just limit max value.
 		panic("Value too big")
 	}
 	w.writeU64_bits(0, 3, v)
@@ -204,7 +201,7 @@ func (w *Writer) FixedBytes(v []byte) {
 
 func (r *Reader) SliceBytes() []byte {
 	// read slice size
-	size := r.U64fromZero()
+	size := r.U56()
 	buf := make([]byte, size)
 	// read slice content
 	r.FixedBytes(buf)
@@ -213,7 +210,7 @@ func (r *Reader) SliceBytes() []byte {
 
 func (w *Writer) SliceBytes(v []byte) {
 	// write slice size
-	w.U64fromZero(uint64(len(v)))
+	w.U56(uint64(len(v)))
 	// write slice content
 	w.FixedBytes(v)
 }

@@ -36,17 +36,17 @@ func TestVals(t *testing.T) {
 		err error
 	)
 	var (
-		expBigInt      = []*big.Int{big.NewInt(0), big.NewInt(0xFFFFF)}
-		expBool        = []bool{true, false}
-		expFixedBytes  = [][]byte{[]byte{}, randBytes(0xFF)}
-		expSliceBytes  = [][]byte{[]byte{}, randBytes(0xFF)}
-		expU8          = []uint8{0, 1, 0xFF}
-		expU16         = []uint16{0, 1, 0xFFFF}
-		expU32         = []uint32{0, 1, 0xFFFFFFFF}
-		expU64         = []uint64{0, 1, 0xFFFFFFFFFFFFFFFF}
-		expVarUint     = []uint64{0, 1, 0xFFFFFFFFFFFFFFFF}
-		expI64         = []int64{0, 1, math.MinInt64, math.MaxInt64}
-		expU64fromZero = []uint64{0, 1, 1<<(8*7) - 1}
+		expBigInt     = []*big.Int{big.NewInt(0), big.NewInt(0xFFFFF)}
+		expBool       = []bool{true, false}
+		expFixedBytes = [][]byte{[]byte{}, randBytes(0xFF)}
+		expSliceBytes = [][]byte{[]byte{}, randBytes(0xFF)}
+		expU8         = []uint8{0, 1, 0xFF}
+		expU16        = []uint16{0, 1, 0xFFFF}
+		expU32        = []uint32{0, 1, 0xFFFFFFFF}
+		expU64        = []uint64{0, 1, 0xFFFFFFFFFFFFFFFF}
+		expVarUint    = []uint64{0, 1, 0xFFFFFFFFFFFFFFFF}
+		expI64        = []int64{0, 1, math.MinInt64, math.MaxInt64}
+		expU56        = []uint64{0, 1, 1<<(8*7) - 1}
 	)
 
 	t.Run("Write", func(t *testing.T) {
@@ -83,8 +83,8 @@ func TestVals(t *testing.T) {
 			for _, v := range expI64 {
 				w.I64(v)
 			}
-			for _, v := range expU64fromZero {
-				w.U64fromZero(v)
+			for _, v := range expU56 {
+				w.U56(v)
 			}
 			return nil
 		})
@@ -136,8 +136,8 @@ func TestVals(t *testing.T) {
 				got := r.I64()
 				require.Equal(exp, got, i)
 			}
-			for i, exp := range expU64fromZero {
-				got := r.U64fromZero()
+			for i, exp := range expU56 {
+				got := r.U56()
 				require.Equal(exp, got, i)
 			}
 			return nil
@@ -152,10 +152,10 @@ func TestBadVals(t *testing.T) {
 		err error
 	)
 	var (
-		expBigInt      = []*big.Int{nil}
-		expFixedBytes  = [][]byte{nil}
-		expSliceBytes  = [][]byte{nil}
-		expU64fromZero = []uint64{1 << (8 * 7), math.MaxUint64}
+		expBigInt     = []*big.Int{nil}
+		expFixedBytes = [][]byte{nil}
+		expSliceBytes = [][]byte{nil}
+		expU56        = []uint64{1 << (8 * 7), math.MaxUint64}
 	)
 
 	t.Run("Write", func(t *testing.T) {
@@ -173,9 +173,9 @@ func TestBadVals(t *testing.T) {
 			for _, v := range expSliceBytes {
 				w.SliceBytes(v)
 			}
-			for _, v := range expU64fromZero {
+			for _, v := range expU56 {
 				require.Panics(func() {
-					w.U64fromZero(v)
+					w.U56(v)
 				})
 			}
 			return nil
@@ -201,7 +201,7 @@ func TestBadVals(t *testing.T) {
 				require.NotEqual(exp, got, i)
 				require.Equal(len(exp), len(got), i)
 			}
-			for _, _ = range expU64fromZero {
+			for _, _ = range expU56 {
 				// skip
 			}
 			return nil
