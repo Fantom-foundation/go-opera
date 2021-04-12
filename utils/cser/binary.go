@@ -17,16 +17,22 @@ func MarshalBinaryAdapter(marshalCser func(writer *Writer) error) ([]byte, error
 		return nil, err
 	}
 
-	bodyBytes.Write(bodyBits.Bytes)
+	return binaryFromCSER(bodyBits, bodyBytes.Bytes())
+}
+
+// binaryFromCSER packs body bytes and bits into raw
+func binaryFromCSER(bbits *bits.Array, bbytes []byte) (raw []byte, err error) {
+	bodyBytes := fast.NewWriter(bbytes)
+	bodyBytes.Write(bbits.Bytes)
 	// write bits size
 	sizeWriter := fast.NewWriter(make([]byte, 0, 4))
-	writeUint64Compact(sizeWriter, uint64(len(bodyBits.Bytes)))
+	writeUint64Compact(sizeWriter, uint64(len(bbits.Bytes)))
 	bodyBytes.Write(reversed(sizeWriter.Bytes()))
-
 	return bodyBytes.Bytes(), nil
 }
 
-func binaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error) {
+// binaryToCSER unpacks raw on body bytes and bits
+func binaryToCSER(raw []byte) (bbits *bits.Array, bbytes []byte, err error) {
 	// read bitsArray size
 	bitsSizeBuf := reversed(tail(raw, 9))
 	bitsSizeReader := fast.NewReader(bitsSizeBuf)
@@ -38,8 +44,8 @@ func binaryToCSER(raw []byte) (bodyBits *bits.Array, bodyBytes []byte, err error
 		return
 	}
 
-	bodyBits = &bits.Array{Bytes: raw[uint64(len(raw))-bitsSize:]}
-	bodyBytes = raw[:uint64(len(raw))-bitsSize]
+	bbits = &bits.Array{Bytes: raw[uint64(len(raw))-bitsSize:]}
+	bbytes = raw[:uint64(len(raw))-bitsSize]
 	return
 }
 
@@ -49,6 +55,7 @@ func UnmarshalBinaryAdapter(raw []byte, unmarshalCser func(reader *Reader) error
 			err = ErrMalformedEncoding
 		}
 	}()
+
 	bodyBits, bodyBytes, err := binaryToCSER(raw)
 	if err != nil {
 		return err
