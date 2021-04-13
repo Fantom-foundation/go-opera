@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -122,9 +121,6 @@ func ApplyTransaction(
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, 0, result == nil, err
-	}
-	if result.Failed() {
-		log.Error("apply tx failed", "err", result.Err)
 	}
 	// Notify about logs with potential state changes
 	logs := statedb.GetLogs(tx.Hash())
