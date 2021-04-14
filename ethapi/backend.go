@@ -73,6 +73,7 @@ type Backend interface {
 	GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error)
+	GetEVMWithCfg(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, cfg vm.Config) (*vm.EVM, func() error, error)
 	MinGasPrice() *big.Int
 	MaxGasLimit() uint64
 
@@ -171,6 +172,11 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicAbftAPI(apiBackend),
 			Public:    false,
+		}, {
+			Namespace: "trace",
+			Version:   "1.0",
+			Service:   NewPublicTxTraceAPI(apiBackend),
+			Public:    true,
 		},
 	}
 

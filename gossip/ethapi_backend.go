@@ -296,12 +296,16 @@ func (b *EthAPIBackend) GetTd(_ common.Hash) *big.Int {
 }
 
 func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error) {
+	return b.GetEVMWithCfg(ctx, msg, state, header, opera.DefaultVMConfig)
+}
+
+func (b *EthAPIBackend) GetEVMWithCfg(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, cfg vm.Config) (*vm.EVM, func() error, error) {
 	state.SetBalance(msg.From(), math.MaxBig256)
 	vmError := func() error { return nil }
 
 	context := evmcore.NewEVMContext(msg, header, b.state, nil)
 	config := b.ChainConfig()
-	return vm.NewEVM(context, state, config, opera.DefaultVMConfig), vmError, nil
+	return vm.NewEVM(context, state, config, cfg), vmError, nil
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
