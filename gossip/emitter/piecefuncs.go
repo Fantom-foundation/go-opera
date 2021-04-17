@@ -8,7 +8,7 @@ import (
 
 var (
 	// confirmingEmitIntervalF is a piecewise function for validator confirming internal depending on a stake amount before him
-	confirmingEmitIntervalF = []piecefunc.Dot{
+	confirmingEmitIntervalF = piecefunc.NewFunc([]piecefunc.Dot{
 		{
 			X: 0,
 			Y: 1.0 * piecefunc.DecimalUnit,
@@ -33,9 +33,9 @@ var (
 			X: 1.0 * piecefunc.DecimalUnit,
 			Y: 60.0 * piecefunc.DecimalUnit,
 		},
-	}
+	})
 	// scalarUpdMetricF is a piecewise function for validator's event metric diff depending on a number of newly observed events
-	scalarUpdMetricF = []piecefunc.Dot{
+	scalarUpdMetricF = piecefunc.NewFunc([]piecefunc.Dot{
 		{
 			X: 0,
 			Y: 0,
@@ -56,9 +56,9 @@ var (
 			X: math.MaxUint32 * piecefunc.DecimalUnit,
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
-	}
+	})
 	// eventMetricF is a piecewise function for event metric adjustment depending on a non-adjusted event metric
-	eventMetricF = []piecefunc.Dot{
+	eventMetricF = piecefunc.NewFunc([]piecefunc.Dot{
 		{ // event metric is never zero
 			X: 0,
 			Y: 0.005 * piecefunc.DecimalUnit,
@@ -83,5 +83,5 @@ var (
 			X: math.MaxUint32 * piecefunc.DecimalUnit,
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
-	}
+	})
 )
