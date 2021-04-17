@@ -45,7 +45,6 @@ func Div(a, b uint64) uint64 {
 
 // Get calculates f(x), where f is a piecewise linear function defined by the pieces
 func Get(x uint64, f Func) uint64 {
-
 	// find a piece
 	p0 := len(f.dots) - 2
 	for i, piece := range f.dots {
@@ -54,11 +53,13 @@ func Get(x uint64, f Func) uint64 {
 			break
 		}
 	}
-
 	// linearly interpolate
 	p1 := p0 + 1
 
-	ratio := Div(x-f.dots[p0].X, f.dots[p1].X-f.dots[p0].X)
+	x0, x1 := f.dots[p0].X, f.dots[p1].X
+	y0, y1 := f.dots[p0].Y, f.dots[p1].Y
 
-	return Mul(f.dots[p0].Y, DecimalUnit-ratio) + Mul(f.dots[p1].Y, ratio)
+	ratio := Div(x-x0, x1-x0)
+
+	return Mul(y0, DecimalUnit-ratio) + Mul(y1, ratio)
 }
