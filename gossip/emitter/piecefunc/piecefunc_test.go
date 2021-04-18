@@ -80,3 +80,35 @@ func TestDown45Func(t *testing.T) {
 		require.Equal(20.0*DecimalUnit-X, Y, i)
 	}
 }
+
+func TestFuncCheck(t *testing.T) {
+	require := require.New(t)
+
+	require.Panics(func() {
+		// too few dots
+		_ = NewFunc([]Dot{
+			{
+				X: 0.0 * DecimalUnit,
+				Y: 20.0 * DecimalUnit,
+			},
+		})
+	})
+
+	require.Panics(func() {
+		// non monotonic X
+		_ = NewFunc([]Dot{
+			{
+				X: 0.0 * DecimalUnit,
+				Y: 20.0 * DecimalUnit,
+			},
+			{
+				X: 20.0 * DecimalUnit,
+				Y: 20.0 * DecimalUnit,
+			},
+			{
+				X: 10.0 * DecimalUnit,
+				Y: 20.0 * DecimalUnit,
+			},
+		})
+	})
+}
