@@ -103,30 +103,33 @@ func TestEmitter(t *testing.T) {
 
 	t.Run("isMyTxTurn", func(t *testing.T) {
 		require := require.New(t)
-
-		sender := common.Address{}
-		tx := types.NewTransaction(2, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
-
+		const accountNonce = 1
 		var (
-			everyOne bool
+			sender common.Address
+			txTime = time.Now()
+			tx     = types.NewTransaction(accountNonce, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+
+			validators = int(em.validators.Len())
+			got        = make(map[idx.ValidatorID]bool, validators)
 		)
-		now := time.Now()
-		for i := 0; i < int(em.validators.Len()); i++ {
-			passed := TxTurnPeriod * time.Duration(i) / time.Duration(em.validators.Len())
-			now = now.Add(passed)
+
+		for i := 0; i < validators; i++ {
 			var (
 				onlyOne    bool
 				atLeastOne bool
 			)
-			for _, creator := range em.validators.IDs() {
-				if em.isMyTxTurn(tx.Hash(), sender, 1, now, em.validators, creator, em.epoch) {
+			now := txTime.Add(TxTurnPeriodLatency).Add(TxTurnPeriod * time.Duration(i))
+			for _, me := range em.validators.IDs() {
+				if em.isMyTxTurn(tx.Hash(), sender, accountNonce, now, em.validators, me, em.epoch) {
 					onlyOne = !onlyOne && !atLeastOne
 					atLeastOne = true
+					got[me] = true
 				}
 			}
-			require.True(atLeastOne)
-			require.True(onlyOne)
+			require.True(atLeastOne, i)
+			require.True(onlyOne, i)
 		}
+		everyOne := len(got) == int(em.validators.Len())
 		require.True(everyOne)
 	})
 
