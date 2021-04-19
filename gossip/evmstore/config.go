@@ -1,6 +1,9 @@
 package evmstore
 
-import "github.com/syndtr/goleveldb/leveldb/opt"
+import (
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+)
 
 type (
 	// StoreCacheConfig is a config for the db.
@@ -20,13 +23,13 @@ type (
 )
 
 // DefaultStoreConfig for product.
-func DefaultStoreConfig() StoreConfig {
+func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		StoreCacheConfig{
-			ReceiptsSize:   64 * 1024,
-			ReceiptsBlocks: 1000,
-			TxPositions:    5000,
-			EvmDatabase:    16 * opt.MiB,
+			ReceiptsSize:   scale.U(64 * 1024),
+			ReceiptsBlocks: scale.I(1000),
+			TxPositions:    scale.I(5000),
+			EvmDatabase:    scale.I(16 * opt.MiB),
 		},
 	}
 }

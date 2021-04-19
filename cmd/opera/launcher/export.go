@@ -40,7 +40,8 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb, err := makeRawGossipStore(cfg.Node.DataDir, cfg)
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -112,8 +113,7 @@ func checkStateInitialized(rawProducer kvdb.IterableDBProducer) error {
 	return errors.New("datadir is not initialized")
 }
 
-func makeRawGossipStore(dataDir string, cfg *config) (*gossip.Store, error) {
-	rawProducer := integration.DBProducer(path.Join(dataDir, "chaindata"))
+func makeRawGossipStore(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, error) {
 	if err := checkStateInitialized(rawProducer); err != nil {
 		return nil, err
 	}

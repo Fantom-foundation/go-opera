@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -60,6 +61,12 @@ var (
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
 		Value: utils.DirectoryString(DefaultDataDir()),
+	}
+
+	CacheFlag = cli.IntFlag{
+		Name:  "cache",
+		Usage: "Megabytes of memory allocated to internal caching (default = 1024)",
+		Value: 1024,
 	}
 
 	// GenesisFlag specifies network genesis configuration
@@ -315,19 +322,35 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	return cfg
 }
 
+func cacheScaler(ctx *cli.Context) cachescale.Func {
+	if !ctx.GlobalIsSet(CacheFlag.Name) {
+		return cachescale.Identity
+	}
+	totalCache := ctx.GlobalInt(CacheFlag.Name)
+	if totalCache < 1024 {
+		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", "minimum cache size is 1024 MB")
+	}
+	return cachescale.Ratio{
+		Base:   1024,
+		Target: uint64(totalCache),
+	}
+}
+
 func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Defaults (low priority)
+	cacheRatio := cacheScaler(ctx)
 	cfg := config{
 		Node:          defaultNodeConfig(),
-		Opera:         gossip.DefaultConfig(),
-		OperaStore:    gossip.DefaultStoreConfig(),
+		Opera:         gossip.DefaultConfig(cacheRatio),
+		OperaStore:    gossip.DefaultStoreConfig(cacheRatio),
 		Lachesis:      abft.DefaultConfig(),
-		LachesisStore: abft.DefaultStoreConfig(),
-		VectorClock:   vecmt.DefaultConfig(),
+		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
+		VectorClock:   vecmt.DefaultConfig(cacheRatio),
 	}
+
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		cfg.Opera = gossip.FakeConfig(num)
+		cfg.Opera = gossip.FakeConfig(num, cacheRatio)
 	}
 
 	// Load config file (medium priority)

@@ -84,11 +84,7 @@ func init() {
 		utils.TxPoolGlobalQueueFlag,
 		utils.TxPoolLifetimeFlag,
 		utils.ExitWhenSyncedFlag,
-		utils.CacheFlag,
-		utils.CacheDatabaseFlag,
-		utils.CacheTrieFlag,
-		utils.CacheGCFlag,
-		utils.CacheNoPrefetchFlag,
+		CacheFlag,
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
@@ -256,7 +252,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir), genesis, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cacheScaler(ctx)), genesis, cfg.AppConfigs())
 	_ = genesis.Close()
 	metrics.SetDataDir(cfg.Node.DataDir)
 
