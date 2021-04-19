@@ -101,6 +101,35 @@ func TestEmitter(t *testing.T) {
 		require.True(got.Before(after))
 	})
 
+	t.Run("isMyTxTurn", func(t *testing.T) {
+		require := require.New(t)
+
+		sender := common.Address{}
+		tx := types.NewTransaction(2, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+
+		var (
+			everyOne bool
+		)
+		now := time.Now()
+		for i := 0; i < int(em.validators.Len()); i++ {
+			passed := TxTurnPeriod * time.Duration(i) / time.Duration(em.validators.Len())
+			now = now.Add(passed)
+			var (
+				onlyOne    bool
+				atLeastOne bool
+			)
+			for _, creator := range em.validators.IDs() {
+				if em.isMyTxTurn(tx.Hash(), sender, 1, now, em.validators, creator, em.epoch) {
+					onlyOne = !onlyOne && !atLeastOne
+					atLeastOne = true
+				}
+			}
+			require.True(atLeastOne)
+			require.True(onlyOne)
+		}
+		require.True(everyOne)
+	})
+
 	t.Run("tick", func(t *testing.T) {
 		em.tick()
 	})
