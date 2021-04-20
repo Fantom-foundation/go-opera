@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"math/big"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -136,4 +137,22 @@ func TestEmitter(t *testing.T) {
 	t.Run("tick", func(t *testing.T) {
 		em.tick()
 	})
+}
+
+func TestRandomizeEmitTime(t *testing.T) {
+	require := require.New(t)
+
+	cfgs := make([]EmitIntervals, 10)
+	base := DefaultConfig().EmitIntervals
+
+	for i := 0; i < len(cfgs); i++ {
+		r := rand.New(rand.NewSource(time.Now().Add(time.Duration(i) * time.Second).UnixNano()))
+		cfgs[i] = base.RandomizeEmitTime(r)
+	}
+
+	for i := 0; i < len(cfgs)-1; i++ {
+		for j := i + 1; j < len(cfgs)-1; j++ {
+			require.NotEqual(cfgs[i], cfgs[j], "%d vs %d", i, j)
+		}
+	}
 }
