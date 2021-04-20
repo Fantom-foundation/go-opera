@@ -23,6 +23,15 @@ type Reader struct {
 	BytesR *fast.Reader
 }
 
+func NewWriter() *Writer {
+	bbits := &bits.Array{Bytes: make([]byte, 0, 32)}
+	bbytes := make([]byte, 0, 200)
+	return &Writer{
+		BitsW:  bits.NewWriter(bbits),
+		BytesW: fast.NewWriter(bbytes),
+	}
+}
+
 func writeUint64Compact(bytesW *fast.Writer, v uint64) {
 	for i := 0; ; i++ {
 		chunk := v & 0b01111111
@@ -84,8 +93,7 @@ func readUint64BitCompact(bytesR *fast.Reader, size int) uint64 {
 }
 
 func (r *Reader) U8() uint8 {
-	buf := r.BytesR.Read(1)
-	return buf[0]
+	return r.BytesR.ReadByte()
 }
 
 func (w *Writer) U8(v uint8) {
@@ -101,14 +109,6 @@ func (r *Reader) readU64_bits(minSize int, bitsForSize int) uint64 {
 func (w *Writer) writeU64_bits(minSize int, bitsForSize int, v uint64) {
 	size := writeUint64BitCompact(w.BytesW, v, minSize)
 	w.BitsW.Write(bitsForSize, uint(size-minSize))
-}
-
-func (r *Reader) readU64_var() uint64 {
-	return readUint64Compact(r.BytesR)
-}
-
-func (w *Writer) writeU64_var(v uint64) {
-	writeUint64Compact(w.BytesW, v)
 }
 
 func (r *Reader) U16() uint16 {
@@ -166,11 +166,15 @@ func (w *Writer) I64(v int64) {
 	}
 }
 
-func (r *Reader) U64fromZero() uint64 {
+func (r *Reader) U56() uint64 {
 	return r.readU64_bits(0, 3)
 }
 
-func (w *Writer) U64fromZero(v uint64) {
+func (w *Writer) U56(v uint64) {
+	const max = 1<<(8*7) - 1
+	if v > max {
+		panic("Value too big")
+	}
 	w.writeU64_bits(0, 3, v)
 }
 
@@ -198,7 +202,7 @@ func (w *Writer) FixedBytes(v []byte) {
 
 func (r *Reader) SliceBytes() []byte {
 	// read slice size
-	size := r.U64fromZero()
+	size := r.U56()
 	buf := make([]byte, size)
 	// read slice content
 	r.FixedBytes(buf)
@@ -207,7 +211,7 @@ func (r *Reader) SliceBytes() []byte {
 
 func (w *Writer) SliceBytes(v []byte) {
 	// write slice size
-	w.U64fromZero(uint64(len(v)))
+	w.U56(uint64(len(v)))
 	// write slice content
 	w.FixedBytes(v)
 }
