@@ -135,7 +135,20 @@ func TestEmitter(t *testing.T) {
 	})
 
 	t.Run("tick", func(t *testing.T) {
-		em.tick()
+		require := require.New(t)
+
+		now := time.Now()
+		external.EXPECT().IsBusy().
+			Return(false).
+			Times(1)
+		isBusy := em.tick(now)
+		require.True(isBusy)
+
+		external.EXPECT().IsBusy().
+			Return(true).
+			Times(1)
+		isBusy = em.tick(now)
+		require.True(isBusy)
 	})
 }
 
