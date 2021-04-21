@@ -65,8 +65,8 @@ var (
 
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
-		Usage: "Megabytes of memory allocated to internal caching (default = 1024)",
-		Value: 1024,
+		Usage: "Megabytes of memory allocated to internal caching",
+		Value: DefaultCacheSize,
 	}
 
 	// GenesisFlag specifies network genesis configuration
@@ -74,6 +74,12 @@ var (
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+)
+
+const (
+	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
+	// Average memory consumption might be 3-5 times lower than the maximum
+	DefaultCacheSize = 3072
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -327,11 +333,11 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 		return cachescale.Identity
 	}
 	totalCache := ctx.GlobalInt(CacheFlag.Name)
-	if totalCache < 1024 {
-		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", "minimum cache size is 1024 MB")
+	if totalCache < DefaultCacheSize {
+		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", DefaultCacheSize))
 	}
 	return cachescale.Ratio{
-		Base:   1024,
+		Base:   DefaultCacheSize,
 		Target: uint64(totalCache),
 	}
 }
