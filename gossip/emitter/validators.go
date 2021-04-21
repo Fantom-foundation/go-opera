@@ -38,13 +38,13 @@ func (em *Emitter) recountValidators(validators *pos.Validators) {
 	}
 }
 
-func (em *Emitter) recheckChallenges() {
-	if time.Since(em.prevRecheckedChallenges) < validatorChallenge/10 {
+func (em *Emitter) recheckChallenges(now time.Time) {
+	if now.Sub(em.prevRecheckedChallenges) < validatorChallenge/10 {
 		return
 	}
 	em.world.Lock()
 	defer em.world.Unlock()
-	now := time.Now()
+
 	if !em.idle() {
 		// give challenges to all the non-spare validators if network isn't idle
 		for _, vid := range em.validators.IDs() {
