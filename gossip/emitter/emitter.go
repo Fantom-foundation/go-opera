@@ -312,12 +312,22 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		}
 		return nil
 	}
+
+	// Pre-check if event should be emitted
+	// It is checked in advance to avoid adding transactions just to immediately drop the event later
+	if !em.isAllowedToEmit(mutEvent, true, metric, selfParentHeader) {
+		return nil
+	}
+
 	// Add txs
 	em.addTxs(mutEvent, poolTxs)
 
 	// Check if event should be emitted
-	if !em.isAllowedToEmit(mutEvent, metric, selfParentHeader) {
-		return nil
+	// Check only if no txs were added, since check in a case with added txs was performed above
+	if mutEvent.Txs().Len() == 0 {
+		if !em.isAllowedToEmit(mutEvent, mutEvent.Txs().Len() != 0, metric, selfParentHeader) {
+			return nil
+		}
 	}
 
 	// calc Merkle root
