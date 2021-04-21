@@ -56,7 +56,7 @@ func DefaultConfig() Config {
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
-		MaxTxsPerAddress: TxTurnNonces / 3,
+		MaxTxsPerAddress: TxTurnNonces,
 
 		MaxParents: 0,
 
