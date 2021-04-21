@@ -47,6 +47,8 @@ type (
 		MaxInitialTxHashesSend   int
 		MaxRandomTxHashesSend    int
 		RandomTxHashesSendPeriod time.Duration
+
+		PeerCache PeerCacheConfig
 	}
 	// Config for the gossip service.
 	Config struct {
@@ -106,6 +108,16 @@ type (
 	}
 )
 
+type PeerCacheConfig struct {
+	MaxKnownTxs    int // Maximum transactions hashes to keep in the known list (prevent DOS)
+	MaxKnownEvents int // Maximum event hashes to keep in the known list (prevent DOS)
+	// MaxQueuedItems is the maximum number of items to queue up before
+	// dropping broadcasts. This is a sensitive number as a transaction list might
+	// contain a single transaction, or thousands.
+	MaxQueuedItems idx.Event
+	MaxQueuedSize  uint64
+}
+
 // DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig(scale cachescale.Func) Config {
 	cfg := Config{
@@ -155,6 +167,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 			MaxInitialTxHashesSend:   20000,
 			MaxRandomTxHashesSend:    128,
 			RandomTxHashesSendPeriod: 20 * time.Second,
+			PeerCache:                DefaultPeerCacheConfig(scale),
 		},
 
 		GPO: gasprice.Config{
@@ -241,5 +254,14 @@ func LiteStoreConfig() StoreConfig {
 		EVM:                 evmstore.LiteStoreConfig(),
 		MaxNonFlushedSize:   800 * opt.KiB,
 		MaxNonFlushedPeriod: 30 * time.Minute,
+	}
+}
+
+func DefaultPeerCacheConfig(scale cachescale.Func) PeerCacheConfig {
+	return PeerCacheConfig{
+		MaxKnownTxs:    scale.I(24576),
+		MaxKnownEvents: scale.I(24576),
+		MaxQueuedItems: scale.Events(4096),
+		MaxQueuedSize:  scale.U64(protocolMaxMsgSize + 1024),
 	}
 }

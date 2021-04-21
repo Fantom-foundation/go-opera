@@ -83,9 +83,9 @@ be gzipped
 
 		Subcommands: []cli.Command{
 			{
-				Name:      "evm",
-				Usage:     "Check EVM storage",
-				Action:    utils.MigrateFlags(checkEvm),
+				Name:   "evm",
+				Usage:  "Check EVM storage",
+				Action: utils.MigrateFlags(checkEvm),
 				Flags: []cli.Flag{
 					DataDirFlag,
 				},

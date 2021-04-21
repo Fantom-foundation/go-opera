@@ -45,7 +45,7 @@ func CheckDBList(names []string) error {
 	return nil
 }
 
-func dbCacheSize(name string, scale func(int)int) int {
+func dbCacheSize(name string, scale func(int) int) int {
 	if name == "gossip" {
 		return scale(64 * opt.MiB)
 	}
