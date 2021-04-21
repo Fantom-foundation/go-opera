@@ -9,17 +9,20 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 )
 
-func DBProducer(chaindataDir string) kvdb.IterableDBProducer {
+func DBProducer(chaindataDir string, scale cachescale.Func) kvdb.IterableDBProducer {
 	if chaindataDir == "inmemory" || chaindataDir == "" {
 		return memorydb.NewProducer("")
 	}
 
-	return leveldb.NewProducer(chaindataDir, dbCacheSize)
+	return leveldb.NewProducer(chaindataDir, func(name string) int {
+		return dbCacheSize(name, scale.I)
+	})
 }
 
 func CheckDBList(names []string) error {
@@ -42,20 +45,20 @@ func CheckDBList(names []string) error {
 	return nil
 }
 
-func dbCacheSize(name string) int {
+func dbCacheSize(name string, scale func(int) int) int {
 	if name == "gossip" {
-		return 64 * opt.MiB
+		return scale(64 * opt.MiB)
 	}
 	if name == "lachesis" {
-		return 4 * opt.MiB
+		return scale(4 * opt.MiB)
 	}
 	if strings.HasPrefix(name, "lachesis-") {
-		return 8 * opt.MiB
+		return scale(8 * opt.MiB)
 	}
 	if strings.HasPrefix(name, "gossip-") {
-		return 8 * opt.MiB
+		return scale(8 * opt.MiB)
 	}
-	return 2 * opt.MiB
+	return scale(2 * opt.MiB)
 }
 
 func dropAllDBs(producer kvdb.IterableDBProducer) {

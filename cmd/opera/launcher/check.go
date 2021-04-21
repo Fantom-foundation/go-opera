@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"bytes"
+	"path"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -31,7 +33,8 @@ func checkEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	gdb, err := makeRawGossipStore(cfg.Node.DataDir, cfg)
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}

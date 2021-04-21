@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -62,11 +63,23 @@ var (
 		Value: utils.DirectoryString(DefaultDataDir()),
 	}
 
+	CacheFlag = cli.IntFlag{
+		Name:  "cache",
+		Usage: "Megabytes of memory allocated to internal caching",
+		Value: DefaultCacheSize,
+	}
+
 	// GenesisFlag specifies network genesis configuration
 	GenesisFlag = cli.StringFlag{
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+)
+
+const (
+	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
+	// Average memory consumption might be 3-5 times lower than the maximum
+	DefaultCacheSize = 3072
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -315,19 +328,35 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	return cfg
 }
 
+func cacheScaler(ctx *cli.Context) cachescale.Func {
+	if !ctx.GlobalIsSet(CacheFlag.Name) {
+		return cachescale.Identity
+	}
+	totalCache := ctx.GlobalInt(CacheFlag.Name)
+	if totalCache < DefaultCacheSize {
+		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", DefaultCacheSize))
+	}
+	return cachescale.Ratio{
+		Base:   DefaultCacheSize,
+		Target: uint64(totalCache),
+	}
+}
+
 func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Defaults (low priority)
+	cacheRatio := cacheScaler(ctx)
 	cfg := config{
 		Node:          defaultNodeConfig(),
-		Opera:         gossip.DefaultConfig(),
-		OperaStore:    gossip.DefaultStoreConfig(),
+		Opera:         gossip.DefaultConfig(cacheRatio),
+		OperaStore:    gossip.DefaultStoreConfig(cacheRatio),
 		Lachesis:      abft.DefaultConfig(),
-		LachesisStore: abft.DefaultStoreConfig(),
-		VectorClock:   vecmt.DefaultConfig(),
+		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
+		VectorClock:   vecmt.DefaultConfig(cacheRatio),
 	}
+
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		cfg.Opera = gossip.FakeConfig(num)
+		cfg.Opera = gossip.FakeConfig(num, cacheRatio)
 	}
 
 	// Load config file (medium priority)

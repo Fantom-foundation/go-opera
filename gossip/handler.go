@@ -511,7 +511,7 @@ func (pm *ProtocolManager) Stop() {
 }
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
-	return newPeer(pv, p, rw)
+	return newPeer(pv, p, rw, pm.config.Protocol.PeerCache)
 }
 
 func (pm *ProtocolManager) myProgress() PeerProgress {
