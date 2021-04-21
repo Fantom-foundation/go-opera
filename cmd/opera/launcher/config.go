@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -361,6 +362,9 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		return nil, err
 	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
+	if cfg.Opera.Emitter.Validator.ID != 0 && len(cfg.Opera.Emitter.PrevEmittedEventFile.Path) == 0 {
+		cfg.Opera.Emitter.PrevEmittedEventFile.Path = cfg.Node.ResolvePath(path.Join("emitter", fmt.Sprintf("last-%d", cfg.Opera.Emitter.Validator.ID)))
+	}
 
 	if err := cfg.Opera.Validate(); err != nil {
 		return nil, err

@@ -51,6 +51,10 @@ func (em *Emitter) currentSyncStatus() doublesign.SyncStatus {
 	if em.world.IsSynced() {
 		s.P2PSynced = em.syncStatus.p2pSynced
 	}
+	prevEmitted := em.readLastEmittedEventID()
+	if prevEmitted != nil && (em.world.GetEvent(*prevEmitted) == nil && em.epoch <= prevEmitted.Epoch()) {
+		s.P2PSynced = time.Time{}
+	}
 	return s
 }
 

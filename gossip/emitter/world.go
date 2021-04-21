@@ -30,6 +30,7 @@ type (
 
 		Check(e *inter.EventPayload, parents inter.Events) error
 		Process(*inter.EventPayload) error
+		Broadcast(*inter.EventPayload)
 		Build(*inter.MutableEventPayload, func()) error
 		DagIndex() *vecmt.Index
 
