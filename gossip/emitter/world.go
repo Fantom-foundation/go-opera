@@ -74,4 +74,7 @@ type TxPool interface {
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+
+	// Count returns the total number of transactions
+	Count() int
 }

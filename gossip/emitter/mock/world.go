@@ -302,6 +302,18 @@ func (m *MockTxPool) EXPECT() *MockTxPoolMockRecorder {
 	return m.recorder
 }
 
+// Count mocks base method
+func (m *MockTxPool) Count() int {
+	ret := m.ctrl.Call(m, "Count")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Count indicates an expected call of Count
+func (mr *MockTxPoolMockRecorder) Count() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockTxPool)(nil).Count))
+}
+
 // Has mocks base method
 func (m *MockTxPool) Has(arg0 common.Hash) bool {
 	m.ctrl.T.Helper()
