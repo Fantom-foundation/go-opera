@@ -12,7 +12,7 @@ import (
 )
 
 func scalarUpdMetric(diff idx.Event, weight pos.Weight, totalWeight pos.Weight) ancestor.Metric {
-	return ancestor.Metric(piecefunc.Get(uint64(diff)*piecefunc.DecimalUnit, scalarUpdMetricF)) * ancestor.Metric(weight) / ancestor.Metric(totalWeight)
+	return ancestor.Metric(scalarUpdMetricF(uint64(diff)*piecefunc.DecimalUnit)) * ancestor.Metric(weight) / ancestor.Metric(totalWeight)
 }
 
 func updMetric(median, cur, upd idx.Event, validatorIdx idx.Validator, validators *pos.Validators) ancestor.Metric {
@@ -27,7 +27,7 @@ func updMetric(median, cur, upd idx.Event, validatorIdx idx.Validator, validator
 }
 
 func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
-	metric := ancestor.Metric(piecefunc.Get(uint64(orig), eventMetricF))
+	metric := ancestor.Metric(eventMetricF(uint64(orig)))
 	// kick start metric in a beginning of epoch, when there's nothing to observe yet
 	if seq <= 2 && metric < 0.9*piecefunc.DecimalUnit {
 		metric += 0.1 * piecefunc.DecimalUnit
