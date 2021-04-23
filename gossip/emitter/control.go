@@ -122,10 +122,10 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	return true
 }
 
-func (em *Emitter) recheckIdleTime(now time.Time) {
+func (em *Emitter) recheckIdleTime() {
 	em.world.Lock()
 	defer em.world.Unlock()
 	if em.idle() {
-		em.prevIdleTime = now
+		em.prevIdleTime = em.world.Now()
 	}
 }

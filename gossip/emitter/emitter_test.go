@@ -21,7 +21,20 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool,TxSigner,Signer
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool,TxSigner,Signer,Clock
+
+type fakeClock struct {
+	now time.Time
+}
+
+func (c *fakeClock) Now() time.Time {
+	return c.now
+}
+
+func (c *fakeClock) Add(d time.Duration) time.Time {
+	c.now = c.now.Add(d)
+	return c.now
+}
 
 func TestEmitter(t *testing.T) {
 	cfg := DefaultConfig()
@@ -38,6 +51,8 @@ func TestEmitter(t *testing.T) {
 	txPool := mock.NewMockTxPool(ctrl)
 	signer := mock.NewMockSigner(ctrl)
 	txSigner := mock.NewMockTxSigner(ctrl)
+
+	clock := &fakeClock{time.Now()}
 
 	external.EXPECT().Lock().
 		AnyTimes()
@@ -58,6 +73,7 @@ func TestEmitter(t *testing.T) {
 		TxPool:   txPool,
 		Signer:   signer,
 		TxSigner: txSigner,
+		Clock:    clock,
 	})
 
 	t.Run("init", func(t *testing.T) {
@@ -74,26 +90,25 @@ func TestEmitter(t *testing.T) {
 			AnyTimes()
 
 		external.EXPECT().GetGenesisTime().
-			Return(inter.Timestamp(uint64(time.Now().UnixNano()))).
+			Return(inter.Timestamp(uint64(clock.Now().UnixNano()))).
 			AnyTimes()
 
 		em.init()
+
+		clock.Add(networkStartPeriod)
 	})
 
 	t.Run("memorizeTxTimes", func(t *testing.T) {
 		require := require.New(t)
 		tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
 
-		external.EXPECT().IsBusy().
-			Return(true).
-			AnyTimes()
-
 		_, ok := em.txTime.Get(tx.Hash())
 		require.False(ok)
 
-		before := time.Now()
+		before := clock.Now()
+		clock.Add(time.Second)
 		em.memorizeTxTimes(types.Transactions{tx})
-		after := time.Now()
+		after := clock.Add(time.Second)
 
 		cached, ok := em.txTime.Get(tx.Hash())
 		got := cached.(time.Time)
@@ -107,7 +122,7 @@ func TestEmitter(t *testing.T) {
 		const accountNonce = 1
 		var (
 			sender common.Address
-			txTime = time.Now()
+			txTime = clock.Now()
 			tx     = types.NewTransaction(accountNonce, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
 
 			validators = int(em.validators.Len())
@@ -137,18 +152,40 @@ func TestEmitter(t *testing.T) {
 	t.Run("tick", func(t *testing.T) {
 		require := require.New(t)
 
-		now := time.Now()
-		external.EXPECT().IsBusy().
-			Return(false).
+		external.EXPECT().GetHeads(idx.Epoch(1)).
+			Return(hash.Events{}).
+			AnyTimes()
+
+		txPool.EXPECT().Pending().
+			Return(map[common.Address]types.Transactions{}, nil).
 			Times(1)
-		isBusy := em.tick(now)
-		require.True(isBusy)
 
 		external.EXPECT().IsBusy().
 			Return(true).
 			Times(1)
-		isBusy = em.tick(now)
+		isBusy := em.tick()
 		require.True(isBusy)
+
+		external.EXPECT().IsBusy().
+			Return(false).
+			Times(1)
+		isBusy = em.tick()
+		require.False(isBusy)
+	})
+
+	t.Run("EmitEvent", func(t *testing.T) {
+		require := require.New(t)
+
+		external.EXPECT().IsBusy().
+			Return(false).
+			AnyTimes()
+		txPool.EXPECT().Pending().
+			Return(map[common.Address]types.Transactions{}, nil).
+			AnyTimes()
+
+		em.tick()
+		e := em.EmitEvent()
+		require.NotNil(e)
 	})
 }
 

@@ -22,7 +22,7 @@ type syncStatus struct {
 }
 
 func (em *Emitter) onNewExternalEvent(e inter.EventPayloadI) {
-	em.syncStatus.externalSelfEventDetected = time.Now()
+	em.syncStatus.externalSelfEventDetected = em.world.Now()
 	em.syncStatus.externalSelfEventCreated = e.CreationTime().Time()
 	status := em.currentSyncStatus()
 	if doublesign.DetectParallelInstance(status, em.config.EmitIntervals.ParallelInstanceProtection) {
@@ -40,7 +40,7 @@ func (em *Emitter) onNewExternalEvent(e inter.EventPayloadI) {
 
 func (em *Emitter) currentSyncStatus() doublesign.SyncStatus {
 	s := doublesign.SyncStatus{
-		Now:                       time.Now(),
+		Now:                       em.world.Now(),
 		PeersNum:                  em.world.PeersNum(),
 		Startup:                   em.syncStatus.startup,
 		LastConnected:             em.syncStatus.lastConnected,

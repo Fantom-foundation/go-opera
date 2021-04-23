@@ -76,6 +76,9 @@ func NewEmitter(
 	config Config,
 	world World,
 ) *Emitter {
+	if world.Clock == nil {
+		world.Clock = &realClock{}
+	}
 	// Randomize event time to decrease chance of 2 parallel instances emitting event at the same time
 	// It increases the chance of detecting parallel instances
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -94,9 +97,9 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
-	em.syncStatus.startup = time.Now()
-	em.syncStatus.lastConnected = time.Now()
-	em.syncStatus.p2pSynced = time.Now()
+	em.syncStatus.startup = em.world.Now()
+	em.syncStatus.lastConnected = em.world.Now()
+	em.syncStatus.p2pSynced = em.world.Now()
 	validators, epoch := em.world.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
@@ -128,7 +131,7 @@ func (em *Emitter) Start() {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
-				if isBusy := em.tick(time.Now()); isBusy {
+				if isBusy := em.tick(); isBusy {
 					// Heuristic to avoid locking mutexes and hurting the concurrency
 					timer.Reset(tick / 3)
 					continue
@@ -152,23 +155,23 @@ func (em *Emitter) Stop() {
 	em.wg.Wait()
 }
 
-func (em *Emitter) tick(now time.Time) (isBusy bool) {
+func (em *Emitter) tick() (isBusy bool) {
 	// track synced time
 	if em.world.PeersNum() == 0 {
 		// connected time ~= last time when it's true that "not connected yet"
-		em.syncStatus.lastConnected = now
+		em.syncStatus.lastConnected = em.world.Now()
 	}
 	if !em.world.IsSynced() {
 		// synced time ~= last time when it's true that "not synced yet"
-		em.syncStatus.p2pSynced = now
+		em.syncStatus.p2pSynced = em.world.Now()
 	}
 	if em.world.IsBusy() {
 		return true
 	}
 
-	em.recheckChallenges(now)
-	em.recheckIdleTime(now)
-	if now.Sub(em.prevEmittedAtTime) >= em.intervals.Min {
+	em.recheckChallenges()
+	em.recheckIdleTime()
+	if em.world.Now().Sub(em.prevEmittedAtTime) >= em.intervals.Min {
 		_ = em.EmitEvent()
 	}
 
@@ -198,7 +201,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	em.world.Lock()
 	defer em.world.Unlock()
 
-	start := time.Now()
+	start := em.world.Now()
 
 	e := em.createEvent(poolTxs)
 	if e == nil {
@@ -211,7 +214,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		return nil
 	}
 
-	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
+	em.prevEmittedAtTime = em.world.Now() // record time after connecting, to add the event processing time"
 	em.prevEmittedAtBlock = em.world.GetLatestBlockIndex()
 	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
 		"frame", e.Frame(), "txs", e.Txs().Len(), "age", common.PrettyDuration(0), "t", common.PrettyDuration(time.Since(start)))
@@ -295,7 +298,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 
 	mutEvent.SetParents(parents)
 	mutEvent.SetLamport(maxLamport + 1)
-	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1))
+	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(em.world.Now().UnixNano()), selfParentTime+1))
 
 	// set consensus fields
 	var metric ancestor.Metric
