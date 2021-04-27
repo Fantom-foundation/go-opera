@@ -27,19 +27,6 @@ import (
 
 //go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool
 
-type fakeClock struct {
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time {
-	return c.now
-}
-
-func (c *fakeClock) Add(d time.Duration) time.Time {
-	c.now = c.now.Add(d)
-	return c.now
-}
-
 func TestEmitter(t *testing.T) {
 	var (
 		validators *pos.Validators
@@ -232,4 +219,17 @@ func testKeys() (*pos.Validators, idx.ValidatorID, validatorpk.PubKey, valkeysto
 	keys.Unlock(vPK, pswd)
 
 	return validators, vID, vPK, valkeystore.NewSigner(keys)
+}
+
+type fakeClock struct {
+	now time.Time
+}
+
+func (c *fakeClock) Now() time.Time {
+	return c.now
+}
+
+func (c *fakeClock) Add(d time.Duration) time.Time {
+	c.now = c.now.Add(d)
+	return c.now
 }
