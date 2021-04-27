@@ -1,6 +1,7 @@
 package emitter
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -11,17 +12,20 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool,TxSigner,Signer,Clock
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool
 
 type fakeClock struct {
 	now time.Time
@@ -37,20 +41,16 @@ func (c *fakeClock) Add(d time.Duration) time.Time {
 }
 
 func TestEmitter(t *testing.T) {
-	cfg := DefaultConfig()
-	gValidators := makegenesis.GetFakeValidators(3)
-	vv := pos.NewBuilder()
-	for _, v := range gValidators {
-		vv.Set(v.ID, pos.Weight(1))
-	}
-	validators := vv.Build()
-	cfg.Validator.ID = gValidators[0].ID
+	var (
+		validators *pos.Validators
+		signer     valkeystore.SignerI
+		cfg        = DefaultConfig()
+	)
+	validators, cfg.Validator.ID, cfg.Validator.PubKey, signer = testKeys()
 
 	ctrl := gomock.NewController(t)
 	external := mock.NewMockExternal(ctrl)
 	txPool := mock.NewMockTxPool(ctrl)
-	signer := mock.NewMockSigner(ctrl)
-	txSigner := mock.NewMockTxSigner(ctrl)
 
 	clock := &fakeClock{time.Now()}
 
@@ -72,7 +72,7 @@ func TestEmitter(t *testing.T) {
 		External: external,
 		TxPool:   txPool,
 		Signer:   signer,
-		TxSigner: txSigner,
+		TxSigner: types.NewEIP155Signer(big.NewInt(1)),
 		Clock:    clock,
 	})
 
@@ -80,15 +80,12 @@ func TestEmitter(t *testing.T) {
 		external.EXPECT().GetRules().
 			Return(opera.FakeNetRules()).
 			AnyTimes()
-
 		external.EXPECT().GetEpochValidators().
 			Return(validators, idx.Epoch(1)).
 			AnyTimes()
-
 		external.EXPECT().GetLastEvent(idx.Epoch(1), cfg.Validator.ID).
 			Return((*hash.Event)(nil)).
 			AnyTimes()
-
 		external.EXPECT().GetGenesisTime().
 			Return(inter.Timestamp(uint64(clock.Now().UnixNano()))).
 			AnyTimes()
@@ -128,7 +125,6 @@ func TestEmitter(t *testing.T) {
 			validators = int(em.validators.Len())
 			got        = make(map[idx.ValidatorID]bool, validators)
 		)
-
 		for i := 0; i < validators; i++ {
 			var (
 				onlyOne    bool
@@ -156,16 +152,15 @@ func TestEmitter(t *testing.T) {
 			Return(hash.Events{}).
 			AnyTimes()
 
-		txPool.EXPECT().Pending().
-			Return(map[common.Address]types.Transactions{}, nil).
-			Times(1)
-
 		external.EXPECT().IsBusy().
 			Return(true).
 			Times(1)
 		isBusy := em.tick()
 		require.True(isBusy)
 
+		txPool.EXPECT().Pending().
+			Return(nil, fmt.Errorf("don't emit event")).
+			Times(1)
 		external.EXPECT().IsBusy().
 			Return(false).
 			Times(1)
@@ -176,14 +171,25 @@ func TestEmitter(t *testing.T) {
 	t.Run("EmitEvent", func(t *testing.T) {
 		require := require.New(t)
 
-		external.EXPECT().IsBusy().
-			Return(false).
-			AnyTimes()
 		txPool.EXPECT().Pending().
 			Return(map[common.Address]types.Transactions{}, nil).
 			AnyTimes()
+		external.EXPECT().IsBusy().
+			Return(false).
+			AnyTimes()
+		external.EXPECT().Build(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+		external.EXPECT().GetLatestBlockIndex().
+			Return(idx.Block(1)).
+			Times(2)
+		external.EXPECT().Check(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+		external.EXPECT().Process(gomock.Any()).
+			Return(nil).
+			Times(1)
 
-		em.tick()
 		e := em.EmitEvent()
 		require.NotNil(e)
 	})
@@ -205,4 +211,25 @@ func TestRandomizeEmitTime(t *testing.T) {
 			require.NotEqual(cfgs[i], cfgs[j], "%d vs %d", i, j)
 		}
 	}
+}
+
+func testKeys() (*pos.Validators, idx.ValidatorID, validatorpk.PubKey, valkeystore.SignerI) {
+	const pswd = "testpswd"
+	gValidators := makegenesis.GetFakeValidators(3)
+
+	vv := pos.NewBuilder()
+	for _, v := range gValidators {
+		vv.Set(v.ID, pos.Weight(1))
+	}
+	validators := vv.Build()
+
+	vID := gValidators[0].ID
+	vPK := gValidators[0].PubKey
+	vKey := makegenesis.FakeKey(1)
+
+	keys := valkeystore.NewDefaultMemKeystore()
+	keys.Add(vPK, crypto.FromECDSA(vKey), pswd)
+	keys.Unlock(vPK, pswd)
+
+	return validators, vID, vPK, valkeystore.NewSigner(keys)
 }
