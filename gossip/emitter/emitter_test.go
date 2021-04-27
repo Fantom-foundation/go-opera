@@ -158,8 +158,16 @@ func TestEmitter(t *testing.T) {
 	t.Run("EmitEvent", func(t *testing.T) {
 		require := require.New(t)
 
+		var (
+			a0  = fakeAddr(0)
+			a1  = fakeAddr(1)
+			tx1 = types.NewTransaction(1, a1, big.NewInt(10), 1, big.NewInt(1), nil)
+			tx2 = types.NewTransaction(2, a1, big.NewInt(20), 1, big.NewInt(1), nil)
+		)
 		txPool.EXPECT().Pending().
-			Return(map[common.Address]types.Transactions{}, nil).
+			Return(map[common.Address]types.Transactions{
+				a0: {tx1, tx2},
+			}, nil).
 			AnyTimes()
 		external.EXPECT().IsBusy().
 			Return(false).
@@ -179,6 +187,8 @@ func TestEmitter(t *testing.T) {
 
 		e := em.EmitEvent()
 		require.NotNil(e)
+
+		// require.Equal(2, e.Txs().Len())
 	})
 }
 
@@ -219,6 +229,16 @@ func testKeys() (*pos.Validators, idx.ValidatorID, validatorpk.PubKey, valkeysto
 	keys.Unlock(vPK, pswd)
 
 	return validators, vID, vPK, valkeystore.NewSigner(keys)
+}
+
+func fakeAddr(i int) (a common.Address) {
+	rand.Seed(int64(i))
+
+	_, err := rand.Read(a[:])
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
 type fakeClock struct {
