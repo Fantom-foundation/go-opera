@@ -27,6 +27,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
+type ExtendedTxPosition struct {
+	evmstore.TxPosition
+	EventCreator idx.ValidatorID
+}
+
 // GetConsensusCallbacks returns single (for Service) callback instance.
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
@@ -204,16 +209,19 @@ func consensusCallbackBeginBlockFn(
 					block.GasUsed = evmBlock.GasUsed
 
 					// memorize event position of each tx
-					txPositions := make(map[common.Hash]evmstore.TxPosition)
+					txPositions := make(map[common.Hash]ExtendedTxPosition)
 					for _, e := range blockEvents {
 						for i, tx := range e.Txs() {
 							// If tx was met in multiple events, then assign to first ordered event
 							if _, ok := txPositions[tx.Hash()]; ok {
 								continue
 							}
-							txPositions[tx.Hash()] = evmstore.TxPosition{
-								Event:       e.ID(),
-								EventOffset: uint32(i),
+							txPositions[tx.Hash()] = ExtendedTxPosition{
+								TxPosition: evmstore.TxPosition{
+									Event:       e.ID(),
+									EventOffset: uint32(i),
+								},
+								EventCreator: e.Creator(),
 							}
 						}
 					}
@@ -228,14 +236,9 @@ func consensusCallbackBeginBlockFn(
 
 					// call OnNewReceipt
 					for i, r := range allReceipts {
-						txEventPos := txPositions[r.TxHash]
-						var creator idx.ValidatorID
-						if !txEventPos.Event.IsZero() {
-							txEvent := store.GetEvent(txEventPos.Event)
-							creator = txEvent.Creator()
-							if es.Validators.Get(creator) == 0 {
-								creator = 0
-							}
+						creator := txPositions[r.TxHash].EventCreator
+						if creator != 0 && es.Validators.Get(creator) == 0 {
+							creator = 0
 						}
 						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
@@ -247,7 +250,7 @@ func consensusCallbackBeginBlockFn(
 					if txIndex {
 						for _, tx := range evmBlock.Transactions {
 							// not skipped txs only
-							store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
+							store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()].TxPosition)
 						}
 
 						// Index receipts
