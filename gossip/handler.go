@@ -268,7 +268,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 		Event: dagprocessor.EventCallback{
 			Process: func(_e dag.Event) error {
 				e := _e.(*inter.EventPayload)
-				now := time.Now()
+				preStart := time.Now()
 				pm.engineMu.Lock()
 				defer pm.engineMu.Unlock()
 
@@ -277,11 +277,14 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 				if err != nil {
 					return err
 				}
-				log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
+				end := time.Now()
+				log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
+					"frame", e.Frame(), "txs", e.Txs().Len(),
+					"age", common.PrettyDuration(end.Sub(e.CreationTime().Time())), "t", common.PrettyDuration(end.Sub(start)))
 
 				// event is connected, announce it if synced up
 				if atomic.LoadUint32(&pm.synced) != 0 {
-					passedSinceEvent := now.Sub(e.CreationTime().Time())
+					passedSinceEvent := preStart.Sub(e.CreationTime().Time())
 					pm.BroadcastEvent(e, passedSinceEvent)
 				}
 
