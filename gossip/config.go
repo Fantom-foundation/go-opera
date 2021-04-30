@@ -233,7 +233,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 		Cache: StoreCacheConfig{
 			EventsNum:  scale.I(5000),
 			EventsSize: scale.U(6 * opt.MiB),
-			BlocksNum:  scale.I(1000),
+			BlocksNum:  scale.I(5000),
 			BlocksSize: scale.U(512 * opt.KiB),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),

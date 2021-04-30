@@ -26,9 +26,9 @@ type (
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		StoreCacheConfig{
-			ReceiptsSize:   scale.U(64 * 1024),
-			ReceiptsBlocks: scale.I(1000),
-			TxPositions:    scale.I(5000),
+			ReceiptsSize:   scale.U(4 * opt.MiB),
+			ReceiptsBlocks: scale.I(4000),
+			TxPositions:    scale.I(20000),
 			EvmDatabase:    scale.I(16 * opt.MiB),
 		},
 	}
