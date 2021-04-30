@@ -411,7 +411,7 @@ func getStructLogForTransaction(
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	// TODO add time into the server configuration
-	var timeout time.Duration = 2 * time.Second
+	var timeout time.Duration = 3 * time.Second
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 
@@ -531,7 +531,6 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 // Gets all transaction from specified block and process them
 func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash) (*[]ActionTrace, error) {
 	var (
-		mainErr       error
 		blockNumber   int64
 		parentBlockNr rpc.BlockNumber
 	)
@@ -551,7 +550,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 	state, header, err := backend.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHash{BlockNumber: &parentBlockNr})
 	if err != nil {
 		log.Debug("Cannot get state for blockblock ", "block", block.NumberU64(), "err", err.Error())
-		mainErr = err
+		callTrace.addTrace(getErrorTrace(block.Hash, *block.Number, nil, common.Hash{}, 0, err))
 	}
 
 	// loop thru all transactions in the block and process them
@@ -561,37 +560,52 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 			tx, _, index, err := backend.GetTransaction(ctx, tx.Hash())
 			if err != nil {
 				log.Debug("Cannot get transaction", "txHash", tx.Hash().String(), "err", err.Error())
-				mainErr = err
-				break
+				callTrace.addTrace(getErrorTrace(block.Hash, *block.Number, tx, tx.Hash(), index, err))
+				continue
 			}
 			txTraces, err := traceTx(ctx, state, header, backend, block, tx, index)
 			if err != nil {
 				log.Debug("Cannot get transaction trace for transaction", "txHash", tx.Hash().String(), "err", err.Error())
-				mainErr = err
-				break
+				callTrace.addTrace(getErrorTrace(block.Hash, *block.Number, tx, tx.Hash(), index, err))
+			} else {
+				callTrace.addTraces(txTraces)
 			}
-			callTrace.addTraces(txTraces)
 		}
 	}
 
-	// in case of empty block, create an empty action result
-	if len(callTrace.Actions) == 0 || mainErr != nil {
+	// in case of empty block
+	if len(callTrace.Actions) == 0 {
 		emptyTrace := CallTrace{
 			Actions: make([]ActionTrace, 0),
 		}
 		blockTrace := NewActionTrace(block.Hash, *block.Number, common.Hash{}, 0, "empty")
 		txAction := NewAddressAction(&common.Address{}, 0, []byte{}, nil, hexutil.Big{}, nil)
 		blockTrace.Action = *txAction
-		if mainErr != nil {
-			blockTrace.Error = mainErr.Error()
-		} else {
-			blockTrace.Error = "Empty block"
-		}
+		blockTrace.Error = "Empty block"
 		emptyTrace.addTrace(blockTrace)
 		return &emptyTrace.Actions, nil
 	}
 
 	return &callTrace.Actions, nil
+}
+
+// getErrorTrace Returns filled error trace
+func getErrorTrace(blockHash common.Hash, blockNumber big.Int, tx *types.Transaction, txHash common.Hash, index uint64, err error) *ActionTrace {
+
+	var blockTrace *ActionTrace
+	var txAction *AddressAction
+
+	if tx != nil {
+		blockTrace = NewActionTrace(blockHash, blockNumber, txHash, index, "empty")
+		txAction = NewAddressAction(&common.Address{}, 0, []byte{}, tx.To(), hexutil.Big{}, nil)
+	} else {
+		blockTrace = NewActionTrace(blockHash, blockNumber, txHash, index, "empty")
+		txAction = NewAddressAction(&common.Address{}, 0, []byte{}, nil, hexutil.Big{}, nil)
+	}
+	blockTrace.Action = *txAction
+	blockTrace.Error = err.Error()
+
+	return blockTrace
 }
 
 /* trace_block function returns transaction traces in givven block
@@ -665,7 +679,7 @@ func (s *PublicTxTraceAPI) Filter(ctx context.Context, args FilterArgs) (*[]Acti
 
 	// TODO put timeout to server configuration
 	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, 15*time.Second)
+	ctx, cancel = context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	// process arguments
@@ -715,7 +729,7 @@ func (s *PublicTxTraceAPI) Filter(ctx context.Context, args FilterArgs) (*[]Acti
 
 blocks:
 	// go thru all blocks in specified range
-	for i := fromBlock; i < toBlock; i++ {
+	for i := fromBlock; i <= toBlock; i++ {
 		block, err := s.b.BlockByNumber(ctx, i)
 		if err != nil {
 			mainErr = err
@@ -769,16 +783,13 @@ blocks:
 		}
 	}
 
-	//when timeout occured, nothing in result or error
-	if contextDone || len(callTrace.Actions) == 0 || mainErr != nil {
-		// in case of empty block, create an empty action result
-		emptyTrace := CallTrace{
-			Actions: make([]ActionTrace, 0),
-		}
+	//when timeout occured or another error
+	if contextDone || mainErr != nil {
 		if mainErr != nil {
-			return &emptyTrace.Actions, mainErr
+			return nil, mainErr
 		}
-		return &emptyTrace.Actions, nil
+		return nil, fmt.Errorf("Timeout when scanning blocks")
 	}
+
 	return &callTrace.Actions, nil
 }
