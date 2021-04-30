@@ -286,8 +286,8 @@ func consensusCallbackBeginBlockFn(
 
 					store.commitEVM()
 
-					log.Info("New block", "index", blockCtx.Idx, "atropos", block.Atropos, "gas_used",
-						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
+					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",
+						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", common.PrettyDuration(time.Since(start)))
 				}
 				// TODO: enable parallel block processing after more extensive testing
 				if false && confirmedEvents.Len() != 0 {
