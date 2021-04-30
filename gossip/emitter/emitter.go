@@ -213,7 +213,8 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 
 	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
 	em.prevEmittedAtBlock = em.world.GetLatestBlockIndex()
-	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
+	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
+		"frame", e.Frame(), "txs", e.Txs().Len(), "age", common.PrettyDuration(0), "t", common.PrettyDuration(time.Since(start)))
 
 	// metrics
 	if tracing.Enabled() {
