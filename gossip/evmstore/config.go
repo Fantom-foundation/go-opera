@@ -14,7 +14,12 @@ type (
 		ReceiptsBlocks int
 		// Cache size for TxPositions.
 		TxPositions int
+		// Cache size for EVM database.
 		EvmDatabase int
+		// Cache size for EvmBlock (number of blocks).
+		EvmBlocksNum int
+		// Cache size for EvmBlock (size in bytes).
+		EvmBlocksSize uint
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
@@ -30,6 +35,8 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			ReceiptsBlocks: scale.I(4000),
 			TxPositions:    scale.I(20000),
 			EvmDatabase:    scale.I(16 * opt.MiB),
+			EvmBlocksNum:   scale.I(5000),
+			EvmBlocksSize:  scale.U(6 * opt.MiB),
 		},
 	}
 }
@@ -41,6 +48,8 @@ func LiteStoreConfig() StoreConfig {
 			ReceiptsSize:   3 * 1024,
 			ReceiptsBlocks: 100,
 			TxPositions:    500,
+			EvmBlocksNum:   100,
+			EvmBlocksSize:  3 * 1024,
 		},
 	}
 }

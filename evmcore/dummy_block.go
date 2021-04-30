@@ -120,3 +120,11 @@ func (b *EvmBlock) EthBlock() *types.Block {
 	}
 	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, new(trie.Trie))
 }
+
+func (b *EvmBlock) EstimateSize() int {
+	est := 0
+	for _, tx := range b.Transactions {
+		est += len(tx.Data())
+	}
+	return est + b.Transactions.Len()*256
+}

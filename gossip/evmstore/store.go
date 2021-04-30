@@ -21,6 +21,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
 
+const nominalSize uint = 1
+
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	cfg StoreConfig
@@ -40,6 +42,7 @@ type Store struct {
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
 		Receipts    *wlru.Cache `cache:"-"` // store by value
+		EvmBlocks   *wlru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutex struct {
@@ -74,7 +77,8 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.Cache.ReceiptsSize, s.cfg.Cache.ReceiptsBlocks)
-	s.cache.TxPositions = s.makeCache(uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
+	s.cache.TxPositions = s.makeCache(nominalSize*uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
+	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
 }
 
 // Commit changes.
