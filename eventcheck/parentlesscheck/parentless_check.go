@@ -1,6 +1,8 @@
 package parentlesscheck
 
 import (
+	"strings"
+
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
@@ -43,6 +45,9 @@ func (c *Checker) Enqueue(inEvents dag.Events, checked func(ee dag.Events, errs 
 
 		err := c.callback.LightCheck(e)
 		if err != nil {
+			if strings.HasSuffix(err.Error(), "no space left on device") {
+				panic("HERE x")
+			}
 			checked(dag.Events{e}, []error{err})
 			continue
 		}

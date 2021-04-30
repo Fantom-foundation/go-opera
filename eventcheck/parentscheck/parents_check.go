@@ -2,6 +2,7 @@ package parentscheck
 
 import (
 	"errors"
+	"strings"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/parentscheck"
 
@@ -27,6 +28,9 @@ func New() *Checker {
 // Validate event
 func (v *Checker) Validate(e inter.EventI, parents inter.EventIs) error {
 	if err := v.base.Validate(e, parents.Bases()); err != nil {
+		if strings.HasSuffix(err.Error(), "no space left on device") {
+			panic("HERE x")
+		}
 		return err
 	}
 
