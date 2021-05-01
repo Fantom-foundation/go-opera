@@ -55,9 +55,7 @@ type (
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
 
-		TxIndex             bool // Whether to enable indexing transactions and receipts or not
-		DecisiveEventsIndex bool // Whether to enable indexing events which decide blocks or not
-		EventLocalTimeIndex bool // Whether to enable indexing arrival time of events or not
+		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
 		// Protocol options
 		Protocol ProtocolConfig
@@ -124,8 +122,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 		Emitter: emitter.DefaultConfig(),
 		TxPool:  evmcore.DefaultTxPoolConfig(),
 
-		TxIndex:             true,
-		DecisiveEventsIndex: false,
+		TxIndex: true,
 
 		HeavyCheck: heavycheck.DefaultConfig(),
 
@@ -233,7 +230,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 		Cache: StoreCacheConfig{
 			EventsNum:  scale.I(5000),
 			EventsSize: scale.U(6 * opt.MiB),
-			BlocksNum:  scale.I(1000),
+			BlocksNum:  scale.I(5000),
 			BlocksSize: scale.U(512 * opt.KiB),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),

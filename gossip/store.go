@@ -57,6 +57,7 @@ type Store struct {
 		EventsHeaders   *wlru.Cache  `cache:"-"` // store by pointer
 		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
+		EvmBlocks       *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState atomic.Value // store by value
 		HighestLamport  atomic.Value // store by value
 	}

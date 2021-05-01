@@ -266,6 +266,7 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
 					bs.LastBlock = blockCtx
 					store.SetBlockEpochState(bs, es)
+					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
 
 					// Notify about new block and txs
 					if feed != nil {
