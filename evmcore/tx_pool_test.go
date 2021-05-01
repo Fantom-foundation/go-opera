@@ -59,6 +59,10 @@ func (bc *testBlockChain) MaxGasLimit() uint64 {
 	return bc.CurrentBlock().GasLimit
 }
 
+func (bc *testBlockChain) TxExists(common.Hash) bool {
+	return false
+}
+
 func (bc *testBlockChain) CurrentBlock() *EvmBlock {
 	b := &EvmBlock{}
 	b.Number = big.NewInt(0)
