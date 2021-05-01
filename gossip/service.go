@@ -228,6 +228,8 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 
 	svc.emitter = svc.makeEmitter(signer)
 
+	svc.store.GetEventPayload(hash.ZeroEvent)
+
 	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
 
 	return svc, nil

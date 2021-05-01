@@ -193,6 +193,22 @@ func consensusCallbackBeginBlockFn(
 					block, blockEvents := spillBlockEvents(store, block, es.Rules)
 					txs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
+						var renamedIdxs []uint32
+						var renamedHashes []common.Hash
+						for i, tx := range e.Txs() {
+							if store.EvmStore().GetTxPosition(tx.Hash()) != nil {
+								h := tx.Hash()
+								for i := 0; i < 32; i++ {
+									h[i] = ^h[i]
+								}
+								tx.SetHash(h)
+								renamedIdxs = append(renamedIdxs, uint32(i))
+								renamedHashes = append(renamedHashes, h)
+							}
+						}
+						if len(renamedIdxs) != 0 {
+							store.SetRenamedTxs(e.ID(), renamedIdxs, renamedHashes)
+						}
 						txs = append(txs, e.Txs()...)
 					}
 
