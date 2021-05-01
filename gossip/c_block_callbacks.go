@@ -191,12 +191,12 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					block, blockEvents := spillBlockEvents(store, block, es.Rules)
-					txs := make(types.Transactions, 0, blockEvents.Len()*10)
+					externalTxs := make(types.Transactions, 0, blockEvents.Len()*10)
 					for _, e := range blockEvents {
-						txs = append(txs, e.Txs()...)
+						externalTxs = append(externalTxs, e.Txs()...)
 					}
 
-					externalReceipts := evmProcessor.Execute(txs, false)
+					externalReceipts := evmProcessor.Execute(externalTxs, false)
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 
 					block.SkippedTxs = skippedTxs
@@ -244,6 +244,31 @@ func consensusCallbackBeginBlockFn(
 					// At this point, block state is finalized
 
 					// Build index for not skipped txs
+					noDups := make(types.Transactions, 0, evmBlock.Transactions.Len())
+					for _, tx := range evmBlock.Transactions {
+						if store.evm.GetTxPosition(tx.Hash()) == nil {
+							noDups = append(noDups, tx)
+						}
+					}
+					evmBlock.Transactions = noDups
+
+					dupSkippedTxs := make([]uint32, 0, 4)
+					allTxs := append(append(preInternalTxs, internalTxs...), externalTxs...)
+					for i, tx := range allTxs {
+						if store.evm.GetTxPosition(tx.Hash()) != nil {
+							dupSkippedTxs = append(dupSkippedTxs, uint32(i))
+						}
+					}
+					block.SkippedTxs = inter.MergeSkippedTxs(block.SkippedTxs, dupSkippedTxs)
+					evmBlock.Transactions = inter.FilterSkippedTxs(allTxs, block.SkippedTxs)
+					noDupReceipts := make(types.Receipts, 0, allReceipts.Len())
+					for _, r := range allReceipts {
+						if store.evm.GetTxPosition(r.TxHash) == nil {
+							noDupReceipts = append(noDupReceipts, r)
+						}
+					}
+					allReceipts = noDupReceipts
+
 					if txIndex {
 						for _, tx := range evmBlock.Transactions {
 							// not skipped txs only
