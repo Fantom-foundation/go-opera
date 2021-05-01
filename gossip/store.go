@@ -46,6 +46,7 @@ type Store struct {
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
 		SfcAPI      kvdb.Store `table:"S"`
+		RenamedTxs  kvdb.Store `table:"9"`
 	}
 
 	prevFlushTime time.Time

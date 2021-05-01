@@ -1,8 +1,6 @@
 package inter
 
 import (
-	"sort"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,22 +37,4 @@ func FilterSkippedTxs(txs types.Transactions, skippedTxs []uint32) types.Transac
 	}
 
 	return filteredTxs
-}
-
-func MergeSkippedTxs(a, b []uint32) []uint32 {
-	ab := make([]uint32, 0, len(a)+len(b))
-	aSet := make(map[uint32]bool, len(a))
-	for _, v := range a {
-		aSet[v] = true
-		ab = append(ab, v)
-	}
-	for _, v := range b {
-		if aSet[v] == false {
-			ab = append(ab, v)
-		}
-	}
-	sort.Slice(ab, func(i, j int) bool {
-		return ab[i] < ab[j]
-	})
-	return ab
 }

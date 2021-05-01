@@ -7,8 +7,10 @@ package gossip
 import (
 	"bytes"
 
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -51,6 +53,20 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	key := id.Bytes()
 	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 
+	if !w.NoTxs() {
+		renamed, err := s.table.RenamedTxs.Get(id.Bytes())
+		if err != nil {
+			s.Log.Crit("Failed to get key", "err", err)
+		}
+		if len(renamed) != 0 {
+			for i := 0; i < len(renamed); i += 36 {
+				index := bigendian.BytesToUint32(renamed[i : i+4])
+				h := common.BytesToHash(renamed[i+4 : i+4+32])
+				w.Txs()[index].SetHash(h)
+			}
+		}
+	}
+
 	// Put event to LRU cache.
 	if w != nil {
 		s.cache.Events.Add(id, w, uint(w.Size()))
@@ -59,6 +75,18 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	}
 
 	return w
+}
+
+func (s *Store) SetRenamedTxs(id hash.Event, idxs []uint32, hashes []common.Hash) {
+	b := bytes.NewBuffer(make([]byte, 0, len(idxs) * 36))
+	for i := 0; i < len(idxs); i++ {
+		b.Write(bigendian.Uint32ToBytes(idxs[i]))
+		b.Write(hashes[i].Bytes())
+	}
+	err := s.table.RenamedTxs.Put(id.Bytes(), b.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to put key", "err", err)
+	}
 }
 
 // GetEvent returns stored event.
