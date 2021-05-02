@@ -3,7 +3,6 @@ package gaspowercheck
 import (
 	"errors"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
@@ -168,9 +167,6 @@ func calcValidatorGasPowerPerSec(
 func (v *Checker) Validate(e inter.EventI, selfParent inter.EventI) error {
 	gasPowers, err := v.CalcGasPower(e, selfParent)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), "no space left on device") {
-			panic("HERE x")
-		}
 		return err
 	}
 	for i := range gasPowers.Gas {

@@ -3,7 +3,6 @@ package basiccheck
 import (
 	"errors"
 	"math"
-	"strings"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,9 +59,6 @@ func (v *Checker) checkTxs(e inter.EventPayloadI) error {
 // Validate event
 func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.base.Validate(e); err != nil {
-		if strings.HasSuffix(err.Error(), "no space left on device") {
-			panic("HERE x")
-		}
 		return err
 	}
 	if e.GasPowerUsed() >= math.MaxInt64-1 || e.GasPowerLeft().Max() >= math.MaxInt64-1 {
@@ -72,9 +68,6 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 		return ErrZeroTime
 	}
 	if err := v.checkTxs(e); err != nil {
-		if strings.HasSuffix(err.Error(), "no space left on device") {
-			panic("HERE x")
-		}
 		return err
 	}
 

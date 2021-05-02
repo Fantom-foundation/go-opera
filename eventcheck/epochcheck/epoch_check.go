@@ -2,7 +2,6 @@ package epochcheck
 
 import (
 	"errors"
-	"strings"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -68,9 +67,6 @@ func (v *Checker) checkGas(e inter.EventPayloadI, rules opera.Rules) error {
 // Validate event
 func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.Base.Validate(e); err != nil {
-		if strings.HasSuffix(err.Error(), "no space left on device") {
-			panic("HERE x")
-		}
 		return err
 	}
 	rules, epoch := v.reader.GetEpochRules()
@@ -85,9 +81,6 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 		return ErrTooBigExtra
 	}
 	if err := v.checkGas(e, rules); err != nil {
-		if strings.HasSuffix(err.Error(), "no space left on device") {
-			panic("HERE x")
-		}
 		return err
 	}
 	for _, tx := range e.Txs() {
