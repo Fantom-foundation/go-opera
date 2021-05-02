@@ -17,7 +17,7 @@ var (
 	// ContractAddress is the EvmWriter pre-compiled contract address
 	ContractAddress = common.HexToAddress("0xd100ec0000000000000000000000000000000000")
 	// ContractABI is the input ABI used to generate the binding from
-	ContractABI string = "[{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"setBalance\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"}],\"name\":\"copyCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"with\",\"type\":\"address\"}],\"name\":\"swapCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"value\",\"type\":\"bytes32\"}],\"name\":\"setStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+	ContractABI string = "[{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"setBalance\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"from\",\"type\":\"address\"}],\"name\":\"copyCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"with\",\"type\":\"address\"}],\"name\":\"swapCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"key\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"value\",\"type\":\"bytes32\"}],\"name\":\"setStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"acc\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"diff\",\"type\":\"uint256\"}],\"name\":\"incNonce\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 )
 
 var (
@@ -25,6 +25,7 @@ var (
 	copyCodeMethodID   []byte
 	swapCodeMethodID   []byte
 	setStorageMethodID []byte
+	incNonceMethodID   []byte
 )
 
 func init() {
@@ -38,6 +39,7 @@ func init() {
 		"copyCode":   &copyCodeMethodID,
 		"swapCode":   &swapCodeMethodID,
 		"setStorage": &setStorageMethodID,
+		"incNonce":   &incNonceMethodID,
 	} {
 		method, exist := abi.Methods[name]
 		if !exist {
@@ -164,6 +166,35 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 		value := common.BytesToHash(input[:32])
 
 		stateDB.SetState(acc, key, value)
+	}  else if bytes.Equal(input[:4], incNonceMethodID) {
+		input = input[4:]
+		// incNonce
+		if suppliedGas < params.CallValueTransferGas {
+			return nil, 0, vm.ErrOutOfGas
+		}
+		suppliedGas -= params.CallValueTransferGas
+		if len(input) != 64 {
+			return nil, 0, vm.ErrExecutionReverted
+		}
+
+		acc := common.BytesToAddress(input[12:32])
+		input = input[32:]
+		value := new(big.Int).SetBytes(input[:32])
+
+		if acc == ctx.Origin {
+			// Origin nonce shouldn't change during his transaction
+			return nil, 0, vm.ErrExecutionReverted
+		}
+
+		if value.Cmp(common.Big256) >= 0 {
+			// Don't allow large nonce increasing to prevent a nonce overflow
+			return nil, 0, vm.ErrExecutionReverted
+		}
+		if value.Sign() <= 0 {
+			return nil, 0, vm.ErrExecutionReverted
+		}
+
+		stateDB.SetNonce(acc, stateDB.GetNonce(acc) + value.Uint64())
 	} else {
 		return nil, 0, vm.ErrExecutionReverted
 	}
