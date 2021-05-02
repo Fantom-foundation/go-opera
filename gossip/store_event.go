@@ -53,7 +53,7 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	key := id.Bytes()
 	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 
-	if !w.NoTxs() {
+	if w != nil && !w.NoTxs() {
 		renamed, err := s.table.RenamedTxs.Get(id.Bytes())
 		if err != nil {
 			s.Log.Crit("Failed to get key", "err", err)
