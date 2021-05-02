@@ -158,13 +158,16 @@ func (s *Store) commitEVM() {
 }
 
 // Commit changes.
-func (s *Store) Commit() error {
+func (s *Store) Commit() {
 	s.prevFlushTime = time.Now()
 	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
 	// Flush the DBs
 	s.FlushBlockEpochState()
 	s.FlushHighestLamport()
-	return s.dbs.Flush(flushID)
+	err := s.dbs.Flush(flushID)
+	if err != nil {
+		s.Log.Crit("Failed to flush data", "err", err)
+	}
 }
 
 func (s *Store) EvmStore() *evmstore.Store {

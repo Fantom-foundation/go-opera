@@ -133,10 +133,8 @@ func applyGenesis(rawProducer kvdb.DBProducer, readGenesisStore func(*genesissto
 	if err != nil {
 		return err
 	}
-	err = gdb.Commit()
-	if err != nil {
-		return err
-	}
+
+	gdb.Commit()
 	return nil
 }
 
@@ -192,11 +190,7 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
-	err = gdb.Commit()
-	if err != nil {
-		err = fmt.Errorf("failed to commit DBs: %v", err)
-		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
-	}
+	gdb.Commit()
 
 	return engine, vecClock, gdb, cdb, genesisStore, blockProc, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -73,10 +74,8 @@ func BenchmarkFlushDBs(b *testing.B) {
 			})
 			n++
 		}
-		err := store.Commit()
-		if err != nil {
-			b.Fatal(err)
-		}
+
+		require.NotPanics(b, store.Commit)
 	}
 }
 
