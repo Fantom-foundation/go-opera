@@ -53,16 +53,18 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	key := id.Bytes()
 	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 
-	if w != nil && !w.NoTxs() {
-		renamed, err := s.table.RenamedTxs.Get(id.Bytes())
-		if err != nil {
-			s.Log.Crit("Failed to get key", "err", err)
-		}
-		if len(renamed) != 0 {
-			for i := 0; i < len(renamed); i += 36 {
-				index := bigendian.BytesToUint32(renamed[i : i+4])
-				h := common.BytesToHash(renamed[i+4 : i+4+32])
-				w.Txs()[index].SetHash(h)
+	if w != nil {
+		if !w.NoTxs() {
+			renamed, err := s.table.RenamedTxs.Get(id.Bytes())
+			if err != nil {
+				s.Log.Crit("Failed to get key", "err", err)
+			}
+			if len(renamed) != 0 {
+				for i := 0; i < len(renamed); i += 36 {
+					index := bigendian.BytesToUint32(renamed[i : i+4])
+					h := common.BytesToHash(renamed[i+4 : i+4+32])
+					w.Txs()[index].SetHash(h)
+				}
 			}
 		}
 	}
@@ -78,7 +80,7 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 }
 
 func (s *Store) SetRenamedTxs(id hash.Event, idxs []uint32, hashes []common.Hash) {
-	b := bytes.NewBuffer(make([]byte, 0, len(idxs) * 36))
+	b := bytes.NewBuffer(make([]byte, 0, len(idxs)*36))
 	for i := 0; i < len(idxs); i++ {
 		b.Write(bigendian.Uint32ToBytes(idxs[i]))
 		b.Write(hashes[i].Bytes())
