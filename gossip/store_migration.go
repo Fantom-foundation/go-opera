@@ -28,5 +28,10 @@ func (s *Store) migrateData() error {
 
 func (s *Store) migrations() *migration.Migration {
 	return migration.
-		Begin("opera-gossip-store")
+		Begin("opera-gossip-store").
+		Next("fix-of-used-gas", s.fixOfUsedGas)
+}
+
+func (s *Store) fixOfUsedGas() error {
+	return nil
 }
