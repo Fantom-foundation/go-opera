@@ -1,7 +1,11 @@
 package gossip
 
 import (
+	"fmt"
+
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/utils/migration"
 )
@@ -33,5 +37,64 @@ func (s *Store) migrations() *migration.Migration {
 }
 
 func (s *Store) fixOfUsedGas() error {
+	start := s.GetGenesisBlockIndex()
+	if start == nil {
+		return fmt.Errorf("genesis block index is not set")
+	}
+
+	var (
+		minBlock  idx.Block
+		maxBlock  idx.Block
+		fixedTxs  uint
+		badBlocks uint // TODO: fix blocks data
+	)
+
+	for n := *start; true; n++ {
+		b := s.GetBlock(n)
+		if b == nil {
+			break
+		}
+
+		var (
+			cumulativeGasWrong uint64
+			cumulativeGasRight uint64
+		)
+		rr := s.EvmStore().GetReceipts(n)
+
+		txs := b.NotSkippedTxs()
+		if len(txs) != len(rr) {
+			badBlocks++
+			txs = make([]common.Hash, len(rr))
+		}
+
+		for i, r := range rr {
+			// simulate the bug
+			if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
+				cumulativeGasWrong = 0
+			}
+			// restore
+			gasUsed := r.CumulativeGasUsed - cumulativeGasWrong
+			cumulativeGasWrong += gasUsed
+			cumulativeGasRight += gasUsed
+
+			if r.CumulativeGasUsed != cumulativeGasWrong {
+				panic(fmt.Sprintf(
+					"B %d[%d] %s : %d(%d) != %d(%d)\n", n, i, txs[i].Hex(), r.GasUsed, r.CumulativeGasUsed, gasUsed, cumulativeGasWrong))
+			}
+
+			if r.CumulativeGasUsed != cumulativeGasRight {
+				fmt.Printf(
+					"B %d[%d] %s : %d(%d) --> %d(%d)\n", n, i, txs[i].Hex(), r.GasUsed, r.CumulativeGasUsed, gasUsed, cumulativeGasRight)
+
+				if minBlock == 0 {
+					minBlock = n
+				}
+				maxBlock = n
+				fixedTxs++
+			}
+		}
+	}
+
+	panic(fmt.Sprintf("Start %d. Finish %d-%d (%d), badBlocks %d\n", *start, minBlock, maxBlock, fixedTxs, badBlocks))
 	return nil
 }
