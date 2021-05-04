@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
@@ -171,6 +172,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 			Blocks:     20,
 			Percentile: 60,
 			MaxPrice:   gasprice.DefaultMaxPrice,
+			MinPrice:   new(big.Int),
 		},
 
 		VersionWatcher: verwatcher.Config{
