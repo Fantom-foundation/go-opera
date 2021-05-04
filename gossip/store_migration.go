@@ -3,9 +3,7 @@ package gossip
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/utils/migration"
 )
@@ -33,7 +31,7 @@ func (s *Store) migrateData() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("fix-of-used-gas", s.fixOfUsedGas)
+		Next("fix of used gas", s.fixOfUsedGas)
 }
 
 func (s *Store) fixOfUsedGas() error {
@@ -42,13 +40,6 @@ func (s *Store) fixOfUsedGas() error {
 		return fmt.Errorf("genesis block index is not set")
 	}
 
-	var (
-		minBlock  idx.Block
-		maxBlock  idx.Block
-		fixedTxs  uint
-		badBlocks uint // TODO: fix blocks data
-	)
-
 	for n := *start; true; n++ {
 		b := s.GetBlock(n)
 		if b == nil {
@@ -56,45 +47,31 @@ func (s *Store) fixOfUsedGas() error {
 		}
 
 		var (
+			rr                 = s.EvmStore().GetReceipts(n)
 			cumulativeGasWrong uint64
 			cumulativeGasRight uint64
+			fixed              bool
 		)
-		rr := s.EvmStore().GetReceipts(n)
-
-		txs := b.NotSkippedTxs()
-		if len(txs) != len(rr) {
-			badBlocks++
-			txs = make([]common.Hash, len(rr))
-		}
-
 		for i, r := range rr {
 			// simulate the bug
 			if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
 				cumulativeGasWrong = 0
 			}
-			// restore
+			// recalc
 			gasUsed := r.CumulativeGasUsed - cumulativeGasWrong
 			cumulativeGasWrong += gasUsed
 			cumulativeGasRight += gasUsed
-
-			if r.CumulativeGasUsed != cumulativeGasWrong {
-				panic(fmt.Sprintf(
-					"B %d[%d] %s : %d(%d) != %d(%d)\n", n, i, txs[i].Hex(), r.GasUsed, r.CumulativeGasUsed, gasUsed, cumulativeGasWrong))
-			}
-
+			// fix
 			if r.CumulativeGasUsed != cumulativeGasRight {
-				fmt.Printf(
-					"B %d[%d] %s : %d(%d) --> %d(%d)\n", n, i, txs[i].Hex(), r.GasUsed, r.CumulativeGasUsed, gasUsed, cumulativeGasRight)
-
-				if minBlock == 0 {
-					minBlock = n
-				}
-				maxBlock = n
-				fixedTxs++
+				r.CumulativeGasUsed = cumulativeGasRight
+				r.GasUsed = gasUsed
+				fixed = true
 			}
+		}
+		if fixed {
+			s.EvmStore().SetReceipts(n, rr)
 		}
 	}
 
-	panic(fmt.Sprintf("Start %d. Finish %d-%d (%d), badBlocks %d\n", *start, minBlock, maxBlock, fixedTxs, badBlocks))
 	return nil
 }
