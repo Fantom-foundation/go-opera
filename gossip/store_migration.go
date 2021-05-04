@@ -12,14 +12,18 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 	return !it.Next()
 }
 
-func (s *Store) Migrate() error {
+func (s *Store) migrateData() error {
 	versions := migration.NewKvdbIDStore(s.table.Version)
 	if isEmptyDB(s.mainDB) && isEmptyDB(s.async.mainDB) {
 		// short circuit if empty DB
 		versions.SetID(s.migrations().ID())
 		return nil
 	}
-	return s.migrations().Exec(versions)
+	err := s.migrations().Exec(versions)
+	if err == nil {
+		err = s.Commit()
+	}
+	return err
 }
 
 func (s *Store) migrations() *migration.Migration {
