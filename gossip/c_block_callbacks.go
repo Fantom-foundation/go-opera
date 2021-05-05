@@ -197,9 +197,6 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					externalReceipts := evmProcessor.Execute(txs, false)
-					for _, tx := range txs {
-						block.Txs = append(block.Txs, tx.Hash())
-					}
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs
