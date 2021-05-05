@@ -32,7 +32,8 @@ func (s *Store) migrateData() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("used gas recovery", s.dataRecovery_UsedGas)
+		Next("used gas recovery", s.dataRecovery_UsedGas).
+		Next("block's txs recovery", s.dataRecovery_BlocksTxs)
 }
 
 func (s *Store) dataRecovery_UsedGas() error {
@@ -78,6 +79,30 @@ func (s *Store) dataRecovery_UsedGas() error {
 		}
 		if fixed {
 			s.EvmStore().SetReceipts(n, rr)
+		}
+	}
+
+	return nil
+}
+
+func (s *Store) dataRecovery_BlocksTxs() error {
+	start := s.GetGenesisBlockIndex()
+	if start == nil {
+		return fmt.Errorf("genesis block index is not set")
+	}
+
+	for n := *start + 1; true; n++ {
+		b := s.GetBlock(n)
+		if b == nil {
+			break
+		}
+
+		var (
+			fixed bool
+		)
+
+		if fixed {
+			s.SetBlock(n, b)
 		}
 	}
 
