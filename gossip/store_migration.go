@@ -25,16 +25,17 @@ func (s *Store) migrateData() error {
 	if err == nil {
 		err = s.Commit()
 	}
+
 	return err
 }
 
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("fix of used gas", s.fixOfUsedGas)
+		Next("used gas recovery", s.dataRecovery_UsedGas)
 }
 
-func (s *Store) fixOfUsedGas() error {
+func (s *Store) dataRecovery_UsedGas() error {
 	start := s.GetGenesisBlockIndex()
 	if start == nil {
 		return fmt.Errorf("genesis block index is not set")
@@ -54,8 +55,15 @@ func (s *Store) fixOfUsedGas() error {
 		)
 		for i, r := range rr {
 			// simulate the bug
-			if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
-				cumulativeGasWrong = 0
+			switch {
+			case n == *start: // genesis block
+				if i == len(b.InternalTxs)-2 || i == len(b.InternalTxs)-1 {
+					cumulativeGasWrong = 0
+				}
+			default: // other blocks
+				if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
+					cumulativeGasWrong = 0
+				}
 			}
 			// recalc
 			gasUsed := r.CumulativeGasUsed - cumulativeGasWrong
