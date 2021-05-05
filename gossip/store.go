@@ -102,6 +102,10 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
 	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
 
+	if err := s.migrateData(); err != nil {
+		s.Log.Crit("Failed to migrate Gossip DB", "err", err)
+	}
+
 	return s
 }
 
