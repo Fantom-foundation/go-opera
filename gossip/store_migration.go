@@ -15,9 +15,6 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 }
 
 func (s *Store) migrateData() error {
-
-	defer panic("Finish")
-
 	versions := migration.NewKvdbIDStore(s.table.Version)
 	if isEmptyDB(s.mainDB) && isEmptyDB(s.async.mainDB) {
 		// short circuit if empty DB
@@ -100,10 +97,6 @@ func (s *Store) dataRecovery_BlocksTxs() error {
 			break
 		}
 
-		if len(b.Txs) > 0 {
-			panic("Not empty Txs !")
-		}
-
 		var fixed bool
 		for _, id := range b.Events {
 			e := s.GetEventPayload(id)
@@ -112,12 +105,6 @@ func (s *Store) dataRecovery_BlocksTxs() error {
 				fixed = true
 			}
 		}
-
-		rr := s.EvmStore().GetReceipts(n)
-		if len(b.NotSkippedTxs()) != len(rr) {
-			panic("Invalid len(Txs) !")
-		}
-
 		if fixed {
 			s.SetBlock(n, b)
 		}
