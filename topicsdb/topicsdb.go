@@ -138,6 +138,9 @@ func (tt *Index) Push(recs ...*types.Log) error {
 			pos   int
 		)
 		pushIndex := func(topic common.Hash) error {
+			if pos >= 0xff {
+				panic(fmt.Errorf("A lot of topics! (block: %d, tx: %s, index: %d)", rec.BlockNumber, rec.TxHash.Hex(), rec.Index))
+			}
 			key := topicKey(topic, uint8(pos), id)
 			if err := tt.table.Topic.Put(key, count); err != nil {
 				return err
