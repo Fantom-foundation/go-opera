@@ -3,7 +3,6 @@ package gossip
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 
 	"github.com/Fantom-foundation/go-opera/utils/migration"
@@ -33,8 +32,7 @@ func (s *Store) migrateData() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("used gas recovery", s.dataRecovery_UsedGas).
-		Next("check logs", s.dataCheck_Logs)
+		Next("used gas recovery", s.dataRecovery_UsedGas)
 }
 
 func (s *Store) dataRecovery_UsedGas() error {
@@ -84,36 +82,4 @@ func (s *Store) dataRecovery_UsedGas() error {
 	}
 
 	return nil
-}
-
-func (s *Store) dataCheck_Logs() error {
-	defer panic("migration should not be commited")
-
-	start := s.GetGenesisBlockIndex()
-	if start == nil {
-		return fmt.Errorf("genesis block index is not set")
-	}
-
-	var (
-		maxTopicsCount int
-		n              idx.Block
-	)
-
-	for n = *start; true; n++ {
-		b := s.GetBlock(n)
-		if b == nil {
-			break
-		}
-
-		rr := s.EvmStore().GetReceipts(n)
-		for _, r := range rr {
-			for _, l := range r.Logs {
-				if maxTopicsCount < len(l.Topics) {
-					maxTopicsCount = len(l.Topics)
-				}
-			}
-		}
-	}
-
-	panic(fmt.Errorf(">>> max topics count: %d, till block %d", maxTopicsCount, n))
 }
