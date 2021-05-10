@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -23,7 +24,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		return
 	}
 
-	err = checkPattern(pattern)
+	pattern, err = limitPattern(pattern)
 	if err != nil {
 		return
 	}
@@ -288,6 +289,44 @@ func TestIndexSearchSimple(t *testing.T) {
 		})
 	}
 
+}
+
+func TestMaxTopicsCount(t *testing.T) {
+	logger.SetTestMode(t)
+
+	testdata := &types.Log{
+		BlockNumber: 1,
+		Address:     randAddress(),
+		Topics:      make([]common.Hash, MaxTopicsCount),
+	}
+	pattern := make([][]common.Hash, MaxTopicsCount+1)
+	pattern[0] = []common.Hash{testdata.Address.Hash()}
+	for i := range testdata.Topics {
+		testdata.Topics[i] = common.BytesToHash([]byte(fmt.Sprintf("topic%d", i)))
+		pattern[0] = append(pattern[0], testdata.Topics[i])
+		pattern[i+1] = []common.Hash{testdata.Topics[i]}
+	}
+
+	index := New(memorydb.New())
+	err := index.Push(testdata)
+	require.NoError(t, err)
+
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"sync":  index.FindInBlocks,
+		"async": index.FindInBlocksAsync,
+	} {
+		t.Run(dsc, func(t *testing.T) {
+			require := require.New(t)
+
+			got, err := method(nil, 0, 0xffffffff, pattern)
+			require.NoError(err)
+			require.Equal(1, len(got))
+			require.Equal(MaxTopicsCount, len(got[0].Topics))
+		})
+	}
+
+	require.Equal(t, MaxTopicsCount+1, len(pattern))
+	require.Equal(t, MaxTopicsCount+1, len(pattern[0]))
 }
 
 func genTestData(count int) (
