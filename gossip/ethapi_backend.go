@@ -266,6 +266,11 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 	}
 
 	receipts := b.svc.store.evm.GetReceipts(idx.Block(number))
+	block := b.state.GetBlock(common.Hash{}, uint64(number))
+	err := receipts.DeriveFields(b.svc.store.GetRules().EvmChainConfig(), block.Hash, uint64(number), block.Transactions)
+	if err != nil {
+		return nil, err
+	}
 	return receipts, nil
 }
 
