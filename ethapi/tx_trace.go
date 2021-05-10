@@ -537,7 +537,6 @@ var bc3 common.Address = common.HexToAddress("0xd100A01E000000000000000000000000
 // Gets all transaction from specified block and process them
 func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash) (*[]ActionTrace, error) {
 	var (
-		mainErr       error
 		blockNumber   int64
 		parentBlockNr rpc.BlockNumber
 	)
@@ -557,7 +556,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 	state, header, err := backend.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHash{BlockNumber: &parentBlockNr})
 	if err != nil {
 		log.Debug("Cannot get state for blockblock ", "block", block.NumberU64(), "err", err.Error())
-		mainErr = err
+		callTrace.addTrace(getErrorTrace(block.Hash, *block.Number, nil, common.Hash{}, 0, err))
 	}
 
 	// loop thru all transactions in the block and process them
@@ -584,19 +583,15 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 		}
 	}
 
-	// in case of empty block, create an empty action result
-	if len(callTrace.Actions) == 0 || mainErr != nil {
+	// in case of empty block
+	if len(callTrace.Actions) == 0 {
 		emptyTrace := CallTrace{
 			Actions: make([]ActionTrace, 0),
 		}
 		blockTrace := NewActionTrace(block.Hash, *block.Number, common.Hash{}, 0, "empty")
 		txAction := NewAddressAction(&common.Address{}, 0, []byte{}, nil, hexutil.Big{}, nil)
 		blockTrace.Action = *txAction
-		if mainErr != nil {
-			blockTrace.Error = mainErr.Error()
-		} else {
-			blockTrace.Error = "Empty block"
-		}
+		blockTrace.Error = "Empty block"
 		emptyTrace.addTrace(blockTrace)
 		return &emptyTrace.Actions, nil
 	}
@@ -604,6 +599,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 	return &callTrace.Actions, nil
 }
 
+// getErrorTrace Returns filled error trace
 func getErrorTrace(blockHash common.Hash, blockNumber big.Int, tx *types.Transaction, txHash common.Hash, index uint64, err error) *ActionTrace {
 
 	var blockTrace *ActionTrace
