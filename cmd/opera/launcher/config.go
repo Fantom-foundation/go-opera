@@ -67,6 +67,12 @@ var (
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+
+	// TraceNodeFlag enables transaction tracing recording
+	TraceNodeFlag = cli.BoolFlag{
+		Name:  "tracenode",
+		Usage: "If present, than this node records inner transaction traces",
+	}
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -347,6 +353,10 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 
 	if err := cfg.Opera.Validate(); err != nil {
 		return nil, err
+	}
+
+	if ctx.GlobalIsSet(TraceNodeFlag.Name) {
+		cfg.OperaStore.TraceTransactions = true
 	}
 
 	return &cfg, nil
