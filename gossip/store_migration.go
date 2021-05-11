@@ -21,11 +21,8 @@ func (s *Store) migrateData() error {
 		versions.SetID(s.migrations().ID())
 		return nil
 	}
-	err := s.migrations().Exec(versions)
-	if err == nil {
-		err = s.Commit()
-	}
 
+	err := s.migrations().Exec(versions, s.Commit)
 	return err
 }
 
