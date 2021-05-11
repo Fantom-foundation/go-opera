@@ -14,6 +14,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
+	"github.com/Fantom-foundation/go-opera/gossip/txtrace"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
@@ -25,10 +26,12 @@ type Store struct {
 
 	async *asyncStore
 
-	mainDB kvdb.Store
-	evm    *evmstore.Store
-	sfcapi *sfcapi.Store
-	table  struct {
+	mainDB  kvdb.Store
+	evm     *evmstore.Store
+	sfcapi  *sfcapi.Store
+	txtrace *txtrace.Store
+
+	table struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
@@ -36,6 +39,9 @@ type Store struct {
 		Events          kvdb.Store `table:"e"`
 		Blocks          kvdb.Store `table:"b"`
 		Genesis         kvdb.Store `table:"g"`
+
+		// Transaction traces
+		TransactionTraces kvdb.Store `table:"t"`
 
 		// P2P-only
 		HighestLamport kvdb.Store `table:"l"`
@@ -100,6 +106,9 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
 	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
+	if cfg.TraceTransactions {
+		s.txtrace = txtrace.NewStore(s.table.TransactionTraces)
+	}
 
 	return s
 }
@@ -129,6 +138,9 @@ func (s *Store) Close() {
 	_ = s.mainDB.Close()
 	s.async.Close()
 	s.sfcapi.Close()
+	if s.txtrace != nil {
+		s.txtrace.Close()
+	}
 	_ = s.closeEpochStore()
 }
 
