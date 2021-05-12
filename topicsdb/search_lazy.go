@@ -20,10 +20,11 @@ func (tt *Index) walk(
 ) (
 	gonext bool, err error,
 ) {
+	patternLen := uint8(len(pattern))
 	gonext = true
 	for {
 		// Max recursion depth is equal to len(topics) and limited by MaxCount.
-		if pos >= uint8(len(pattern)) {
+		if pos >= patternLen {
 			if rec == nil {
 				return
 			}
@@ -59,12 +60,15 @@ func (tt *Index) walk(
 				return
 			}
 
-			id := extractLogrecID(it.Key())
 			var newRec *logrec
 			if rec != nil {
 				newRec = rec
 			} else {
 				topicCount := bytesToPos(it.Value())
+				if topicCount < (patternLen - 1) {
+					continue
+				}
+				id := extractLogrecID(it.Key())
 				newRec = newLogrec(id, topicCount)
 			}
 			gonext, err = tt.walk(ctx, newRec, nil, pattern, pos+1, onMatched)
