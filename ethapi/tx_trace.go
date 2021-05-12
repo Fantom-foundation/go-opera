@@ -135,6 +135,10 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	return txTracer.GetTraceActions(), nil
 }
 
+var bc1 common.Address = common.HexToAddress("0x6a7a28fd9b590ad24be7b3830b10d8990fad849d")
+var bc2 common.Address = common.HexToAddress("0x5b563dB9c4021513154606A7bDaD54bC772ED269")
+var bc3 common.Address = common.HexToAddress("0xd100A01E00000000000000000000000000000000")
+
 // Gets all transaction from specified block and process them
 func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash) (*[]txtrace.ActionTrace, error) {
 	var (
