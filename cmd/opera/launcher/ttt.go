@@ -72,12 +72,25 @@ func ttt(ctx *cli.Context) error {
 			{common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")},
 			{common.HexToHash("0x000000000000000000000000e66693d9eb8562c8d7e294f792f45f767490f375")},
 		}
+	case "AND1":
+		fn = "AND1.pprof"
+		pattern = [][]common.Hash{
+			{},
+			{common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")},
+		}
 	case "OR":
 		fn = "OR.pprof"
 		pattern = [][]common.Hash{
 			{},
 			{common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 				common.HexToHash("0x000000000000000000000000e66693d9eb8562c8d7e294f792f45f767490f375")},
+		}
+	case "OR1":
+		fn = "OR1.pprof"
+		pattern = [][]common.Hash{
+			{},
+			{common.HexToHash("0x000000000000000000000000e66693d9eb8562c8d7e294f792f45f767490f375"),
+				common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")},
 		}
 	default:
 		panic("Unknown arg:" + x)
