@@ -277,7 +277,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 				if err != nil {
 					return err
 				}
-				log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
+				log.Debug("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
 
 				// event is connected, announce it if synced up
 				if atomic.LoadUint32(&pm.synced) != 0 {
