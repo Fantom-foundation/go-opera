@@ -38,20 +38,17 @@ func (tt *Index) walk(
 		break
 	}
 
+	var (
+		prefix  [topicKeySize]byte
+		prefLen int = common.HashLength + uint8Size
+	)
+	copy(prefix[common.HashLength:], posToBytes(pos))
+	if rec != nil {
+		copy(prefix[prefLen:], rec.ID.Bytes())
+		prefLen += logrecKeySize
+	}
 	for _, variant := range pattern[pos] {
-		var (
-			prefix  [topicKeySize]byte
-			prefLen int
-		)
-		copy(prefix[prefLen:], variant.Bytes())
-		prefLen += common.HashLength
-		copy(prefix[prefLen:], posToBytes(pos))
-		prefLen += uint8Size
-		if rec != nil {
-			copy(prefix[prefLen:], rec.ID.Bytes())
-			prefLen += logrecKeySize
-		}
-
+		copy(prefix[0:], variant.Bytes())
 		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
 		for it.Next() {
 			err = ctx.Err()
@@ -85,6 +82,5 @@ func (tt *Index) walk(
 		}
 
 	}
-
 	return
 }
