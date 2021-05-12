@@ -60,8 +60,13 @@ func (tt *Index) walk(
 			}
 
 			id := extractLogrecID(it.Key())
-			topicCount := bytesToPos(it.Value())
-			newRec := newLogrec(id, topicCount)
+			var newRec *logrec
+			if rec != nil {
+				newRec = rec
+			} else {
+				topicCount := bytesToPos(it.Value())
+				newRec = newLogrec(id, topicCount)
+			}
 			gonext, err = tt.walk(ctx, newRec, nil, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
