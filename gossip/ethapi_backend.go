@@ -76,6 +76,9 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmco
 
 // TxTraceByHash returns transaction trace from store db by the hash.
 func (b *EthAPIBackend) TxTraceByHash(ctx context.Context, h common.Hash) (*[]txtrace.ActionTrace, error) {
+	if b.state.store.txtrace == nil {
+		return nil, errors.New("Transaction trace key-value store db is not initialized")
+	}
 	txBytes := b.state.store.txtrace.GetTx(h)
 	traces := make([]txtrace.ActionTrace, 0)
 	json.Unmarshal(txBytes, &traces)
@@ -87,7 +90,10 @@ func (b *EthAPIBackend) TxTraceByHash(ctx context.Context, h common.Hash) (*[]tx
 
 // TxTraceSave saves transaction trace into store db
 func (b *EthAPIBackend) TxTraceSave(ctx context.Context, h common.Hash, traces []byte) error {
-	return b.state.store.txtrace.SetTxTrace(h, traces)
+	if b.state.store.txtrace != nil {
+		return b.state.store.txtrace.SetTxTrace(h, traces)
+	}
+	return errors.New("Transaction trace key-value store db is not initialized")
 }
 
 // BlockByNumber returns block by its number.

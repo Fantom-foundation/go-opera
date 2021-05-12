@@ -17,6 +17,7 @@
 package evmcore
 
 import (
+	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -112,6 +113,21 @@ func ApplyTransaction(
 		msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data(), false)
 	}
 
+	// Test if type of tracer is transaction tracing
+	// logger, in that case, set a info for it
+	var traceLogger *txtrace.TraceStructLogger
+	switch cfg.Tracer.(type) {
+	case *txtrace.TraceStructLogger:
+		traceLogger = cfg.Tracer.(*txtrace.TraceStructLogger)
+		traceLogger.SetTx(tx.Hash())
+		traceLogger.SetFrom(msg.From())
+		traceLogger.SetTo(msg.To())
+		traceLogger.SetValue(*msg.Value())
+		traceLogger.SetBlockHash(statedb.BlockHash())
+		traceLogger.SetBlockNumber(header.Number)
+		traceLogger.SetTxIndex(uint(statedb.TxIndex()))
+	}
+
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
@@ -150,6 +166,14 @@ func ApplyTransaction(
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
+
+	// Set post informations and save trace
+	if traceLogger != nil {
+		traceLogger.SetGasUsed(result.UsedGas)
+		traceLogger.SetNewAddress(receipt.ContractAddress)
+		traceLogger.ProcessTx()
+		traceLogger.SaveTrace()
+	}
 
 	return receipt, result.UsedGas, false, err
 }
