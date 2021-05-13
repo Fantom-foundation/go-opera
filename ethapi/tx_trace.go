@@ -135,10 +135,6 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	return txTracer.GetTraceActions(), nil
 }
 
-var bc1 common.Address = common.HexToAddress("0x6a7a28fd9b590ad24be7b3830b10d8990fad849d")
-var bc2 common.Address = common.HexToAddress("0x5b563dB9c4021513154606A7bDaD54bC772ED269")
-var bc3 common.Address = common.HexToAddress("0xd100A01E00000000000000000000000000000000")
-
 // Gets all transaction from specified block and process them
 func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash) (*[]txtrace.ActionTrace, error) {
 	var (
@@ -151,6 +147,11 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 		parentBlockNr = rpc.BlockNumber(blockNumber - 1)
 	} else {
 		return nil, fmt.Errorf("Invalid block for tracing")
+	}
+
+	// Check if node is synced
+	if backend.CurrentBlock().Number.Int64() < blockNumber {
+		return nil, fmt.Errorf("Invalid block %v for tracing, current block is %v", blockNumber, backend.CurrentBlock())
 	}
 
 	callTrace := txtrace.CallTrace{
@@ -170,12 +171,28 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 				log.Warn("Replaying transaction", "txHash", tx.Hash().String())
 				// get full transaction info
 				tx, _, index, err := backend.GetTransaction(ctx, tx.Hash())
-
 				if err != nil {
 					log.Debug("Cannot get transaction", "txHash", tx.Hash().String(), "err", err.Error())
 					callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, tx.To(), tx.Hash(), index, err))
 					continue
 				}
+
+				receipts, err := backend.GetReceiptsByNumber(ctx, rpc.BlockNumber(blockNumber))
+				if err != nil {
+					log.Debug("Cannot get receipts for block", "block", blockNumber, "err", err.Error())
+					callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, tx.To(), tx.Hash(), index, err))
+					continue
+				}
+
+				if len(receipts) < int(index) {
+					receipt := receipts[index]
+					if receipt.Status == types.ReceiptStatusFailed {
+						log.Debug("Transaction has status failed", "block", blockNumber, "err", err.Error())
+						callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, tx.To(), tx.Hash(), index, nil))
+						continue
+					}
+				}
+
 				if tx.To() != nil && *tx.To() == sfc.ContractAddress {
 					callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, tx.To(), tx.Hash(), index, err))
 				} else {
