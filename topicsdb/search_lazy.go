@@ -10,12 +10,72 @@ func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockS
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	_, err = tt.walk(ctx, nil, blockStart, pattern, 0, onMatched)
+	_, err = tt.walkFirst(ctx, blockStart, pattern, 0, onMatched)
 	return
 }
 
-// walk for topics recursive.
-func (tt *Index) walk(
+// walkFirst for topics recursive.
+func (tt *Index) walkFirst(
+	ctx context.Context, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched func(*logrec) (bool, error),
+) (
+	gonext bool, err error,
+) {
+	patternLen := uint8(len(pattern))
+	gonext = true
+	for {
+		if pos >= patternLen {
+			return
+		}
+		if len(pattern[pos]) < 1 {
+			pos++
+			continue
+		}
+		break
+	}
+
+	var (
+		prefix  [topicKeySize]byte
+		prefLen int = hashSize
+	)
+	copy(prefix[prefLen:], posToBytes(pos))
+	prefLen += uint8Size
+
+	for _, variant := range pattern[pos] {
+		copy(prefix[0:], variant.Bytes())
+		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
+		for it.Next() {
+			err = ctx.Err()
+			if err != nil {
+				it.Release()
+				return
+			}
+
+			topicCount := bytesToPos(it.Value())
+			if topicCount < (patternLen - 1) {
+				continue
+			}
+			id := extractLogrecID(it.Key())
+			rec := newLogrec(id, topicCount)
+
+			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
+			if err != nil || !gonext {
+				it.Release()
+				return
+			}
+		}
+
+		err = it.Error()
+		it.Release()
+		if err != nil {
+			return
+		}
+
+	}
+	return
+}
+
+// walkNexts for topics recursive.
+func (tt *Index) walkNexts(
 	ctx context.Context, rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched func(*logrec) (bool, error),
 ) (
 	gonext bool, err error,
@@ -25,9 +85,6 @@ func (tt *Index) walk(
 	for {
 		// Max recursion depth is equal to len(topics) and limited by MaxCount.
 		if pos >= patternLen {
-			if rec == nil {
-				return
-			}
 			gonext, err = onMatched(rec)
 			return
 		}
@@ -40,13 +97,13 @@ func (tt *Index) walk(
 
 	var (
 		prefix  [topicKeySize]byte
-		prefLen int = common.HashLength + uint8Size
+		prefLen int = hashSize
 	)
-	copy(prefix[common.HashLength:], posToBytes(pos))
-	if rec != nil {
-		copy(prefix[prefLen:], rec.ID.Bytes())
-		prefLen += logrecKeySize
-	}
+	copy(prefix[prefLen:], posToBytes(pos))
+	prefLen += uint8Size
+	copy(prefix[prefLen:], rec.ID.Bytes())
+	prefLen += logrecKeySize
+
 	for _, variant := range pattern[pos] {
 		copy(prefix[0:], variant.Bytes())
 		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
@@ -57,18 +114,7 @@ func (tt *Index) walk(
 				return
 			}
 
-			var newRec *logrec
-			if rec != nil {
-				newRec = rec
-			} else {
-				topicCount := bytesToPos(it.Value())
-				if topicCount < (patternLen - 1) {
-					continue
-				}
-				id := extractLogrecID(it.Key())
-				newRec = newLogrec(id, topicCount)
-			}
-			gonext, err = tt.walk(ctx, newRec, nil, pattern, pos+1, onMatched)
+			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
 				return
