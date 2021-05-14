@@ -63,7 +63,12 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return err
 	}
 
-	onMatched := func(rec *logrec) (gonext bool, err error) {
+	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
+		if !complete {
+			gonext = true
+			return
+		}
+
 		rec.fetch(tt.table.Logrec)
 		if rec.err != nil {
 			err = rec.err
@@ -87,8 +92,13 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return err
 	}
 
-	onMatched := func(rec *logrec) (gonext bool, err error) {
+	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
 		if rec.ID.BlockNumber() > uint64(to) {
+			return
+		}
+
+		if !complete {
+			gonext = true
 			return
 		}
 

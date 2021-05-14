@@ -6,7 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart []byte, onMatched func(*logrec) (bool, error)) (err error) {
+type logHandler func(rec *logrec, complete bool) (gonext bool, err error)
+
+func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart []byte, onMatched logHandler) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -16,7 +18,7 @@ func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockS
 
 // walkFirst for topics recursive.
 func (tt *Index) walkFirst(
-	ctx context.Context, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched func(*logrec) (bool, error),
+	ctx context.Context, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched logHandler,
 ) (
 	gonext bool, err error,
 ) {
@@ -57,6 +59,12 @@ func (tt *Index) walkFirst(
 			id := extractLogrecID(it.Key())
 			rec := newLogrec(id, topicCount)
 
+			gonext, err = onMatched(rec, false)
+			if err != nil || !gonext {
+				it.Release()
+				return
+			}
+
 			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
@@ -76,7 +84,7 @@ func (tt *Index) walkFirst(
 
 // walkNexts for topics recursive.
 func (tt *Index) walkNexts(
-	ctx context.Context, rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched func(*logrec) (bool, error),
+	ctx context.Context, rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched logHandler,
 ) (
 	gonext bool, err error,
 ) {
@@ -85,7 +93,7 @@ func (tt *Index) walkNexts(
 	for {
 		// Max recursion depth is equal to len(topics) and limited by MaxCount.
 		if pos >= patternLen {
-			gonext, err = onMatched(rec)
+			gonext, err = onMatched(rec, true)
 			return
 		}
 		if len(pattern[pos]) < 1 {

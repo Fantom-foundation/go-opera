@@ -49,8 +49,13 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		}
 	}()
 
-	onMatched := func(rec *logrec) (gonext bool, err error) {
+	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
 		if rec.ID.BlockNumber() > uint64(to) {
+			return
+		}
+
+		if !complete {
+			gonext = true
 			return
 		}
 
