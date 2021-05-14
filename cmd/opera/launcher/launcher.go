@@ -182,8 +182,6 @@ func init() {
 		importCommand,
 		exportCommand,
 		checkCommand,
-		// temporary
-		tttCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
