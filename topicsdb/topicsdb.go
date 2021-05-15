@@ -123,11 +123,8 @@ func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) 
 	copy(limited, pattern)
 
 	ok := false
-	for i, variants := range limited {
+	for _, variants := range limited {
 		ok = ok || len(variants) > 0
-		if len(variants) > MaxTopicsCount {
-			limited[i] = variants[:MaxTopicsCount]
-		}
 	}
 	if !ok {
 		err = ErrEmptyTopics
