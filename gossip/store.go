@@ -63,6 +63,7 @@ type Store struct {
 		EventsHeaders   *wlru.Cache  `cache:"-"` // store by pointer
 		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
+		EvmBlocks       *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState atomic.Value // store by value
 		HighestLamport  atomic.Value // store by value
 	}
@@ -108,6 +109,10 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
 	if cfg.TraceTransactions {
 		s.txtrace = txtrace.NewStore(s.table.TransactionTraces)
+	}
+
+	if err := s.migrateData(); err != nil {
+		s.Log.Crit("Failed to migrate Gossip DB", "err", err)
 	}
 
 	return s

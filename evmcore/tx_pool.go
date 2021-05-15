@@ -134,6 +134,8 @@ type stateReader interface {
 	MaxGasLimit() uint64
 
 	SubscribeNewBlock(ch chan<- ChainHeadNotify) notify.Subscription
+
+	TxExists(common.Hash) bool
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -565,6 +567,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Ensure Opera-specific hard bounds
 	if pool.chain.MinGasPrice().Cmp(tx.GasPrice()) > 0 {
+		return ErrUnderpriced
+	}
+	if pool.chain.TxExists(tx.Hash()) {
 		return ErrUnderpriced
 	}
 	// Ensure the transaction adheres to nonce ordering

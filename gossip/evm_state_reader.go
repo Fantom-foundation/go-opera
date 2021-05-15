@@ -71,6 +71,11 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	if (h != hash.Event{}) && (h != block.Atropos) {
 		return nil
 	}
+	if readTxs {
+		if cached := r.store.EvmStore().GetCachedEvmBlock(n); cached != nil {
+			return cached
+		}
+	}
 
 	var transactions types.Transactions
 	if readTxs {
@@ -98,7 +103,6 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 				continue
 			}
 			transactions = append(transactions, e.Txs()...)
-
 		}
 
 		transactions = inter.FilterSkippedTxs(transactions, block.SkippedTxs)
@@ -124,9 +128,17 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 		EvmHeader:    *evmHeader,
 		Transactions: transactions,
 	}
+
+	if readTxs {
+		r.store.EvmStore().SetCachedEvmBlock(n, evmBlock)
+	}
 	return evmBlock
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
 	return r.store.evm.StateDB(hash.Hash(root))
+}
+
+func (r *EvmStateReader) TxExists(txid common.Hash) bool {
+	return r.store.EvmStore().GetTxPosition(txid) != nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -40,11 +41,11 @@ func BenchmarkFlushDBs(b *testing.B) {
 			return nil
 		},
 	}, Configs{
-		Opera:         gossip.DefaultConfig(),
-		OperaStore:    gossip.DefaultStoreConfig(),
+		Opera:         gossip.DefaultConfig(cachescale.Identity),
+		OperaStore:    gossip.DefaultStoreConfig(cachescale.Identity),
 		Lachesis:      abft.DefaultConfig(),
-		LachesisStore: abft.DefaultStoreConfig(),
-		VectorClock:   vecmt.DefaultConfig(),
+		LachesisStore: abft.DefaultStoreConfig(cachescale.Identity),
+		VectorClock:   vecmt.DefaultConfig(cachescale.Identity),
 	})
 	defer store.Close()
 	defer s2.Close()

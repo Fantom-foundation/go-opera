@@ -137,7 +137,7 @@ func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
 	w.FixedBytes(e.sig.Bytes())
 	if !e.NoTxs() {
 		// txs size
-		w.U64fromZero(uint64(e.txs.Len()))
+		w.U56(uint64(e.txs.Len()))
 		// txs
 		for _, tx := range e.txs {
 			err := TransactionMarshalCSER(w, tx)
@@ -158,7 +158,7 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 	txs := types.Transactions{}
 	if !e.NoTxs() {
 		// txs size
-		size := r.U64fromZero()
+		size := r.U56()
 		for i := uint64(0); i < size; i++ {
 			tx, err := TransactionUnmarshalCSER(r)
 			if err != nil {
@@ -178,7 +178,7 @@ func (e *EventPayload) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaller interface.
 func (e *MutableEventPayload) UnmarshalBinary(raw []byte) (err error) {
-	return cser.UnmmrshalBinaryAdapter(raw, e.UnmarshalCSER)
+	return cser.UnmarshalBinaryAdapter(raw, e.UnmarshalCSER)
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaller interface.

@@ -39,6 +39,7 @@ type Config struct {
 	Blocks     int
 	Percentile int
 	MaxPrice   *big.Int `toml:",omitempty"`
+	MinPrice   *big.Int `toml:",omitempty"`
 }
 
 type Reader interface {
@@ -46,6 +47,19 @@ type Reader interface {
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
 	ChainConfig() *params.ChainConfig
 	MinGasPrice() *big.Int
+}
+
+type configuredMinGasPrice struct {
+	Reader
+	minPrice *big.Int
+}
+
+func (b configuredMinGasPrice) MinGasPrice() *big.Int {
+	backendValue := b.Reader.MinGasPrice()
+	if backendValue.Cmp(b.minPrice) > 0 {
+		return backendValue
+	}
+	return b.minPrice
 }
 
 // Oracle recommends gas prices based on the content of recent
@@ -80,10 +94,16 @@ func NewOracle(backend Reader, params Config) *Oracle {
 		log.Warn("Sanitizing invalid gasprice oracle sample percentile", "provided", params.Percentile, "updated", percent)
 	}
 	maxPrice := params.MaxPrice
-	if maxPrice == nil || maxPrice.Int64() <= 0 {
+	if maxPrice == nil || maxPrice.Sign() <= 0 {
 		maxPrice = DefaultMaxPrice
 		log.Warn("Sanitizing invalid gasprice oracle price cap", "provided", params.MaxPrice, "updated", maxPrice)
 	}
+	minPrice := params.MinPrice
+	if minPrice == nil || minPrice.Sign() < 0 {
+		minPrice = new(big.Int)
+		log.Warn("Sanitizing invalid gasprice oracle price minimum", "provided", params.MinPrice, "updated", minPrice)
+	}
+	backend = configuredMinGasPrice{backend, minPrice}
 	return &Oracle{
 		backend:     backend,
 		lastPrice:   backend.MinGasPrice(),

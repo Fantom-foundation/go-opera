@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
@@ -10,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
@@ -46,15 +48,15 @@ type (
 		MaxInitialTxHashesSend   int
 		MaxRandomTxHashesSend    int
 		RandomTxHashesSendPeriod time.Duration
+
+		PeerCache PeerCacheConfig
 	}
 	// Config for the gossip service.
 	Config struct {
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
 
-		TxIndex             bool // Whether to enable indexing transactions and receipts or not
-		DecisiveEventsIndex bool // Whether to enable indexing events which decide blocks or not
-		EventLocalTimeIndex bool // Whether to enable indexing arrival time of events or not
+		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
 		// Protocol options
 		Protocol ProtocolConfig
@@ -106,14 +108,23 @@ type (
 	}
 )
 
+type PeerCacheConfig struct {
+	MaxKnownTxs    int // Maximum transactions hashes to keep in the known list (prevent DOS)
+	MaxKnownEvents int // Maximum event hashes to keep in the known list (prevent DOS)
+	// MaxQueuedItems is the maximum number of items to queue up before
+	// dropping broadcasts. This is a sensitive number as a transaction list might
+	// contain a single transaction, or thousands.
+	MaxQueuedItems idx.Event
+	MaxQueuedSize  uint64
+}
+
 // DefaultConfig returns the default configurations for the gossip service.
-func DefaultConfig() Config {
+func DefaultConfig(scale cachescale.Func) Config {
 	cfg := Config{
 		Emitter: emitter.DefaultConfig(),
 		TxPool:  evmcore.DefaultTxPoolConfig(),
 
-		TxIndex:             true,
-		DecisiveEventsIndex: false,
+		TxIndex: true,
 
 		HeavyCheck: heavycheck.DefaultConfig(),
 
@@ -121,46 +132,48 @@ func DefaultConfig() Config {
 			LatencyImportance:    60,
 			ThroughputImportance: 40,
 			MsgsSemaphoreLimit: dag.Metric{
-				Num:  1000,
-				Size: 30 * opt.MiB,
+				Num:  scale.Events(1000),
+				Size: scale.U64(30 * opt.MiB),
 			},
 			EventsSemaphoreLimit: dag.Metric{
-				Num:  10000,
-				Size: 30 * opt.MiB,
+				Num:  scale.Events(10000),
+				Size: scale.U64(30 * opt.MiB),
 			},
 			MsgsSemaphoreTimeout:    10 * time.Second,
 			ProgressBroadcastPeriod: 10 * time.Second,
 
-			Processor: dagprocessor.DefaultConfig(),
+			Processor: dagprocessor.DefaultConfig(scale),
 			DagFetcher: itemsfetcher.Config{
 				ForgetTimeout:       1 * time.Minute,
 				ArriveTimeout:       1000 * time.Millisecond,
 				GatherSlack:         100 * time.Millisecond,
 				HashLimit:           20000,
-				MaxBatch:            512,
-				MaxQueuedBatches:    32,
+				MaxBatch:            scale.I(512),
+				MaxQueuedBatches:    scale.I(32),
 				MaxParallelRequests: 192,
 			},
 			TxFetcher: itemsfetcher.Config{
 				ForgetTimeout:       1 * time.Minute,
 				ArriveTimeout:       1000 * time.Millisecond,
 				GatherSlack:         100 * time.Millisecond,
-				HashLimit:           20000,
-				MaxBatch:            512,
-				MaxQueuedBatches:    32,
+				HashLimit:           10000,
+				MaxBatch:            scale.I(512),
+				MaxQueuedBatches:    scale.I(32),
 				MaxParallelRequests: 64,
 			},
 			StreamLeecher:            streamleecher.DefaultConfig(),
-			StreamSeeder:             streamseeder.DefaultConfig(),
+			StreamSeeder:             streamseeder.DefaultConfig(scale),
 			MaxInitialTxHashesSend:   20000,
 			MaxRandomTxHashesSend:    128,
 			RandomTxHashesSendPeriod: 20 * time.Second,
+			PeerCache:                DefaultPeerCacheConfig(scale),
 		},
 
 		GPO: gasprice.Config{
 			Blocks:     20,
 			Percentile: 60,
 			MaxPrice:   gasprice.DefaultMaxPrice,
+			MinPrice:   new(big.Int),
 		},
 
 		VersionWatcher: verwatcher.Config{
@@ -208,22 +221,22 @@ func (c *Config) Validate() error {
 }
 
 // FakeConfig returns the default configurations for the gossip service in fakenet.
-func FakeConfig(num int) Config {
-	cfg := DefaultConfig()
+func FakeConfig(num int, scale cachescale.Func) Config {
+	cfg := DefaultConfig(scale)
 	cfg.Emitter = emitter.FakeConfig(num)
 	return cfg
 }
 
 // DefaultStoreConfig for product.
-func DefaultStoreConfig() StoreConfig {
+func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:  5000,
-			EventsSize: 6 * opt.MiB,
-			BlocksNum:  1000,
-			BlocksSize: 512 * opt.KiB,
+			EventsNum:  scale.I(5000),
+			EventsSize: scale.U(6 * opt.MiB),
+			BlocksNum:  scale.I(5000),
+			BlocksSize: scale.U(512 * opt.KiB),
 		},
-		EVM:                 evmstore.DefaultStoreConfig(),
+		EVM:                 evmstore.DefaultStoreConfig(scale),
 		MaxNonFlushedSize:   22 * opt.MiB,
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
@@ -241,5 +254,14 @@ func LiteStoreConfig() StoreConfig {
 		EVM:                 evmstore.LiteStoreConfig(),
 		MaxNonFlushedSize:   800 * opt.KiB,
 		MaxNonFlushedPeriod: 30 * time.Minute,
+	}
+}
+
+func DefaultPeerCacheConfig(scale cachescale.Func) PeerCacheConfig {
+	return PeerCacheConfig{
+		MaxKnownTxs:    scale.I(24576),
+		MaxKnownEvents: scale.I(24576),
+		MaxQueuedItems: scale.Events(4096),
+		MaxQueuedSize:  scale.U64(protocolMaxMsgSize + 1024),
 	}
 }

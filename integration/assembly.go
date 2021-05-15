@@ -82,10 +82,6 @@ func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Co
 func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Configs, applyGenesis bool) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
 	blockProc := gossip.DefaultBlockProc(g)
 
-	err := gdb.Migrate()
-	if err != nil {
-		return nil, nil, blockProc, fmt.Errorf("failed to migrate Gossip DB: %v", err)
-	}
 	if applyGenesis {
 		_, err := gdb.ApplyGenesis(blockProc, g)
 		if err != nil {

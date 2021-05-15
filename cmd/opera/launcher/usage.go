@@ -106,14 +106,7 @@ var AppHelpFlagGroups = []flags.FlagGroup{
 	{
 		Name: "PERFORMANCE TUNING",
 		Flags: []cli.Flag{
-			utils.CacheFlag,
-			utils.CacheDatabaseFlag,
-			utils.CacheTrieFlag,
-			utils.CacheTrieJournalFlag,
-			utils.CacheTrieRejournalFlag,
-			utils.CacheGCFlag,
-			utils.CacheSnapshotFlag,
-			utils.CacheNoPrefetchFlag,
+			CacheFlag,
 		},
 	},
 	{

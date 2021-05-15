@@ -28,15 +28,6 @@ var (
 )
 
 const (
-	maxKnownTxs    = 24576 // Maximum transactions hashes to keep in the known list (prevent DOS)
-	maxKnownEvents = 24576 // Maximum event hashes to keep in the known list (prevent DOS)
-
-	// maxQueuedItems is the maximum number of items to queue up before
-	// dropping broadcasts. This is a sensitive number as a transaction list might
-	// contain a single transaction, or thousands.
-	maxQueuedItems = 4096
-	maxQueuedSize  = protocolMaxMsgSize + 1024
-
 	handshakeTimeout = 5 * time.Second
 )
 
@@ -55,6 +46,8 @@ type broadcastItem struct {
 
 type peer struct {
 	id string
+
+	cfg PeerCacheConfig
 
 	*p2p.Peer
 	rw p2p.MsgReadWriter
@@ -100,7 +93,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	return a.LastBlockIdx < b.LastBlockIdx
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
 	warningFn := func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
 		log.Warn("Peer queue semaphore inconsistency",
 			"receivedNum", received.Num, "receivedSize", received.Size,
@@ -108,14 +101,15 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 			"releasingNum", releasing.Num, "releasingSize", releasing.Size)
 	}
 	return &peer{
+		cfg:                 cfg,
 		Peer:                p,
 		rw:                  rw,
 		version:             version,
 		id:                  fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		knownTxs:            mapset.NewSet(),
 		knownEvents:         mapset.NewSet(),
-		queue:               make(chan broadcastItem, maxQueuedItems),
-		queuedDataSemaphore: datasemaphore.New(dag.Metric{maxQueuedItems, maxQueuedSize}, warningFn),
+		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
+		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, warningFn),
 		term:                make(chan struct{}),
 	}
 }
@@ -155,7 +149,7 @@ func (p *peer) Info() *PeerInfo {
 // never be propagated to this particular peer.
 func (p *peer) MarkEvent(hash hash.Event) {
 	// If we reached the memory allowance, drop a previously known event hash
-	for p.knownEvents.Cardinality() >= maxKnownEvents {
+	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 		p.knownEvents.Pop()
 	}
 	p.knownEvents.Add(hash)
@@ -165,7 +159,7 @@ func (p *peer) MarkEvent(hash hash.Event) {
 // will never be propagated to this particular peer.
 func (p *peer) MarkTransaction(hash common.Hash) {
 	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Cardinality() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 		p.knownTxs.Pop()
 	}
 	p.knownTxs.Add(hash)
@@ -178,7 +172,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
-	for p.knownTxs.Cardinality() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 		p.knownTxs.Pop()
 	}
 	return p2p.Send(p.rw, EvmTxsMsg, txs)
@@ -191,7 +185,7 @@ func (p *peer) SendTransactionHashes(txids []common.Hash) error {
 	for _, txid := range txids {
 		p.knownTxs.Add(txid)
 	}
-	for p.knownTxs.Cardinality() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 		p.knownTxs.Pop()
 	}
 	return p2p.Send(p.rw, NewEvmTxHashesMsg, txids)
@@ -276,7 +270,7 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions, queue chan broadcas
 		for _, tx := range txs {
 			p.knownTxs.Add(tx.Hash())
 		}
-		for p.knownTxs.Cardinality() >= maxKnownTxs {
+		for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 			p.knownTxs.Pop()
 		}
 	} else {
@@ -292,7 +286,7 @@ func (p *peer) AsyncSendTransactionHashes(txids []common.Hash, queue chan broadc
 		for _, tx := range txids {
 			p.knownTxs.Add(tx)
 		}
-		for p.knownTxs.Cardinality() >= maxKnownTxs {
+		for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 			p.knownTxs.Pop()
 		}
 	} else {
@@ -309,7 +303,7 @@ func (p *peer) EnqueueSendTransactions(txs types.Transactions, queue chan broadc
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
-	for p.knownTxs.Cardinality() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() >= p.cfg.MaxKnownTxs {
 		p.knownTxs.Pop()
 	}
 }
@@ -321,7 +315,7 @@ func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	for _, hash := range hashes {
 		p.knownEvents.Add(hash)
 	}
-	for p.knownEvents.Cardinality() >= maxKnownEvents {
+	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 		p.knownEvents.Pop()
 	}
 	return p2p.Send(p.rw, NewEventIDsMsg, hashes)
@@ -336,7 +330,7 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 		for _, id := range ids {
 			p.knownEvents.Add(id)
 		}
-		for p.knownEvents.Cardinality() >= maxKnownEvents {
+		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	} else {
@@ -349,7 +343,7 @@ func (p *peer) SendEvents(events inter.EventPayloads) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
 		p.knownEvents.Add(event.ID())
-		for p.knownEvents.Cardinality() >= maxKnownEvents {
+		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	}
@@ -361,7 +355,7 @@ func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
 		p.knownEvents.Add(id)
-		for p.knownEvents.Cardinality() >= maxKnownEvents {
+		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	}
@@ -376,7 +370,7 @@ func (p *peer) AsyncSendEvents(events inter.EventPayloads, queue chan broadcastI
 		for _, event := range events {
 			p.knownEvents.Add(event.ID())
 		}
-		for p.knownEvents.Cardinality() >= maxKnownEvents {
+		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
 		}
 		return true
@@ -393,7 +387,7 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	for _, id := range ids {
 		p.knownEvents.Add(id)
 	}
-	for p.knownEvents.Cardinality() >= maxKnownEvents {
+	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 		p.knownEvents.Pop()
 	}
 }
@@ -442,7 +436,7 @@ func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
 		p.knownEvents.Add(id)
-		for p.knownEvents.Cardinality() >= maxKnownEvents {
+		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	}
