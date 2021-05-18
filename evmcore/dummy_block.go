@@ -50,6 +50,22 @@ type (
 	}
 )
 
+// NewEvmBlock constructor.
+func NewEvmBlock(h *EvmHeader, txs types.Transactions) *EvmBlock {
+	b := &EvmBlock{
+		EvmHeader:    *h,
+		Transactions: txs,
+	}
+
+	if len(txs) == 0 {
+		b.EvmHeader.TxHash = types.EmptyRootHash
+	} else {
+		b.EvmHeader.TxHash = types.DeriveSha(txs, new(trie.Trie))
+	}
+
+	return b
+}
+
 // ToEvmHeader converts inter.Block to EvmHeader.
 func ToEvmHeader(block *inter.Block, index idx.Block, prevHash hash.Event) *EvmHeader {
 	return &EvmHeader{
