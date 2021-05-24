@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
+	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
@@ -53,8 +54,9 @@ type (
 	}
 	// Config for the gossip service.
 	Config struct {
-		Emitter emitter.Config
-		TxPool  evmcore.TxPoolConfig
+		Emitter       emitter.Config
+		TxPool        evmcore.TxPoolConfig
+		TxTraceConfig ethapi.TxTraceConfig
 
 		TxIndex bool // Whether to enable indexing transactions and receipts or not
 

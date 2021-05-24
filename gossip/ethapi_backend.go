@@ -50,6 +50,11 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.svc.store.GetRules().EvmChainConfig()
 }
 
+// TxTraceConfig returns the static transaction tracing configuration.
+func (b *EthAPIBackend) TxTraceConfig() *ethapi.TxTraceConfig {
+	return &b.svc.config.TxTraceConfig
+}
+
 func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
 	return b.state.CurrentBlock()
 }
