@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
@@ -26,6 +27,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/txtrace"
+)
+
+var (
+	headBlockGauge     = metrics.GetOrRegisterGauge("chain/head/block", nil)
+	headHeaderGauge    = metrics.GetOrRegisterGauge("chain/head/header", nil)
+	headFastBlockGauge = metrics.GetOrRegisterGauge("chain/head/receipt", nil)
 )
 
 // GetConsensusCallbacks returns single (for Service) callback instance.
@@ -295,6 +302,10 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					store.commitEVM()
+
+					headBlockGauge.Update(int64(blockCtx.Idx))
+					headHeaderGauge.Update(int64(blockCtx.Idx))
+					headFastBlockGauge.Update(int64(blockCtx.Idx))
 
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", common.PrettyDuration(time.Since(start)))
