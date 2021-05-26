@@ -99,6 +99,5 @@ func TestMigrations(t *testing.T) {
 	})
 }
 
-func flush() error {
-	return nil
+func flush() {
 }
