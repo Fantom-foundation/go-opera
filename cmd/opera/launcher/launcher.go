@@ -110,6 +110,7 @@ func init() {
 		validatorIDFlag,
 		validatorPubkeyFlag,
 		validatorPasswordFlag,
+		TraceNodeFlag,
 	}
 
 	rpcFlags = []cli.Flag{

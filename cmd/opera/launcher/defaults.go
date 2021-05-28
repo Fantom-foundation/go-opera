@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/node"
@@ -37,7 +38,11 @@ var NodeDefaultConfig = node.Config{
 	HTTPPort:            DefaultHTTPPort,
 	HTTPModules:         []string{},
 	HTTPVirtualHosts:    []string{"localhost"},
-	HTTPTimeouts:        rpc.DefaultHTTPTimeouts,
+	HTTPTimeouts: rpc.HTTPTimeouts{
+		ReadTimeout:  120 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		WriteTimeout: 120 * time.Second,
+	},
 	WSPort:              DefaultWSPort,
 	WSModules:           []string{},
 	GraphQLVirtualHosts: []string{"localhost"},

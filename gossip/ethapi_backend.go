@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -33,6 +34,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 // EthAPIBackend implements ethapi.Backend.
@@ -70,6 +72,28 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmco
 		return nil, nil
 	}
 	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
+}
+
+// TxTraceByHash returns transaction trace from store db by the hash.
+func (b *EthAPIBackend) TxTraceByHash(ctx context.Context, h common.Hash) (*[]txtrace.ActionTrace, error) {
+	if b.state.store.txtrace == nil {
+		return nil, errors.New("Transaction trace key-value store db is not initialized")
+	}
+	txBytes := b.state.store.txtrace.GetTx(h)
+	traces := make([]txtrace.ActionTrace, 0)
+	json.Unmarshal(txBytes, &traces)
+	if len(traces) == 0 {
+		return nil, fmt.Errorf("No trace for tx hash: %s", h.String())
+	}
+	return &traces, nil
+}
+
+// TxTraceSave saves transaction trace into store db
+func (b *EthAPIBackend) TxTraceSave(ctx context.Context, h common.Hash, traces []byte) error {
+	if b.state.store.txtrace != nil {
+		return b.state.store.txtrace.SetTxTrace(h, traces)
+	}
+	return errors.New("Transaction trace key-value store db is not initialized")
 }
 
 // BlockByNumber returns block by its number.
@@ -301,12 +325,16 @@ func (b *EthAPIBackend) GetTd(_ common.Hash) *big.Int {
 }
 
 func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error) {
+	return b.GetEVMWithCfg(ctx, msg, state, header, opera.DefaultVMConfig)
+}
+
+func (b *EthAPIBackend) GetEVMWithCfg(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, cfg vm.Config) (*vm.EVM, func() error, error) {
 	state.SetBalance(msg.From(), math.MaxBig256)
 	vmError := func() error { return nil }
 
 	context := evmcore.NewEVMContext(msg, header, b.state, nil)
 	config := b.ChainConfig()
-	return vm.NewEVM(context, state, config, opera.DefaultVMConfig), vmError, nil
+	return vm.NewEVM(context, state, config, cfg), vmError, nil
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
