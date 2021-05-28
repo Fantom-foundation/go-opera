@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	params.VersionMajor = 1              // Major version component of the current release
-	params.VersionMinor = 0              // Minor version component of the current release
-	params.VersionPatch = 1              // Patch version component of the current release
-	params.VersionMeta = "rc.1_tx-trace" // Version metadata to append to the version string
+	params.VersionMajor = 1     // Major version component of the current release
+	params.VersionMinor = 0     // Minor version component of the current release
+	params.VersionPatch = 1     // Patch version component of the current release
+	params.VersionMeta = "rc.2" // Version metadata to append to the version string
 }
 
 func BigToString(b *big.Int) string {
