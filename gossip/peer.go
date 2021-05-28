@@ -62,8 +62,6 @@ type peer struct {
 
 	progress PeerProgress
 
-	poolEntry *poolEntry
-
 	sync.RWMutex
 }
 
@@ -93,7 +91,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	return a.LastBlockIdx < b.LastBlockIdx
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
+func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
 	warningFn := func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
 		log.Warn("Peer queue semaphore inconsistency",
 			"receivedNum", received.Num, "receivedSize", received.Size,

@@ -16,7 +16,11 @@
 
 package evmcore
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
 var (
 	// ErrNoGenesis is returned when there is no Genesis Block.
@@ -57,4 +61,8 @@ var (
 	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
 	// than required to start the invocation.
 	ErrIntrinsicGas = errors.New("intrinsic gas too low")
+
+	// ErrTxTypeNotSupported is returned if a transaction is not supported in the
+	// current network configuration.
+	ErrTxTypeNotSupported = types.ErrTxTypeNotSupported
 )

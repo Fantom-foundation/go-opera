@@ -57,5 +57,15 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 	r.FixedBytes(sig[:])
 	_r, s := decodeSig(sig)
 
-	return types.NewRawTransaction(nonce, to, amount, gasLimit, gasPrice, data, v, _r, s), nil
+	return types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gasLimit,
+		To:       to,
+		Value:    amount,
+		Data:     data,
+		V:        v,
+		R:        _r,
+		S:        s,
+	}), nil
 }

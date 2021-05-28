@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -67,7 +68,10 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	evmTable := nokeyiserr.Wrap(s.EvmKvdbTable()) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, cfg.Cache.EvmDatabase/opt.MiB, "")
+	s.table.EvmState = state.NewDatabaseWithConfig(s.table.Evm, &trie.Config{
+		Cache:     cfg.Cache.EvmDatabase/opt.MiB,
+		Preimages: cfg.EnablePreimageRecording,
+	})
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
 
 	s.initCache()

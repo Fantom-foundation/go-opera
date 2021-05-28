@@ -25,204 +25,74 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	cli "gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/debug"
 	"github.com/Fantom-foundation/go-opera/flags"
 )
 
 // AppHelpFlagGroups is the application flags, grouped by functionality.
-var AppHelpFlagGroups = []flags.FlagGroup{
-	{
-		Name: "ETHEREUM",
-		Flags: []cli.Flag{
-			configFileFlag,
-			utils.DataDirFlag,
-			utils.AncientFlag,
-			utils.KeyStoreDirFlag,
-			utils.NoUSBFlag,
-			utils.SmartCardDaemonPathFlag,
-			utils.NetworkIdFlag,
-			utils.GoerliFlag,
-			utils.RinkebyFlag,
-			utils.YoloV1Flag,
-			utils.RopstenFlag,
-			utils.SyncModeFlag,
-			utils.ExitWhenSyncedFlag,
-			utils.GCModeFlag,
-			utils.TxLookupLimitFlag,
-			utils.EthStatsURLFlag,
-			utils.IdentityFlag,
-			utils.LightKDFFlag,
-			utils.WhitelistFlag,
+var AppHelpFlagGroups = calcAppHelpFlagGroups()
+
+func calcAppHelpFlagGroups() []flags.FlagGroup {
+	overrideFlags()
+	overrideParams()
+
+	initFlags()
+	return []flags.FlagGroup{
+		{
+			Name:  "OPERA",
+			Flags: operaFlags,
 		},
-	},
-	{
-		Name: "LIGHT CLIENT",
-		Flags: []cli.Flag{
-			utils.LightServeFlag,
-			utils.LightIngressFlag,
-			utils.LightEgressFlag,
-			utils.LightMaxPeersFlag,
-			utils.UltraLightServersFlag,
-			utils.UltraLightFractionFlag,
-			utils.UltraLightOnlyAnnounceFlag,
-			utils.LightNoPruneFlag,
+		{
+			Name:  "TRANSACTION POOL",
+			Flags: txpoolFlags,
 		},
-	},
-	{
-		Name: "DEVELOPER CHAIN",
-		Flags: []cli.Flag{
-			utils.DeveloperFlag,
-			utils.DeveloperPeriodFlag,
+		{
+			Name:  "PERFORMANCE TUNING",
+			Flags: performanceFlags,
 		},
-	},
-	{
-		Name: "ETHASH",
-		Flags: []cli.Flag{
-			utils.EthashCacheDirFlag,
-			utils.EthashCachesInMemoryFlag,
-			utils.EthashCachesOnDiskFlag,
-			utils.EthashCachesLockMmapFlag,
-			utils.EthashDatasetDirFlag,
-			utils.EthashDatasetsInMemoryFlag,
-			utils.EthashDatasetsOnDiskFlag,
-			utils.EthashDatasetsLockMmapFlag,
+		{
+			Name:  "ACCOUNT",
+			Flags: accountFlags,
 		},
-	},
-	{
-		Name: "TRANSACTION POOL",
-		Flags: []cli.Flag{
-			utils.TxPoolLocalsFlag,
-			utils.TxPoolNoLocalsFlag,
-			utils.TxPoolJournalFlag,
-			utils.TxPoolRejournalFlag,
-			utils.TxPoolPriceLimitFlag,
-			utils.TxPoolPriceBumpFlag,
-			utils.TxPoolAccountSlotsFlag,
-			utils.TxPoolGlobalSlotsFlag,
-			utils.TxPoolAccountQueueFlag,
-			utils.TxPoolGlobalQueueFlag,
-			utils.TxPoolLifetimeFlag,
+		{
+			Name:  "API",
+			Flags: rpcFlags,
 		},
-	},
-	{
-		Name: "PERFORMANCE TUNING",
-		Flags: []cli.Flag{
-			CacheFlag,
+		{
+			Name:  "CONSOLE",
+			Flags: consoleFlags,
 		},
-	},
-	{
-		Name: "ACCOUNT",
-		Flags: []cli.Flag{
-			utils.UnlockedAccountFlag,
-			utils.PasswordFileFlag,
-			utils.ExternalSignerFlag,
-			utils.InsecureUnlockAllowedFlag,
+		{
+			Name:  "NETWORKING",
+			Flags: networkingFlags,
 		},
-	},
-	{
-		Name: "API AND CONSOLE",
-		Flags: []cli.Flag{
-			utils.IPCDisabledFlag,
-			utils.IPCPathFlag,
-			utils.HTTPEnabledFlag,
-			utils.HTTPListenAddrFlag,
-			utils.HTTPPortFlag,
-			utils.HTTPApiFlag,
-			utils.HTTPCORSDomainFlag,
-			utils.HTTPVirtualHostsFlag,
-			utils.WSEnabledFlag,
-			utils.WSListenAddrFlag,
-			utils.WSPortFlag,
-			utils.WSApiFlag,
-			utils.WSAllowedOriginsFlag,
-			utils.GraphQLEnabledFlag,
-			utils.GraphQLCORSDomainFlag,
-			utils.GraphQLVirtualHostsFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCGlobalTxFeeCap,
-			utils.JSpathFlag,
-			utils.ExecFlag,
-			utils.PreloadJSFlag,
+		{
+			Name:  "GAS PRICE ORACLE",
+			Flags: gpoFlags,
 		},
-	},
-	{
-		Name: "NETWORKING",
-		Flags: []cli.Flag{
-			utils.BootnodesFlag,
-			utils.LegacyBootnodesV4Flag,
-			utils.LegacyBootnodesV5Flag,
-			utils.DNSDiscoveryFlag,
-			utils.ListenPortFlag,
-			utils.MaxPeersFlag,
-			utils.MaxPendingPeersFlag,
-			utils.NATFlag,
-			utils.NoDiscoverFlag,
-			utils.DiscoveryV5Flag,
-			utils.NetrestrictFlag,
-			utils.NodeKeyFileFlag,
-			utils.NodeKeyHexFlag,
+		{
+			Name:  "METRICS AND STATS",
+			Flags: metricsFlags,
 		},
-	},
-	{
-		Name: "MINER",
-		Flags: []cli.Flag{
-			utils.MiningEnabledFlag,
-			utils.MinerThreadsFlag,
-			utils.MinerNotifyFlag,
-			utils.MinerGasPriceFlag,
-			utils.MinerGasTargetFlag,
-			utils.MinerGasLimitFlag,
-			utils.MinerEtherbaseFlag,
-			utils.MinerExtraDataFlag,
-			utils.MinerRecommitIntervalFlag,
-			utils.MinerNoVerfiyFlag,
+		{
+			Name:  "TESTING",
+			Flags: testFlags,
 		},
-	},
-	{
-		Name: "GAS PRICE ORACLE",
-		Flags: []cli.Flag{
-			utils.GpoBlocksFlag,
-			utils.GpoPercentileFlag,
-			utils.GpoMaxGasPriceFlag,
+		{
+			Name:  "LOGGING AND DEBUGGING",
+			Flags: debug.Flags,
 		},
-	},
-	{
-		Name: "VIRTUAL MACHINE",
-		Flags: []cli.Flag{
-			utils.VMEnableDebugFlag,
-			utils.EVMInterpreterFlag,
-			utils.EWASMInterpreterFlag,
+		{
+			Name:  "ALIASED (deprecated)",
+			Flags: legacyRpcFlags,
 		},
-	},
-	{
-		Name:  "METRICS AND STATS",
-		Flags: metricsFlags,
-	},
-	{
-		Name: "ALIASED (deprecated)",
-		Flags: []cli.Flag{
-			utils.LegacyRPCEnabledFlag,
-			utils.LegacyRPCListenAddrFlag,
-			utils.LegacyRPCPortFlag,
-			utils.LegacyRPCCORSDomainFlag,
-			utils.LegacyRPCVirtualHostsFlag,
-			utils.LegacyRPCApiFlag,
-			utils.LegacyWSListenAddrFlag,
-			utils.LegacyWSPortFlag,
-			utils.LegacyWSAllowedOriginsFlag,
-			utils.LegacyWSApiFlag,
-			utils.LegacyGpoBlocksFlag,
-			utils.LegacyGpoPercentileFlag,
-			utils.LegacyGraphQLListenAddrFlag,
-			utils.LegacyGraphQLPortFlag,
+		{
+			Name: "MISC",
+			Flags: []cli.Flag{
+				cli.HelpFlag,
+			},
 		},
-	},
-	{
-		Name: "MISC",
-		Flags: []cli.Flag{
-			utils.SnapshotFlag,
-			cli.HelpFlag,
-		},
-	},
+	}
 }
 
 func init() {

@@ -17,6 +17,8 @@
 package evmcore
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -56,44 +58,50 @@ func (p *StateProcessor) Process(
 ) {
 	skipped = make([]uint32, 0, len(block.Transactions))
 	var (
-		gp      = new(GasPool).AddGas(block.GasLimit)
-		receipt *types.Receipt
-		skip    bool
+		gp           = new(GasPool).AddGas(block.GasLimit)
+		receipt      *types.Receipt
+		skip         bool
+		header       = block.Header()
+		blockContext = NewEVMBlockContext(header, p.bc, nil)
+		vmenv        = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
+		var msg types.Message
+		if !internal {
+			msg, err = tx.AsMessage(types.MakeSigner(p.config, header.Number))
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		} else {
+			msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data(), tx.AccessList(), false)
+		}
+
 		statedb.Prepare(tx.Hash(), block.Hash, i)
-		receipt, _, skip, err = ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, usedGas, cfg, internal, onNewLog)
+		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, block.Header(), tx, usedGas, vmenv, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
 			err = nil
 			continue
 		}
 		if err != nil {
-			return
+			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
-
 	return
 }
 
-// ApplyTransaction attempts to apply a transaction to the given state database
-// and uses the input parameters for its environment. It returns the receipt
-// for the transaction, gas used and an error if the transaction failed,
-// indicating the block was invalid.
-func ApplyTransaction(
+func applyTransaction(
+	msg types.Message,
 	config *params.ChainConfig,
-	bc DummyChain,
-	author *common.Address,
 	gp *GasPool,
 	statedb *state.StateDB,
 	header *EvmHeader,
 	tx *types.Transaction,
 	usedGas *uint64,
-	cfg vm.Config,
-	internal bool,
+	evm *vm.EVM,
 	onNewLog func(*types.Log, *state.StateDB),
 ) (
 	*types.Receipt,
@@ -101,24 +109,12 @@ func ApplyTransaction(
 	bool,
 	error,
 ) {
-	var msg types.Message
-	var err error
-	if !internal {
-		msg, err = tx.AsMessage(types.MakeSigner(config, header.Number))
-		if err != nil {
-			return nil, 0, false, err
-		}
-	} else {
-		msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data(), false)
-	}
+	// Create a new context to be used in the EVM environment.
+	txContext := NewEVMTxContext(msg)
+	evm.Reset(txContext, statedb)
 
-	// Create a new context to be used in the EVM environment
-	context := NewEVMContext(msg, header, bc, author)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(context, statedb, config, cfg)
-	// Apply the transaction to the current state (included in the env)
-	result, err := ApplyMessage(vmenv, msg, gp)
+	// Apply the transaction to the current state (included in the env).
+	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
 		return nil, 0, result == nil, err
 	}
@@ -127,7 +123,8 @@ func ApplyTransaction(
 	for _, l := range logs {
 		onNewLog(l, statedb)
 	}
-	// Update the state with pending changes
+
+	// Update the state with pending changes.
 	var root []byte
 	if config.IsByzantium(header.Number) {
 		statedb.Finalise(true)
@@ -136,20 +133,26 @@ func ApplyTransaction(
 	}
 	*usedGas += result.UsedGas
 
-	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
-	// based on the eip phase, we're passing whether the root touch-delete accounts.
-	receipt := types.NewReceipt(root, result.Failed(), *usedGas)
+	// Create a new receipt for the transaction, storing the intermediate root and gas used
+	// by the tx.
+	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}
+	if result.Failed() {
+		receipt.Status = types.ReceiptStatusFailed
+	} else {
+		receipt.Status = types.ReceiptStatusSuccessful
+	}
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
-	// if the transaction created a contract, store the creation address in the receipt.
+
+	// If the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
-	// Set the receipt logs
+
+	// Set the receipt logs.
 	receipt.Logs = logs
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
-
 	return receipt, result.UsedGas, false, err
 }

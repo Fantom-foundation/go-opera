@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	DefaultP2PPort     = 5050  // Default p2p port for listening
-	DefaultHTTPPort    = 18545 // Default TCP port for the HTTP RPC server
-	DefaultWSPort      = 18546 // Default TCP port for the websocket RPC server
-	DefaultGraphQLPort = 18547 // Default TCP port for the GraphQL server
+	DefaultP2PPort  = 5050  // Default p2p port for listening
+	DefaultHTTPPort = 18545 // Default TCP port for the HTTP RPC server
+	DefaultWSPort   = 18546 // Default TCP port for the websocket RPC server
 )
 
 func overrideFlags() {
@@ -26,9 +25,6 @@ func overrideFlags() {
 	utils.HTTPPortFlag.Value = DefaultHTTPPort
 	utils.LegacyRPCPortFlag.Value = DefaultHTTPPort
 	utils.WSPortFlag.Value = DefaultWSPort
-	utils.LegacyWSPortFlag.Value = DefaultWSPort
-	utils.LegacyGraphQLPortFlag.Value = DefaultGraphQLPort
-	utils.LegacyGraphQLPortFlag.Value = DefaultGraphQLPort
 }
 
 // NodeDefaultConfig contains reasonable default settings.

@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
@@ -182,9 +182,10 @@ func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
 }
 
 func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
+	cfg.P2P.BootstrapNodesV5 = []*enode.Node{}
 	for _, url := range urls {
 		if url != "" {
-			node, err := discv5.ParseNode(url)
+			node, err := enode.Parse(enode.ValidSchemes, url)
 			if err != nil {
 				log.Error("Bootstrap URL invalid", "enode", url, "err", err)
 				continue
@@ -192,6 +193,7 @@ func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
 			cfg.P2P.BootstrapNodesV5 = append(cfg.P2P.BootstrapNodesV5, node)
 		}
 	}
+	cfg.P2P.BootstrapNodes = cfg.P2P.BootstrapNodesV5
 }
 
 func setDataDir(ctx *cli.Context, cfg *node.Config) {
@@ -206,22 +208,14 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", num))
-	case ctx.GlobalBool(utils.LegacyTestnetFlag.Name):
-		cfg.DataDir = filepath.Join(defaultDataDir, "testnet")
 	default:
 		cfg.DataDir = defaultDataDir
 	}
 }
 
 func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
-	if ctx.GlobalIsSet(utils.LegacyGpoBlocksFlag.Name) {
-		cfg.Blocks = ctx.GlobalInt(utils.LegacyGpoBlocksFlag.Name)
-	}
 	if ctx.GlobalIsSet(utils.GpoBlocksFlag.Name) {
 		cfg.Blocks = ctx.GlobalInt(utils.GpoBlocksFlag.Name)
-	}
-	if ctx.GlobalIsSet(utils.LegacyGpoPercentileFlag.Name) {
-		cfg.Percentile = ctx.GlobalInt(utils.LegacyGpoPercentileFlag.Name)
 	}
 	if ctx.GlobalIsSet(utils.GpoPercentileFlag.Name) {
 		cfg.Percentile = ctx.GlobalInt(utils.GpoPercentileFlag.Name)
@@ -274,40 +268,14 @@ func setTxPool(ctx *cli.Context, cfg *evmcore.TxPoolConfig) {
 func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, error) {
 	cfg := src
 
-	// Avoid conflicting network flags
-	utils.CheckExclusive(ctx, FakeNetFlag, utils.DeveloperFlag, utils.LegacyTestnetFlag)
-	utils.CheckExclusive(ctx, FakeNetFlag, utils.DeveloperFlag, utils.ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
-
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 
-	// TODO cache config
-	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(utils.CacheDatabaseFlag.Name) {
-	//	cfg.DatabaseCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(utils.CacheDatabaseFlag.Name) / 100
-	//}
-	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(CacheTrieFlag.Name) {
-	//	cfg.TrieCleanCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(CacheTrieFlag.Name) / 100
-	//}
-	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
-	//	cfg.TrieDirtyCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
-	//}
-
-	if ctx.GlobalIsSet(utils.VMEnableDebugFlag.Name) {
-		cfg.EnablePreimageRecording = ctx.GlobalBool(utils.VMEnableDebugFlag.Name)
+	if ctx.GlobalIsSet(utils.RPCGlobalGasCapFlag.Name) {
+		cfg.RPCGasCap = ctx.GlobalUint64(utils.RPCGlobalGasCapFlag.Name)
 	}
-
-	if ctx.GlobalIsSet(utils.EWASMInterpreterFlag.Name) {
-		cfg.EWASMInterpreter = ctx.GlobalString(utils.EWASMInterpreterFlag.Name)
-	}
-
-	if ctx.GlobalIsSet(utils.EVMInterpreterFlag.Name) {
-		cfg.EVMInterpreter = ctx.GlobalString(utils.EVMInterpreterFlag.Name)
-	}
-	if ctx.GlobalIsSet(utils.RPCGlobalGasCap.Name) {
-		cfg.RPCGasCap = ctx.GlobalUint64(utils.RPCGlobalGasCap.Name)
-	}
-	if ctx.GlobalIsSet(utils.RPCGlobalTxFeeCap.Name) {
-		cfg.RPCTxFeeCap = ctx.GlobalFloat64(utils.RPCGlobalTxFeeCap.Name)
+	if ctx.GlobalIsSet(utils.RPCGlobalTxFeeCapFlag.Name) {
+		cfg.RPCTxFeeCap = ctx.GlobalFloat64(utils.RPCGlobalTxFeeCapFlag.Name)
 	}
 
 	err := setValidator(ctx, &cfg.Emitter)

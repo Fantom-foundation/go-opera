@@ -68,21 +68,15 @@ type (
 
 		VersionWatcher verwatcher.Config
 
-		// Enables tracking of SHA3 preimages in the VM
-		EnablePreimageRecording bool // TODO
-
-		// Type of the EWASM interpreter ("" for default)
-		EWASMInterpreter string
-
-		// Type of the EVM interpreter ("" for default)
-		EVMInterpreter string // TODO custom interpreter
-
 		// RPCGasCap is the global gas cap for eth-call variants.
 		RPCGasCap uint64 `toml:",omitempty"`
 
 		// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 		// send-transction variants. The unit is ether.
 		RPCTxFeeCap float64 `toml:",omitempty"`
+
+		// allows only for EIP155 transactions.
+		AllowUnprotectedTxs bool
 
 		ExtRPCEnabled bool
 
@@ -121,7 +115,7 @@ type PeerCacheConfig struct {
 func DefaultConfig(scale cachescale.Func) Config {
 	cfg := Config{
 		Emitter: emitter.DefaultConfig(),
-		TxPool:  evmcore.DefaultTxPoolConfig(),
+		TxPool:  evmcore.DefaultTxPoolConfig,
 
 		TxIndex: true,
 
