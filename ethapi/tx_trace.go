@@ -168,7 +168,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 			if err == nil {
 				callTrace.AddTraces(traces)
 			} else {
-				log.Warn("Replaying transaction", "txHash", tx.Hash().String())
+				log.Info("Replaying transaction", "txHash", tx.Hash().String())
 				// get full transaction info
 				tx, _, index, err := backend.GetTransaction(ctx, tx.Hash())
 				if err != nil {
