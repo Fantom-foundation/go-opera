@@ -136,7 +136,7 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 }
 
 // Gets all transaction from specified block and process them
-func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash) (*[]txtrace.ActionTrace, error) {
+func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, txHash *common.Hash, traceIndex *[]hexutil.Uint) (*[]txtrace.ActionTrace, error) {
 	var (
 		blockNumber   int64
 		parentBlockNr rpc.BlockNumber
@@ -166,7 +166,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 			// Otherwise replay transaction and save trace to db
 			traces, err := backend.TxTraceByHash(ctx, tx.Hash())
 			if err == nil {
-				callTrace.AddTraces(traces)
+				callTrace.AddTraces(traces, traceIndex)
 			} else {
 				log.Info("Replaying transaction", "txHash", tx.Hash().String())
 				// get full transaction info
@@ -209,7 +209,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 						log.Debug("Cannot get transaction trace for transaction", "txHash", tx.Hash().String(), "err", err.Error())
 						callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, tx.To(), tx.Hash(), index, err))
 					} else {
-						callTrace.AddTraces(txTraces)
+						callTrace.AddTraces(txTraces, traceIndex)
 
 						// Save trace result into persistent key-value store
 						jsonTraceBytes, _ := json.Marshal(txTraces)
@@ -220,17 +220,21 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 		}
 	}
 
-	// in case of empty block
+	// In case of empty result create empty trace for empty block
 	if len(callTrace.Actions) == 0 {
-		emptyTrace := txtrace.CallTrace{
-			Actions: make([]txtrace.ActionTrace, 0),
+		if traceIndex != nil || txHash != nil {
+			return nil, nil
+		} else {
+			emptyTrace := txtrace.CallTrace{
+				Actions: make([]txtrace.ActionTrace, 0),
+			}
+			blockTrace := txtrace.NewActionTrace(block.Hash, *block.Number, common.Hash{}, 0, "empty")
+			txAction := txtrace.NewAddressAction(&common.Address{}, 0, []byte{}, nil, hexutil.Big{}, nil)
+			blockTrace.Action = *txAction
+			blockTrace.Error = "Empty block"
+			emptyTrace.AddTrace(blockTrace)
+			return &emptyTrace.Actions, nil
 		}
-		blockTrace := txtrace.NewActionTrace(block.Hash, *block.Number, common.Hash{}, 0, "empty")
-		txAction := txtrace.NewAddressAction(&common.Address{}, 0, []byte{}, nil, hexutil.Big{}, nil)
-		blockTrace.Action = *txAction
-		blockTrace.Error = "Empty block"
-		emptyTrace.AddTrace(blockTrace)
-		return &emptyTrace.Actions, nil
 	}
 
 	return &callTrace.Actions, nil
@@ -256,7 +260,7 @@ func (s *PublicTxTraceAPI) Block(ctx context.Context, numberOrHash rpc.BlockNumb
 		return nil, err
 	}
 
-	return traceBlock(ctx, block, s.b, nil)
+	return traceBlock(ctx, block, s.b, nil, nil)
 }
 
 // Transaction trace_transaction function returns transaction traces
@@ -264,6 +268,20 @@ func (s *PublicTxTraceAPI) Transaction(ctx context.Context, hash common.Hash) (*
 	defer func(start time.Time) {
 		log.Info("Executing trace_transaction call finished", "txHash", hash.String(), "runtime", time.Since(start))
 	}(time.Now())
+	return s.traceTxHash(ctx, hash, nil)
+}
+
+// Get trace_get function returns transaction traces on specified index position of the traces
+// If index is nil, then just root trace is returned
+func (s *PublicTxTraceAPI) Get(ctx context.Context, hash common.Hash, traceIndex []hexutil.Uint) (*[]txtrace.ActionTrace, error) {
+	defer func(start time.Time) {
+		log.Info("Executing trace_get call finished", "txHash", hash.String(), "index", traceIndex, "runtime", time.Since(start))
+	}(time.Now())
+	return s.traceTxHash(ctx, hash, &traceIndex)
+}
+
+// traceTxHash looks for a block of this transaction hash and trace it
+func (s *PublicTxTraceAPI) traceTxHash(ctx context.Context, hash common.Hash, traceIndex *[]hexutil.Uint) (*[]txtrace.ActionTrace, error) {
 	_, blockNumber, _, _ := s.b.GetTransaction(ctx, hash)
 	blkNr := rpc.BlockNumber(blockNumber)
 	block, err := s.b.BlockByNumber(ctx, blkNr)
@@ -271,8 +289,7 @@ func (s *PublicTxTraceAPI) Transaction(ctx context.Context, hash common.Hash) (*
 		log.Debug("Cannot get block from db", "blockNr", blkNr)
 		return nil, err
 	}
-
-	return traceBlock(ctx, block, s.b, &hash)
+	return traceBlock(ctx, block, s.b, &hash, traceIndex)
 }
 
 // FilterArgs represents the arguments for specifiing trace targets
@@ -376,7 +393,7 @@ blocks:
 
 		// when block has any transaction, then process it
 		if block != nil && block.Transactions.Len() > 0 {
-			traces, err := traceBlock(ctx, block, s.b, nil)
+			traces, err := traceBlock(ctx, block, s.b, nil, nil)
 			if err != nil {
 				mainErr = err
 				break

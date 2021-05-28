@@ -360,10 +360,25 @@ func (callTrace *CallTrace) AddTrace(blockTrace *ActionTrace) {
 }
 
 // AddTraces Append traces to call trace list
-func (callTrace *CallTrace) AddTraces(traces *[]ActionTrace) {
+func (callTrace *CallTrace) AddTraces(traces *[]ActionTrace, traceIndex *[]hexutil.Uint) {
 	for _, trace := range *traces {
-		callTrace.AddTrace(&trace)
+		if traceIndex == nil || equalContent(traceIndex, trace.TraceAddress) {
+			callTrace.AddTrace(&trace)
+		}
 	}
+}
+
+// equalContent tells whether index and traceIndex are the same
+func equalContent(index *[]hexutil.Uint, traceIndex []uint32) bool {
+	if len(*index) != len(traceIndex) {
+		return false
+	}
+	for i, v := range *index {
+		if uint32(v) != traceIndex[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // lastTrace Get last trace in call trace list

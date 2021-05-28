@@ -5,6 +5,7 @@ Node with implemented OpenEthereum(Parity) transaction tracing API
 ## Available methods
 
 ```shell
+trace_get
 trace_transaction
 trace_block
 trace_filter
