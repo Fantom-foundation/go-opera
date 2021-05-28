@@ -243,9 +243,13 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 * only the transaction hash is returned.
  */
 func (s *PublicTxTraceAPI) Block(ctx context.Context, numberOrHash rpc.BlockNumberOrHash) (*[]txtrace.ActionTrace, error) {
-	defer func(start time.Time) { log.Info("Executing trace_block call finished", "runtime", time.Since(start)) }(time.Now())
 
 	blockNr, _ := numberOrHash.Number()
+
+	defer func(start time.Time) {
+		log.Info("Executing trace_block call finished", "blockNr", blockNr.Int64(), "runtime", time.Since(start))
+	}(time.Now())
+
 	block, err := s.b.BlockByNumber(ctx, blockNr)
 	if err != nil {
 		log.Debug("Cannot get block from db", "blockNr", blockNr)
@@ -253,13 +257,12 @@ func (s *PublicTxTraceAPI) Block(ctx context.Context, numberOrHash rpc.BlockNumb
 	}
 
 	return traceBlock(ctx, block, s.b, nil)
-
 }
 
 // Transaction trace_transaction function returns transaction traces
 func (s *PublicTxTraceAPI) Transaction(ctx context.Context, hash common.Hash) (*[]txtrace.ActionTrace, error) {
 	defer func(start time.Time) {
-		log.Info("Executing trace_transaction call finished", "runtime", time.Since(start))
+		log.Info("Executing trace_transaction call finished", "txHash", hash.String(), "runtime", time.Since(start))
 	}(time.Now())
 	_, blockNumber, _, _ := s.b.GetTransaction(ctx, hash)
 	blkNr := rpc.BlockNumber(blockNumber)
@@ -270,7 +273,6 @@ func (s *PublicTxTraceAPI) Transaction(ctx context.Context, hash common.Hash) (*
 	}
 
 	return traceBlock(ctx, block, s.b, &hash)
-
 }
 
 // FilterArgs represents the arguments for specifiing trace targets
@@ -285,24 +287,32 @@ type FilterArgs struct {
 
 // Filter is function for trace_filter rpc call
 func (s *PublicTxTraceAPI) Filter(ctx context.Context, args FilterArgs) (*[]txtrace.ActionTrace, error) {
+	// add log after execution
 	defer func(start time.Time) {
-		log.Warn("Executing trace_filter call finished", "runtime", time.Since(start))
+
+		var data []interface{}
 		if args.FromBlock != nil {
-			log.Info("fromBlk:", "blk", args.FromBlock.BlockNumber.Int64(), " hex:", hexutil.Uint64(args.FromBlock.BlockNumber.Int64()))
+			data = append(data, "fromBlock", args.FromBlock.BlockNumber.Int64())
 		}
 		if args.ToBlock != nil {
-			log.Info("toBlk:", "blk", args.ToBlock.BlockNumber.Int64(), " hex:", hexutil.Uint64(args.ToBlock.BlockNumber.Int64()))
+			data = append(data, "toBlock", args.ToBlock.BlockNumber.Int64())
 		}
 		if args.FromAddress != nil {
+			adresses := make([]string, 0)
 			for _, addr := range *args.FromAddress {
-				log.Info("fromAddr:", "from addr", addr.String())
+				adresses = append(adresses, addr.String())
 			}
+			data = append(data, "fromAddr", adresses)
 		}
 		if args.ToAddress != nil {
+			adresses := make([]string, 0)
 			for _, addr := range *args.ToAddress {
-				log.Info("toAddr:", "to addr", addr.String())
+				adresses = append(adresses, addr.String())
 			}
+			data = append(data, "toAddr", adresses)
 		}
+		data = append(data, "time", time.Since(start))
+		log.Info("Executing trace_filter call finished", data...)
 	}(time.Now())
 
 	// TODO put timeout to server configuration
