@@ -148,6 +148,7 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 			inOffset, inSize   int64
 			retOffset, retSize uint64
 			input              []byte
+			value              = big.NewInt(0)
 		)
 
 		if vm.DELEGATECALL == op || vm.STATICCALL == op {
@@ -160,6 +161,8 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 			inSize = stackPosFromEnd(stack.Data(), 4).Int64()
 			retOffset = stackPosFromEnd(stack.Data(), 5).Uint64()
 			retSize = stackPosFromEnd(stack.Data(), 6).Uint64()
+			// only CALL and CALLCODE need `value` field
+			value = stackPosFromEnd(stack.Data(), 2)
 		}
 		if inSize > 0 {
 			input = make([]byte, inSize)
@@ -172,7 +175,7 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		action := fromTrace.Action
 		addr := common.BytesToAddress(stackPosFromEnd(stack.Data(), 1).Bytes())
 		callType := strings.ToLower(op.String())
-		traceAction := NewAddressAction(action.To, gas, input, &addr, action.Value, &callType)
+		traceAction := NewAddressAction(action.To, gas, input, &addr, hexutil.Big(*value), &callType)
 		trace.Action = *traceAction
 		fromTrace.childTraces = append(fromTrace.childTraces, trace)
 		trace.Result.RetOffset = retOffset
