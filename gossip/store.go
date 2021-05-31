@@ -157,6 +157,10 @@ func (s *Store) commitEVM() {
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
+func (s *Store) Init() error {
+	return s.EvmStore().InitEvmSnapshot(s.GetBlockState().FinalizedStateRoot)
+}
+
 // Commit changes.
 func (s *Store) Commit() error {
 	s.prevFlushTime = time.Now()

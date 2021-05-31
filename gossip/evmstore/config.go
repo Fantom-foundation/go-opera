@@ -16,6 +16,8 @@ type (
 		TxPositions int
 		// Cache size for EVM database.
 		EvmDatabase int
+		// Cache size for EVM snapshot.
+		EvmSnap int
 		// Cache size for EvmBlock (number of blocks).
 		EvmBlocksNum int
 		// Cache size for EvmBlock (size in bytes).
@@ -36,7 +38,8 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			ReceiptsSize:   scale.U(4 * opt.MiB),
 			ReceiptsBlocks: scale.I(4000),
 			TxPositions:    scale.I(20000),
-			EvmDatabase:    scale.I(16 * opt.MiB),
+			EvmDatabase:    scale.I(32 * opt.MiB),
+			EvmSnap:        scale.I(32 * opt.MiB),
 			EvmBlocksNum:   scale.I(5000),
 			EvmBlocksSize:  scale.U(6 * opt.MiB),
 		},

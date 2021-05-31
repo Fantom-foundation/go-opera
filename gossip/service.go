@@ -336,6 +336,11 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
+	err := s.store.Init()
+	if err != nil {
+		return err
+	}
+
 	StartENRUpdater(s, s.p2pServer.LocalNode())
 
 	s.blockProcTasks.Start(1)

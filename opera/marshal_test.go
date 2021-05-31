@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,4 +32,32 @@ func TestUpdateRules(t *testing.T) {
 
 	_, err = UpdateRules(exp, []byte(`}{`))
 	require.Error(err)
+}
+
+func TestMainNetRulesRLP(t *testing.T) {
+	rules := MainNetRules()
+	require := require.New(t)
+
+	b, err := rlp.EncodeToBytes(rules)
+	require.NoError(err)
+
+	decodedRules := Rules{}
+	require.NoError(rlp.DecodeBytes(b, &decodedRules))
+
+	require.Equal(rules.String(), decodedRules.String())
+}
+
+func TestRulesBerlinRLP(t *testing.T) {
+	rules := MainNetRules()
+	rules.Upgrades.Berlin = true
+	require := require.New(t)
+
+	b, err := rlp.EncodeToBytes(rules)
+	require.NoError(err)
+
+	decodedRules := Rules{}
+	require.NoError(rlp.DecodeBytes(b, &decodedRules))
+
+	require.Equal(rules.String(), decodedRules.String())
+	require.True(decodedRules.Upgrades.Berlin)
 }

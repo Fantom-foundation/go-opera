@@ -290,7 +290,7 @@ func (r *Rules) DecodeRLP(s *rlp.Stream) error {
 	}
 	// read rType
 	rType := uint8(0)
-	if kind == rlp.String {
+	if kind == rlp.Byte {
 		var b []byte
 		if b, err = s.Bytes(); err != nil {
 			return err
