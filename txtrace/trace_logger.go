@@ -217,14 +217,18 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 	case vm.SELFDESTRUCT:
 		tr.traceAddress = addTraceAddress(tr.traceAddress, depth)
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
-		trace := NewActionTraceFromTrace(fromTrace, CALL, tr.traceAddress)
+		trace := NewActionTraceFromTrace(fromTrace, SELFDESTRUCT, tr.traceAddress)
 		action := fromTrace.Action
 
-		// set refund values
 		traceAction := NewAddressAction(nil, 0, nil, nil, action.Value, nil)
 		traceAction.Address = action.To
+		// set refund values
 		refundAddress := common.BytesToAddress(stackPosFromEnd(stack.Data(), 0).Bytes())
 		traceAction.RefundAddress = &refundAddress
+		// Add the `to` field so that subsequent CALL traces can refer to the `fromTrace.To` field as the value of the `from` field
+		traceAction.To = &refundAddress
+		// Add `balance` field for convenient usage
+		traceAction.Balance = &traceAction.Value
 		trace.Action = *traceAction
 		fromTrace.childTraces = append(fromTrace.childTraces, trace)
 
@@ -419,8 +423,9 @@ func NewActionTraceFromTrace(actionTrace *ActionTrace, tType string, traceAddres
 }
 
 const (
-	CALL   = "call"
-	CREATE = "create"
+	CALL         = "call"
+	CREATE       = "create"
+	SELFDESTRUCT = "suicide"
 )
 
 // ActionTrace represents single interaction with blockchain
@@ -466,7 +471,7 @@ type AddressAction struct {
 	Init          hexutil.Bytes   `json:"init,omitempty"`
 	Input         hexutil.Bytes   `json:"input,omitempty"`
 	Address       *common.Address `json:"address,omitempty"`
-	RefundAddress *common.Address `json:"refund_address,omitempty"`
+	RefundAddress *common.Address `json:"refundAddress,omitempty"`
 	Balance       *hexutil.Big    `json:"balance,omitempty"`
 }
 

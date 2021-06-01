@@ -1,12 +1,11 @@
 package metrics
 
 import (
-	"os"
-	"path/filepath"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/minio/minio/pkg/disk"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/metrics/prometheus"
@@ -37,25 +36,20 @@ func SetDataDir(datadir string) {
 	dbDir.Store(datadir)
 }
 
+// NOTICE THAT walks all files under a directory to calculate size isn't efficient.
 func measureDbDir() (size int64) {
 	datadir, ok := dbDir.Load().(string)
 	if !ok || datadir == "" || datadir == "inmemory" {
 		return
 	}
 
-	err := filepath.Walk(datadir, func(_ string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			size += info.Size()
-		}
-		return err
-	})
+	// returned total sizes of the partition which contains datadir.
+	// This method is more efficient than files.Walk but may cause inaccuracy.
+	di, err := disk.GetInfo(datadir)
 	if err != nil {
-		log.Error("filepath.Walk", "path", datadir, "err", err)
+		log.Error("failed to measure datadir", "path", datadir, "err", err)
 		return 0
 	}
 
-	return
+	return int64(di.Used)
 }
