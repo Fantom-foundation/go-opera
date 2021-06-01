@@ -58,6 +58,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
+github.com/DeBankDeFi/eth v1.10.3 h1:Niun1jAilCbYaYNOvbiMg3iyochzyFK8zt1VCsH27kk=
+github.com/DeBankDeFi/eth v1.10.3/go.mod h1:UAiugF3perbugrqRhIGYBzh4Rl930XLXkmHlqh0YcQs=
 github.com/Fantom-foundation/go-ethereum v1.9.22-ftm-0.5 h1:hyMHsRBFoBIjwur3LgyYa/Lm7WzJqnM7HtK7/vnSkeA=
 github.com/Fantom-foundation/go-ethereum v1.9.22-ftm-0.5/go.mod h1:27ZY0H7YdbxCL0E/d23qHo9WCkjqnmFKHQl9UaUSw8s=
 github.com/Fantom-foundation/lachesis-base v0.0.0-20210420092627-c16f01e35562 h1:SFcBjyI5dos9JeIRBHnzU88SlVTlEjRbAUrlZ40uWfk=
