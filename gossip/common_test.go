@@ -82,7 +82,7 @@ func newTestEnv() *testEnv {
 	env := &testEnv{
 		blockProcModules: blockProc,
 		store:            store,
-		signer:           types.NewEIP155Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
+		signer:           types.NewEIP2930Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
 
 		lastBlock:     1,
 		lastState:     store.GetBlockState().FinalizedStateRoot,
