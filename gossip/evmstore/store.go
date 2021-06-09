@@ -90,8 +90,7 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
-	snapsTable := kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.SnapsKvdbTable()))
-	s.table.Snaps, err = snapshot.New(snapsTable, s.table.EvmState.TrieDB(), s.cfg.Cache.EvmSnap/opt.MiB, common.Hash(root), false, true, false)
+	s.table.Snaps, err = snapshot.New(kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.EvmKvdbTable())), s.table.EvmState.TrieDB(), s.cfg.Cache.EvmSnap/opt.MiB, common.Hash(root), false, true, false)
 	return err
 }
 
@@ -125,10 +124,6 @@ func (s *Store) IndexLogs(recs ...*types.Log) {
 	if err != nil {
 		s.Log.Crit("DB logs index error", "err", err)
 	}
-}
-
-func (s *Store) SnapsKvdbTable() kvdb.Store {
-	return table.New(s.mainDB, []byte("N"))
 }
 
 func (s *Store) EvmKvdbTable() kvdb.Store {

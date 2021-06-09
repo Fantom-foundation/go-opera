@@ -205,6 +205,8 @@ func init() {
 		importCommand,
 		exportCommand,
 		checkCommand,
+		// See snapshot.go
+		snapshotCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
