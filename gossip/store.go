@@ -158,6 +158,9 @@ func (s *Store) commitEVM() {
 }
 
 func (s *Store) Init() error {
+	if !s.cfg.EVM.EnableSnapshots {
+		return nil
+	}
 	// DB is being flushed in a middle of this call to limit memory usage of initial snapshot building
 	res := make(chan error)
 	go func() {

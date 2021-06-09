@@ -286,6 +286,14 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 	return cfg, nil
 }
 
+func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossip.StoreConfig, error) {
+	cfg := src
+	if !ctx.GlobalBool(utils.SnapshotFlag.Name) {
+		cfg.EVM.EnableSnapshots = false
+	}
+	return cfg, nil
+}
+
 func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	utils.SetNodeConfig(ctx, &cfg)
 
@@ -337,6 +345,10 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Apply flags (high priority)
 	var err error
 	cfg.Opera, err = gossipConfigWithFlags(ctx, cfg.Opera)
+	if err != nil {
+		return nil, err
+	}
+	cfg.OperaStore, err = gossipStoreConfigWithFlags(ctx, cfg.OperaStore)
 	if err != nil {
 		return nil, err
 	}
