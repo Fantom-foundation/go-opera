@@ -158,7 +158,24 @@ func (s *Store) commitEVM() {
 }
 
 func (s *Store) Init() error {
-	return s.EvmStore().InitEvmSnapshot(s.GetBlockState().FinalizedStateRoot)
+	// DB is being flushed in a middle of this call to limit memory usage of initial snapshot building
+	res := make(chan error)
+	go func() {
+		res <- s.EvmStore().InitEvmSnapshot(s.GetBlockState().FinalizedStateRoot)
+	}()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if s.IsCommitNeeded(false) {
+				_ = s.Commit()
+			}
+		case err := <-res:
+			_ = s.Commit()
+			return err
+		}
+	}
 }
 
 // Commit changes.
