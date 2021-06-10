@@ -173,6 +173,29 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 				check(require, got)
 			})
 
+			t.Run("With addresses and blocks", func(t *testing.T) {
+				require := require.New(t)
+
+				got1, err := method(nil, 2, 998, [][]common.Hash{
+					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.Equal(2, len(got1))
+				check(require, got1)
+
+				got2, err := method(nil, 2, 998, [][]common.Hash{
+					{addr4.Hash(), addr3.Hash(), addr2.Hash(), addr1.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.ElementsMatch(got1, got2)
+			})
+
 		})
 	}
 }
