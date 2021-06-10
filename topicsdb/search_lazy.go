@@ -61,8 +61,7 @@ func (tt *Index) walkFirst(
 
 			gonext, err = onMatched(rec, false)
 			if err != nil || !gonext {
-				it.Release()
-				return
+				break
 			}
 
 			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
