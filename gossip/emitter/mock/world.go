@@ -46,6 +46,7 @@ func (m *MockExternal) EXPECT() *MockExternalMockRecorder {
 
 // Build mocks base method
 func (m *MockExternal) Build(arg0 *inter.MutableEventPayload, arg1 func()) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Build", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -53,11 +54,13 @@ func (m *MockExternal) Build(arg0 *inter.MutableEventPayload, arg1 func()) error
 
 // Build indicates an expected call of Build
 func (mr *MockExternalMockRecorder) Build(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockExternal)(nil).Build), arg0, arg1)
 }
 
 // Check mocks base method
 func (m *MockExternal) Check(arg0 *inter.EventPayload, arg1 inter.Events) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Check", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -65,11 +68,13 @@ func (m *MockExternal) Check(arg0 *inter.EventPayload, arg1 inter.Events) error 
 
 // Check indicates an expected call of Check
 func (mr *MockExternalMockRecorder) Check(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*MockExternal)(nil).Check), arg0, arg1)
 }
 
 // DagIndex mocks base method
 func (m *MockExternal) DagIndex() *vecmt.Index {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DagIndex")
 	ret0, _ := ret[0].(*vecmt.Index)
 	return ret0
@@ -77,23 +82,13 @@ func (m *MockExternal) DagIndex() *vecmt.Index {
 
 // DagIndex indicates an expected call of DagIndex
 func (mr *MockExternalMockRecorder) DagIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DagIndex", reflect.TypeOf((*MockExternal)(nil).DagIndex))
-}
-
-// Equal mocks base method
-func (m *MockExternal) Equal(arg0 types.Signer) bool {
-	ret := m.ctrl.Call(m, "Equal", arg0)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Equal indicates an expected call of Equal
-func (mr *MockExternalMockRecorder) Equal(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equal", reflect.TypeOf((*MockExternal)(nil).Equal), arg0)
 }
 
 // GetEpochValidators mocks base method
 func (m *MockExternal) GetEpochValidators() (*pos.Validators, idx.Epoch) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEpochValidators")
 	ret0, _ := ret[0].(*pos.Validators)
 	ret1, _ := ret[1].(idx.Epoch)
@@ -102,11 +97,13 @@ func (m *MockExternal) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 
 // GetEpochValidators indicates an expected call of GetEpochValidators
 func (mr *MockExternalMockRecorder) GetEpochValidators() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEpochValidators", reflect.TypeOf((*MockExternal)(nil).GetEpochValidators))
 }
 
 // GetEvent mocks base method
 func (m *MockExternal) GetEvent(arg0 hash.Event) *inter.Event {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEvent", arg0)
 	ret0, _ := ret[0].(*inter.Event)
 	return ret0
@@ -114,11 +111,13 @@ func (m *MockExternal) GetEvent(arg0 hash.Event) *inter.Event {
 
 // GetEvent indicates an expected call of GetEvent
 func (mr *MockExternalMockRecorder) GetEvent(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEvent", reflect.TypeOf((*MockExternal)(nil).GetEvent), arg0)
 }
 
 // GetEventPayload mocks base method
 func (m *MockExternal) GetEventPayload(arg0 hash.Event) *inter.EventPayload {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventPayload", arg0)
 	ret0, _ := ret[0].(*inter.EventPayload)
 	return ret0
@@ -126,11 +125,13 @@ func (m *MockExternal) GetEventPayload(arg0 hash.Event) *inter.EventPayload {
 
 // GetEventPayload indicates an expected call of GetEventPayload
 func (mr *MockExternalMockRecorder) GetEventPayload(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventPayload", reflect.TypeOf((*MockExternal)(nil).GetEventPayload), arg0)
 }
 
 // GetGenesisTime mocks base method
 func (m *MockExternal) GetGenesisTime() inter.Timestamp {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGenesisTime")
 	ret0, _ := ret[0].(inter.Timestamp)
 	return ret0
@@ -138,11 +139,13 @@ func (m *MockExternal) GetGenesisTime() inter.Timestamp {
 
 // GetGenesisTime indicates an expected call of GetGenesisTime
 func (mr *MockExternalMockRecorder) GetGenesisTime() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisTime", reflect.TypeOf((*MockExternal)(nil).GetGenesisTime))
 }
 
 // GetHeads mocks base method
 func (m *MockExternal) GetHeads(arg0 idx.Epoch) hash.Events {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHeads", arg0)
 	ret0, _ := ret[0].(hash.Events)
 	return ret0
@@ -150,11 +153,13 @@ func (m *MockExternal) GetHeads(arg0 idx.Epoch) hash.Events {
 
 // GetHeads indicates an expected call of GetHeads
 func (mr *MockExternalMockRecorder) GetHeads(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockExternal)(nil).GetHeads), arg0)
 }
 
 // GetLastEvent mocks base method
 func (m *MockExternal) GetLastEvent(arg0 idx.Epoch, arg1 idx.ValidatorID) *hash.Event {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastEvent", arg0, arg1)
 	ret0, _ := ret[0].(*hash.Event)
 	return ret0
@@ -162,11 +167,13 @@ func (m *MockExternal) GetLastEvent(arg0 idx.Epoch, arg1 idx.ValidatorID) *hash.
 
 // GetLastEvent indicates an expected call of GetLastEvent
 func (mr *MockExternalMockRecorder) GetLastEvent(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastEvent", reflect.TypeOf((*MockExternal)(nil).GetLastEvent), arg0, arg1)
 }
 
 // GetLatestBlockIndex mocks base method
 func (m *MockExternal) GetLatestBlockIndex() idx.Block {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestBlockIndex")
 	ret0, _ := ret[0].(idx.Block)
 	return ret0
@@ -174,11 +181,13 @@ func (m *MockExternal) GetLatestBlockIndex() idx.Block {
 
 // GetLatestBlockIndex indicates an expected call of GetLatestBlockIndex
 func (mr *MockExternalMockRecorder) GetLatestBlockIndex() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBlockIndex", reflect.TypeOf((*MockExternal)(nil).GetLatestBlockIndex))
 }
 
 // GetRules mocks base method
 func (m *MockExternal) GetRules() opera.Rules {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRules")
 	ret0, _ := ret[0].(opera.Rules)
 	return ret0
@@ -186,23 +195,13 @@ func (m *MockExternal) GetRules() opera.Rules {
 
 // GetRules indicates an expected call of GetRules
 func (mr *MockExternalMockRecorder) GetRules() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRules", reflect.TypeOf((*MockExternal)(nil).GetRules))
-}
-
-// Hash mocks base method
-func (m *MockExternal) Hash(arg0 *types.Transaction) common.Hash {
-	ret := m.ctrl.Call(m, "Hash", arg0)
-	ret0, _ := ret[0].(common.Hash)
-	return ret0
-}
-
-// Hash indicates an expected call of Hash
-func (mr *MockExternalMockRecorder) Hash(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hash", reflect.TypeOf((*MockExternal)(nil).Hash), arg0)
 }
 
 // IsBusy mocks base method
 func (m *MockExternal) IsBusy() bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsBusy")
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -210,11 +209,13 @@ func (m *MockExternal) IsBusy() bool {
 
 // IsBusy indicates an expected call of IsBusy
 func (mr *MockExternalMockRecorder) IsBusy() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBusy", reflect.TypeOf((*MockExternal)(nil).IsBusy))
 }
 
 // IsSynced mocks base method
 func (m *MockExternal) IsSynced() bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsSynced")
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -222,21 +223,25 @@ func (m *MockExternal) IsSynced() bool {
 
 // IsSynced indicates an expected call of IsSynced
 func (mr *MockExternalMockRecorder) IsSynced() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSynced", reflect.TypeOf((*MockExternal)(nil).IsSynced))
 }
 
 // Lock mocks base method
 func (m *MockExternal) Lock() {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Lock")
 }
 
 // Lock indicates an expected call of Lock
 func (mr *MockExternalMockRecorder) Lock() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lock", reflect.TypeOf((*MockExternal)(nil).Lock))
 }
 
 // PeersNum mocks base method
 func (m *MockExternal) PeersNum() int {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeersNum")
 	ret0, _ := ret[0].(int)
 	return ret0
@@ -244,11 +249,13 @@ func (m *MockExternal) PeersNum() int {
 
 // PeersNum indicates an expected call of PeersNum
 func (mr *MockExternalMockRecorder) PeersNum() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeersNum", reflect.TypeOf((*MockExternal)(nil).PeersNum))
 }
 
 // Process mocks base method
 func (m *MockExternal) Process(arg0 *inter.EventPayload) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Process", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -256,57 +263,19 @@ func (m *MockExternal) Process(arg0 *inter.EventPayload) error {
 
 // Process indicates an expected call of Process
 func (mr *MockExternalMockRecorder) Process(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockExternal)(nil).Process), arg0)
-}
-
-// Sender mocks base method
-func (m *MockExternal) Sender(arg0 *types.Transaction) (common.Address, error) {
-	ret := m.ctrl.Call(m, "Sender", arg0)
-	ret0, _ := ret[0].(common.Address)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Sender indicates an expected call of Sender
-func (mr *MockExternalMockRecorder) Sender(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sender", reflect.TypeOf((*MockExternal)(nil).Sender), arg0)
-}
-
-// Sign mocks base method
-func (m *MockExternal) Sign(arg0 validatorpk.PubKey, arg1 []byte) ([]byte, error) {
-	ret := m.ctrl.Call(m, "Sign", arg0, arg1)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Sign indicates an expected call of Sign
-func (mr *MockExternalMockRecorder) Sign(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockExternal)(nil).Sign), arg0, arg1)
-}
-
-// SignatureValues mocks base method
-func (m *MockExternal) SignatureValues(arg0 *types.Transaction, arg1 []byte) (*big.Int, *big.Int, *big.Int, error) {
-	ret := m.ctrl.Call(m, "SignatureValues", arg0, arg1)
-	ret0, _ := ret[0].(*big.Int)
-	ret1, _ := ret[1].(*big.Int)
-	ret2, _ := ret[2].(*big.Int)
-	ret3, _ := ret[3].(error)
-	return ret0, ret1, ret2, ret3
-}
-
-// SignatureValues indicates an expected call of SignatureValues
-func (mr *MockExternalMockRecorder) SignatureValues(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignatureValues", reflect.TypeOf((*MockExternal)(nil).SignatureValues), arg0, arg1)
 }
 
 // Unlock mocks base method
 func (m *MockExternal) Unlock() {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Unlock")
 }
 
 // Unlock indicates an expected call of Unlock
 func (mr *MockExternalMockRecorder) Unlock() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unlock", reflect.TypeOf((*MockExternal)(nil).Unlock))
 }
 
@@ -335,6 +304,7 @@ func (m *MockTxPool) EXPECT() *MockTxPoolMockRecorder {
 
 // Has mocks base method
 func (m *MockTxPool) Has(arg0 common.Hash) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Has", arg0)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -342,11 +312,13 @@ func (m *MockTxPool) Has(arg0 common.Hash) bool {
 
 // Has indicates an expected call of Has
 func (mr *MockTxPoolMockRecorder) Has(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Has", reflect.TypeOf((*MockTxPool)(nil).Has), arg0)
 }
 
 // Pending mocks base method
 func (m *MockTxPool) Pending() (map[common.Address]types.Transactions, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Pending")
 	ret0, _ := ret[0].(map[common.Address]types.Transactions)
 	ret1, _ := ret[1].(error)
@@ -355,11 +327,13 @@ func (m *MockTxPool) Pending() (map[common.Address]types.Transactions, error) {
 
 // Pending indicates an expected call of Pending
 func (mr *MockTxPoolMockRecorder) Pending() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pending", reflect.TypeOf((*MockTxPool)(nil).Pending))
 }
 
 // SubscribeNewTxsNotify mocks base method
 func (m *MockTxPool) SubscribeNewTxsNotify(arg0 chan<- evmcore.NewTxsNotify) event.Subscription {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SubscribeNewTxsNotify", arg0)
 	ret0, _ := ret[0].(event.Subscription)
 	return ret0
@@ -367,6 +341,7 @@ func (m *MockTxPool) SubscribeNewTxsNotify(arg0 chan<- evmcore.NewTxsNotify) eve
 
 // SubscribeNewTxsNotify indicates an expected call of SubscribeNewTxsNotify
 func (mr *MockTxPoolMockRecorder) SubscribeNewTxsNotify(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeNewTxsNotify", reflect.TypeOf((*MockTxPool)(nil).SubscribeNewTxsNotify), arg0)
 }
 
@@ -393,8 +368,23 @@ func (m *MockTxSigner) EXPECT() *MockTxSignerMockRecorder {
 	return m.recorder
 }
 
+// ChainID mocks base method
+func (m *MockTxSigner) ChainID() *big.Int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChainID")
+	ret0, _ := ret[0].(*big.Int)
+	return ret0
+}
+
+// ChainID indicates an expected call of ChainID
+func (mr *MockTxSignerMockRecorder) ChainID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainID", reflect.TypeOf((*MockTxSigner)(nil).ChainID))
+}
+
 // Equal mocks base method
 func (m *MockTxSigner) Equal(arg0 types.Signer) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Equal", arg0)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -402,11 +392,13 @@ func (m *MockTxSigner) Equal(arg0 types.Signer) bool {
 
 // Equal indicates an expected call of Equal
 func (mr *MockTxSignerMockRecorder) Equal(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equal", reflect.TypeOf((*MockTxSigner)(nil).Equal), arg0)
 }
 
 // Hash mocks base method
 func (m *MockTxSigner) Hash(arg0 *types.Transaction) common.Hash {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Hash", arg0)
 	ret0, _ := ret[0].(common.Hash)
 	return ret0
@@ -414,11 +406,13 @@ func (m *MockTxSigner) Hash(arg0 *types.Transaction) common.Hash {
 
 // Hash indicates an expected call of Hash
 func (mr *MockTxSignerMockRecorder) Hash(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hash", reflect.TypeOf((*MockTxSigner)(nil).Hash), arg0)
 }
 
 // Sender mocks base method
 func (m *MockTxSigner) Sender(arg0 *types.Transaction) (common.Address, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sender", arg0)
 	ret0, _ := ret[0].(common.Address)
 	ret1, _ := ret[1].(error)
@@ -427,11 +421,13 @@ func (m *MockTxSigner) Sender(arg0 *types.Transaction) (common.Address, error) {
 
 // Sender indicates an expected call of Sender
 func (mr *MockTxSignerMockRecorder) Sender(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sender", reflect.TypeOf((*MockTxSigner)(nil).Sender), arg0)
 }
 
 // SignatureValues mocks base method
 func (m *MockTxSigner) SignatureValues(arg0 *types.Transaction, arg1 []byte) (*big.Int, *big.Int, *big.Int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignatureValues", arg0, arg1)
 	ret0, _ := ret[0].(*big.Int)
 	ret1, _ := ret[1].(*big.Int)
@@ -442,6 +438,7 @@ func (m *MockTxSigner) SignatureValues(arg0 *types.Transaction, arg1 []byte) (*b
 
 // SignatureValues indicates an expected call of SignatureValues
 func (mr *MockTxSignerMockRecorder) SignatureValues(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignatureValues", reflect.TypeOf((*MockTxSigner)(nil).SignatureValues), arg0, arg1)
 }
 
@@ -470,6 +467,7 @@ func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 
 // Sign mocks base method
 func (m *MockSigner) Sign(arg0 validatorpk.PubKey, arg1 []byte) ([]byte, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sign", arg0, arg1)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
@@ -478,5 +476,6 @@ func (m *MockSigner) Sign(arg0 validatorpk.PubKey, arg1 []byte) ([]byte, error) 
 
 // Sign indicates an expected call of Sign
 func (mr *MockSignerMockRecorder) Sign(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSigner)(nil).Sign), arg0, arg1)
 }

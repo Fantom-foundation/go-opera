@@ -154,7 +154,7 @@ func bindContract(address common.Address, caller bind.ContractCaller, transactor
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Contract *ContractRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Contract *ContractRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Contract.Contract.ContractCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -173,7 +173,7 @@ func (_Contract *ContractRaw) Transact(opts *bind.TransactOpts, method string, p
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Contract *ContractCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Contract *ContractCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Contract.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -654,6 +654,7 @@ func (_Contract *ContractFilterer) ParseAdvanceEpochs(log types.Log) (*ContractA
 	if err := _Contract.contract.UnpackLog(event, "AdvanceEpochs", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -787,6 +788,7 @@ func (_Contract *ContractFilterer) ParseUpdateNetworkRules(log types.Log) (*Cont
 	if err := _Contract.contract.UnpackLog(event, "UpdateNetworkRules", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -920,6 +922,7 @@ func (_Contract *ContractFilterer) ParseUpdateNetworkVersion(log types.Log) (*Co
 	if err := _Contract.contract.UnpackLog(event, "UpdateNetworkVersion", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -1064,6 +1067,7 @@ func (_Contract *ContractFilterer) ParseUpdateValidatorPubkey(log types.Log) (*C
 	if err := _Contract.contract.UnpackLog(event, "UpdateValidatorPubkey", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -1208,6 +1212,7 @@ func (_Contract *ContractFilterer) ParseUpdateValidatorWeight(log types.Log) (*C
 	if err := _Contract.contract.UnpackLog(event, "UpdateValidatorWeight", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -1351,6 +1356,7 @@ func (_Contract *ContractFilterer) ParseUpdatedBackend(log types.Log) (*Contract
 	if err := _Contract.contract.UnpackLog(event, "UpdatedBackend", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
