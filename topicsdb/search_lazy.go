@@ -6,19 +6,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type logHandler func(rec *logrec, complete bool) (gonext bool, err error)
+type logHandler func(rec *logrec) (gonext bool, err error)
 
-func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart []byte, onMatched logHandler) (err error) {
+func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart []byte, blockEnd uint64, onMatched logHandler) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	_, err = tt.walkFirst(ctx, blockStart, pattern, 0, onMatched)
+	_, err = tt.walkFirst(ctx, blockStart, blockEnd, pattern, 0, onMatched)
 	return
 }
 
 // walkFirst for topics recursive.
 func (tt *Index) walkFirst(
-	ctx context.Context, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched logHandler,
+	ctx context.Context, blockStart []byte, blockEnd uint64, pattern [][]common.Hash, pos uint8, onMatched logHandler,
 ) (
 	gonext bool, err error,
 ) {
@@ -59,12 +59,11 @@ func (tt *Index) walkFirst(
 			id := extractLogrecID(it.Key())
 			rec := newLogrec(id, topicCount)
 
-			gonext, err = onMatched(rec, false)
-			if err != nil || !gonext {
+			if blockEnd > 0 && rec.ID.BlockNumber() > blockEnd {
 				break
 			}
 
-			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
+			gonext, err = tt.walkNexts(ctx, rec, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
 				return
@@ -83,7 +82,7 @@ func (tt *Index) walkFirst(
 
 // walkNexts for topics recursive.
 func (tt *Index) walkNexts(
-	ctx context.Context, rec *logrec, blockStart []byte, pattern [][]common.Hash, pos uint8, onMatched logHandler,
+	ctx context.Context, rec *logrec, pattern [][]common.Hash, pos uint8, onMatched logHandler,
 ) (
 	gonext bool, err error,
 ) {
@@ -92,7 +91,7 @@ func (tt *Index) walkNexts(
 	for {
 		// Max recursion depth is equal to len(topics) and limited by MaxCount.
 		if pos >= patternLen {
-			gonext, err = onMatched(rec, true)
+			gonext, err = onMatched(rec)
 			return
 		}
 		if len(pattern[pos]) < 1 {
@@ -113,7 +112,7 @@ func (tt *Index) walkNexts(
 
 	for _, variant := range pattern[pos] {
 		copy(prefix[0:], variant.Bytes())
-		it := tt.table.Topic.NewIterator(prefix[:prefLen], blockStart)
+		it := tt.table.Topic.NewIterator(prefix[:prefLen], nil)
 		for it.Next() {
 			err = ctx.Err()
 			if err != nil {
@@ -121,7 +120,7 @@ func (tt *Index) walkNexts(
 				return
 			}
 
-			gonext, err = tt.walkNexts(ctx, rec, nil, pattern, pos+1, onMatched)
+			gonext, err = tt.walkNexts(ctx, rec, pattern, pos+1, onMatched)
 			if err != nil || !gonext {
 				it.Release()
 				return

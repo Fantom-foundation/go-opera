@@ -49,16 +49,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		}
 	}()
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if rec.ID.BlockNumber() > uint64(to) {
-			return
-		}
-
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		wg.Add(1)
 		go func() {
 			rec.fetch(tt.table.Logrec)
@@ -69,7 +60,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		return
 	}
 
-	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
+	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
 	wg.Wait()
 
 	return

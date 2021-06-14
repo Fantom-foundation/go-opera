@@ -63,12 +63,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return err
 	}
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		rec.fetch(tt.table.Logrec)
 		if rec.err != nil {
 			err = rec.err
@@ -78,7 +73,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, nil, onMatched)
+	return tt.searchLazy(ctx, pattern, nil, 0, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
@@ -92,16 +87,7 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return err
 	}
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if rec.ID.BlockNumber() > uint64(to) {
-			return
-		}
-
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		rec.fetch(tt.table.Logrec)
 		if rec.err != nil {
 			err = rec.err
@@ -111,7 +97,7 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
+	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
 }
 
 func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) {
