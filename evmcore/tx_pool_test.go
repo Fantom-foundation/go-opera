@@ -54,7 +54,7 @@ type testBlockChain struct {
 func (bc *testBlockChain) CurrentBlock() *EvmBlock {
 	return &EvmBlock{
 		EvmHeader: EvmHeader{
-			Number:     nil,
+			Number:     big.NewInt(1),
 			Hash:       common.Hash{},
 			ParentHash: common.Hash{},
 			Root:       common.Hash{},
