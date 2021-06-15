@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
@@ -162,6 +163,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 	// sort transactions by price and nonce
 	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
 	senderTxs := make(map[common.Address]int)
+	rules := em.world.GetRules()
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		// check we don't originate too many txs from the same sender
 		sender, _ := types.Sender(em.world.TxSigner, tx)
@@ -169,8 +171,8 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			sorted.Pop()
 			continue
 		}
-		// check transaction is not underpriced
-		if tx.GasPrice().Cmp(em.world.GetRules().Economy.MinGasPrice) < 0 {
+		// check transaction epoch rules
+		if epochcheck.CheckTxs(types.Transactions{tx}, rules) != nil {
 			sorted.Pop()
 			continue
 		}

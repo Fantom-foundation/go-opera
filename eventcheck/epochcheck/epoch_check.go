@@ -5,6 +5,7 @@ import (
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -65,12 +66,12 @@ func (v *Checker) checkGas(e inter.EventPayloadI, rules opera.Rules) error {
 	return nil
 }
 
-func (v *Checker) checkTxs(e inter.EventPayloadI, rules opera.Rules) error {
+func CheckTxs(txs types.Transactions, rules opera.Rules) error {
 	maxType := uint8(0)
 	if rules.Upgrades.Berlin {
 		maxType++
 	}
-	for _, tx := range e.Txs() {
+	for _, tx := range txs {
 		if tx.Type() > maxType {
 			return ErrUnsupportedTxType
 		}
@@ -100,7 +101,7 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.checkGas(e, rules); err != nil {
 		return err
 	}
-	if err := v.checkTxs(e, rules); err != nil {
+	if err := CheckTxs(e.Txs(), rules); err != nil {
 		return err
 	}
 	return nil
