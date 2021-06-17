@@ -98,6 +98,10 @@ func (tr *TraceStructLogger) CaptureStart(from common.Address, to common.Address
 
 // stackPosFromEnd returns object from stack at givven position from end of stack
 func stackPosFromEnd(stackData []uint256.Int, pos int) *big.Int {
+	if len(stackData) <= pos || pos < 0 {
+		log.Warn("Tracer accessed out of bound stack", "size", len(stackData), "index", pos)
+		return new(big.Int)
+	}
 	return new(big.Int).Set(stackData[len(stackData)-1-pos].ToBig())
 }
 
@@ -136,7 +140,8 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 
 		// Create new trace
 		trace := NewActionTraceFromTrace(fromTrace, CREATE, tr.traceAddress)
-		traceAction := NewAddressAction(nil, gas, input, nil, fromTrace.Action.Value, nil)
+		from := contract.Address()
+		traceAction := NewAddressAction(&from, gas, input, nil, fromTrace.Action.Value, nil)
 		trace.Action = *traceAction
 		trace.Result.GasUsed = hexutil.Uint64(gas)
 		fromTrace.childTraces = append(fromTrace.childTraces, trace)
@@ -172,10 +177,10 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
 		// create new trace
 		trace := NewActionTraceFromTrace(fromTrace, CALL, tr.traceAddress)
-		action := fromTrace.Action
+		from := contract.Address()
 		addr := common.BytesToAddress(stackPosFromEnd(stack.Data(), 1).Bytes())
 		callType := strings.ToLower(op.String())
-		traceAction := NewAddressAction(action.To, gas, input, &addr, hexutil.Big(*value), &callType)
+		traceAction := NewAddressAction(&from, gas, input, &addr, hexutil.Big(*value), &callType)
 		trace.Action = *traceAction
 		fromTrace.childTraces = append(fromTrace.childTraces, trace)
 		trace.Result.RetOffset = retOffset
@@ -217,19 +222,19 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 	case vm.SELFDESTRUCT:
 		tr.traceAddress = addTraceAddress(tr.traceAddress, depth)
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
-		trace := NewActionTraceFromTrace(fromTrace, CALL, tr.traceAddress)
+		trace := NewActionTraceFromTrace(fromTrace, SELFDESTRUCT, tr.traceAddress)
 		action := fromTrace.Action
 
-		// set refund values
+		from := contract.Address()
 		traceAction := NewAddressAction(nil, 0, nil, nil, action.Value, nil)
-		traceAction.Address = action.To
+		traceAction.Address = &from
+		// set refund values
 		refundAddress := common.BytesToAddress(stackPosFromEnd(stack.Data(), 0).Bytes())
 		traceAction.RefundAddress = &refundAddress
+		// Add `balance` field for convenient usage
+		traceAction.Balance = &traceAction.Value
 		trace.Action = *traceAction
 		fromTrace.childTraces = append(fromTrace.childTraces, trace)
-
-		tr.rootTrace.Stack = append(tr.rootTrace.Stack, trace)
-		tr.state = append(tr.state, depthState{depth, false})
 	}
 
 	return nil
@@ -419,8 +424,9 @@ func NewActionTraceFromTrace(actionTrace *ActionTrace, tType string, traceAddres
 }
 
 const (
-	CALL   = "call"
-	CREATE = "create"
+	CALL         = "call"
+	CREATE       = "create"
+	SELFDESTRUCT = "suicide"
 )
 
 // ActionTrace represents single interaction with blockchain
