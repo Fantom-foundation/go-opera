@@ -166,7 +166,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 		value := common.BytesToHash(input[:32])
 
 		stateDB.SetState(acc, key, value)
-	}  else if bytes.Equal(input[:4], incNonceMethodID) {
+	} else if bytes.Equal(input[:4], incNonceMethodID) {
 		input = input[4:]
 		// incNonce
 		if suppliedGas < params.CallValueTransferGas {
@@ -194,7 +194,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 			return nil, 0, vm.ErrExecutionReverted
 		}
 
-		stateDB.SetNonce(acc, stateDB.GetNonce(acc) + value.Uint64())
+		stateDB.SetNonce(acc, stateDB.GetNonce(acc)+value.Uint64())
 	} else {
 		return nil, 0, vm.ErrExecutionReverted
 	}
