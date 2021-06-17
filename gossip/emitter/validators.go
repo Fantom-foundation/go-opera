@@ -32,19 +32,19 @@ func (em *Emitter) recountValidators(validators *pos.Validators) {
 	em.intervals.Confirming = em.expectedEmitIntervals[em.config.Validator.ID]
 	em.intervals.Max = em.config.EmitIntervals.Max
 	// if network just has started, then relax the doublesign protection
-	if time.Since(em.world.GetGenesisTime().Time()) < networkStartPeriod {
+	if em.world.Now().Sub(em.world.GetGenesisTime().Time()) < networkStartPeriod {
 		em.intervals.Max /= 6
 		em.intervals.DoublesignProtection /= 6
 	}
 }
 
 func (em *Emitter) recheckChallenges() {
-	if time.Since(em.prevRecheckedChallenges) < validatorChallenge/10 {
+	if em.world.Now().Sub(em.prevRecheckedChallenges) < validatorChallenge/10 {
 		return
 	}
 	em.world.Lock()
 	defer em.world.Unlock()
-	now := time.Now()
+
 	if !em.idle() {
 		// give challenges to all the non-spare validators if network isn't idle
 		for _, vid := range em.validators.IDs() {
@@ -52,7 +52,7 @@ func (em *Emitter) recheckChallenges() {
 				continue
 			}
 			if _, ok := em.challenges[vid]; !ok {
-				em.challenges[vid] = now.Add(validatorChallenge + em.expectedEmitIntervals[vid]*4)
+				em.challenges[vid] = em.world.Now().Add(validatorChallenge + em.expectedEmitIntervals[vid]*4)
 			}
 		}
 	} else {
@@ -62,7 +62,7 @@ func (em *Emitter) recheckChallenges() {
 	// check challenges
 	recount := false
 	for vid, challengeDeadline := range em.challenges {
-		if now.After(challengeDeadline) {
+		if em.world.Now().After(challengeDeadline) {
 			em.offlineValidators[vid] = true
 			recount = true
 		}
@@ -70,5 +70,5 @@ func (em *Emitter) recheckChallenges() {
 	if recount {
 		em.recountValidators(em.validators)
 	}
-	em.prevRecheckedChallenges = now
+	em.prevRecheckedChallenges = em.world.Now()
 }

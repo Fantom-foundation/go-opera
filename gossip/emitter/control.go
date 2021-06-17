@@ -126,6 +126,6 @@ func (em *Emitter) recheckIdleTime() {
 	em.world.Lock()
 	defer em.world.Unlock()
 	if em.idle() {
-		em.prevIdleTime = time.Now()
+		em.prevIdleTime = em.world.Now()
 	}
 }

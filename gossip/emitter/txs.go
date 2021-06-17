@@ -107,7 +107,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	if em.config.Validator.ID == 0 {
 		return // short circuit if not a validator
 	}
-	now := time.Now()
+	now := em.world.Now()
 	for _, tx := range txs {
 		_, ok := em.txTime.Get(tx.Hash())
 		if !ok {
@@ -127,7 +127,7 @@ func getTxRoundIndex(now, txTime time.Time, validatorsNum idx.Validator) int {
 func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
-		now := time.Now()
+		now := em.world.Now()
 		em.txTime.Add(txHash, now)
 		return now
 	}
@@ -189,7 +189,7 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 			continue
 		}
 		// my turn, i.e. try to not include the same tx simultaneously by different validators
-		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), time.Now(), em.validators, e.Creator(), em.epoch) {
+		if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), em.world.Now(), em.validators, e.Creator(), em.epoch) {
 			sorted.Pop()
 			continue
 		}

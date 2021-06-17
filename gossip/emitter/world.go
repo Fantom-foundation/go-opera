@@ -3,6 +3,7 @@ package emitter
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -38,17 +39,18 @@ type (
 		PeersNum() int
 	}
 
-	// aliases for mock generator
-	Signer   valkeystore.SignerI
-	TxSigner types.Signer
-
 	// World is an emitter's environment
 	World struct {
+		Clock
 		External
 		TxPool   TxPool
 		Signer   valkeystore.SignerI
 		TxSigner types.Signer
 	}
+
+	// aliases for mock generator
+	Signer   valkeystore.SignerI
+	TxSigner types.Signer
 )
 
 // Reader is a callback for getting events from an external storage.
@@ -74,4 +76,17 @@ type TxPool interface {
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+}
+
+type (
+	Clock interface {
+		Now() time.Time
+	}
+
+	realClock struct {
+	}
+)
+
+func (c realClock) Now() time.Time {
+	return time.Now()
 }

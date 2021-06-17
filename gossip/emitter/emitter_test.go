@@ -1,7 +1,9 @@
 package emitter
 
 import (
+	"fmt"
 	"math/big"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -10,33 +12,34 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool,TxSigner,Signer
+//go:generate go run github.com/golang/mock/mockgen -package=mock -destination=mock/world.go github.com/Fantom-foundation/go-opera/gossip/emitter External,TxPool
 
 func TestEmitter(t *testing.T) {
-	cfg := DefaultConfig()
-	gValidators := makegenesis.GetFakeValidators(3)
-	vv := pos.NewBuilder()
-	for _, v := range gValidators {
-		vv.Set(v.ID, pos.Weight(1))
-	}
-	validators := vv.Build()
-	cfg.Validator.ID = gValidators[0].ID
+	var (
+		validators *pos.Validators
+		signer     valkeystore.SignerI
+		cfg        = DefaultConfig()
+	)
+	validators, cfg.Validator.ID, cfg.Validator.PubKey, signer = testKeys()
 
 	ctrl := gomock.NewController(t)
 	external := mock.NewMockExternal(ctrl)
 	txPool := mock.NewMockTxPool(ctrl)
-	signer := mock.NewMockSigner(ctrl)
-	txSigner := mock.NewMockTxSigner(ctrl)
+
+	clock := &fakeClock{time.Now()}
 
 	external.EXPECT().Lock().
 		AnyTimes()
@@ -56,43 +59,40 @@ func TestEmitter(t *testing.T) {
 		External: external,
 		TxPool:   txPool,
 		Signer:   signer,
-		TxSigner: txSigner,
+		TxSigner: types.NewEIP155Signer(big.NewInt(1)),
+		Clock:    clock,
 	})
 
 	t.Run("init", func(t *testing.T) {
 		external.EXPECT().GetRules().
 			Return(opera.FakeNetRules()).
 			AnyTimes()
-
 		external.EXPECT().GetEpochValidators().
 			Return(validators, idx.Epoch(1)).
 			AnyTimes()
-
 		external.EXPECT().GetLastEvent(idx.Epoch(1), cfg.Validator.ID).
 			Return((*hash.Event)(nil)).
 			AnyTimes()
-
 		external.EXPECT().GetGenesisTime().
-			Return(inter.Timestamp(uint64(time.Now().UnixNano()))).
+			Return(inter.Timestamp(uint64(clock.Now().UnixNano()))).
 			AnyTimes()
 
 		em.init()
+
+		clock.Add(networkStartPeriod)
 	})
 
 	t.Run("memorizeTxTimes", func(t *testing.T) {
 		require := require.New(t)
 		tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
 
-		external.EXPECT().IsBusy().
-			Return(true).
-			AnyTimes()
-
 		_, ok := em.txTime.Get(tx.Hash())
 		require.False(ok)
 
-		before := time.Now()
+		before := clock.Now()
+		clock.Add(time.Second)
 		em.memorizeTxTimes(types.Transactions{tx})
-		after := time.Now()
+		after := clock.Add(time.Second)
 
 		cached, ok := em.txTime.Get(tx.Hash())
 		got := cached.(time.Time)
@@ -101,7 +101,155 @@ func TestEmitter(t *testing.T) {
 		require.True(got.Before(after))
 	})
 
-	t.Run("tick", func(t *testing.T) {
-		em.tick()
+	t.Run("isMyTxTurn", func(t *testing.T) {
+		require := require.New(t)
+		const accountNonce = 1
+		var (
+			sender common.Address
+			txTime = clock.Now()
+			tx     = types.NewTransaction(accountNonce, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+
+			validators = int(em.validators.Len())
+			got        = make(map[idx.ValidatorID]bool, validators)
+		)
+		for i := 0; i < validators; i++ {
+			var (
+				onlyOne    bool
+				atLeastOne bool
+			)
+			now := txTime.Add(TxTurnPeriodLatency).Add(TxTurnPeriod * time.Duration(i))
+			for _, me := range em.validators.IDs() {
+				if em.isMyTxTurn(tx.Hash(), sender, accountNonce, now, em.validators, me, em.epoch) {
+					onlyOne = !onlyOne && !atLeastOne
+					atLeastOne = true
+					got[me] = true
+				}
+			}
+			require.True(atLeastOne, i)
+			require.True(onlyOne, i)
+		}
+		everyOne := len(got) == int(em.validators.Len())
+		require.True(everyOne)
 	})
+
+	t.Run("tick", func(t *testing.T) {
+		require := require.New(t)
+
+		external.EXPECT().GetHeads(idx.Epoch(1)).
+			Return(hash.Events{}).
+			AnyTimes()
+
+		external.EXPECT().IsBusy().
+			Return(true).
+			Times(1)
+		isBusy := em.tick()
+		require.True(isBusy)
+
+		txPool.EXPECT().Pending().
+			Return(nil, fmt.Errorf("don't emit event")).
+			Times(1)
+		external.EXPECT().IsBusy().
+			Return(false).
+			Times(1)
+		isBusy = em.tick()
+		require.False(isBusy)
+	})
+
+	t.Run("EmitEvent", func(t *testing.T) {
+		require := require.New(t)
+
+		var (
+			a0  = fakeAddr(0)
+			a1  = fakeAddr(1)
+			tx1 = types.NewTransaction(1, a1, big.NewInt(10), 1, big.NewInt(1), nil)
+			tx2 = types.NewTransaction(2, a1, big.NewInt(20), 1, big.NewInt(1), nil)
+		)
+		txPool.EXPECT().Pending().
+			Return(map[common.Address]types.Transactions{
+				a0: {tx1, tx2},
+			}, nil).
+			AnyTimes()
+		external.EXPECT().IsBusy().
+			Return(false).
+			AnyTimes()
+		external.EXPECT().Build(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+		external.EXPECT().GetLatestBlockIndex().
+			Return(idx.Block(1)).
+			Times(2)
+		external.EXPECT().Check(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+		external.EXPECT().Process(gomock.Any()).
+			Return(nil).
+			Times(1)
+
+		e := em.EmitEvent()
+		require.NotNil(e)
+
+		// require.Equal(2, e.Txs().Len())
+	})
+}
+
+func TestRandomizeEmitTime(t *testing.T) {
+	require := require.New(t)
+
+	cfgs := make([]EmitIntervals, 10)
+	base := DefaultConfig().EmitIntervals
+
+	for i := 0; i < len(cfgs); i++ {
+		r := rand.New(rand.NewSource(time.Now().Add(time.Duration(i) * time.Second).UnixNano()))
+		cfgs[i] = base.RandomizeEmitTime(r)
+	}
+
+	for i := 0; i < len(cfgs)-1; i++ {
+		for j := i + 1; j < len(cfgs)-1; j++ {
+			require.NotEqual(cfgs[i], cfgs[j], "%d vs %d", i, j)
+		}
+	}
+}
+
+func testKeys() (*pos.Validators, idx.ValidatorID, validatorpk.PubKey, valkeystore.SignerI) {
+	const pswd = "testpswd"
+	gValidators := makegenesis.GetFakeValidators(3)
+
+	vv := pos.NewBuilder()
+	for _, v := range gValidators {
+		vv.Set(v.ID, pos.Weight(1))
+	}
+	validators := vv.Build()
+
+	vID := gValidators[0].ID
+	vPK := gValidators[0].PubKey
+	vKey := makegenesis.FakeKey(1)
+
+	keys := valkeystore.NewDefaultMemKeystore()
+	keys.Add(vPK, crypto.FromECDSA(vKey), pswd)
+	keys.Unlock(vPK, pswd)
+
+	return validators, vID, vPK, valkeystore.NewSigner(keys)
+}
+
+func fakeAddr(i int) (a common.Address) {
+	rand.Seed(int64(i))
+
+	_, err := rand.Read(a[:])
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+type fakeClock struct {
+	now time.Time
+}
+
+func (c *fakeClock) Now() time.Time {
+	return c.now
+}
+
+func (c *fakeClock) Add(d time.Duration) time.Time {
+	c.now = c.now.Add(d)
+	return c.now
 }
