@@ -34,10 +34,10 @@ func overrideFlags() {
 
 // NodeDefaultConfig contains reasonable default settings.
 var NodeDefaultConfig = node.Config{
-	DataDir:             DefaultDataDir(),
-	HTTPPort:            DefaultHTTPPort,
-	HTTPModules:         []string{},
-	HTTPVirtualHosts:    []string{"localhost"},
+	DataDir:          DefaultDataDir(),
+	HTTPPort:         DefaultHTTPPort,
+	HTTPModules:      []string{},
+	HTTPVirtualHosts: []string{"localhost"},
 	HTTPTimeouts: rpc.HTTPTimeouts{
 		ReadTimeout:  120 * time.Second,
 		IdleTimeout:  120 * time.Second,

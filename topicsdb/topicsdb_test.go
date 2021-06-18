@@ -49,16 +49,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		}
 	}()
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if rec.ID.BlockNumber() > uint64(to) {
-			return
-		}
-
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		wg.Add(1)
 		go func() {
 			rec.fetch(tt.table.Logrec)
@@ -69,7 +60,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		return
 	}
 
-	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
+	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
 	wg.Wait()
 
 	return
@@ -171,6 +162,29 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 				require.NoError(err)
 				require.Equal(2, len(got))
 				check(require, got)
+			})
+
+			t.Run("With addresses and blocks", func(t *testing.T) {
+				require := require.New(t)
+
+				got1, err := method(nil, 2, 998, [][]common.Hash{
+					{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.Equal(2, len(got1))
+				check(require, got1)
+
+				got2, err := method(nil, 2, 998, [][]common.Hash{
+					{addr4.Hash(), addr3.Hash(), addr2.Hash(), addr1.Hash()},
+					{hash1, hash2, hash3, hash4},
+					{},
+					{hash1, hash2, hash3, hash4},
+				})
+				require.NoError(err)
+				require.ElementsMatch(got1, got2)
 			})
 
 		})

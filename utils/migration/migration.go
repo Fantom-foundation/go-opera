@@ -49,7 +49,7 @@ func (m *Migration) ID() string {
 }
 
 // Exec method run migrations chain in order
-func (m *Migration) Exec(curr IDStore) error {
+func (m *Migration) Exec(curr IDStore, flush func() error) error {
 	currID := curr.GetID()
 	myID := m.ID()
 
@@ -64,7 +64,7 @@ func (m *Migration) Exec(curr IDStore) error {
 		return nil
 	}
 
-	err := m.prev.Exec(curr)
+	err := m.prev.Exec(curr, flush)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,8 @@ func (m *Migration) Exec(curr IDStore) error {
 	log.Warn("'" + m.name + "' migration has been applied")
 
 	curr.SetID(myID)
-	return nil
+
+	return flush()
 }
 
 func (m *Migration) veryFirst() bool {

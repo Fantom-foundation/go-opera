@@ -3,6 +3,7 @@ package topicsdb
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -12,9 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const MaxTopicsCount = 1024
-
-//const MaxTopicsCount = math.MaxUint8
+const MaxTopicsCount = math.MaxUint8
 
 var (
 	ErrEmptyTopics = fmt.Errorf("Empty topics")
@@ -64,12 +63,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return err
 	}
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		rec.fetch(tt.table.Logrec)
 		if rec.err != nil {
 			err = rec.err
@@ -79,7 +73,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, nil, onMatched)
+	return tt.searchLazy(ctx, pattern, nil, 0, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
@@ -93,16 +87,7 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return err
 	}
 
-	onMatched := func(rec *logrec, complete bool) (gonext bool, err error) {
-		if rec.ID.BlockNumber() > uint64(to) {
-			return
-		}
-
-		if !complete {
-			gonext = true
-			return
-		}
-
+	onMatched := func(rec *logrec) (gonext bool, err error) {
 		rec.fetch(tt.table.Logrec)
 		if rec.err != nil {
 			err = rec.err
@@ -112,7 +97,7 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), onMatched)
+	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
 }
 
 func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) {
@@ -124,11 +109,8 @@ func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) 
 	copy(limited, pattern)
 
 	ok := false
-	for i, variants := range limited {
+	for _, variants := range limited {
 		ok = ok || len(variants) > 0
-		if len(variants) > MaxTopicsCount {
-			limited[i] = variants[:MaxTopicsCount]
-		}
 	}
 	if !ok {
 		err = ErrEmptyTopics

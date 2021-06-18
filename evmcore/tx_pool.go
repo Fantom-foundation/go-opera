@@ -565,13 +565,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !local && tx.GasPriceIntCmp(pool.gasPrice) < 0 {
 		return ErrUnderpriced
 	}
-	// Ensure Opera-specific hard bounds
-	if pool.chain.MinGasPrice().Cmp(tx.GasPrice()) > 0 {
-		return ErrUnderpriced
-	}
-	if pool.chain.TxExists(tx.Hash()) {
-		return ErrUnderpriced
-	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
@@ -588,6 +581,13 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
+	}
+	// Ensure Opera-specific hard bounds
+	if pool.chain.MinGasPrice().Cmp(tx.GasPrice()) > 0 {
+		return ErrUnderpriced
+	}
+	if pool.chain.TxExists(tx.Hash()) {
+		return ErrUnderpriced
 	}
 	return nil
 }
