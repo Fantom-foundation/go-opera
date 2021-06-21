@@ -1,6 +1,7 @@
 package inter
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/utils/cser"
 )
+
+var ErrUnknownTxType = errors.New("unknown tx type")
 
 func encodeSig(r, s *big.Int) (sig [64]byte) {
 	copy(sig[0:], cser.PaddedBytes(r.Bytes(), 32)[:32])
@@ -22,6 +25,14 @@ func decodeSig(sig [64]byte) (r, s *big.Int) {
 }
 
 func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
+	if tx.Type() != types.LegacyTxType {
+		// marker of a non-standard tx
+		w.BitsW.Write(6, 0)
+		// tx type
+		w.U8(tx.Type())
+	} else if tx.Gas() <= 0xff {
+		return errors.New("cannot serialize legacy tx with gasLimit <= 256")
+	}
 	w.U64(tx.Nonce())
 	w.U64(tx.Gas())
 	w.BigInt(tx.GasPrice())
@@ -35,10 +46,30 @@ func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
 	w.BigInt(v)
 	sig := encodeSig(r, s)
 	w.FixedBytes(sig[:])
-	return nil
+	if tx.Type() == types.LegacyTxType {
+		return nil
+	} else if tx.Type() == types.AccessListTxType {
+		w.BigInt(tx.ChainId())
+		w.U32(uint32(len(tx.AccessList())))
+		for _, tuple := range tx.AccessList() {
+			w.FixedBytes(tuple.Address.Bytes())
+			w.U32(uint32(len(tuple.StorageKeys)))
+			for _, h := range tuple.StorageKeys {
+				w.FixedBytes(h.Bytes())
+			}
+		}
+		return nil
+	}
+	return ErrUnknownTxType
 }
 
 func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
+	txType := uint8(types.LegacyTxType)
+	if r.BitsR.View(6) == 0 {
+		r.BitsR.Read(6)
+		txType = r.U8()
+	}
+
 	nonce := r.U64()
 	gasLimit := r.U64()
 	gasPrice := r.BigInt()
@@ -57,5 +88,43 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 	r.FixedBytes(sig[:])
 	_r, s := decodeSig(sig)
 
-	return types.NewRawTransaction(nonce, to, amount, gasLimit, gasPrice, data, v, _r, s), nil
+	if txType == types.LegacyTxType {
+		return types.NewTx(&types.LegacyTx{
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Gas:      gasLimit,
+			To:       to,
+			Value:    amount,
+			Data:     data,
+			V:        v,
+			R:        _r,
+			S:        s,
+		}), nil
+	} else if txType == types.AccessListTxType {
+		chainID := r.BigInt()
+		accessListLen := r.U32()
+		accessList := make(types.AccessList, accessListLen)
+		for i := range accessList {
+			r.FixedBytes(accessList[i].Address[:])
+			keysLen := r.U32()
+			accessList[i].StorageKeys = make([]common.Hash, keysLen)
+			for j := range accessList[i].StorageKeys {
+				r.FixedBytes(accessList[i].StorageKeys[j][:])
+			}
+		}
+		return types.NewTx(&types.AccessListTx{
+			ChainID:    chainID,
+			Nonce:      nonce,
+			GasPrice:   gasPrice,
+			Gas:        gasLimit,
+			To:         to,
+			Value:      amount,
+			Data:       data,
+			AccessList: accessList,
+			V:          v,
+			R:          _r,
+			S:          s,
+		}), nil
+	}
+	return nil, ErrUnknownTxType
 }

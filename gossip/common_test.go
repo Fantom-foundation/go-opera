@@ -82,7 +82,7 @@ func newTestEnv() *testEnv {
 	env := &testEnv{
 		blockProcModules: blockProc,
 		store:            store,
-		signer:           types.NewEIP155Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
+		signer:           types.NewEIP2930Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
 
 		lastBlock:     1,
 		lastState:     store.GetBlockState().FinalizedStateRoot,
@@ -276,7 +276,7 @@ func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blo
 // callContract implements common code between normal and pending contract calls.
 // state is modified during execution, make sure to copy it if necessary.
 func (env *testEnv) callContract(
-	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, statedb *state.StateDB,
+	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, state *state.StateDB,
 ) (
 	ret []byte, usedGas uint64, failed bool, err error,
 ) {
@@ -291,15 +291,16 @@ func (env *testEnv) callContract(
 		call.Value = new(big.Int)
 	}
 	// Set infinite balance to the fake caller account.
-	from := statedb.GetOrNewStateObject(call.From)
+	from := state.GetOrNewStateObject(call.From)
 	from.SetBalance(big.NewInt(math.MaxInt64))
 
 	msg := callmsg{call}
 
-	evmContext := evmcore.NewEVMContext(msg, block.Header(), env.GetEvmStateReader(), &call.From)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, env.store.GetRules().EvmChainConfig(), opera.DefaultVMConfig)
+	txContext := evmcore.NewEVMTxContext(msg)
+	context := evmcore.NewEVMBlockContext(block.Header(), env.GetEvmStateReader(), nil)
+	vmenv := vm.NewEVM(context, txContext, state, env.store.GetRules().EvmChainConfig(), opera.DefaultVMConfig)
 	gaspool := new(evmcore.GasPool).AddGas(math.MaxUint64)
 	res, err := evmcore.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
 
@@ -372,11 +373,12 @@ type callmsg struct {
 	ethereum.CallMsg
 }
 
-func (m callmsg) From() common.Address { return m.CallMsg.From }
-func (m callmsg) Nonce() uint64        { return 0 }
-func (m callmsg) CheckNonce() bool     { return false }
-func (m callmsg) To() *common.Address  { return m.CallMsg.To }
-func (m callmsg) GasPrice() *big.Int   { return m.CallMsg.GasPrice }
-func (m callmsg) Gas() uint64          { return m.CallMsg.Gas }
-func (m callmsg) Value() *big.Int      { return m.CallMsg.Value }
-func (m callmsg) Data() []byte         { return m.CallMsg.Data }
+func (m callmsg) From() common.Address         { return m.CallMsg.From }
+func (m callmsg) To() *common.Address          { return m.CallMsg.To }
+func (m callmsg) GasPrice() *big.Int           { return m.CallMsg.GasPrice }
+func (m callmsg) Gas() uint64                  { return m.CallMsg.Gas }
+func (m callmsg) Value() *big.Int              { return m.CallMsg.Value }
+func (m callmsg) Nonce() uint64                { return 0 }
+func (m callmsg) CheckNonce() bool             { return false }
+func (m callmsg) Data() []byte                 { return m.CallMsg.Data }
+func (m callmsg) AccessList() types.AccessList { return nil }

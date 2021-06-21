@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -40,6 +41,10 @@ func (r *EvmStateReader) MaxGasLimit() uint64 {
 		return 0
 	}
 	return rules.Economy.Gas.MaxEventGas - maxEmptyEventGas
+}
+
+func (r *EvmStateReader) Config() *params.ChainConfig {
+	return r.store.GetRules().EvmChainConfig()
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {

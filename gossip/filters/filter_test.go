@@ -51,7 +51,7 @@ func BenchmarkFilters(b *testing.B) {
 	}
 	defer os.RemoveAll(dir)
 
-	ldb, err := rawdb.NewLevelDBDatabase(dir, 0, 0, "")
+	ldb, err := rawdb.NewLevelDBDatabase(dir, 0, 0, "", false)
 	if err != nil {
 		b.Fatal(err)
 	}

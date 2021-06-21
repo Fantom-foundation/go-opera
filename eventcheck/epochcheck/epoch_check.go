@@ -5,19 +5,21 @@ import (
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
-	ErrTooManyParents = errors.New("event has too many parents")
-	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
-	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
-	ErrUnderpriced    = errors.New("event transaction underpriced")
-	ErrTooBigExtra    = errors.New("event extra data is too large")
-	ErrNotRelevant    = base.ErrNotRelevant
-	ErrAuth           = base.ErrAuth
+	ErrTooManyParents    = errors.New("event has too many parents")
+	ErrTooBigGasUsed     = errors.New("event uses too much gas power")
+	ErrWrongGasUsed      = errors.New("event has incorrect gas power")
+	ErrUnderpriced       = errors.New("event transaction underpriced")
+	ErrTooBigExtra       = errors.New("event extra data is too large")
+	ErrUnsupportedTxType = errors.New("unsupported tx type")
+	ErrNotRelevant       = base.ErrNotRelevant
+	ErrAuth              = base.ErrAuth
 )
 
 // Reader returns currents epoch and its validators group.
@@ -64,6 +66,22 @@ func (v *Checker) checkGas(e inter.EventPayloadI, rules opera.Rules) error {
 	return nil
 }
 
+func CheckTxs(txs types.Transactions, rules opera.Rules) error {
+	maxType := uint8(0)
+	if rules.Upgrades.Berlin {
+		maxType++
+	}
+	for _, tx := range txs {
+		if tx.Type() > maxType {
+			return ErrUnsupportedTxType
+		}
+		if tx.GasPrice().Cmp(rules.Economy.MinGasPrice) < 0 {
+			return ErrUnderpriced
+		}
+	}
+	return nil
+}
+
 // Validate event
 func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.Base.Validate(e); err != nil {
@@ -83,10 +101,8 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if err := v.checkGas(e, rules); err != nil {
 		return err
 	}
-	for _, tx := range e.Txs() {
-		if tx.GasPrice().Cmp(rules.Economy.MinGasPrice) < 0 {
-			return ErrUnderpriced
-		}
+	if err := CheckTxs(e.Txs(), rules); err != nil {
+		return err
 	}
 	return nil
 }

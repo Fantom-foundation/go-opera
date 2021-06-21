@@ -37,10 +37,11 @@ import (
 
 // EthAPIBackend implements ethapi.Backend.
 type EthAPIBackend struct {
-	extRPCEnabled bool
-	svc           *Service
-	state         *EvmStateReader
-	gpo           *gasprice.Oracle
+	extRPCEnabled       bool
+	svc                 *Service
+	state               *EvmStateReader
+	gpo                 *gasprice.Oracle
+	allowUnprotectedTxs bool
 }
 
 // ChainConfig returns the active chain configuration.
@@ -300,13 +301,17 @@ func (b *EthAPIBackend) GetTd(_ common.Hash) *big.Int {
 	return big.NewInt(0)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error) {
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
 	state.SetBalance(msg.From(), math.MaxBig256)
 	vmError := func() error { return nil }
 
-	context := evmcore.NewEVMContext(msg, header, b.state, nil)
+	if vmConfig == nil {
+		vmConfig = &opera.DefaultVMConfig
+	}
+	txContext := evmcore.NewEVMTxContext(msg)
+	context := evmcore.NewEVMBlockContext(header, b.state, nil)
 	config := b.ChainConfig()
-	return vm.NewEVM(context, state, config, opera.DefaultVMConfig), vmError, nil
+	return vm.NewEVM(context, txContext, state, config, *vmConfig), vmError, nil
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -409,10 +414,6 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	}
 }
 
-func (b *EthAPIBackend) ProtocolVersion() int {
-	return int(ProtocolVersions[len(ProtocolVersions)-1])
-}
-
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	return b.gpo.SuggestPrice(ctx)
 }
@@ -427,6 +428,10 @@ func (b *EthAPIBackend) AccountManager() *accounts.Manager {
 
 func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
+}
+
+func (b *EthAPIBackend) UnprotectedAllowed() bool {
+	return b.allowUnprotectedTxs
 }
 
 func (b *EthAPIBackend) RPCGasCap() uint64 {

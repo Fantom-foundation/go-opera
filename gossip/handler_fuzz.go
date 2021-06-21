@@ -41,7 +41,7 @@ func FuzzPM(data []byte) int {
 	}
 	peer := p2p.NewPeer(enode.RandomID(enode.ID{}, 1), "fake-node-1", []p2p.Cap{})
 	input := &fuzzMsgReadWriter{msg}
-	other := fuzzedPM.newPeer(lachesis62, peer, input)
+	other := fuzzedPM.newPeer(ProtocolVersion, peer, input)
 
 	err = fuzzedPM.handleMsg(other)
 	if err != nil {

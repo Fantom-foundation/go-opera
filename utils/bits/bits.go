@@ -112,6 +112,12 @@ func (a *Reader) Read(bits int) (v uint) {
 	return
 }
 
+func (a *Reader) View(bits int) (v uint) {
+	cp := *a
+	cpp := &cp
+	return cpp.Read(bits)
+}
+
 // NonReadBytes returns a number of non-consumed bytes
 func (a *Reader) NonReadBytes() int {
 	return len(a.Bytes) - a.byteOffset

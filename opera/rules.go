@@ -2,6 +2,8 @@ package opera
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"math/big"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
@@ -27,9 +30,7 @@ var DefaultVMConfig = vm.Config{
 	},
 }
 
-// Rules describes opera net.
-// Note keep track of all the non-copiable variables in Copy()
-type Rules struct {
+type RulesRLP struct {
 	Name      string
 	NetworkID uint64
 
@@ -44,7 +45,13 @@ type Rules struct {
 
 	// Economy options
 	Economy EconomyRules
+
+	Upgrades Upgrades `rlp:"-"`
 }
+
+// Rules describes opera net.
+// Note keep track of all the non-copiable variables in Copy()
+type Rules RulesRLP
 
 // GasPowerRules defines gas power rules in the consensus.
 type GasPowerRules struct {
@@ -97,10 +104,17 @@ type BlocksRules struct {
 	MaxEmptyBlockSkipPeriod inter.Timestamp
 }
 
+type Upgrades struct {
+	Berlin bool
+}
+
 // EvmChainConfig returns ChainConfig for transactions signing and execution
 func (r Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
 	cfg.ChainID = new(big.Int).SetUint64(r.NetworkID)
+	if !r.Upgrades.Berlin {
+		cfg.BerlinBlock = nil
+	}
 	return &cfg
 }
 
@@ -239,4 +253,69 @@ func (r Rules) Copy() Rules {
 func (r Rules) String() string {
 	b, _ := json.Marshal(&r)
 	return string(b)
+}
+
+// EncodeRLP is for RLP serialization.
+func (r Rules) EncodeRLP(w io.Writer) error {
+	// write the type
+	rType := uint8(0)
+	if r.Upgrades != (Upgrades{}) {
+		rType = 1
+		_, err := w.Write([]byte{rType})
+		if err != nil {
+			return err
+		}
+	}
+	// write the main body
+	rlpR := RulesRLP(r)
+	err := rlp.Encode(w, &rlpR)
+	if err != nil {
+		return err
+	}
+	// write additional fields, depending on the type
+	if rType > 0 {
+		err := rlp.Encode(w, &r.Upgrades)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DecodeRLP is for RLP serialization.
+func (r *Rules) DecodeRLP(s *rlp.Stream) error {
+	kind, _, err := s.Kind()
+	if err != nil {
+		return err
+	}
+	// read rType
+	rType := uint8(0)
+	if kind == rlp.Byte {
+		var b []byte
+		if b, err = s.Bytes(); err != nil {
+			return err
+		}
+		if len(b) == 0 {
+			return errors.New("empty typed")
+		}
+		rType = b[0]
+		if rType == 0 || rType > 1 {
+			return errors.New("unknown type")
+		}
+	}
+	// decode the main body
+	rlpR := RulesRLP{}
+	err = s.Decode(&rlpR)
+	if err != nil {
+		return err
+	}
+	*r = Rules(rlpR)
+	// decode additional fields, depending on the type
+	if rType >= 1 {
+		err = s.Decode(&r.Upgrades)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

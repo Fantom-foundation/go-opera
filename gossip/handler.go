@@ -14,17 +14,15 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
 	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
-	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
@@ -64,6 +62,18 @@ type dagNotifier interface {
 	SubscribeNewEmitted(ch chan<- *inter.EventPayload) notify.Subscription
 }
 
+// handlerConfig is the collection of initialization parameters to create a full
+// node network handler.
+type handlerConfig struct {
+	config       Config
+	notifier     dagNotifier
+	txpool       txPool
+	engineMu     sync.Locker
+	checkers     *eventcheck.Checkers
+	s            *Store
+	processEvent func(*inter.EventPayload) error
+}
+
 type ProtocolManager struct {
 	config Config
 	net    opera.Rules
@@ -74,8 +84,6 @@ type ProtocolManager struct {
 	maxPeers int
 
 	peers *peerSet
-
-	serverPool *serverPool
 
 	txsCh  chan evmcore.NewTxsNotify
 	txsSub notify.Subscription
@@ -114,17 +122,10 @@ type ProtocolManager struct {
 	logger.Instance
 }
 
-// NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
+// newHandler returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(
-	config Config,
-	notifier dagNotifier,
-	txpool txPool,
-	engineMu sync.Locker,
-	checkers *eventcheck.Checkers,
-	s *Store,
-	processEvent func(*inter.EventPayload) error,
-	serverPool *serverPool,
+func newHandler(
+	c handlerConfig,
 ) (
 	*ProtocolManager,
 	error,
@@ -137,16 +138,15 @@ func NewProtocolManager(
 	}
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
-		config:               config,
-		notifier:             notifier,
-		txpool:               txpool,
-		msgSemaphore:         datasemaphore.New(config.Protocol.MsgsSemaphoreLimit, warningFn),
-		store:                s,
-		processEvent:         processEvent,
-		checkers:             checkers,
+		config:               c.config,
+		notifier:             c.notifier,
+		txpool:               c.txpool,
+		msgSemaphore:         datasemaphore.New(c.config.Protocol.MsgsSemaphoreLimit, warningFn),
+		store:                c.s,
+		processEvent:         c.processEvent,
+		checkers:             c.checkers,
 		peers:                newPeerSet(),
-		serverPool:           serverPool,
-		engineMu:             engineMu,
+		engineMu:             c.engineMu,
 		newPeerCh:            make(chan *peer),
 		noMorePeers:          make(chan struct{}),
 		txsyncCh:             make(chan *txsync),
@@ -174,7 +174,7 @@ func NewProtocolManager(
 			return false
 		},
 	})
-	pm.processor = pm.makeProcessor(checkers)
+	pm.processor = pm.makeProcessor(c.checkers)
 	pm.leecher = streamleecher.New(pm.store.GetEpoch(), pm.store.GetHighestLamport() == 0, pm.config.Protocol.StreamLeecher, streamleecher.Callbacks{
 		OnlyNotConnected: pm.onlyNotConnectedEvents,
 		RequestChunk: func(peer string, r dagstream.Request) error {
@@ -197,7 +197,7 @@ func NewProtocolManager(
 	})
 	pm.seeder = streamseeder.New(pm.config.Protocol.StreamSeeder, streamseeder.Callbacks{
 		ForEachEvent: func(start []byte, onEvent func(key hash.Event, event interface{}, size uint64) bool) {
-			s.ForEachEventRLP(start, func(key hash.Event, event rlp.RawValue) bool {
+			c.s.ForEachEventRLP(start, func(key hash.Event, event rlp.RawValue) bool {
 				return onEvent(key, event, uint64(len(event)))
 			})
 		},
@@ -375,51 +375,6 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	return interested
 }
 
-func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
-	length, ok := protocolLengths[version]
-	if !ok {
-		panic("makeProtocol for unknown version")
-	}
-
-	return p2p.Protocol{
-		Name:    protocolName,
-		Version: version,
-		Length:  length,
-		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			var entry *poolEntry
-			peer := pm.newPeer(int(version), p, rw)
-			if pm.serverPool != nil {
-				entry = pm.serverPool.connect(peer, peer.Node())
-			}
-			peer.poolEntry = entry
-			select {
-			case pm.newPeerCh <- peer:
-				pm.wg.Add(1)
-				defer pm.wg.Done()
-				err := pm.handle(peer)
-				if entry != nil {
-					pm.serverPool.disconnect(entry)
-				}
-				return err
-			case <-pm.quitSync:
-				if entry != nil {
-					pm.serverPool.disconnect(entry)
-				}
-				return p2p.DiscQuitting
-			}
-		},
-		NodeInfo: func() interface{} {
-			return pm.NodeInfo()
-		},
-		PeerInfo: func(id enode.ID) interface{} {
-			if p := pm.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
-				return p.Info()
-			}
-			return nil
-		},
-	}
-}
-
 func (pm *ProtocolManager) removePeer(id string) {
 	// Short circuit if the peer was already removed
 	peer := pm.peers.Peer(id)
@@ -511,10 +466,6 @@ func (pm *ProtocolManager) Stop() {
 	pm.wg.Wait()
 
 	log.Info("Fantom protocol stopped")
-}
-
-func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
-	return newPeer(pv, p, rw, pm.config.Protocol.PeerCache)
 }
 
 func (pm *ProtocolManager) myProgress() PeerProgress {

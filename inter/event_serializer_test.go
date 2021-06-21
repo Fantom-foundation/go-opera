@@ -37,8 +37,28 @@ func TestEventPayloadSerialization(t *testing.T) {
 	max.SetExtra(bytes.Repeat([]byte{math.MaxUint8}, 100))
 	max.SetCreationTime(math.MaxUint64)
 	max.SetMedianTime(math.MaxUint64)
-	tx1 := types.NewRawTransaction(math.MaxUint64, nil, h.Big(), math.MaxUint64, h.Big(), []byte{}, big.NewInt(0xff), h.Big(), h.Big())
-	tx2 := types.NewRawTransaction(math.MaxUint64, &common.Address{}, h.Big(), math.MaxUint64, h.Big(), max.extra, big.NewInt(0xff), h.Big(), h.Big())
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    math.MaxUint64,
+		GasPrice: h.Big(),
+		Gas:      math.MaxUint64,
+		To:       nil,
+		Value:    h.Big(),
+		Data:     []byte{},
+		V:        big.NewInt(0xff),
+		R:        h.Big(),
+		S:        h.Big(),
+	})
+	tx2 := types.NewTx(&types.LegacyTx{
+		Nonce:    math.MaxUint64,
+		GasPrice: h.Big(),
+		Gas:      math.MaxUint64,
+		To:       &common.Address{},
+		Value:    h.Big(),
+		Data:     max.extra,
+		V:        big.NewInt(0xff),
+		R:        h.Big(),
+		S:        h.Big(),
+	})
 	txs := types.Transactions{}
 	for i := 0; i < 200; i++ {
 		txs = append(txs, tx1)
@@ -203,6 +223,35 @@ func randBig(r *rand.Rand) *big.Int {
 	return new(big.Int).SetBytes(b)
 }
 
+func randAddr(r *rand.Rand) common.Address {
+	addr := common.Address{}
+	r.Read(addr[:])
+	return addr
+}
+
+func randBytes(r *rand.Rand, size int) []byte {
+	b := make([]byte, size)
+	r.Read(b)
+	return b
+}
+
+func randAddrPtr(r *rand.Rand) *common.Address {
+	addr := randAddr(r)
+	return &addr
+}
+
+func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
+	accessList := make(types.AccessList, r.Intn(maxAddrs))
+	for i := range accessList {
+		accessList[i].Address = randAddr(r)
+		accessList[i].StorageKeys = make([]common.Hash, r.Intn(maxKeys))
+		for j := range accessList[i].StorageKeys {
+			r.Read(accessList[i].StorageKeys[j][:])
+		}
+	}
+	return accessList
+}
+
 // FakeEvent generates random event for testing purpose.
 func FakeEvent(txsNum int) *EventPayload {
 
@@ -219,13 +268,35 @@ func FakeEvent(txsNum int) *EventPayload {
 	random.SetGasPowerLeft(GasPowerLeft{[2]uint64{r.Uint64(), r.Uint64()}})
 	txs := types.Transactions{}
 	for i := 0; i < txsNum; i++ {
-		h := hash.BytesToHash(bytes.Repeat([]byte{math.MaxUint8}, 32))
-		addr := common.BytesToAddress(h.Bytes()[:20])
+		h := hash.Hash{}
+		r.Read(h[:])
 		if i%2 == 0 {
-			tx := types.NewRawTransaction(r.Uint64(), nil, randBig(r), r.Uint64(), randBig(r), []byte{}, big.NewInt(int64(r.Intn(0xffffffff))), h.Big(), h.Big())
+			tx := types.NewTx(&types.LegacyTx{
+				Nonce:    r.Uint64(),
+				GasPrice: randBig(r),
+				Gas:      257 + r.Uint64(),
+				To:       nil,
+				Value:    randBig(r),
+				Data:     randBytes(r, r.Intn(300)),
+				V:        big.NewInt(int64(r.Intn(0xffffffff))),
+				R:        h.Big(),
+				S:        h.Big(),
+			})
 			txs = append(txs, tx)
 		} else {
-			tx := types.NewRawTransaction(r.Uint64(), &addr, randBig(r), r.Uint64(), randBig(r), []byte{}, new(big.Int), new(big.Int), new(big.Int))
+			tx := types.NewTx(&types.AccessListTx{
+				ChainID:    randBig(r),
+				Nonce:      r.Uint64(),
+				GasPrice:   randBig(r),
+				Gas:        r.Uint64(),
+				To:         randAddrPtr(r),
+				Value:      randBig(r),
+				Data:       randBytes(r, r.Intn(300)),
+				AccessList: randAccessList(r, 300, 300),
+				V:          big.NewInt(int64(r.Intn(0xffffffff))),
+				R:          h.Big(),
+				S:          h.Big(),
+			})
 			txs = append(txs, tx)
 		}
 	}

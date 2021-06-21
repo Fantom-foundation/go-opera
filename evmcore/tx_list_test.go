@@ -1,4 +1,4 @@
-// Copyright 2015 The go-ethereum Authors
+// Copyright 2016 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 package evmcore
 
 import (
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -27,8 +28,6 @@ import (
 // Tests that transactions can be added to strict lists and list contents and
 // nonce boundaries are correctly maintained.
 func TestStrictTxListAdd(t *testing.T) {
-	cfg := DefaultTxPoolConfig()
-
 	// Generate a list of transactions to insert
 	key, _ := crypto.GenerateKey()
 
@@ -39,7 +38,7 @@ func TestStrictTxListAdd(t *testing.T) {
 	// Insert the transactions in a random order
 	list := newTxList(true)
 	for _, v := range rand.Perm(len(txs)) {
-		list.Add(txs[v], cfg.PriceBump)
+		list.Add(txs[v], DefaultTxPoolConfig.PriceBump)
 	}
 	// Verify internal state
 	if len(list.txs.items) != len(txs) {
@@ -49,5 +48,23 @@ func TestStrictTxListAdd(t *testing.T) {
 		if list.txs.items[tx.Nonce()] != tx {
 			t.Errorf("item %d: transaction mismatch: have %v, want %v", i, list.txs.items[tx.Nonce()], tx)
 		}
+	}
+}
+
+func BenchmarkTxListAdd(t *testing.B) {
+	// Generate a list of transactions to insert
+	key, _ := crypto.GenerateKey()
+
+	txs := make(types.Transactions, 100000)
+	for i := 0; i < len(txs); i++ {
+		txs[i] = transaction(uint64(i), 0, key)
+	}
+	// Insert the transactions in a random order
+	list := newTxList(true)
+	priceLimit := big.NewInt(int64(DefaultTxPoolConfig.PriceLimit))
+	t.ResetTimer()
+	for _, v := range rand.Perm(len(txs)) {
+		list.Add(txs[v], DefaultTxPoolConfig.PriceBump)
+		list.Filter(priceLimit, DefaultTxPoolConfig.PriceBump)
 	}
 }

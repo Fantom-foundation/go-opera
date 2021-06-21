@@ -11,8 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -37,6 +39,7 @@ type Store struct {
 		Evm      ethdb.Database
 		EvmState state.Database
 		EvmLogs  *topicsdb.Index
+		Snaps    *snapshot.Tree
 	}
 
 	cache struct {
@@ -50,6 +53,8 @@ type Store struct {
 	}
 
 	rlp rlpstore.Helper
+
+	snaps *snapshot.Tree // Snapshot tree for fast trie leaf access
 
 	logger.Instance
 }
@@ -67,7 +72,10 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	evmTable := nokeyiserr.Wrap(s.EvmKvdbTable()) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, cfg.Cache.EvmDatabase/opt.MiB, "")
+	s.table.EvmState = state.NewDatabaseWithConfig(s.table.Evm, &trie.Config{
+		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
+		Preimages: cfg.EnablePreimageRecording,
+	})
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
 
 	s.initCache()
@@ -79,6 +87,11 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.Cache.ReceiptsSize, s.cfg.Cache.ReceiptsBlocks)
 	s.cache.TxPositions = s.makeCache(nominalSize*uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
+}
+
+func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
+	s.table.Snaps, err = snapshot.New(kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.EvmKvdbTable())), s.table.EvmState.TrieDB(), s.cfg.Cache.EvmSnap/opt.MiB, common.Hash(root), false, true, false)
+	return err
 }
 
 // Commit changes.
@@ -102,7 +115,7 @@ func (s *Store) Cap(max, min int) {
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.New(common.Hash(from), s.table.EvmState, nil)
+	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.table.Snaps, 0)
 }
 
 // IndexLogs indexes EVM logs

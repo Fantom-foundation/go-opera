@@ -53,7 +53,7 @@ func init() {
 
 type PreCompiledContract struct{}
 
-func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller common.Address, input []byte, suppliedGas uint64) ([]byte, uint64, error) {
+func (_ PreCompiledContract) Run(stateDB vm.StateDB, _ vm.BlockContext, txCtx vm.TxContext, caller common.Address, input []byte, suppliedGas uint64) ([]byte, uint64, error) {
 	if caller != driver.ContractAddress {
 		return nil, 0, vm.ErrExecutionReverted
 	}
@@ -75,7 +75,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 		input = input[32:]
 		value := new(big.Int).SetBytes(input[:32])
 
-		if acc == ctx.Origin {
+		if acc == txCtx.Origin {
 			// Origin balance shouldn't decrease during his transaction
 			return nil, 0, vm.ErrExecutionReverted
 		}
@@ -152,10 +152,10 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 	} else if bytes.Equal(input[:4], setStorageMethodID) {
 		input = input[4:]
 		// setStorage
-		if suppliedGas < params.SstoreInitGasEIP2200 {
+		if suppliedGas < params.SstoreSetGasEIP2200 {
 			return nil, 0, vm.ErrOutOfGas
 		}
-		suppliedGas -= params.SstoreInitGasEIP2200
+		suppliedGas -= params.SstoreSetGasEIP2200
 		if len(input) != 96 {
 			return nil, 0, vm.ErrExecutionReverted
 		}
@@ -181,7 +181,7 @@ func (_ PreCompiledContract) Run(stateDB vm.StateDB, ctx vm.Context, caller comm
 		input = input[32:]
 		value := new(big.Int).SetBytes(input[:32])
 
-		if acc == ctx.Origin {
+		if acc == txCtx.Origin {
 			// Origin nonce shouldn't change during his transaction
 			return nil, 0, vm.ErrExecutionReverted
 		}

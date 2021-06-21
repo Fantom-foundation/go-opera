@@ -18,7 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
+	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -110,9 +111,6 @@ type Service struct {
 	// server
 	p2pServer *p2p.Server
 	Name      string
-	Topic     discv5.Topic
-
-	serverPool *serverPool
 
 	accountManager *accounts.Manager
 
@@ -143,6 +141,8 @@ type Service struct {
 
 	// application protocol
 	pm *ProtocolManager
+
+	dialCandidates enode.Iterator
 
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
@@ -191,9 +191,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
 
-	// create server pool
-	trustedNodes := []string{}
-	svc.serverPool = newServerPool(store.async.table.Peers, svc.done, &svc.wg, trustedNodes)
+	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
+	var err error
+	svc.dialCandidates, err = dnsclient.NewIterator()
 
 	// create tx pool
 	net := store.GetRules()
@@ -206,14 +206,13 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create protocol manager
-	var err error
-	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent, svc.serverPool)
+	svc.pm, err = newHandler(handlerConfig{config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent})
 	if err != nil {
 		return nil, err
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, config.AllowUnprotectedTxs}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	// load epoch DB
@@ -236,7 +235,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 // makeCheckers builds event checkers
 func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP155Signer(chainID))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP2930Signer(chainID))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -251,7 +250,7 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := types.NewEIP155Signer(s.store.GetRules().EvmChainConfig().ChainID)
+	txSigner := types.NewEIP2930Signer(s.store.GetRules().EvmChainConfig().ChainID)
 
 	return emitter.NewEmitter(s.config.Emitter, emitter.World{
 		External: &emitterWorld{
@@ -265,14 +264,48 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	})
 }
 
+// MakeProtocols constructs the P2P protocol definitions for `opera`.
+func MakeProtocols(svc *Service, backend *ProtocolManager, network uint64, disc enode.Iterator) []p2p.Protocol {
+	protocols := make([]p2p.Protocol, len(ProtocolVersions))
+	for i, version := range ProtocolVersions {
+		version := version // Closure
+
+		protocols[i] = p2p.Protocol{
+			Name:    ProtocolName,
+			Version: version,
+			Length:  protocolLengths[version],
+			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+				peer := NewPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
+
+				select {
+				case backend.newPeerCh <- peer:
+					backend.wg.Add(1)
+					defer backend.wg.Done()
+					err := backend.handle(peer)
+					return err
+				case <-backend.quitSync:
+					return p2p.DiscQuitting
+				}
+			},
+			NodeInfo: func() interface{} {
+				return backend.NodeInfo()
+			},
+			PeerInfo: func(id enode.ID) interface{} {
+				if p := backend.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
+					return p.Info()
+				}
+				return nil
+			},
+			Attributes:     []enr.Entry{currentENREntry(svc)},
+			DialCandidates: disc,
+		}
+	}
+	return protocols
+}
+
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	protos := make([]p2p.Protocol, len(ProtocolVersions))
-	for i, vsn := range ProtocolVersions {
-		protos[i] = s.pm.makeProtocol(vsn)
-		protos[i].Attributes = []enr.Entry{s.currentEnr()}
-	}
-	return protos
+	return MakeProtocols(s, s.pm, s.store.GetRules().NetworkID, s.dialCandidates)
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
@@ -303,23 +336,16 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
-	genesis := *s.store.GetGenesisHash()
-	s.Topic = discv5.Topic("opera@" + genesis.Hex())
-
-	if s.p2pServer.DiscV5 != nil {
-		go func(topic discv5.Topic) {
-			s.Log.Info("Starting topic registration")
-			defer s.Log.Info("Terminated topic registration")
-
-			s.p2pServer.DiscV5.RegisterTopic(topic, s.done)
-		}(s.Topic)
+	err := s.store.Init()
+	if err != nil {
+		return err
 	}
+
+	StartENRUpdater(s, s.p2pServer.LocalNode())
 
 	s.blockProcTasks.Start(1)
 
 	s.pm.Start(s.p2pServer.MaxPeers)
-
-	s.serverPool.start(s.p2pServer, s.Topic)
 
 	s.emitter.Start()
 
