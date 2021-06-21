@@ -45,8 +45,12 @@ func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx, _ bool) bl
 		}
 		info := p.bs.ValidatorStates[creatorIdx]
 		if block.Idx <= info.LastBlock+p.es.Rules.Economy.BlockMissedSlack {
-			if e.MedianTime() > info.LastOnlineTime {
-				info.Uptime += e.MedianTime() - info.LastOnlineTime
+			prevOnlineTime := info.LastOnlineTime
+			if p.es.Rules.Upgrades.Berlin {
+				prevOnlineTime = inter.MaxTimestamp(info.LastOnlineTime, p.es.EpochStart)
+			}
+			if e.MedianTime() > prevOnlineTime {
+				info.Uptime += e.MedianTime() - prevOnlineTime
 			}
 		}
 		info.LastGasPowerLeft = e.GasPowerLeft()
