@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -121,22 +120,17 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 	evmHeader := evmcore.ToEvmHeader(block, n, prev)
 
+	var evmBlock *evmcore.EvmBlock
 	if readTxs {
-		if len(transactions) == 0 {
-			evmHeader.TxHash = types.EmptyRootHash
-		} else {
-			evmHeader.TxHash = types.DeriveSha(transactions, new(trie.Trie))
+		evmBlock = evmcore.NewEvmBlock(evmHeader, transactions)
+		r.store.EvmStore().SetCachedEvmBlock(n, evmBlock)
+	} else {
+		// not completed block here
+		evmBlock = &evmcore.EvmBlock{
+			EvmHeader: *evmHeader,
 		}
 	}
 
-	evmBlock := &evmcore.EvmBlock{
-		EvmHeader:    *evmHeader,
-		Transactions: transactions,
-	}
-
-	if readTxs {
-		r.store.EvmStore().SetCachedEvmBlock(n, evmBlock)
-	}
 	return evmBlock
 }
 

@@ -56,20 +56,18 @@ type OperaEVMProcessor struct {
 }
 
 func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlock {
-	return &evmcore.EvmBlock{
-		EvmHeader: evmcore.EvmHeader{
-			Number:     p.blockIdx,
-			Hash:       common.Hash(p.block.Atropos),
-			ParentHash: p.prevBlockHash,
-			Root:       common.Hash{},
-			TxHash:     common.Hash{},
-			Time:       p.block.Time,
-			Coinbase:   common.Address{},
-			GasLimit:   math.MaxUint64,
-			GasUsed:    p.gasUsed,
-		},
-		Transactions: txs,
+	h := &evmcore.EvmHeader{
+		Number:     p.blockIdx,
+		Hash:       common.Hash(p.block.Atropos),
+		ParentHash: p.prevBlockHash,
+		Root:       common.Hash{},
+		Time:       p.block.Time,
+		Coinbase:   common.Address{},
+		GasLimit:   math.MaxUint64,
+		GasUsed:    p.gasUsed,
 	}
+
+	return evmcore.NewEvmBlock(h, txs)
 }
 
 func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types.Receipts {
