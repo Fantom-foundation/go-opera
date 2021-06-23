@@ -69,12 +69,12 @@ func (m *Migration) Exec(curr IDStore, flush func() error) error {
 		return err
 	}
 
+	log.Warn("Applying migration", "name", m.name)
 	err = m.exec()
 	if err != nil {
 		log.Error("'"+m.name+"' migration failed", "err", err)
 		return err
 	}
-	log.Warn("'" + m.name + "' migration has been applied")
 
 	curr.SetID(myID)
 
