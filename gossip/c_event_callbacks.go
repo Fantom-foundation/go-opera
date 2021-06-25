@@ -172,7 +172,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 
 	if s.store.IsCommitNeeded(newEpoch != oldEpoch) {
 		s.blockProcWg.Wait()
-		return s.store.Commit()
+		s.store.Commit()
 	}
 	return nil
 }
