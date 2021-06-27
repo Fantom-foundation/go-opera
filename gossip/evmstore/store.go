@@ -31,16 +31,18 @@ type Store struct {
 
 	mainDB kvdb.Store
 	table  struct {
+		Evm  kvdb.Store `table:"M"`
+		Logs kvdb.Store `table:"L"`
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
 		TxPositions kvdb.Store `table:"x"`
 		Txs         kvdb.Store `table:"X"`
-
-		Evm      ethdb.Database
-		EvmState state.Database
-		EvmLogs  *topicsdb.Index
-		Snaps    *snapshot.Tree
 	}
+
+	EvmDb    ethdb.Database
+	EvmState state.Database
+	EvmLogs  *topicsdb.Index
+	Snaps    *snapshot.Tree
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -53,8 +55,6 @@ type Store struct {
 	}
 
 	rlp rlpstore.Helper
-
-	snaps *snapshot.Tree // Snapshot tree for fast trie leaf access
 
 	logger.Instance
 }
@@ -70,13 +70,15 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDB)
 
-	evmTable := nokeyiserr.Wrap(s.EvmKvdbTable()) // ETH expects that "not found" is an error
-	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithConfig(s.table.Evm, &trie.Config{
+	s.EvmDb = rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				s.table.Evm)))
+	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
 		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
 		Preimages: cfg.EnablePreimageRecording,
 	})
-	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
+	s.EvmLogs = topicsdb.New(s.table.Logs)
 
 	s.initCache()
 
@@ -90,14 +92,19 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
-	s.table.Snaps, err = snapshot.New(kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.EvmKvdbTable())), s.table.EvmState.TrieDB(), s.cfg.Cache.EvmSnap/opt.MiB, common.Hash(root), false, true, false)
+	s.Snaps, err = snapshot.New(
+		kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.table.Evm)),
+		s.EvmState.TrieDB(),
+		s.cfg.Cache.EvmSnap/opt.MiB,
+		common.Hash(root),
+		false, true, false)
 	return err
 }
 
 // Commit changes.
 func (s *Store) Commit(root hash.Hash) error {
 	// Flush trie on the DB
-	err := s.table.EvmState.TrieDB().Commit(common.Hash(root), false, nil)
+	err := s.EvmState.TrieDB().Commit(common.Hash(root), false, nil)
 	if err != nil {
 		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
@@ -107,31 +114,28 @@ func (s *Store) Commit(root hash.Hash) error {
 func (s *Store) Cap(max, min int) {
 	maxSize := common.StorageSize(max)
 	minSize := common.StorageSize(min)
-	size, preimagesSize := s.table.EvmState.TrieDB().Size()
+	size, preimagesSize := s.EvmState.TrieDB().Size()
 	if size >= maxSize || preimagesSize >= maxSize {
-		_ = s.table.EvmState.TrieDB().Cap(minSize)
+		_ = s.EvmState.TrieDB().Cap(minSize)
 	}
 }
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.table.Snaps, 0)
+	return state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
 }
 
 // IndexLogs indexes EVM logs
 func (s *Store) IndexLogs(recs ...*types.Log) {
-	err := s.table.EvmLogs.Push(recs...)
+	err := s.EvmLogs.Push(recs...)
 	if err != nil {
 		s.Log.Crit("DB logs index error", "err", err)
 	}
 }
 
-func (s *Store) EvmKvdbTable() kvdb.Store {
-	return table.New(s.mainDB, []byte("M"))
-}
-
+/*
 func (s *Store) EvmTable() ethdb.Database {
-	return s.table.Evm
+	return s.table.EvmDb
 }
 
 func (s *Store) EvmDatabase() state.Database {
@@ -141,6 +145,7 @@ func (s *Store) EvmDatabase() state.Database {
 func (s *Store) EvmLogs() *topicsdb.Index {
 	return s.table.EvmLogs
 }
+*/
 
 /*
  * Utils:
