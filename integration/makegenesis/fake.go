@@ -29,18 +29,6 @@ var (
 	FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
 )
 
-// FakeKey gets n-th fake private key.
-func FakeKey(n int) *ecdsa.PrivateKey {
-	reader := rand.New(rand.NewSource(int64(n)))
-
-	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
-	if err != nil {
-		panic(err)
-	}
-
-	return key
-}
-
 func FakeGenesisStore(num int, balance, stake *big.Int) *genesisstore.Store {
 	genStore := genesisstore.NewMemStore()
 	genStore.SetRules(opera.FakeNetRules())
@@ -146,4 +134,16 @@ func GetFakeValidators(num int) gpos.Validators {
 	}
 
 	return validators
+}
+
+// FakeKey gets n-th fake private key.
+func FakeKey(n int) *ecdsa.PrivateKey {
+	reader := rand.New(rand.NewSource(int64(n)))
+
+	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
+	if err != nil {
+		panic(err)
+	}
+
+	return key
 }
