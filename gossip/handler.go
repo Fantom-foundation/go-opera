@@ -223,7 +223,7 @@ func newHandler(
 		return nil, err
 	}
 
-	stateDb := h.store.EvmStore().EvmTable()
+	stateDb := h.store.EvmStore().EvmDb
 	var stateBloom *trie.SyncBloom
 	if false {
 		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast

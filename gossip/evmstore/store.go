@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -36,15 +35,18 @@ type Store struct {
 
 	mainDB kvdb.Store
 	table  struct {
+		Evm  kvdb.Store `table:"M"`
+		Logs kvdb.Store `table:"L"`
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
 		TxPositions kvdb.Store `table:"x"`
 		Txs         kvdb.Store `table:"X"`
-
-		Evm      ethdb.Database
-		EvmState state.Database
-		EvmLogs  *topicsdb.Index
 	}
+
+	EvmDb    ethdb.Database
+	EvmState state.Database
+	EvmLogs  *topicsdb.Index
+	Snaps    *snapshot.Tree
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -58,8 +60,7 @@ type Store struct {
 
 	rlp rlpstore.Helper
 
-	snaps  *snapshot.Tree // Snapshot tree for fast trie leaf access
-	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
+	triegc *prque.Prque // Priority queue mapping block numbers to tries to gc
 
 	logger.Instance
 }
@@ -80,14 +81,16 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDB)
 
-	evmTable := nokeyiserr.Wrap(s.EvmKvdbTable()) // ETH expects that "not found" is an error
-	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithConfig(s.table.Evm, &trie.Config{
+	s.EvmDb = rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				s.table.Evm)))
+	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
 		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
 		Journal:   cfg.Cache.TrieCleanJournal,
 		Preimages: cfg.EnablePreimageRecording,
 	})
-	s.table.EvmLogs = topicsdb.New(table.New(s.mainDB, []byte("L")))
+	s.EvmLogs = topicsdb.New(s.table.Logs)
 
 	s.initCache()
 
@@ -101,9 +104,9 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) CreateEvmSnapshot(root common.Hash) (err error) {
-	s.snaps, err = snapshot.New(
-		s.EvmTable(),
-		s.table.EvmState.TrieDB(),
+	s.Snaps, err = snapshot.New(
+		s.EvmDb,
+		s.EvmState.TrieDB(),
 		s.cfg.Cache.EvmSnap/opt.MiB,
 		root,
 		false,
@@ -113,20 +116,16 @@ func (s *Store) CreateEvmSnapshot(root common.Hash) (err error) {
 }
 
 func (s *Store) RebuildEvmSnapshot(root common.Hash) {
-	if s.snaps == nil {
+	if s.Snaps == nil {
 		return
 	}
 
-	s.snaps.Rebuild(root)
-}
-
-func (s *Store) NewPruner(genesisRoot, root common.Hash, datadir string, bloomSize uint64) (*evmpruner.Pruner, error) {
-	return evmpruner.NewPruner(s.EvmTable(), genesisRoot, root, datadir, bloomSize)
+	s.Snaps.Rebuild(root)
 }
 
 // Commit changes.
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
-	triedb := s.table.EvmState.TrieDB()
+	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
 	// If we're applying genesis or running an archive node, always flush
 	if flush || s.cfg.Cache.TrieDirtyDisabled {
@@ -169,9 +168,9 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
-	if s.snaps != nil {
+	if s.Snaps != nil {
 		var err error
-		if snapBase, err = s.snaps.Journal(common.Hash(block.FinalizedStateRoot)); err != nil {
+		if snapBase, err = s.Snaps.Journal(common.Hash(block.FinalizedStateRoot)); err != nil {
 			s.Log.Error("Failed to journal state snapshot", "err", err)
 		}
 	}
@@ -181,7 +180,7 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
 	//  - HEAD-31:  So we have a hard limit on the number of blocks reexecuted
 	if !s.cfg.Cache.TrieDirtyDisabled {
-		triedb := s.table.EvmState.TrieDB()
+		triedb := s.EvmState.TrieDB()
 
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := uint64(block.LastBlock.Idx); number > offset {
@@ -208,7 +207,7 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 	// Ensure all live cached entries be saved into disk, so that we can skip
 	// cache warmup when node restarts.
 	if s.cfg.Cache.TrieCleanJournal != "" {
-		triedb := s.table.EvmState.TrieDB()
+		triedb := s.EvmState.TrieDB()
 		triedb.SaveCache(s.cfg.Cache.TrieCleanJournal)
 	}
 }
@@ -216,15 +215,15 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 func (s *Store) Cap(max, min int) {
 	maxSize := common.StorageSize(max)
 	minSize := common.StorageSize(min)
-	size, preimagesSize := s.table.EvmState.TrieDB().Size()
+	size, preimagesSize := s.EvmState.TrieDB().Size()
 	if size >= maxSize || preimagesSize >= maxSize {
-		_ = s.table.EvmState.TrieDB().Cap(minSize)
+		_ = s.EvmState.TrieDB().Cap(minSize)
 	}
 }
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.snaps, 0)
+	return state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
 }
 
 // HasStateDB returns if state database exists
@@ -235,30 +234,14 @@ func (s *Store) HasStateDB(from hash.Hash) bool {
 
 // IndexLogs indexes EVM logs
 func (s *Store) IndexLogs(recs ...*types.Log) {
-	err := s.table.EvmLogs.Push(recs...)
+	err := s.EvmLogs.Push(recs...)
 	if err != nil {
 		s.Log.Crit("DB logs index error", "err", err)
 	}
 }
 
-func (s *Store) EvmKvdbTable() kvdb.Store {
-	return table.New(s.mainDB, []byte("M"))
-}
-
-func (s *Store) EvmTable() ethdb.Database {
-	return s.table.Evm
-}
-
-func (s *Store) EvmDatabase() state.Database {
-	return s.table.EvmState
-}
-
-func (s *Store) EvmLogs() *topicsdb.Index {
-	return s.table.EvmLogs
-}
-
 func (s *Store) Snapshots() *snapshot.Tree {
-	return s.snaps
+	return s.Snaps
 }
 
 /*

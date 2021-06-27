@@ -416,7 +416,7 @@ func (b *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.evm.EvmTable()
+	return b.svc.store.evm.EvmDb
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -440,7 +440,7 @@ func (b *EthAPIBackend) RPCTxFeeCap() float64 {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.store.evm.EvmLogs()
+	return b.svc.store.evm.EvmLogs
 }
 
 // CurrentEpoch returns current epoch number.

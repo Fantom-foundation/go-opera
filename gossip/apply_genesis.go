@@ -239,7 +239,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	s.SetGenesisBlockIndex(blockCtx.Idx)
 
 	// index data for legacy SFC API
-	sfcapi.ApplyGenesis(s.sfcapi, s.evm.EvmLogs())
+	sfcapi.ApplyGenesis(s.sfcapi, s.evm.EvmLogs)
 
 	return nil
 }
