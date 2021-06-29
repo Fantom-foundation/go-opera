@@ -19,6 +19,7 @@ package launcher
 import (
 	"bytes"
 	"errors"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	cli "gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -152,36 +154,47 @@ func pruneState(ctx *cli.Context) error {
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
-
-	if gdb.GetGenesisHash() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
-	}
-
-	tmpDir := path.Join(cfg.Node.DataDir, "tmp")
-	_ = os.MkdirAll(tmpDir, 0700)
-	defer os.RemoveAll(tmpDir)
-
-	genesisRoot := common.Hash(gdb.GetBlock(*gdb.GetGenesisBlockIndex()).Root)
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
-	if err != nil {
-		log.Error("Failed to open snapshot tree", "err", err)
-		return err
-	}
+
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
 		return errors.New("too many arguments")
 	}
-	var targetRoot common.Hash
+	var target common.Hash
 	if ctx.NArg() == 1 {
-		targetRoot, err = parseRoot(ctx.Args()[0])
+		target, err = parseRoot(ctx.Args()[0])
 		if err != nil {
 			log.Error("Failed to resolve state root", "err", err)
 			return err
 		}
 	}
-	if err = pruner.Prune(targetRoot); err != nil {
+
+	return pruneStateTo(gdb, root, target, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
+}
+
+func pruneStateTo(gdb *gossip.Store, root, target common.Hash, bloomSize uint64) error {
+	if gdb.GetGenesisHash() == nil {
+		err := errors.New("genesis is not written")
+		log.Error("Failed to open snapshot tree", "err", err)
+		return err
+	}
+
+	genesisRoot := common.Hash(gdb.GetBlock(*gdb.GetGenesisBlockIndex()).Root)
+
+	tmpDir, err := ioutil.TempDir("", "evm")
+	if err != nil {
+		log.Error("Failed to create temp dir", "err", err)
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, bloomSize)
+	if err != nil {
+		log.Error("Failed to open snapshot tree", "err", err)
+		return err
+	}
+	err = pruner.Prune(target)
+	if err != nil {
 		log.Error("Failed to prune state", "err", err)
 		return err
 	}

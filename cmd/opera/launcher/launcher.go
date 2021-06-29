@@ -185,7 +185,7 @@ func init() {
 		// See accountcmd.go:
 		accountCommand,
 		walletCommand,
-		// see validatorcmd.go:
+		// See validatorcmd.go:
 		validatorCommand,
 		// See consolecmd.go:
 		consoleCommand,
@@ -201,8 +201,10 @@ func init() {
 		importCommand,
 		exportCommand,
 		checkCommand,
-		// See snapshot.go
+		// See snapshotcmd.go
 		snapshotCommand,
+		// See trustpointcmd.go
+		trustpointCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
