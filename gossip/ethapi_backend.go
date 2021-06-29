@@ -546,14 +546,14 @@ func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.Sf
 		staker.DelegatedMe = new(big.Int)
 	}
 	staker.IsValidator = es.Validators.Exists(stakerID)
+	if staker.Status == 1 {
+		staker.Status = 0
+	}
 	if staker.Status == drivertype.DoublesignBit {
 		staker.Status = sfcapi.ForkBit
 	}
 	if staker.Status == 1<<3 {
 		staker.Status = sfcapi.OfflineBit
-	}
-	if staker.Status == 1 {
-		staker.Status = 0
 	}
 	return staker
 }
