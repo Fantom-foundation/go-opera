@@ -63,7 +63,7 @@ func mustOpenDB(producer kvdb.DBProducer, name string) kvdb.DropableStore {
 	return db
 }
 
-func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *abft.Store, *genesisstore.Store) {
+func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *abft.Store) {
 	gdb := gossip.NewStore(producer, cfg.OperaStore)
 
 	cMainDb := mustOpenDB(producer, "lachesis")
@@ -71,37 +71,33 @@ func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *
 		return mustOpenDB(producer, fmt.Sprintf("lachesis-%d", epoch))
 	}
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), cfg.LachesisStore)
-	genesisStore := genesisstore.NewStore(mustOpenDB(producer, "genesis"))
-	return gdb, cdb, genesisStore
+
+	return gdb, cdb
 }
 
-func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Configs) error {
-	_, _, _, err := rawMakeEngine(gdb, cdb, g, cfg, true)
-	return err
-}
+func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, blockProc gossip.BlockProc, g opera.Genesis, cfg Configs) error {
+	genesisTxTransactor := gossip.DefaultGenesisTxTransactor(g)
 
-func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g opera.Genesis, cfg Configs, applyGenesis bool) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
-	blockProc := gossip.DefaultBlockProc(g)
-
-	if applyGenesis {
-		_, err := gdb.ApplyGenesis(blockProc, g)
-		if err != nil {
-			return nil, nil, blockProc, fmt.Errorf("failed to write Gossip genesis state: %v", err)
-		}
-
-		err = cdb.ApplyGenesis(&abft.Genesis{
-			Epoch:      gdb.GetEpoch(),
-			Validators: gdb.GetValidators(),
-		})
-		if err != nil {
-			return nil, nil, blockProc, fmt.Errorf("failed to write Lachesis genesis state: %v", err)
-		}
+	_, err := gdb.ApplyGenesis(blockProc, genesisTxTransactor, g)
+	if err != nil {
+		return fmt.Errorf("failed to write Gossip genesis state: %v", err)
 	}
 
-	// create consensus
+	err = cdb.ApplyGenesis(&abft.Genesis{
+		Epoch:      gdb.GetEpoch(),
+		Validators: gdb.GetValidators(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to write Lachesis genesis state: %v", err)
+	}
+
+	return nil
+}
+
+func makeConsensus(gdb *gossip.Store, cdb *abft.Store, cfg Configs) (*abft.Lachesis, *vecmt.Index, error) {
 	vecClock := vecmt.NewIndex(panics("Vector clock"), cfg.VectorClock)
 	engine := abft.NewLachesis(cdb, &GossipStoreAdapter{gdb}, vecmt2dagidx.Wrap(vecClock), panics("Lachesis"), cfg.Lachesis)
-	return engine, vecClock, blockProc, nil
+	return engine, vecClock, nil
 }
 
 func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.SyncedPool, error) {
@@ -118,23 +114,22 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.DBProducer, inputGenesis InputGenesis, cfg Configs) error {
+func applyGenesis(rawProducer kvdb.DBProducer, blockProc gossip.BlockProc, genesisStore *genesisstore.Store, cfg Configs) error {
 	rawDbs := &DummyFlushableProducer{rawProducer}
-	gdb, cdb, genesisStore := getStores(rawDbs, cfg)
+
+	gdb, cdb := getStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
-	defer genesisStore.Close()
-	log.Info("Decoding genesis file")
-	err := inputGenesis.Read(genesisStore)
-	if err != nil {
-		return err
-	}
+
 	log.Info("Applying genesis state")
+
 	networkID := genesisStore.GetRules().NetworkID
-	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash {
-		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash.String())
+	inputGenesis := genesisStore.GetGenesis()
+	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash() {
+		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash().String())
 	}
-	err = rawApplyGenesis(gdb, cdb, genesisStore.GetGenesis(), cfg)
+
+	err := rawApplyGenesis(gdb, cdb, blockProc, inputGenesis, cfg)
 	if err != nil {
 		return err
 	}
@@ -145,36 +140,45 @@ func applyGenesis(rawProducer kvdb.DBProducer, inputGenesis InputGenesis, cfg Co
 	return nil
 }
 
-func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, *genesisstore.Store, gossip.BlockProc, error) {
-	dbs, err := makeFlushableProducer(rawProducer)
-	if err != nil {
-		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
-	}
+func makeEngine(
+	rawProducer kvdb.IterableDBProducer, inputGenesis *InputGenesis, emptyStart bool, cfg Configs,
+) (
+	*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, error,
+) {
+	blockProc := gossip.DefaultBlockProc()
 
 	if emptyStart {
-		// close flushable DBs and open raw DBs for performance reasons
-		err := dbs.Close()
-		if err != nil {
-			return nil, nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to close existing databases: %v", err)
+		if inputGenesis == nil {
+			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("genesis file required")
 		}
 
-		err = applyGenesis(rawProducer, inputGenesis, cfg)
+		log.Info("Decoding genesis file")
+		genesisDb := mustOpenDB(rawProducer, "genesis")
+		genesisStore := genesisstore.NewStore(genesisDb)
+		err := inputGenesis.Read(genesisStore)
 		if err != nil {
-			return nil, nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
+			return nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
 
-		// re-open dbs
-		dbs, err = makeFlushableProducer(rawProducer)
+		err = applyGenesis(rawProducer, blockProc, genesisStore, cfg)
 		if err != nil {
-			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
+		log.Info("Applied genesis state", "hash", inputGenesis.Hash.String())
+		genesisStore.Close()
+		genesisDb.Drop()
 	}
-	gdb, cdb, genesisStore := getStores(dbs, cfg)
+
+	dbs, err := makeFlushableProducer(rawProducer)
+	if err != nil {
+		return nil, nil, nil, nil, gossip.BlockProc{}, err
+	}
+
+	gdb, cdb := getStores(dbs, cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()
 			cdb.Close()
-			genesisStore.Close()
 		}
 	}()
 
@@ -183,40 +187,47 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 		genesisHash := gdb.GetGenesisHash()
 		if genesisHash == nil {
 			err = errors.New("malformed chainstore: genesis hash is not written")
-			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+			return nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
-		if *genesisHash != inputGenesis.Hash {
+		if inputGenesis != nil && inputGenesis.Hash != *genesisHash {
 			err = &GenesisMismatchError{*genesisHash, inputGenesis.Hash}
-			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+			return nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
+
+		log.Info("Genesis is already written", "hash", genesisHash)
 	}
 
-	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, genesisStore.GetGenesis(), cfg, false)
+	engine, vecClock, err := makeConsensus(gdb, cdb, cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to make engine: %v", err)
-		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
 	if *gdb.GetGenesisHash() != inputGenesis.Hash {
 		err = fmt.Errorf("genesis hash mismatch with genesis file header: %s != %s", gdb.GetGenesisHash().String(), inputGenesis.Hash.String())
-		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
 	err = gdb.Commit()
 	if err != nil {
 		err = fmt.Errorf("failed to commit DBs: %v", err)
-		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
-	return engine, vecClock, gdb, cdb, genesisStore, blockProc, nil
+	return engine, vecClock, gdb, cdb, blockProc, nil
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(rawProducer kvdb.IterableDBProducer, genesis InputGenesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, *genesisstore.Store, gossip.BlockProc) {
+func MakeEngine(
+	rawProducer kvdb.IterableDBProducer, genesis *InputGenesis, cfg Configs,
+) (
+	*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc,
+) {
 	dropAllDBsIfInterrupted(rawProducer)
 	existingDBs := rawProducer.Names()
+	emptyStart := len(existingDBs) == 0
 
-	engine, vecClock, gdb, cdb, genesisStore, blockProc, err := makeEngine(rawProducer, genesis, len(existingDBs) == 0, cfg)
+	engine, vecClock, gdb, cdb, blockProc, err := makeEngine(rawProducer, genesis, emptyStart, cfg)
 	if err != nil {
 		if len(existingDBs) == 0 {
 			dropAllDBs(rawProducer)
@@ -224,13 +235,7 @@ func MakeEngine(rawProducer kvdb.IterableDBProducer, genesis InputGenesis, cfg C
 		utils.Fatalf("Failed to make engine: %v", err)
 	}
 
-	if len(existingDBs) == 0 {
-		log.Info("Applied genesis state", "hash", genesis.Hash.String())
-	} else {
-		log.Info("Genesis is already written", "hash", genesis.Hash.String())
-	}
-
-	return engine, vecClock, gdb, cdb, genesisStore, blockProc
+	return engine, vecClock, gdb, cdb, blockProc
 }
 
 // SetAccountKey sets key into accounts manager and unlocks it with pswd.

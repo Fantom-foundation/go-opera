@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
@@ -21,19 +20,23 @@ import (
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, err error) {
-	// if we'here, then it's first time genesis is applied
-	err = s.applyEpoch1Genesis(blockProc, g)
+func (s *Store) ApplyGenesis(blockProc BlockProc, genesisTxTransactor blockproc.TxTransactor, g opera.Genesis) (genesisHash hash.Hash, err error) {
+	err = s.applyEpoch0Genesis(g)
 	if err != nil {
-		return genesisHash, err
+		return
+	}
+	// if we'here, then it's first time genesis is applied
+	err = s.applyEpoch1Genesis(blockProc, genesisTxTransactor, g.GenesisHeader)
+	if err != nil {
+		return
 	}
 	genesisHash = g.Hash()
 	s.SetGenesisHash(genesisHash)
 
-	return genesisHash, err
+	return
 }
 
-func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
+func (s *Store) applyEpoch0Genesis(g opera.Genesis) (err error) {
 	// write genesis blocks
 	var highestBlock blockproc.BlockCtx
 	var startingRoot hash.Hash
@@ -93,9 +96,9 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 	})
 
 	// apply EVM genesis
-	evmBlock, err = s.evm.ApplyGenesis(g, startingRoot)
+	evmBlock, err := s.evm.ApplyGenesis(g, startingRoot)
 	if err != nil {
-		return evmBlock, err
+		return
 	}
 
 	s.SetBlockEpochState(blockproc.BlockState{
@@ -117,22 +120,17 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		Rules:             g.Rules,
 	})
 
-	return evmBlock, nil
+	return
 }
 
-func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err error) {
-	evmBlock0, err := s.applyEpoch0Genesis(g)
-	if err != nil {
-		return err
-	}
+func (s *Store) applyEpoch1Genesis(blockProc BlockProc, genesisTxTransactor blockproc.TxTransactor, g opera.GenesisHeader) (err error) {
+	bs, es := s.GetBlockState(), s.GetEpochState()
 
 	evmStateReader := &EvmStateReader{store: s}
-	statedb, err := s.evm.StateDB(hash.Hash(evmBlock0.Root))
+	statedb, err := s.evm.StateDB(bs.FinalizedStateRoot)
 	if err != nil {
 		return err
 	}
-
-	bs, es := s.GetBlockState(), s.GetEpochState()
 
 	blockCtx := blockproc.BlockCtx{
 		Idx:     bs.LastBlock.Idx + 1,
@@ -149,7 +147,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}, es.Rules)
 
 	// Execute genesis-internal transactions
-	genesisInternalTxs := blockProc.GenesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
+	genesisInternalTxs := genesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 	evmProcessor.Execute(genesisInternalTxs, true)
 	bs = txListener.Finalize()
 
@@ -184,7 +182,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	s.SetHistoryBlockEpochState(es.Epoch, bs, es)
 	s.SetBlockEpochState(bs, es)
 
-	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
+	prettyHash := func(root common.Hash, g opera.GenesisHeader) hash.Event {
 		e := inter.MutableEventPayload{}
 		// for nice-looking ID
 		e.SetEpoch(g.FirstEpoch - 1)

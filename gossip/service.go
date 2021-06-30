@@ -81,25 +81,27 @@ func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscripti
 }
 
 type BlockProc struct {
-	SealerModule        blockproc.SealerModule
-	TxListenerModule    blockproc.TxListenerModule
-	GenesisTxTransactor blockproc.TxTransactor
-	PreTxTransactor     blockproc.TxTransactor
-	PostTxTransactor    blockproc.TxTransactor
-	EventsModule        blockproc.ConfirmedEventsModule
-	EVMModule           blockproc.EVM
+	SealerModule     blockproc.SealerModule
+	TxListenerModule blockproc.TxListenerModule
+	PreTxTransactor  blockproc.TxTransactor
+	PostTxTransactor blockproc.TxTransactor
+	EventsModule     blockproc.ConfirmedEventsModule
+	EVMModule        blockproc.EVM
 }
 
-func DefaultBlockProc(g opera.Genesis) BlockProc {
+func DefaultBlockProc() BlockProc {
 	return BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(g),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
+		SealerModule:     sealmodule.New(),
+		TxListenerModule: drivermodule.NewDriverTxListenerModule(),
+		PreTxTransactor:  drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor: drivermodule.NewDriverTxTransactor(),
+		EventsModule:     eventmodule.New(),
+		EVMModule:        evmmodule.New(),
 	}
+}
+
+func DefaultGenesisTxTransactor(g opera.Genesis) blockproc.TxTransactor {
+	return drivermodule.NewDriverTxGenesisTransactor(g)
 }
 
 // Service implements go-ethereum/node.Service interface.

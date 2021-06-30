@@ -74,8 +74,9 @@ func newTestEnv() *testEnv {
 	genesis.Rules.Blocks.MaxEmptyBlockSkipPeriod = 0
 
 	store := NewMemStore()
-	blockProc := DefaultBlockProc(genesis)
-	_, err := store.ApplyGenesis(blockProc, genesis)
+	blockProc := DefaultBlockProc()
+	genesisTxTransactor := DefaultGenesisTxTransactor(genesis)
+	_, err := store.ApplyGenesis(blockProc, genesisTxTransactor, genesis)
 	if err != nil {
 		panic(err)
 	}

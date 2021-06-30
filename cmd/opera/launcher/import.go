@@ -81,7 +81,6 @@ func importEvents(ctx *cli.Context) error {
 	}
 
 	// avoid P2P interaction, API calls and events emitting
-	genesis := getOperaGenesis(ctx)
 	cfg := makeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
@@ -99,7 +98,7 @@ func importEvents(ctx *cli.Context) error {
 	cfg.Node.P2P.StaticNodes = nil
 	cfg.Node.P2P.TrustedNodes = nil
 
-	err := importEventsToNode(ctx, cfg, genesis, ctx.Args()...)
+	err := importEventsToNode(ctx, cfg, ctx.Args()...)
 	if err != nil {
 		return err
 	}
@@ -107,8 +106,8 @@ func importEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
-	node, svc, nodeClose := makeNode(ctx, cfg, genesis)
+func importEventsToNode(ctx *cli.Context, cfg *config, args ...string) error {
+	node, svc, nodeClose := makeNode(ctx, cfg)
 	defer nodeClose()
 	startNode(ctx, node)
 

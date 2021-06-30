@@ -255,27 +255,32 @@ func lachesisMain(ctx *cli.Context) error {
 	//defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
-	genesisPath := getOperaGenesis(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesisPath)
+	node, _, nodeClose := makeNode(ctx, cfg)
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service, func()) {
+func makeNode(ctx *cli.Context, cfg *config) (stack *node.Node, svc *gossip.Service, close func()) {
+	var err error
+
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
-	stack := makeConfigNode(ctx, &cfg.Node)
+	stack = makeConfigNode(ctx, &cfg.Node)
 
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cacheScaler(ctx)), genesis, cfg.AppConfigs())
-	_ = genesis.Close()
+
+	genesis := getOperaGenesis(ctx)
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cacheScaler(ctx)), genesis, cfg.AppConfigs())
+	if genesis != nil {
+		_ = genesis.Close()
+	}
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
@@ -297,7 +302,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 
 	// Create and register a gossip network service.
 
-	svc, err := gossip.NewService(stack, cfg.Opera, gdb, signer, blockProc, engine, dagIndex)
+	svc, err = gossip.NewService(stack, cfg.Opera, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
@@ -310,12 +315,13 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	stack.RegisterProtocols(svc.Protocols())
 	stack.RegisterLifecycle(svc)
 
-	return stack, svc, func() {
+	close = func() {
 		_ = stack.Close()
 		gdb.Close()
 		_ = cdb.Close()
-		genesisStore.Close()
 	}
+
+	return
 }
 
 func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {

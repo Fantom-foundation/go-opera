@@ -144,20 +144,22 @@ func (s *Store) SetRules(cfg opera.Rules) {
 func (s *Store) GetGenesis() opera.Genesis {
 	meatadata := s.GetMetadata()
 	return opera.Genesis{
-		Accounts:      s.EvmAccounts(),
-		Storage:       s.EvmStorage(),
-		Delegations:   s.Delegations(),
-		Blocks:        s.Blocks(),
-		RawEvmItems:   s.table.RawEvmItems,
-		Validators:    meatadata.Validators,
-		FirstEpoch:    meatadata.FirstEpoch,
-		PrevEpochTime: meatadata.PrevEpochTime,
-		Time:          meatadata.Time,
-		ExtraData:     meatadata.ExtraData,
-		TotalSupply:   meatadata.TotalSupply,
-		DriverOwner:   meatadata.DriverOwner,
-		Rules:         s.GetRules(),
-		Hash:          s.Hash,
+		GenesisHeader: opera.GenesisHeader{
+			Validators:    meatadata.Validators,
+			FirstEpoch:    meatadata.FirstEpoch,
+			PrevEpochTime: meatadata.PrevEpochTime,
+			Time:          meatadata.Time,
+			ExtraData:     meatadata.ExtraData,
+			TotalSupply:   meatadata.TotalSupply,
+			DriverOwner:   meatadata.DriverOwner,
+			Rules:         s.GetRules(),
+			Hash:          s.Hash,
+		},
+		Accounts:    s.EvmAccounts(),
+		Storage:     s.EvmStorage(),
+		Delegations: s.Delegations(),
+		Blocks:      s.Blocks(),
+		RawEvmItems: s.table.RawEvmItems,
 	}
 }
 

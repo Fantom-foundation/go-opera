@@ -12,13 +12,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 )
 
-type Genesis struct {
-	Accounts    genesis.Accounts
-	Storage     genesis.Storage
-	Delegations genesis.Delegations
-	Blocks      genesis.Blocks
-	RawEvmItems genesis.RawEvmItems
-	Validators  gpos.Validators
+type GenesisHeader struct {
+	Validators gpos.Validators
 
 	FirstEpoch    idx.Epoch
 	PrevEpochTime inter.Timestamp
@@ -32,4 +27,13 @@ type Genesis struct {
 	Rules Rules
 
 	Hash func() hash.Hash
+}
+
+type Genesis struct {
+	GenesisHeader
+	Accounts    genesis.Accounts
+	Storage     genesis.Storage
+	Delegations genesis.Delegations
+	Blocks      genesis.Blocks
+	RawEvmItems genesis.RawEvmItems
 }

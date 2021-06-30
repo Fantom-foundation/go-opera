@@ -155,9 +155,7 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
-
-	var genesis integration.InputGenesis
+func getOperaGenesis(ctx *cli.Context) (genesis *integration.InputGenesis) {
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
@@ -165,7 +163,7 @@ func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 		fakeGenesisStore := makegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
-		genesis = integration.InputGenesis{
+		genesis = &integration.InputGenesis{
 			Hash: fakeGenesisStore.Hash(),
 			Read: func(store *genesisstore.Store) error {
 				buf := bytes.NewBuffer(nil)
@@ -191,15 +189,16 @@ func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
 			utils.Fatalf("Failed to read genesis file: %v", err)
 		}
 
-		genesis = integration.InputGenesis{
+		genesis = &integration.InputGenesis{
 			Hash:  inputGenesisHash,
 			Read:  readGenesisStore,
 			Close: genesisFile.Close,
 		}
 	default:
-		log.Crit("Network genesis is not specified")
+		genesis = nil
 	}
-	return genesis
+
+	return
 }
 
 func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {

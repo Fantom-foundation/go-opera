@@ -27,7 +27,7 @@ func BenchmarkFlushDBs(b *testing.B) {
 	rawProducer, dir := dbProducer("flush_bench")
 	defer os.RemoveAll(dir)
 	genStore := makegenesis.FakeGenesisStore(1, utils.ToFtm(1), utils.ToFtm(1))
-	_, _, store, s2, s3, _ := MakeEngine(rawProducer, InputGenesis{
+	_, _, store, s2, _ := MakeEngine(rawProducer, &InputGenesis{
 		Hash: genStore.Hash(),
 		Read: func(store *genesisstore.Store) error {
 			buf := bytes.NewBuffer(nil)
@@ -49,7 +49,7 @@ func BenchmarkFlushDBs(b *testing.B) {
 	})
 	defer store.Close()
 	defer s2.Close()
-	defer s3.Close()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		n := idx.Block(0)

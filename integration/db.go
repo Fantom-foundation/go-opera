@@ -39,9 +39,7 @@ func CheckDBList(names []string) error {
 	if !namesMap["lachesis"] {
 		return errors.New("lachesis DB is not found")
 	}
-	if !namesMap["genesis"] {
-		return errors.New("genesis DB is not found")
-	}
+
 	return nil
 }
 
