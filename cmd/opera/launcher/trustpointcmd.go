@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -47,6 +48,23 @@ Note: command also prunes EVM state data.
 <TODO>
 `,
 			},
+			{
+				Name:      "apply",
+				Usage:     "Initialize datadir from trustpoint file",
+				ArgsUsage: "<filename>",
+				Action:    utils.MigrateFlags(trustpointApply),
+				Category:  "MISCELLANEOUS COMMANDS",
+				Flags: []cli.Flag{
+					utils.DataDirFlag,
+					utils.CacheTrieJournalFlag,
+				},
+				Description: `
+opera trustpoint apply
+
+Note: datadir shoul be empty.
+<TODO>
+`,
+			},
 		},
 	}
 )
@@ -58,8 +76,7 @@ func trustpointCreate(ctx *cli.Context) error {
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
-
-	bloomFilterSize := ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name)
+	defer gdb.Close()
 
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
@@ -71,22 +88,29 @@ func trustpointCreate(ctx *cli.Context) error {
 	}
 	file := ctx.Args()[0]
 
+	bloomFilterSize := ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name)
+
 	dir, err := ioutil.TempDir("", "trustpoint")
 	if err != nil {
 		log.Error("Create temporary dir", "err", err)
 		return err
 	}
 	defer os.RemoveAll(dir)
+	db, err := leveldb.New(dir, 2*opt.MiB, 0, nil, nil)
+	if err != nil {
+		return err
+	}
+	store := trustpoint.NewStore(db)
 
-	store, err := trustpointStore(dir, gdb, bloomFilterSize)
+	err = gossipToTrustpoint(gdb, store, bloomFilterSize)
 	if err != nil {
 		return err
 	}
 
-	return trustpointSaveTo(file, store)
+	return trustpointSaveTo(store, file)
 }
 
-func trustpointStore(dir string, gdb *gossip.Store, bloomFilterSize uint64) (store *trustpoint.Store, err error) {
+func gossipToTrustpoint(gdb *gossip.Store, store *trustpoint.Store, bloomFilterSize uint64) error {
 	start, reported := time.Now(), time.Time{}
 
 	// find the last block of prev epoch
@@ -101,10 +125,10 @@ func trustpointStore(dir string, gdb *gossip.Store, bloomFilterSize uint64) (sto
 		lastBlock = gdb.GetBlock(lastBlockIdx)
 	}
 
-	_, err = gdb.EvmStore().StateDB(lastBlock.Root)
+	_, err := gdb.EvmStore().StateDB(lastBlock.Root)
 	if err != nil {
 		log.Error("State not found, probably pruned before", "err", err, "root", lastBlock.Root)
-		return
+		return err
 	}
 
 	// prune state db
@@ -115,16 +139,9 @@ func trustpointStore(dir string, gdb *gossip.Store, bloomFilterSize uint64) (sto
 		/* panic(fmt.Errorf("prune state err (epoch=%d, lastblock=%d, currblock=%d)",
 			es.Epoch, lastBlockIdx, bs.LastBlock.Idx,
 		))
-		return*/
-		err = nil
+		*/
+		return nil
 	}
-
-	// ready to export
-	db, err := leveldb.New(dir, 2*opt.MiB, 0, nil, nil)
-	if err != nil {
-		return
-	}
-	store = trustpoint.NewStore(db)
 
 	// export rules
 	store.SetRules(es.Rules)
@@ -174,21 +191,87 @@ func trustpointStore(dir string, gdb *gossip.Store, bloomFilterSize uint64) (sto
 	// export metadata
 	// TODO
 
-	return
+	return nil
 }
 
-func trustpointSaveTo(file string, store *trustpoint.Store) error {
-	log.Info("Encoding go-opera trustpoin", "path", file)
+func trustpointSaveTo(store *trustpoint.Store, file string) error {
+	log.Info("Encoding go-opera trustpoint", "path", file)
 	fh, err := os.Create(file)
 	if err != nil {
 		return err
 	}
 	defer fh.Close()
 
-	err = trustpoint.WriteStore(fh, store)
+	err = trustpoint.WriteStore(store, fh)
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func trustpointApply(ctx *cli.Context) error {
+	cfg := makeAllConfigs(ctx)
+
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	if len(rawProducer.Names()) > 0 {
+		return fmt.Errorf("datadir is not empty")
+	}
+	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	if err != nil {
+		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
+	}
+	defer gdb.Close()
+
+	if ctx.NArg() > 1 {
+		log.Error("Too many arguments given")
+		return errors.New("too many arguments")
+	}
+	if ctx.NArg() < 1 {
+		log.Error("File name argument required")
+		return errors.New("file name argument required")
+	}
+	file := ctx.Args()[0]
+
+	dir, err := ioutil.TempDir("", "trustpoint")
+	if err != nil {
+		log.Error("Create temporary dir", "err", err)
+		return err
+	}
+	defer os.RemoveAll(dir)
+	db, err := leveldb.New(dir, 2*opt.MiB, 0, nil, nil)
+	if err != nil {
+		return err
+	}
+	store := trustpoint.NewStore(db)
+
+	err = trustpointReadFrom(file, store)
+	if err != nil {
+		log.Error("Trustpoint file read", "err", err)
+		return err
+	}
+
+	err = gossipFromTrustpoint(store, gdb)
+	if err != nil {
+		return err
+	}
+
+	return gdb.Commit()
+}
+
+func trustpointReadFrom(file string, store *trustpoint.Store) error {
+	log.Info("Decoding go-opera trustpoint", "path", file)
+	fh, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	return trustpoint.ReadStore(fh, store)
+}
+
+func gossipFromTrustpoint(store *trustpoint.Store, gdb *gossip.Store) error {
+	// start, reported := time.Now(), time.Time{}
 
 	return nil
 }
