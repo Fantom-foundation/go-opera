@@ -51,6 +51,10 @@ func (s *Store) GetEventPayload(id hash.Event) *inter.EventPayload {
 	key := id.Bytes()
 	w, _ := s.rlp.Get(s.table.Events, key, &inter.EventPayload{}).(*inter.EventPayload)
 
+	if w != nil {
+		fixEventTxHashes(w)
+	}
+
 	// Put event to LRU cache.
 	if w != nil {
 		s.cache.Events.Add(id, w, uint(w.Size()))
@@ -73,6 +77,8 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	if w == nil {
 		return nil
 	}
+	fixEventTxHashes(w)
+
 	eh := w.Event
 
 	// Put event to LRU cache.
