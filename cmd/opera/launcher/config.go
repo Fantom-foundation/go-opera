@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,6 +27,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -74,6 +76,11 @@ var (
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+
+	AllowedOperaGenesisHashes = map[uint64]hash.Hash{
+		opera.MainNetworkID: hash.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),
+		opera.TestNetworkID: hash.HexToHash("0xc4a5fc96e575a16a9a0c7349d44dc4d0f602a54e0a8543360c2fee4c3937b49e"),
+	}
 )
 
 const (
@@ -106,11 +113,12 @@ type config struct {
 
 func (c *config) AppConfigs() integration.Configs {
 	return integration.Configs{
-		Opera:         c.Opera,
-		OperaStore:    c.OperaStore,
-		Lachesis:      c.Lachesis,
-		LachesisStore: c.LachesisStore,
-		VectorClock:   c.VectorClock,
+		Opera:          c.Opera,
+		OperaStore:     c.OperaStore,
+		Lachesis:       c.Lachesis,
+		LachesisStore:  c.LachesisStore,
+		VectorClock:    c.VectorClock,
+		AllowedGenesis: AllowedOperaGenesisHashes,
 	}
 }
 
