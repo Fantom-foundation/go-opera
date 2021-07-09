@@ -115,6 +115,14 @@ func processEventHeads(heads *concurrent.EventsSet, e *inter.EventPayload) *conc
 	return heads
 }
 
+func processLastEvent(lasts *concurrent.ValidatorEventsSet, e *inter.EventPayload) *concurrent.ValidatorEventsSet {
+	// set validator's last event. we don't care about forks, because this index is used only for emitter
+	lasts.Lock()
+	defer lasts.Unlock()
+	lasts.ValidatorEventsSet[e.Creator()] = e.ID()
+	return lasts
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
@@ -150,10 +158,10 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 
 	newEpoch := s.store.GetEpoch()
 
+	// index DAG heads and last events
 	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
-	// set validator's last event. we don't care about forks, because this index is used only for emitter
-	s.store.SetLastEvent(oldEpoch, e.Creator(), e.ID())
-	// update highest lamport
+	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
+	// update highest Lamport
 	if newEpoch != oldEpoch {
 		s.store.SetHighestLamport(0)
 	} else if e.Lamport() > s.store.GetHighestLamport() {

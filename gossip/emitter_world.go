@@ -66,3 +66,7 @@ func (ew *emitterWorld) PeersNum() int {
 func (ew *emitterWorld) GetHeads(epoch idx.Epoch) hash.Events {
 	return ew.Store.GetHeadsSlice(epoch)
 }
+
+func (ew *emitterWorld) GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event {
+	return ew.Store.GetLastEvent(epoch, from)
+}

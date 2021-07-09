@@ -191,6 +191,7 @@ func (s *Store) Commit() error {
 	es := s.getAnyEpochStore()
 	if es != nil {
 		es.FlushHeads()
+		es.FlushLastEvents()
 	}
 	return s.dbs.Flush(flushID)
 }
