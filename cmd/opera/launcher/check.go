@@ -52,6 +52,7 @@ func checkEvm(ctx *cli.Context) error {
 
 	log.Info("Checking every node hash")
 	nodeIt := evmt.NewIterator(nil, nil)
+	defer nodeIt.Release()
 	for nodeIt.Next() {
 		if len(nodeIt.Key()) != 32 {
 			continue
@@ -64,6 +65,7 @@ func checkEvm(ctx *cli.Context) error {
 
 	log.Info("Checking every code hash")
 	codeIt := table.New(evmt, []byte("c")).NewIterator(nil, nil)
+	defer codeIt.Release()
 	for codeIt.Next() {
 		if len(codeIt.Key()) != 32 {
 			continue
@@ -76,6 +78,7 @@ func checkEvm(ctx *cli.Context) error {
 
 	log.Info("Checking every preimage")
 	preimageIt := table.New(evmt, []byte("secure-key-")).NewIterator(nil, nil)
+	defer preimageIt.Release()
 	for preimageIt.Next() {
 		if len(preimageIt.Key()) != 32 {
 			continue
