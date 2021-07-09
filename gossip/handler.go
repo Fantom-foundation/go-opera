@@ -278,7 +278,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 					return err
 				}
 				end := time.Now()
-				log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
+				log.Debug("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
 					"frame", e.Frame(), "txs", e.Txs().Len(),
 					"age", common.PrettyDuration(end.Sub(e.CreationTime().Time())), "t", common.PrettyDuration(end.Sub(start)))
 

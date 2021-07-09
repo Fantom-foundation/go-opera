@@ -98,6 +98,7 @@ type (
 		EVM                 evmstore.StoreConfig
 		MaxNonFlushedSize   int
 		MaxNonFlushedPeriod time.Duration
+		TraceTransactions   bool
 	}
 )
 
