@@ -118,21 +118,21 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.DBProducer, inputGenesus InputGenesis, cfg Configs) error {
+func applyGenesis(rawProducer kvdb.DBProducer, inputGenesis InputGenesis, cfg Configs) error {
 	rawDbs := &DummyFlushableProducer{rawProducer}
 	gdb, cdb, genesisStore := getStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
 	defer genesisStore.Close()
 	log.Info("Decoding genesis file")
-	err := inputGenesus.Read(genesisStore)
+	err := inputGenesis.Read(genesisStore)
 	if err != nil {
 		return err
 	}
 	log.Info("Applying genesis state")
 	networkID := genesisStore.GetRules().NetworkID
-	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesus.Hash {
-		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesus.Hash.String())
+	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash {
+		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash.String())
 	}
 	err = rawApplyGenesis(gdb, cdb, genesisStore.GetGenesis(), cfg)
 	if err != nil {
