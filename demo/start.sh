@@ -12,7 +12,6 @@ rm -f ./transactions.rlp
 for ((i=0;i<$N;i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
-    rm -fr ${DATADIR}
     mkdir -p ${DATADIR}
 
     PORT=$(($PORT_BASE+$i))
@@ -26,7 +25,7 @@ do
 	--nat extip:127.0.0.1 \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
-	--nousb --verbosity=3 --tracing &>> opera$i.log)&
+	--verbosity=3 --tracing &>> opera$i.log)&
 
     echo -e "\tnode$i ok"
 done

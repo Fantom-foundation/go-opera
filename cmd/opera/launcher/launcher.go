@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/abft"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -459,4 +462,35 @@ func unlockAccounts(ctx *cli.Context, stack *node.Node) {
 	for i, account := range unlocks {
 		unlockAccount(ks, account, i, passwords)
 	}
+}
+
+func makeRawStores(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, *abft.Store, error) {
+	if err := checkStateInitialized(rawProducer); err != nil {
+		return nil, nil, err
+	}
+
+	dbs := &integration.DummyFlushableProducer{rawProducer}
+	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
+
+	return gdb, cdb, nil
+}
+
+func checkStateInitialized(rawProducer kvdb.IterableDBProducer) error {
+	names := rawProducer.Names()
+	if len(names) == 0 {
+		return errors.New("datadir is not initialized")
+	}
+	// if flushID is not written, then previous genesis processing attempt was interrupted
+	for _, name := range names {
+		db, err := rawProducer.OpenDB(name)
+		if err != nil {
+			return err
+		}
+		flushID, _ := db.Get(integration.FlushIDKey)
+		_ = db.Close()
+		if flushID != nil {
+			return nil
+		}
+	}
+	return errors.New("datadir is not initialized")
 }

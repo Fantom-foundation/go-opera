@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-func (s *Store) applyRawEvmItems(db kvdb.Iteratee) (err error) {
+func (s *Store) ApplyRawEvmItems(db kvdb.Iteratee) (err error) {
 	it := db.NewIterator(nil, nil)
 	defer it.Release()
 	batch := s.EvmDb.NewBatch()
@@ -33,7 +33,7 @@ func (s *Store) applyRawEvmItems(db kvdb.Iteratee) (err error) {
 // ApplyGenesis writes initial state.
 func (s *Store) ApplyGenesis(g opera.Genesis, startingRoot hash.Hash) (evmBlock *evmcore.EvmBlock, err error) {
 	// apply raw EVM storage
-	err = s.applyRawEvmItems(g.RawEvmItems)
+	err = s.ApplyRawEvmItems(g.RawEvmItems)
 	if err != nil {
 		return nil, err
 	}

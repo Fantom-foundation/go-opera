@@ -63,7 +63,7 @@ func mustOpenDB(producer kvdb.DBProducer, name string) kvdb.DropableStore {
 	return db
 }
 
-func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *abft.Store) {
+func MakeStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *abft.Store) {
 	gdb := gossip.NewStore(producer, cfg.OperaStore)
 
 	cMainDb := mustOpenDB(producer, "lachesis")
@@ -117,7 +117,7 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 func applyGenesis(rawProducer kvdb.DBProducer, blockProc gossip.BlockProc, genesisStore *genesisstore.Store, cfg Configs) error {
 	rawDbs := &DummyFlushableProducer{rawProducer}
 
-	gdb, cdb := getStores(rawDbs, cfg)
+	gdb, cdb := MakeStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
 
@@ -174,7 +174,7 @@ func makeEngine(
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
-	gdb, cdb := getStores(dbs, cfg)
+	gdb, cdb := MakeStores(dbs, cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()

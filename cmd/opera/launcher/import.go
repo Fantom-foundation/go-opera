@@ -38,7 +38,7 @@ func importEvm(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}

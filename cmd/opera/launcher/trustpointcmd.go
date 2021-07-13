@@ -2,24 +2,17 @@ package launcher
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
-	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
+	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/trustpoint"
 )
 
@@ -72,7 +65,7 @@ Note: datadir shoul be empty.
 func trustpointCreate(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -88,21 +81,30 @@ func trustpointCreate(ctx *cli.Context) error {
 	}
 	file := ctx.Args()[0]
 
+	bs := gdb.GetBlockState()
+	_, err = gdb.EvmStore().StateDB(bs.FinalizedStateRoot)
+	if err != nil {
+		log.Error("State not found, probably pruned before", "err", err, "root", bs.FinalizedStateRoot)
+		return err
+	}
+	// prune state db
 	bloomFilterSize := ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name)
+	// TODO: how about last 256 roots
+	err = pruneStateTo(gdb, common.Hash(bs.FinalizedStateRoot), common.Hash{}, bloomFilterSize)
+	if err != nil {
+		return err
+	}
 
-	dir, err := ioutil.TempDir("", "trustpoint")
-	if err != nil {
-		log.Error("Create temporary dir", "err", err)
-		return err
-	}
-	defer os.RemoveAll(dir)
-	db, err := leveldb.New(dir, 2*opt.MiB, 0, nil, nil)
+	db, err := rawProducer.OpenDB("trustpoint")
 	if err != nil {
 		return err
 	}
+	defer db.Drop()
+
 	store := trustpoint.NewStore(db)
+	defer store.Close()
 
-	err = gossipToTrustpoint(gdb, store, bloomFilterSize)
+	err = gdb.SaveTrustpoint(store)
 	if err != nil {
 		return err
 	}
@@ -110,88 +112,63 @@ func trustpointCreate(ctx *cli.Context) error {
 	return trustpointSaveTo(store, file)
 }
 
-func gossipToTrustpoint(gdb *gossip.Store, store *trustpoint.Store, bloomFilterSize uint64) error {
-	start, reported := time.Now(), time.Time{}
+func trustpointApply(ctx *cli.Context) error {
+	cfg := makeAllConfigs(ctx)
 
-	// find the last block of prev epoch
-	bs, es := gdb.GetBlockEpochState()
-
-	var (
-		lastBlockIdx = bs.LastBlock.Idx
-		lastBlock    = gdb.GetBlock(lastBlockIdx)
-	)
-	for lastBlock.Root != es.EpochStateRoot {
-		lastBlockIdx--
-		lastBlock = gdb.GetBlock(lastBlockIdx)
-	}
-
-	_, err := gdb.EvmStore().StateDB(lastBlock.Root)
+	gdbDatadir := path.Join(cfg.Node.DataDir, "chaindata")
+	err := os.MkdirAll(gdbDatadir, 0750)
 	if err != nil {
-		log.Error("State not found, probably pruned before", "err", err, "root", lastBlock.Root)
 		return err
 	}
 
-	// prune state db
-	err = pruneStateTo(gdb, common.Hash(lastBlock.Root), common.Hash{}, bloomFilterSize)
+	rawProducer := integration.DBProducer(gdbDatadir, cacheScaler(ctx))
+	if len(rawProducer.Names()) > 0 {
+		return fmt.Errorf("datadir is not empty")
+	}
+
+	dbs := &integration.DummyFlushableProducer{rawProducer}
+	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
+	defer gdb.Close()
+
+	if ctx.NArg() > 1 {
+		log.Error("Too many arguments given")
+		return errors.New("too many arguments")
+	}
+	if ctx.NArg() < 1 {
+		log.Error("File name argument required")
+		return errors.New("file name argument required")
+	}
+	file := ctx.Args()[0]
+
+	db, err := rawProducer.OpenDB("trustpoint")
 	if err != nil {
-		log.Error("Skip state prunning", "err", err)
-		// TODO: why the error
-		/* panic(fmt.Errorf("prune state err (epoch=%d, lastblock=%d, currblock=%d)",
-			es.Epoch, lastBlockIdx, bs.LastBlock.Idx,
-		))
-		*/
-		return nil
+		return err
+	}
+	defer db.Drop()
+
+	store := trustpoint.NewStore(db)
+	defer store.Close()
+
+	err = trustpointReadFrom(file, store)
+	if err != nil {
+		log.Error("Trustpoint file read", "err", err)
+		return err
 	}
 
-	// export rules
-	store.SetRules(es.Rules)
-
-	// EVM needs last 256 blocks only, see core/vm.opBlockhash() instruction
-	var firstBlockIdx idx.Block
-	const history idx.Block = 256
-	if lastBlockIdx > history {
-		firstBlockIdx = lastBlockIdx - history
+	err = gdb.ApplyTrustpoint(store)
+	if err != nil {
+		return err
 	}
-	// export of blocks
-	for index := firstBlockIdx; index <= lastBlockIdx; index++ {
-		block := gdb.GetBlock(index)
-		txs := make([]*types.Transaction, len(block.Txs))
-		for i, txid := range block.Txs {
-			txs[i] = gdb.EvmStore().GetTx(txid)
-		}
-		receipts := gdb.EvmStore().GetReceipts(index)
-		receiptsForStorage := make([]*types.ReceiptForStorage, len(receipts))
-		for i, r := range receipts {
-			receiptsForStorage[i] = (*types.ReceiptForStorage)(r)
-		}
-		store.SetBlock(index, genesis.Block{
-			Time:        block.Time,
-			Atropos:     block.Atropos,
-			Txs:         txs,
-			InternalTxs: types.Transactions{},
-			Root:        block.Root,
-			Receipts:    receiptsForStorage,
-		})
-		if time.Since(reported) >= statsReportLimit {
-			log.Info("Exporting blocks", "last", index, "elapsed", common.PrettyDuration(time.Since(start)))
-			reported = time.Now()
-		}
+
+	err = cdb.ApplyGenesis(&abft.Genesis{
+		Epoch:      gdb.GetEpoch(),
+		Validators: gdb.GetValidators(),
+	})
+	if err != nil {
+		return err
 	}
-	log.Info("Exported blocks", "from", firstBlockIdx, "last", lastBlockIdx, "elapsed", common.PrettyDuration(time.Since(start)))
 
-	// export of EVM state
-	log.Info("Exporting EVM state", "root", lastBlock.Root.String())
-	it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
-	for it.Next() {
-		// TODO: skip unnecessary states after root
-		store.SetRawEvmItem(it.Key(), it.Value())
-	}
-	it.Release()
-
-	// export metadata
-	// TODO
-
-	return nil
+	return gdb.Commit()
 }
 
 func trustpointSaveTo(store *trustpoint.Store, file string) error {
@@ -210,55 +187,6 @@ func trustpointSaveTo(store *trustpoint.Store, file string) error {
 	return nil
 }
 
-func trustpointApply(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
-
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	if len(rawProducer.Names()) > 0 {
-		return fmt.Errorf("datadir is not empty")
-	}
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
-	defer gdb.Close()
-
-	if ctx.NArg() > 1 {
-		log.Error("Too many arguments given")
-		return errors.New("too many arguments")
-	}
-	if ctx.NArg() < 1 {
-		log.Error("File name argument required")
-		return errors.New("file name argument required")
-	}
-	file := ctx.Args()[0]
-
-	dir, err := ioutil.TempDir("", "trustpoint")
-	if err != nil {
-		log.Error("Create temporary dir", "err", err)
-		return err
-	}
-	defer os.RemoveAll(dir)
-	db, err := leveldb.New(dir, 2*opt.MiB, 0, nil, nil)
-	if err != nil {
-		return err
-	}
-	store := trustpoint.NewStore(db)
-
-	err = trustpointReadFrom(file, store)
-	if err != nil {
-		log.Error("Trustpoint file read", "err", err)
-		return err
-	}
-
-	err = gossipFromTrustpoint(store, gdb)
-	if err != nil {
-		return err
-	}
-
-	return gdb.Commit()
-}
-
 func trustpointReadFrom(file string, store *trustpoint.Store) error {
 	log.Info("Decoding go-opera trustpoint", "path", file)
 	fh, err := os.Open(file)
@@ -268,10 +196,4 @@ func trustpointReadFrom(file string, store *trustpoint.Store) error {
 	defer fh.Close()
 
 	return trustpoint.ReadStore(fh, store)
-}
-
-func gossipFromTrustpoint(store *trustpoint.Store, gdb *gossip.Store) error {
-	// start, reported := time.Now(), time.Time{}
-
-	return nil
 }

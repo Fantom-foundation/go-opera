@@ -1,6 +1,7 @@
 package trustpoint
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
@@ -11,19 +12,13 @@ import (
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	db kvdb.Store
+	GenesisHash hash.Hash
 
+	db    kvdb.Store
 	table struct {
-		Rules kvdb.Store `table:"c"`
-
-		Blocks kvdb.Store `table:"b"`
-
-		EvmAccounts kvdb.Store `table:"a"`
-		EvmStorage  kvdb.Store `table:"s"`
-		RawEvmItems kvdb.Store `table:"M"`
-
-		Delegations kvdb.Store `table:"d"`
-		Metadata    kvdb.Store `table:"m"`
+		BlockEpochState kvdb.Store `table:"s"`
+		Blocks          kvdb.Store `table:"b"`
+		RawEvmItems     kvdb.Store `table:"e"`
 	}
 
 	rlp rlpstore.Helper

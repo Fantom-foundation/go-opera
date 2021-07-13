@@ -150,7 +150,7 @@ It's also usable without snapshot enabled.
 func pruneState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -204,7 +204,7 @@ func pruneStateTo(gdb *gossip.Store, root, target common.Hash, bloomSize uint64)
 func verifyState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -247,7 +247,7 @@ func verifyState(ctx *cli.Context) error {
 func traverseState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -340,7 +340,7 @@ func traverseState(ctx *cli.Context) error {
 func traverseRawState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	gdb, _, err := makeRawStores(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}

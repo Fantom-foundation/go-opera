@@ -45,15 +45,12 @@ func ReadStore(input io.Reader, s *Store) error {
 	}
 	defer gzipReader.Close()
 
-	err = s.readFrom(gzipReader)
+	_, err = gzipReader.Read(s.GenesisHash[:])
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func (s *Store) readFrom(r io.Reader) error {
-	return iodb.Read(r, s.db.NewBatch())
+	return iodb.Read(gzipReader, s.db.NewBatch())
 }
 
 func WriteStore(s *Store, output io.Writer) error {
@@ -64,13 +61,11 @@ func WriteStore(s *Store, output io.Writer) error {
 
 	gzipWriter := gzip.NewWriter(output)
 	defer gzipWriter.Close()
-	err = s.writeTo(gzipWriter)
+
+	_, err = gzipWriter.Write(s.GenesisHash[:])
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func (s *Store) writeTo(w io.Writer) error {
-	return iodb.Write(w, s.db)
+	return iodb.Write(gzipWriter, s.db)
 }
