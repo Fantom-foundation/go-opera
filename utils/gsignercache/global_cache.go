@@ -1,21 +1,21 @@
 package gsignercache
 
 import (
-	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
-	globalWlruCache, _ = wlru.New(10000, 10000)
+	globalCache, _ = lru.New(10000)
 )
 
 type WlruCache struct {
-	Cache *wlru.Cache
+	Cache *lru.Cache
 }
 
 func (w *WlruCache) Add(txid common.Hash, c types.CachedSender) {
-	w.Cache.Add(txid, c, 1)
+	w.Cache.Add(txid, c)
 }
 
 func (w *WlruCache) Get(txid common.Hash) *types.CachedSender {
@@ -28,5 +28,5 @@ func (w *WlruCache) Get(txid common.Hash) *types.CachedSender {
 }
 
 func Wrap(signer types.Signer) types.Signer {
-	return types.WrapWithCachedSigner(signer, &WlruCache{globalWlruCache})
+	return types.WrapWithCachedSigner(signer, &WlruCache{globalCache})
 }
