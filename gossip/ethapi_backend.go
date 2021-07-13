@@ -189,7 +189,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	}
 
 	if requested == current {
-		heads = b.svc.store.GetHeads(requested)
+		heads = b.svc.store.GetHeadsSlice(requested)
 	} else {
 		err = errors.New("heads for previous epochs are not available")
 		return

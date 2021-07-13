@@ -7,12 +7,18 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
-	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skiperrors"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+
+	"github.com/Fantom-foundation/go-opera/logger"
+)
+
+var (
+	errDBClosed = errors.New("database closed")
 )
 
 type (
@@ -20,25 +26,34 @@ type (
 		epoch idx.Epoch
 		db    kvdb.DropableStore
 		table struct {
-			Tips     kvdb.Store `table:"t"`
-			Heads    kvdb.Store `table:"H"`
-			DagIndex kvdb.Store `table:"v"`
+			LastEvents kvdb.Store `table:"t"`
+			Heads      kvdb.Store `table:"H"`
+			DagIndex   kvdb.Store `table:"v"`
 		}
+		cache struct {
+			Heads      atomic.Value
+			LastEvents atomic.Value
+		}
+
+		logger.Instance
 	}
 )
 
 func newEpochStore(epoch idx.Epoch, db kvdb.DropableStore) *epochStore {
 	es := &epochStore{
-		epoch: epoch,
-		db:    db,
+		epoch:    epoch,
+		db:       db,
+		Instance: logger.MakeInstance(),
 	}
 	table.MigrateTables(&es.table, db)
 
-	err := errors.New("database closed")
-
 	// wrap with skiperrors to skip errors on reading from a dropped DB
-	es.table.Tips = skiperrors.Wrap(es.table.Tips, err)
-	es.table.Heads = skiperrors.Wrap(es.table.Heads, err)
+	es.table.LastEvents = skiperrors.Wrap(es.table.LastEvents, errDBClosed)
+	es.table.Heads = skiperrors.Wrap(es.table.Heads, errDBClosed)
+
+	// load the cache to avoid a race condition
+	es.GetHeads()
+	es.GetLastEvents()
 
 	return es
 }
@@ -48,8 +63,7 @@ func (s *Store) getAnyEpochStore() *epochStore {
 	if _es == nil {
 		return nil
 	}
-	es := _es.(*epochStore)
-	return es
+	return _es.(*epochStore)
 }
 
 // getEpochStore is safe for concurrent use.
@@ -100,36 +114,4 @@ func (s *Store) createEpochStore(epoch idx.Epoch) {
 		s.Log.Crit("Filed to open DB", "name", name, "err", err)
 	}
 	s.epochStore.Store(newEpochStore(epoch, db))
-}
-
-// SetLastEvent stores last unconfirmed event from a validator (off-chain)
-func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.ValidatorID, id hash.Event) {
-	es := s.getEpochStore(epoch)
-	if es == nil {
-		return
-	}
-
-	key := from.Bytes()
-	if err := es.table.Tips.Put(key, id.Bytes()); err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
-}
-
-// GetLastEvent returns stored last unconfirmed event from a validator (off-chain)
-func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event {
-	es := s.getEpochStore(epoch)
-	if es == nil {
-		return nil
-	}
-
-	key := from.Bytes()
-	idBytes, err := es.table.Tips.Get(key)
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	if idBytes == nil {
-		return nil
-	}
-	id := hash.BytesToEvent(idBytes)
-	return &id
 }

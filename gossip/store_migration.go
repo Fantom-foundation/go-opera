@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 	"github.com/Fantom-foundation/go-opera/utils/migration"
 )
 
@@ -33,7 +35,9 @@ func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
 		Next("used gas recovery", s.recoverUsedGas).
-		Next("tx hashes recovery", s.recoverTxHashes)
+		Next("tx hashes recovery", s.recoverTxHashes).
+		Next("DAG heads recovery", s.recoverHeadsStorage).
+		Next("DAG last events recovery", s.recoverLastEventsStorage)
 }
 
 func (s *Store) recoverUsedGas() error {
@@ -209,5 +213,41 @@ func (s *Store) recoverTxHashes() error {
 		}
 	}
 
+	return nil
+}
+
+func (s *Store) recoverHeadsStorage() error {
+	s.loadEpochStore(s.GetEpoch())
+	es := s.getEpochStore(s.GetEpoch())
+	it := es.table.Heads.NewIterator(nil, nil)
+	defer it.Release()
+	heads := make(hash.EventsSet)
+	for it.Next() {
+		// note: key may be empty if DB was committed before being migrated, which is possible between migration steps
+		if len(it.Key()) > 0 {
+			heads.Add(hash.BytesToEvent(it.Key()))
+		}
+		_ = es.table.Heads.Delete(it.Key())
+	}
+	es.SetHeads(concurrent.WrapEventsSet(heads))
+	es.FlushHeads()
+	return nil
+}
+
+func (s *Store) recoverLastEventsStorage() error {
+	s.loadEpochStore(s.GetEpoch())
+	es := s.getEpochStore(s.GetEpoch())
+	it := es.table.LastEvents.NewIterator(nil, nil)
+	defer it.Release()
+	lasts := make(map[idx.ValidatorID]hash.Event)
+	for it.Next() {
+		// note: key may be empty if DB was committed before being migrated, which is possible between migration steps
+		if len(it.Key()) > 0 {
+			lasts[idx.BytesToValidatorID(it.Key())] = hash.BytesToEvent(it.Value())
+		}
+		_ = es.table.LastEvents.Delete(it.Key())
+	}
+	es.SetLastEvents(concurrent.WrapValidatorEventsSet(lasts))
+	es.FlushLastEvents()
 	return nil
 }
