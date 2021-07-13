@@ -35,11 +35,12 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 type Configs struct {
-	Opera         gossip.Config
-	OperaStore    gossip.StoreConfig
-	Lachesis      abft.Config
-	LachesisStore abft.StoreConfig
-	VectorClock   vecmt.IndexConfig
+	Opera          gossip.Config
+	OperaStore     gossip.StoreConfig
+	Lachesis       abft.Config
+	LachesisStore  abft.StoreConfig
+	VectorClock    vecmt.IndexConfig
+	AllowedGenesis map[uint64]hash.Hash
 }
 
 type InputGenesis struct {
@@ -117,18 +118,22 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.DBProducer, readGenesisStore func(*genesisstore.Store) error, cfg Configs) error {
+func applyGenesis(rawProducer kvdb.DBProducer, inputGenesis InputGenesis, cfg Configs) error {
 	rawDbs := &DummyFlushableProducer{rawProducer}
 	gdb, cdb, genesisStore := getStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
 	defer genesisStore.Close()
 	log.Info("Decoding genesis file")
-	err := readGenesisStore(genesisStore)
+	err := inputGenesis.Read(genesisStore)
 	if err != nil {
 		return err
 	}
 	log.Info("Applying genesis state")
+	networkID := genesisStore.GetRules().NetworkID
+	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash {
+		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash.String())
+	}
 	err = rawApplyGenesis(gdb, cdb, genesisStore.GetGenesis(), cfg)
 	if err != nil {
 		return err
@@ -153,7 +158,7 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 			return nil, nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to close existing databases: %v", err)
 		}
 
-		err = applyGenesis(rawProducer, inputGenesis.Read, cfg)
+		err = applyGenesis(rawProducer, inputGenesis, cfg)
 		if err != nil {
 			return nil, nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
@@ -189,6 +194,11 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, genesisStore.GetGenesis(), cfg, false)
 	if err != nil {
 		err = fmt.Errorf("failed to make engine: %v", err)
+		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
+	}
+
+	if *gdb.GetGenesisHash() != inputGenesis.Hash {
+		err = fmt.Errorf("genesis hash mismatch with genesis file header: %s != %s", gdb.GetGenesisHash().String(), inputGenesis.Hash.String())
 		return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
