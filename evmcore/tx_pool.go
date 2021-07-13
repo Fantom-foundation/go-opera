@@ -33,6 +33,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 const (
@@ -272,7 +274,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain state
 		config:          config,
 		chainconfig:     chainconfig,
 		chain:           chain,
-		signer:          types.LatestSignerForChainID(chainconfig.ChainID),
+		signer:          gsignercache.Wrap(types.LatestSignerForChainID(chainconfig.ChainID)),
 		pending:         make(map[common.Address]*txList),
 		queue:           make(map[common.Address]*txList),
 		beats:           make(map[common.Address]time.Time),
