@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	globalCache, _ = lru.New(10000)
+	globalCache, _ = lru.New(40000)
 )
 
 type WlruCache struct {
