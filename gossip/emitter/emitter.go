@@ -68,6 +68,13 @@ type Emitter struct {
 
 	maxParents idx.Event
 
+	cache struct {
+		sortedTxs *types.TransactionsByPriceAndNonce
+		poolTime  time.Time
+		poolBlock idx.Block
+		poolCount int
+	}
+
 	logger.Periodic
 }
 
@@ -120,7 +127,7 @@ func (em *Emitter) Start() {
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		tick := 21 * time.Millisecond
+		tick := 11 * time.Millisecond
 		timer := time.NewTimer(tick)
 		defer timer.Stop()
 		for {
@@ -128,11 +135,7 @@ func (em *Emitter) Start() {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
-				if isBusy := em.tick(); isBusy {
-					// Heuristic to avoid locking mutexes and hurting the concurrency
-					timer.Reset(tick / 3)
-					continue
-				}
+				em.tick()
 			case <-done:
 				return
 			}
@@ -152,7 +155,7 @@ func (em *Emitter) Stop() {
 	em.wg.Wait()
 }
 
-func (em *Emitter) tick() (isBusy bool) {
+func (em *Emitter) tick() {
 	// track synced time
 	if em.world.PeersNum() == 0 {
 		// connected time ~= last time when it's true that "not connected yet"
@@ -163,7 +166,7 @@ func (em *Emitter) tick() (isBusy bool) {
 		em.syncStatus.p2pSynced = time.Now()
 	}
 	if em.world.IsBusy() {
-		return true
+		return
 	}
 
 	em.recheckChallenges()
@@ -171,8 +174,35 @@ func (em *Emitter) tick() (isBusy bool) {
 	if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
 		_ = em.EmitEvent()
 	}
+}
 
-	return false
+func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
+	// Short circuit if pool wasn't updated since the cache was built
+	poolCount := em.world.TxPool.Count()
+	if em.cache.sortedTxs != nil &&
+		em.cache.poolBlock == em.world.GetLatestBlockIndex() &&
+		em.cache.poolCount == poolCount &&
+		time.Since(em.cache.poolTime) < em.config.TxsCacheInvalidation {
+		return em.cache.sortedTxs.Copy()
+	}
+	// Build the cache
+	pendingTxs, err := em.world.TxPool.Pending()
+	if err != nil {
+		em.Log.Error("Tx pool transactions fetching error", "err", err)
+		return nil
+	}
+	for from, txs := range pendingTxs {
+		// Filter the excessive transactions from each sender
+		if len(txs) > em.config.MaxTxsPerAddress {
+			pendingTxs[from] = txs[:em.config.MaxTxsPerAddress]
+		}
+	}
+	sortedTxs := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, pendingTxs)
+	em.cache.sortedTxs = sortedTxs
+	em.cache.poolCount = poolCount
+	em.cache.poolBlock = em.world.GetLatestBlockIndex()
+	em.cache.poolTime = time.Now()
+	return sortedTxs.Copy()
 }
 
 func (em *Emitter) EmitEvent() *inter.EventPayload {
@@ -180,33 +210,23 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		// short circuit if not a validator
 		return nil
 	}
-	poolTxs, err := em.world.TxPool.Pending()
-	if err != nil {
-		em.Log.Error("Tx pool transactions fetching error", "err", err)
+	sortedTxs := em.getSortedTxs()
+
+	if em.world.IsBusy() {
 		return nil
 	}
-
-	if tracing.Enabled() {
-		for _, tt := range poolTxs {
-			for _, t := range tt {
-				span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
-				defer span.Finish()
-			}
-		}
-	}
-
 	em.world.Lock()
 	defer em.world.Unlock()
 
 	start := time.Now()
 
-	e := em.createEvent(poolTxs)
+	e := em.createEvent(sortedTxs)
 	if e == nil {
 		return nil
 	}
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
-	err = em.world.Process(e)
+	err := em.world.Process(e)
 	if err != nil {
 		return nil
 	}
@@ -240,7 +260,7 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 }
 
 // createEvent is not safe for concurrent use.
-func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.EventPayload {
+func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *inter.EventPayload {
 	if !em.isValidator() {
 		return nil
 	}
@@ -312,12 +332,22 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		}
 		return nil
 	}
+
+	// Pre-check if event should be emitted
+	// It is checked in advance to avoid adding transactions just to immediately drop the event later
+	if !em.isAllowedToEmit(mutEvent, true, metric, selfParentHeader) {
+		return nil
+	}
+
 	// Add txs
-	em.addTxs(mutEvent, poolTxs)
+	em.addTxs(mutEvent, sortedTxs)
 
 	// Check if event should be emitted
-	if !em.isAllowedToEmit(mutEvent, metric, selfParentHeader) {
-		return nil
+	// Check only if no txs were added, since check in a case with added txs was performed above
+	if mutEvent.Txs().Len() == 0 {
+		if !em.isAllowedToEmit(mutEvent, mutEvent.Txs().Len() != 0, metric, selfParentHeader) {
+			return nil
+		}
 	}
 
 	// calc Merkle root

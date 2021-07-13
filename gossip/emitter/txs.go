@@ -150,27 +150,16 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, account
 	return validators.GetID(idx.Validator(rounds[roundIndex])) == me
 }
 
-func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Address]types.Transactions) {
-	if len(poolTxs) == 0 {
-		return
-	}
-
+func (em *Emitter) addTxs(e *inter.MutableEventPayload, sorted *types.TransactionsByPriceAndNonce) {
 	maxGasUsed := em.maxGasPowerToUse(e)
 	if maxGasUsed <= e.GasPowerUsed() {
 		return
 	}
 
 	// sort transactions by price and nonce
-	sorted := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, poolTxs)
-	senderTxs := make(map[common.Address]int)
 	rules := em.world.GetRules()
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
-		// check we don't originate too many txs from the same sender
 		sender, _ := types.Sender(em.world.TxSigner, tx)
-		if senderTxs[sender] >= em.config.MaxTxsPerAddress {
-			sorted.Pop()
-			continue
-		}
 		// check transaction epoch rules
 		if epochcheck.CheckTxs(types.Transactions{tx}, rules) != nil {
 			sorted.Pop()
@@ -204,7 +193,6 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Addre
 		e.SetGasPowerUsed(e.GasPowerUsed() + tx.Gas())
 		e.SetGasPowerLeft(e.GasPowerLeft().Sub(tx.Gas()))
 		e.SetTxs(append(e.Txs(), tx))
-		senderTxs[sender]++
 		sorted.Shift()
 	}
 }

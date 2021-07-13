@@ -38,7 +38,7 @@ func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 	return metric
 }
 
-func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric, selfParent *inter.Event) bool {
+func (em *Emitter) isAllowedToEmit(e inter.EventI, eTxs bool, metric ancestor.Metric, selfParent *inter.Event) bool {
 	passedTime := e.CreationTime().Time().Sub(em.prevEmittedAtTime)
 	passedTimeIdle := e.CreationTime().Time().Sub(em.prevIdleTime)
 	if em.stakeRatio[e.Creator()] < 0.35*piecefunc.DecimalUnit {
@@ -99,7 +99,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 	{
 		if passedTime < em.intervals.Max &&
 			em.idle() &&
-			len(e.Txs()) == 0 {
+			!eTxs {
 			return false
 		}
 	}
@@ -114,7 +114,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, metric ancestor.Metric
 		}
 		if adjustedPassedIdleTime < em.intervals.Confirming &&
 			!em.idle() &&
-			len(e.Txs()) == 0 {
+			!eTxs {
 			return false
 		}
 	}

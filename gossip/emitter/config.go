@@ -41,6 +41,8 @@ type Config struct {
 	LimitedTpsThreshold uint64
 	NoTxsThreshold      uint64
 	EmergencyThreshold  uint64
+
+	TxsCacheInvalidation time.Duration
 }
 
 // DefaultConfig returns the default configurations for the events emitter.
@@ -63,6 +65,8 @@ func DefaultConfig() Config {
 		LimitedTpsThreshold: opera.DefaultEventGas * 120,
 		NoTxsThreshold:      opera.DefaultEventGas * 30,
 		EmergencyThreshold:  opera.DefaultEventGas * 5,
+
+		TxsCacheInvalidation: 200 * time.Millisecond,
 	}
 }
 
