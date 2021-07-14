@@ -469,7 +469,7 @@ func makeRawStores(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.St
 		return nil, nil, err
 	}
 
-	dbs := &integration.DummyFlushableProducer{rawProducer}
+	dbs := integration.NewDummyFlushableProducer(rawProducer)
 	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
 
 	return gdb, cdb, nil

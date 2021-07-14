@@ -126,7 +126,7 @@ func trustpointApply(ctx *cli.Context) error {
 		return fmt.Errorf("datadir is not empty")
 	}
 
-	dbs := &integration.DummyFlushableProducer{rawProducer}
+	dbs := integration.NewDummyFlushableProducer(rawProducer)
 	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
 	defer gdb.Close()
 
@@ -140,7 +140,7 @@ func trustpointApply(ctx *cli.Context) error {
 	}
 	file := ctx.Args()[0]
 
-	db, err := rawProducer.OpenDB("trustpoint")
+	db, err := dbs.OpenDB("trustpoint")
 	if err != nil {
 		return err
 	}

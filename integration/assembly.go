@@ -114,8 +114,8 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.DBProducer, blockProc gossip.BlockProc, genesisStore *genesisstore.Store, cfg Configs) error {
-	rawDbs := &DummyFlushableProducer{rawProducer}
+func applyGenesis(rawProducer kvdb.IterableDBProducer, blockProc gossip.BlockProc, genesisStore *genesisstore.Store, cfg Configs) error {
+	rawDbs := NewDummyFlushableProducer(rawProducer)
 
 	gdb, cdb := MakeStores(rawDbs, cfg)
 	defer gdb.Close()
