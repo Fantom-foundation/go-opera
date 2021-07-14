@@ -89,10 +89,6 @@ func (es *EpochState) GetValidatorState(id idx.ValidatorID, validators *pos.Vali
 	return &es.ValidatorStates[validatorIdx]
 }
 
-func (es EpochState) Duration() inter.Timestamp {
-	return es.EpochStart - es.PrevEpochStart
-}
-
 func (es EpochState) Hash() hash.Hash {
 	hasher := sha256.New()
 	err := rlp.Encode(hasher, &es)
