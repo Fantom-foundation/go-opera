@@ -454,6 +454,14 @@ func (pool *TxPool) Stats() (int, int) {
 	return pool.stats()
 }
 
+// Count returns the total number of transactions
+func (pool *TxPool) Count() int {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+
+	return pool.all.Count()
+}
+
 // stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
 func (pool *TxPool) stats() (int, int) {
