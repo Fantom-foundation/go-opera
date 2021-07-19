@@ -146,8 +146,8 @@ func initFlags() {
 		utils.WSPathPrefixFlag,
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
-		utils.RPCGlobalGasCapFlag,
-		utils.RPCGlobalTxFeeCapFlag,
+		RPCGlobalGasCapFlag,
+		RPCGlobalTxFeeCapFlag,
 	}
 
 	metricsFlags = []cli.Flag{
