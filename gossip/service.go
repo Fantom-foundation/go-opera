@@ -43,6 +43,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -235,7 +236,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 // makeCheckers builds event checkers
 func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, types.NewEIP2930Signer(chainID))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, gsignercache.Wrap(types.NewEIP2930Signer(chainID)))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -250,7 +251,7 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := types.NewEIP2930Signer(s.store.GetRules().EvmChainConfig().ChainID)
+	txSigner := gsignercache.Wrap(types.NewEIP2930Signer(s.store.GetRules().EvmChainConfig().ChainID))
 
 	return emitter.NewEmitter(s.config.Emitter, emitter.World{
 		External: &emitterWorld{

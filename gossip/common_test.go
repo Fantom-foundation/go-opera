@@ -28,6 +28,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 const (
@@ -82,7 +83,7 @@ func newTestEnv() *testEnv {
 	env := &testEnv{
 		blockProcModules: blockProc,
 		store:            store,
-		signer:           types.NewEIP2930Signer(big.NewInt(int64(genesis.Rules.NetworkID))),
+		signer:           gsignercache.Wrap(types.NewEIP2930Signer(big.NewInt(int64(genesis.Rules.NetworkID)))),
 
 		lastBlock:     1,
 		lastState:     store.GetBlockState().FinalizedStateRoot,

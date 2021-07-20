@@ -49,6 +49,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 var (
@@ -1318,9 +1319,9 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	// because the return value of ChainId is zero for those transactions.
 	var signer types.Signer
 	if tx.Protected() {
-		signer = types.LatestSignerForChainID(tx.ChainId())
+		signer = gsignercache.Wrap(types.LatestSignerForChainID(tx.ChainId()))
 	} else {
-		signer = types.HomesteadSigner{}
+		signer = gsignercache.Wrap(types.HomesteadSigner{})
 	}
 
 	from, _ := types.Sender(signer, tx)
@@ -1497,7 +1498,7 @@ type PublicTransactionPoolAPI struct {
 func NewPublicTransactionPoolAPI(b Backend, nonceLock *AddrLocker) *PublicTransactionPoolAPI {
 	// The signer used by the API should always be the 'latest' known one because we expect
 	// signers to be backwards-compatible with old transactions.
-	signer := types.LatestSignerForChainID(b.ChainConfig().ChainID)
+	signer := gsignercache.Wrap(types.LatestSignerForChainID(b.ChainConfig().ChainID))
 	return &PublicTransactionPoolAPI{b, nonceLock, signer}
 }
 
