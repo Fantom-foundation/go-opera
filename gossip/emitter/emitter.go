@@ -3,6 +3,7 @@ package emitter
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -75,6 +76,8 @@ type Emitter struct {
 		poolCount int
 	}
 
+	emittedEventFile *os.File
+
 	logger.Periodic
 }
 
@@ -106,6 +109,10 @@ func (em *Emitter) init() {
 	em.syncStatus.p2pSynced = time.Now()
 	validators, epoch := em.world.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
+
+	if len(em.config.PrevEmittedEventFile.Path) != 0 {
+		em.emittedEventFile = openEventFile(em.config.PrevEmittedEventFile.Path, em.config.PrevEmittedEventFile.SyncMode)
+	}
 }
 
 // Start starts event emission.
@@ -228,8 +235,13 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 
 	err := em.world.Process(e)
 	if err != nil {
+		em.Log.Error("Self-event connection failed", "err", err.Error())
 		return nil
 	}
+	// write event ID to avoid doublesigning in future after a crash
+	em.writeLastEmittedEventID(e.ID())
+	// broadcast the event
+	em.world.Broadcast(e)
 
 	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
 	em.prevEmittedAtBlock = em.world.GetLatestBlockIndex()

@@ -25,6 +25,11 @@ type ValidatorConfig struct {
 	PubKey validatorpk.PubKey
 }
 
+type PrevEmittedEventFile struct {
+	Path     string
+	SyncMode bool
+}
+
 // Config is the configuration of events emitter.
 type Config struct {
 	VersionToPublish string
@@ -43,6 +48,8 @@ type Config struct {
 	EmergencyThreshold  uint64
 
 	TxsCacheInvalidation time.Duration
+
+	PrevEmittedEventFile PrevEmittedEventFile
 }
 
 // DefaultConfig returns the default configurations for the events emitter.
