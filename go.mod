@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.14
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20210420092627-c16f01e35562
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20210721130657-54ad3c8a18c1
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
