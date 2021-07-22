@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/queuedcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -36,15 +37,15 @@ type Checker struct {
 	txSigner types.Signer
 	reader   Reader
 
-	tasksQ chan *TaskData
+	tasksQ chan *TasksData
 	quit   chan struct{}
 	wg     sync.WaitGroup
 }
 
-type TaskData struct {
-	Events dag.Events // events to validate
+type TasksData struct {
+	Tasks []queuedcheck.EventTask // events to validate
 
-	onValidated func(dag.Events, []error)
+	onValidated func([]queuedcheck.EventTask)
 }
 
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
@@ -62,7 +63,7 @@ func New(config Config, reader Reader, txSigner types.Signer) *Checker {
 		config:   config,
 		txSigner: txSigner,
 		reader:   reader,
-		tasksQ:   make(chan *TaskData, config.MaxQueuedBatches),
+		tasksQ:   make(chan *TasksData, config.MaxQueuedBatches),
 		quit:     make(chan struct{}),
 	}
 }
@@ -83,15 +84,15 @@ func (v *Checker) Overloaded() bool {
 	return len(v.tasksQ) > v.config.MaxQueuedBatches/2
 }
 
-func (v *Checker) Enqueue(events dag.Events, onValidated func(dag.Events, []error)) error {
+func (v *Checker) Enqueue(tasks []queuedcheck.EventTask, onValidated func([]queuedcheck.EventTask)) error {
 	// divide big batch into smaller ones
-	for start := 0; start < len(events); start += v.config.MaxBatch {
-		end := len(events)
+	for start := 0; start < len(tasks); start += v.config.MaxBatch {
+		end := len(tasks)
 		if end > start+v.config.MaxBatch {
 			end = start + v.config.MaxBatch
 		}
-		op := &TaskData{
-			Events:      events[start:end],
+		op := &TasksData{
+			Tasks:       tasks[start:end],
 			onValidated: onValidated,
 		}
 		select {
@@ -150,11 +151,10 @@ func (v *Checker) loop() {
 	for {
 		select {
 		case op := <-v.tasksQ:
-			result := make([]error, len(op.Events))
-			for i, e := range op.Events {
-				result[i] = v.Validate(e)
+			for _, t := range op.Tasks {
+				t.SetResult(v.Validate(t.Event()))
 			}
-			op.onValidated(op.Events, result)
+			op.onValidated(op.Tasks)
 
 		case <-v.quit:
 			return

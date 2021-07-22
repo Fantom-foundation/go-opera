@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/queuedcheck"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
@@ -310,8 +311,8 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 			},
 
 			CheckParents: bufferedCheck,
-			CheckParentless: func(inEvents dag.Events, checked func(ee dag.Events, errs []error)) {
-				_ = parentlessChecker.Enqueue(inEvents, checked)
+			CheckParentless: func(tasks []queuedcheck.EventTask, checked func([]queuedcheck.EventTask)) {
+				_ = parentlessChecker.Enqueue(tasks, checked)
 			},
 			OnlyInterested: pm.onlyInterestedEvents,
 		},
