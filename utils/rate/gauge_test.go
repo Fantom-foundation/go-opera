@@ -6,7 +6,7 @@ import (
 )
 
 func TestGauge_Concurrency(t *testing.T) {
-	for try := 0; try < 100; try ++ {
+	for try := 0; try < 100; try++ {
 		testGaugeConcurrency(t)
 	}
 }
@@ -24,7 +24,7 @@ func testGaugeConcurrency(t *testing.T) {
 			select {
 			case <-barrier:
 				g.Mark(turn)
-				if v := int64(g.rateToGauge(float64(2 * end), 1)); v < turn {
+				if v := int64(g.rateToGauge(float64(2*end), 1)); v < turn {
 					t.Errorf("%d >= %d", v, end)
 				}
 				return
@@ -33,7 +33,7 @@ func testGaugeConcurrency(t *testing.T) {
 	}
 	close(barrier)
 	wg.Wait()
-	if v := int64(g.rateToGauge(float64(2 * end), 1)); v != end {
+	if v := int64(g.rateToGauge(float64(2*end), 1)); v != end {
 		t.Errorf("%d != %d", v, end)
 	}
 }
