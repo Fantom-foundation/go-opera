@@ -114,9 +114,25 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.IterableDBProducer, blockProc gossip.BlockProc, genesisStore *genesisstore.Store, cfg Configs) error {
-	rawDbs := NewDummyFlushableProducer(rawProducer)
+func ApplyGenesis(rawProducer kvdb.IterableDBProducer, blockProc gossip.BlockProc, inputGenesis *InputGenesis, cfg Configs) error {
+	if inputGenesis == nil {
+		err := fmt.Errorf("Input genesis required")
+		log.Error("Applying genesis state", "err", err)
+		return err
+	}
 
+	log.Info("Decoding genesis file")
+	genesisDb := mustOpenDB(rawProducer, "genesis")
+	defer genesisDb.Drop()
+
+	genesisStore := genesisstore.NewStore(genesisDb)
+	err := inputGenesis.Read(genesisStore)
+	if err != nil {
+		return err
+	}
+	defer genesisStore.Close()
+
+	rawDbs := NewDummyFlushableProducer(rawProducer)
 	gdb, cdb := MakeStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
@@ -124,12 +140,11 @@ func applyGenesis(rawProducer kvdb.IterableDBProducer, blockProc gossip.BlockPro
 	log.Info("Applying genesis state")
 
 	networkID := genesisStore.GetRules().NetworkID
-	inputGenesis := genesisStore.GetGenesis()
-	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash() {
-		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash().String())
+	if want, ok := cfg.AllowedGenesis[networkID]; ok && want != inputGenesis.Hash {
+		return fmt.Errorf("genesis hash is not allowed for the network %d: want %s, got %s", networkID, want.String(), inputGenesis.Hash.String())
 	}
 
-	err := rawApplyGenesis(gdb, cdb, blockProc, inputGenesis, cfg)
+	err = rawApplyGenesis(gdb, cdb, blockProc, genesisStore.GetGenesis(), cfg)
 	if err != nil {
 		return err
 	}
@@ -137,6 +152,8 @@ func applyGenesis(rawProducer kvdb.IterableDBProducer, blockProc gossip.BlockPro
 	if err != nil {
 		return err
 	}
+
+	log.Info("Applied genesis state", "hash", inputGenesis.Hash.String())
 	return nil
 }
 
@@ -152,21 +169,10 @@ func makeEngine(
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("genesis file required")
 		}
 
-		log.Info("Decoding genesis file")
-		genesisDb := mustOpenDB(rawProducer, "genesis")
-		genesisStore := genesisstore.NewStore(genesisDb)
-		err := inputGenesis.Read(genesisStore)
-		if err != nil {
-			return nil, nil, nil, nil, gossip.BlockProc{}, err
-		}
-
-		err = applyGenesis(rawProducer, blockProc, genesisStore, cfg)
+		err := ApplyGenesis(rawProducer, blockProc, inputGenesis, cfg)
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
-		log.Info("Applied genesis state", "hash", inputGenesis.Hash.String())
-		genesisStore.Close()
-		genesisDb.Drop()
 	}
 
 	dbs, err := makeFlushableProducer(rawProducer)

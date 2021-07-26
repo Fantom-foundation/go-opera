@@ -48,6 +48,28 @@ func (s *Store) SetBlockEpochState(bs *blockproc.BlockState, es *blockproc.Epoch
 	s.rlp.Set(s.table.BlockEpochState, []byte("e"), es)
 }
 
+func (s *Store) SetEvent(e *inter.EventPayload) {
+	key := e.ID().Bytes()
+	s.rlp.Set(s.table.Events, key, e)
+}
+
+func (s *Store) ForEachEvent(onEvent func(event *inter.EventPayload) bool) {
+	it := s.table.Events.NewIterator(nil, nil)
+	defer it.Release()
+
+	for it.Next() {
+		event := &inter.EventPayload{}
+		err := rlp.DecodeBytes(it.Value(), event)
+		if err != nil {
+			s.Log.Crit("Failed to decode event", "err", err)
+		}
+
+		if !onEvent(event) {
+			return
+		}
+	}
+}
+
 func (s *Store) SetBlock(index idx.Block, block genesis.Block) {
 	s.rlp.Set(s.table.Blocks, index.Bytes(), &block)
 }

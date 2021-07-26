@@ -17,8 +17,9 @@ type Store struct {
 	db    kvdb.Store
 	table struct {
 		BlockEpochState kvdb.Store `table:"s"`
+		Events          kvdb.Store `table:"e"`
 		Blocks          kvdb.Store `table:"b"`
-		RawEvmItems     kvdb.Store `table:"e"`
+		RawEvmItems     kvdb.Store `table:"v"`
 	}
 
 	rlp rlpstore.Helper

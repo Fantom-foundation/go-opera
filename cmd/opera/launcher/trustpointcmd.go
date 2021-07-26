@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/opera/trustpoint"
 )
@@ -81,18 +82,20 @@ func trustpointCreate(ctx *cli.Context) error {
 	}
 	file := ctx.Args()[0]
 
-	bs := gdb.GetBlockState()
-	_, err = gdb.EvmStore().StateDB(bs.FinalizedStateRoot)
-	if err != nil {
-		log.Error("State not found, probably pruned before", "err", err, "root", bs.FinalizedStateRoot)
-		return err
-	}
-	// prune state db
-	bloomFilterSize := ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name)
-	// TODO: how about last 256 roots
-	err = pruneStateTo(gdb, common.Hash(bs.FinalizedStateRoot), common.Hash{}, bloomFilterSize)
-	if err != nil {
-		return err
+	if false { // TODO: enable later
+		es := gdb.GetEpochState()
+		_, err = gdb.EvmStore().StateDB(es.EpochStateRoot)
+		if err != nil {
+			log.Error("State not found, probably pruned before", "err", err, "root", es.EpochStateRoot)
+			return err
+		}
+		// prune state db
+		bloomFilterSize := ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name)
+		// TODO: how about last 256 roots?
+		err = pruneStateTo(gdb, common.Hash(es.EpochStateRoot), common.Hash{}, bloomFilterSize)
+		if err != nil {
+			return err
+		}
 	}
 
 	db, err := rawProducer.OpenDB("trustpoint")
@@ -126,6 +129,22 @@ func trustpointApply(ctx *cli.Context) error {
 		return fmt.Errorf("datadir is not empty")
 	}
 
+	// apply genesis
+	genesis := getOperaGenesis(ctx)
+	err = integration.ApplyGenesis(rawProducer, gossip.DefaultBlockProc(), genesis, cfg.AppConfigs())
+	if err != nil {
+		return err
+	}
+	_ = genesis.Close()
+
+	// drop abft genesis
+	// TODO: modify the cdb.ApplyGenesis() to ignore existing genesis instead of drop
+	dbs1 := integration.NewDummyFlushableProducer(rawProducer)
+	abftDb, _ := dbs1.OpenDB("lachesis")
+	abftDb.Close()
+	abftDb.Drop()
+
+	// apply trustpoint
 	dbs := integration.NewDummyFlushableProducer(rawProducer)
 	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
 	defer gdb.Close()
