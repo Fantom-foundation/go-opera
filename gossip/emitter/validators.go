@@ -25,7 +25,7 @@ func (em *Emitter) recountValidators(validators *pos.Validators) {
 		if !em.offlineValidators[vid] {
 			totalStakeBefore += stake
 		}
-		confirmingEmitIntervalRatio := piecefunc.Get(stakeRatio, confirmingEmitIntervalF)
+		confirmingEmitIntervalRatio := confirmingEmitIntervalF(stakeRatio)
 		em.stakeRatio[vid] = stakeRatio
 		em.expectedEmitIntervals[vid] = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Confirming), confirmingEmitIntervalRatio))
 	}

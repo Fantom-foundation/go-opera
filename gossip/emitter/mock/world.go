@@ -44,6 +44,18 @@ func (m *MockExternal) EXPECT() *MockExternalMockRecorder {
 	return m.recorder
 }
 
+// Broadcast mocks base method
+func (m *MockExternal) Broadcast(arg0 *inter.EventPayload) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Broadcast", arg0)
+}
+
+// Broadcast indicates an expected call of Broadcast
+func (mr *MockExternalMockRecorder) Broadcast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Broadcast", reflect.TypeOf((*MockExternal)(nil).Broadcast), arg0)
+}
+
 // Build mocks base method
 func (m *MockExternal) Build(arg0 *inter.MutableEventPayload, arg1 func()) error {
 	m.ctrl.T.Helper()
@@ -304,6 +316,7 @@ func (m *MockTxPool) EXPECT() *MockTxPoolMockRecorder {
 
 // Count mocks base method
 func (m *MockTxPool) Count() int {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Count")
 	ret0, _ := ret[0].(int)
 	return ret0
@@ -311,6 +324,7 @@ func (m *MockTxPool) Count() int {
 
 // Count indicates an expected call of Count
 func (mr *MockTxPoolMockRecorder) Count() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockTxPool)(nil).Count))
 }
 

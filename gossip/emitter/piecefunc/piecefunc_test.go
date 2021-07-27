@@ -31,7 +31,7 @@ func TestConstFunc(t *testing.T) {
 
 	for i, x := range []uint64{0, 1, 5, 10, 20, 0xFFFF, math.MaxUint32} {
 		X := x * DecimalUnit
-		Y := Get(X, constF)
+		Y := constF(X)
 		require.Equal(uint64(DecimalUnit), Y, i)
 	}
 }
@@ -60,13 +60,13 @@ func TestUp45Func(t *testing.T) {
 
 	for i, x := range []uint64{0, 1, 3, 5, 10, 20} {
 		X := x * DecimalUnit
-		Y := Get(X, up45F)
+		Y := up45F(X)
 		require.Equal(X, Y, i)
 	}
 
 	for i, x := range []uint64{21, 0xFFFF, math.MaxUint32} {
 		X := x * DecimalUnit
-		Y := Get(X, up45F)
+		Y := up45F(X)
 		require.True(20.0*DecimalUnit <= Y && Y <= 21.0*DecimalUnit, i)
 	}
 }
@@ -91,7 +91,7 @@ func TestDown45Func(t *testing.T) {
 
 	for i, x := range []uint64{0, 1, 2, 5, 10, 20} {
 		X := x * DecimalUnit
-		Y := Get(X, down45F)
+		Y := down45F(X)
 		require.Equal(20.0*DecimalUnit-X, Y, i)
 	}
 }

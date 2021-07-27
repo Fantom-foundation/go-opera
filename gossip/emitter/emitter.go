@@ -19,9 +19,11 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter/piecefunc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/utils/rate"
 )
 
 const (
@@ -77,6 +79,7 @@ type Emitter struct {
 	}
 
 	emittedEventFile *os.File
+	busyRate         *rate.Gauge
 
 	logger.Periodic
 }
@@ -113,6 +116,7 @@ func (em *Emitter) init() {
 	if len(em.config.PrevEmittedEventFile.Path) != 0 {
 		em.emittedEventFile = openEventFile(em.config.PrevEmittedEventFile.Path, em.config.PrevEmittedEventFile.SyncMode)
 	}
+	em.busyRate = rate.NewGauge()
 }
 
 // Start starts event emission.
@@ -160,6 +164,7 @@ func (em *Emitter) Stop() {
 	close(em.done)
 	em.done = nil
 	em.wg.Wait()
+	em.busyRate.Stop()
 }
 
 func (em *Emitter) tick() {
@@ -171,6 +176,11 @@ func (em *Emitter) tick() {
 	if !em.world.IsSynced() {
 		// synced time ~= last time when it's true that "not synced yet"
 		em.syncStatus.p2pSynced = time.Now()
+	}
+	if em.idle() {
+		em.busyRate.Mark(0)
+	} else {
+		em.busyRate.Mark(1)
 	}
 	if em.world.IsBusy() {
 		return
@@ -334,6 +344,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	err := em.world.Build(mutEvent, func() {
 		// calculate event metric when it is indexed by the vector clock
 		metric = eventMetric(em.quorumIndexer.GetMetricOf(mutEvent.ID()), mutEvent.Seq())
+		metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
 	})
 	if err != nil {
 		if err == ErrNotEnoughGasPower {

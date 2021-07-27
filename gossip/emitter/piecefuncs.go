@@ -3,6 +3,9 @@ package emitter
 import (
 	"math"
 
+	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/piecefunc"
 )
 
@@ -53,8 +56,12 @@ var (
 			Y: 0.99 * piecefunc.DecimalUnit,
 		},
 		{
+			X: 100.0 * piecefunc.DecimalUnit,
+			Y: 0.999 * piecefunc.DecimalUnit,
+		},
+		{
 			X: math.MaxUint32 * piecefunc.DecimalUnit,
-			Y: 1.0 * piecefunc.DecimalUnit,
+			Y: 0.9999 * piecefunc.DecimalUnit,
 		},
 	})
 	// eventMetricF is a piecewise function for event metric adjustment depending on a non-adjusted event metric
@@ -62,6 +69,10 @@ var (
 		{ // event metric is never zero
 			X: 0,
 			Y: 0.005 * piecefunc.DecimalUnit,
+		},
+		{
+			X: 0.01 * piecefunc.DecimalUnit,
+			Y: 0.03 * piecefunc.DecimalUnit,
 		},
 		{ // if metric is below ~0.2, then validator shouldn't emit event unless waited very long
 			X: 0.2 * piecefunc.DecimalUnit,
@@ -84,4 +95,39 @@ var (
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
 	})
+	validatorsToOverheadF = piecefunc.NewFunc([]piecefunc.Dot{
+		{
+			X: 0,
+			Y: 0,
+		},
+		{
+			X: 25,
+			Y: 0.05 * piecefunc.DecimalUnit,
+		},
+		{
+			X: 50,
+			Y: 0.2 * piecefunc.DecimalUnit,
+		},
+		{
+			X: 100,
+			Y: 0.7 * piecefunc.DecimalUnit,
+		},
+		{
+			X: 200,
+			Y: 0.9 * piecefunc.DecimalUnit,
+		},
+		{
+			X: math.MaxUint32,
+			Y: 1.0 * piecefunc.DecimalUnit,
+		},
+	})
+	overheadF = func(validatorsNum idx.Validator, busyRate uint64) uint64 {
+		if busyRate > piecefunc.DecimalUnit {
+			busyRate = piecefunc.DecimalUnit
+		}
+		return validatorsToOverheadF(uint64(validatorsNum)) * busyRate / piecefunc.DecimalUnit
+	}
+	overheadAdjustedEventMetricF = func(validatorsNum idx.Validator, busyRate uint64, eventMetric ancestor.Metric) ancestor.Metric {
+		return ancestor.Metric(piecefunc.DecimalUnit-overheadF(validatorsNum, busyRate)) * eventMetric / piecefunc.DecimalUnit
+	}
 )

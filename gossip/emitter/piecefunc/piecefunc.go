@@ -15,7 +15,7 @@ type Func struct {
 	dots []Dot
 }
 
-func NewFunc(dots []Dot) Func {
+func NewFunc(dots []Dot) func(x uint64) uint64 {
 	if len(dots) < 2 {
 		panic("too few dots")
 	}
@@ -30,7 +30,7 @@ func NewFunc(dots []Dot) Func {
 
 	return Func{
 		dots: dots,
-	}
+	}.Get
 }
 
 // Mul is multiplication of ratios with integer numbers
@@ -44,7 +44,7 @@ func Div(a, b uint64) uint64 {
 }
 
 // Get calculates f(x), where f is a piecewise linear function defined by the pieces
-func Get(x uint64, f Func) uint64 {
+func (f Func) Get(x uint64) uint64 {
 	// find a piece
 	p0 := len(f.dots) - 2
 	for i, piece := range f.dots {
