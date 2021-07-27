@@ -98,7 +98,8 @@ var (
 const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
 	// Average memory consumption might be 3-5 times lower than the maximum
-	DefaultCacheSize = 3072
+	DefaultCacheSize  = 3200
+	ConstantCacheSize = 1024
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -333,8 +334,8 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", DefaultCacheSize))
 	}
 	return cachescale.Ratio{
-		Base:   DefaultCacheSize,
-		Target: uint64(totalCache),
+		Base:   DefaultCacheSize - ConstantCacheSize,
+		Target: uint64(totalCache - ConstantCacheSize),
 	}
 }
 
