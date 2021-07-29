@@ -19,10 +19,10 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter/piecefunc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
 	"github.com/Fantom-foundation/go-opera/utils/rate"
 )
 

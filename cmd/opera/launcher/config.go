@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path"
 	"path/filepath"
@@ -234,11 +235,8 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 }
 
 func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
-	if ctx.GlobalIsSet(utils.GpoBlocksFlag.Name) {
-		cfg.Blocks = ctx.GlobalInt(utils.GpoBlocksFlag.Name)
-	}
-	if ctx.GlobalIsSet(utils.GpoPercentileFlag.Name) {
-		cfg.Percentile = ctx.GlobalInt(utils.GpoPercentileFlag.Name)
+	if ctx.GlobalIsSet(utils.GpoMaxGasPriceFlag.Name) {
+		cfg.MaxPrice = big.NewInt(ctx.GlobalInt64(utils.GpoMaxGasPriceFlag.Name))
 	}
 }
 

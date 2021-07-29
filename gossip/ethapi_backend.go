@@ -413,7 +413,7 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 }
 
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.gpo.SuggestPrice(ctx)
+	return b.gpo.SuggestPrice(), nil
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
