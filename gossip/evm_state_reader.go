@@ -12,24 +12,48 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
+
+var (
+	big3 = big.NewInt(3)
+	big4 = big.NewInt(4)
+)
+
 
 type EvmStateReader struct {
 	*ServiceFeed
 
 	store *Store
+	gpo   *gasprice.Oracle
 }
 
 func (s *Service) GetEvmStateReader() *EvmStateReader {
 	return &EvmStateReader{
 		ServiceFeed: &s.feed,
 		store:       s.store,
+		gpo:         s.gpo,
 	}
 }
 
+// MinGasPrice returns current hard lower bound for gas price
 func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return r.store.GetRules().Economy.MinGasPrice
+}
+
+// RecommendedMinGasPrice returns current soft lower bound for gas price
+func (r *EvmStateReader) RecommendedMinGasPrice() *big.Int {
+	est := new(big.Int).Set(r.gpo.SuggestPrice())
+	est.Mul(est, big3)
+	est.Div(est, big4)
+
+	min := r.MinGasPrice()
+	if min.Cmp(est) > 0 {
+		return min
+	}
+
+	return est
 }
 
 func (r *EvmStateReader) MaxGasLimit() uint64 {

@@ -136,6 +136,7 @@ type stateReader interface {
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
 	MinGasPrice() *big.Int
+	RecommendedMinGasPrice() *big.Int
 	MaxGasLimit() uint64
 	SubscribeNewBlock(ch chan<- ChainHeadNotify) notify.Subscription
 	TxExists(common.Hash) bool
@@ -232,6 +233,8 @@ type TxPool struct {
 	scope       notify.SubscriptionScope
 	signer      types.Signer
 	mu          sync.RWMutex
+
+	lastGasPriceUpdate time.Time
 
 	istanbul bool // Fork indicator whether we are in the istanbul stage.
 	eip2718  bool // Fork indicator whether we are using EIP-2718 type transactions.
@@ -339,6 +342,21 @@ func (pool *TxPool) loop() {
 	defer journal.Stop()
 
 	for {
+		// Opera-specific gas price updates
+		if time.Since(pool.lastGasPriceUpdate) > time.Second {
+			newPrice := pool.chain.RecommendedMinGasPrice()
+			if newPrice != nil {
+				cfgLimit := new(big.Int).SetUint64(pool.config.PriceLimit)
+				if newPrice.Cmp(cfgLimit) < 0 {
+					newPrice = cfgLimit
+				}
+				if pool.gasPrice.Cmp(newPrice) != 0 {
+					pool.SetGasPriceWithCap(newPrice, pool.chain.MinGasPrice())
+				}
+			}
+			pool.lastGasPriceUpdate = time.Now()
+		}
+
 		select {
 		// Handle ChainHeadNotify
 		case ev := <-pool.chainHeadCh:
@@ -428,11 +446,15 @@ func (pool *TxPool) GasPrice() *big.Int {
 // SetGasPrice updates the minimum price required by the transaction pool for a
 // new transaction, and drops all transactions below this threshold.
 func (pool *TxPool) SetGasPrice(price *big.Int) {
+	pool.SetGasPriceWithCap(price, price)
+}
+
+func (pool *TxPool) SetGasPriceWithCap(price, cap *big.Int) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	pool.gasPrice = price
-	for _, tx := range pool.priced.Cap(price) {
+	for _, tx := range pool.priced.Cap(cap) {
 		pool.removeTx(tx.Hash(), false)
 	}
 	log.Info("Transaction pool price threshold updated", "price", price)

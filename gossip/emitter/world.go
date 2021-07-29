@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"errors"
+	"math/big"
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -62,6 +63,7 @@ type Reader interface {
 	GetHeads(idx.Epoch) hash.Events
 	GetGenesisTime() inter.Timestamp
 	GetRules() opera.Rules
+	GetRecommendedGasPrice() *big.Int
 }
 
 type TxPool interface {

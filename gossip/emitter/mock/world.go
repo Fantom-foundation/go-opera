@@ -197,6 +197,20 @@ func (mr *MockExternalMockRecorder) GetLatestBlockIndex() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBlockIndex", reflect.TypeOf((*MockExternal)(nil).GetLatestBlockIndex))
 }
 
+// GetRecommendedGasPrice mocks base method
+func (m *MockExternal) GetRecommendedGasPrice() *big.Int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRecommendedGasPrice")
+	ret0, _ := ret[0].(*big.Int)
+	return ret0
+}
+
+// GetRecommendedGasPrice indicates an expected call of GetRecommendedGasPrice
+func (mr *MockExternalMockRecorder) GetRecommendedGasPrice() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecommendedGasPrice", reflect.TypeOf((*MockExternal)(nil).GetRecommendedGasPrice))
+}
+
 // GetRules mocks base method
 func (m *MockExternal) GetRules() opera.Rules {
 	m.ctrl.T.Helper()

@@ -84,6 +84,10 @@ func (bc *testBlockChain) MinGasPrice() *big.Int {
 	return common.Big0
 }
 
+func (bc *testBlockChain) RecommendedMinGasPrice() *big.Int {
+	return nil
+}
+
 func (bc *testBlockChain) MaxGasLimit() uint64 {
 	return bc.CurrentBlock().GasLimit
 }

@@ -140,6 +140,8 @@ type Service struct {
 
 	feed ServiceFeed
 
+	gpo *gasprice.Oracle
+
 	// application protocol
 	pm *ProtocolManager
 
@@ -203,7 +205,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.store.GetHighestLamport()
 
 	// create GPO
-	svc.EthAPI.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
+	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
@@ -227,7 +229,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, svc.EthAPI.gpo, config.AllowUnprotectedTxs}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, config.AllowUnprotectedTxs}
 
 	svc.emitter = svc.makeEmitter(signer)
 

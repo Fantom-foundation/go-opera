@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"math/big"
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -65,4 +66,7 @@ func (ew *emitterWorld) GetHeads(epoch idx.Epoch) hash.Events {
 
 func (ew *emitterWorld) GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event {
 	return ew.Store.GetLastEvent(epoch, from)
+}
+func (ew *emitterWorld) GetRecommendedGasPrice() *big.Int {
+	return ew.s.GetEvmStateReader().RecommendedMinGasPrice()
 }
