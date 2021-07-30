@@ -6,7 +6,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
-	"github.com/Fantom-foundation/go-opera/gossip/emitter/piecefunc"
+	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
 )
 
 const (

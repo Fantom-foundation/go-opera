@@ -163,10 +163,11 @@ func DefaultConfig(scale cachescale.Func) Config {
 		},
 
 		GPO: gasprice.Config{
-			Blocks:     20,
-			Percentile: 60,
-			MaxPrice:   gasprice.DefaultMaxPrice,
-			MinPrice:   new(big.Int),
+			MaxPrice:                   gasprice.DefaultMaxPrice,
+			MinPrice:                   new(big.Int),
+			MaxPriceMultiplierRatio:    big.NewInt(20 * gasprice.DecimalUnit),
+			MiddlePriceMultiplierRatio: big.NewInt(4 * gasprice.DecimalUnit),
+			GasPowerWallRatio:          big.NewInt(0.05 * gasprice.DecimalUnit),
 		},
 
 		VersionWatcher: verwatcher.Config{

@@ -140,6 +140,8 @@ type Service struct {
 
 	feed ServiceFeed
 
+	gpo *gasprice.Oracle
+
 	// application protocol
 	pm *ProtocolManager
 
@@ -192,30 +194,6 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
 
-	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
-	var err error
-	svc.dialCandidates, err = dnsclient.NewIterator()
-
-	// create tx pool
-	net := store.GetRules()
-	stateReader := svc.GetEvmStateReader()
-	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), stateReader)
-
-	// create checkers
-	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                             // read pub keys of current epoch from disk
-	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
-
-	// create protocol manager
-	svc.pm, err = newHandler(handlerConfig{config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent})
-	if err != nil {
-		return nil, err
-	}
-
-	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, config.AllowUnprotectedTxs}
-	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
-
 	// load epoch DB
 	svc.store.loadEpochStore(svc.store.GetEpoch())
 	es := svc.store.getEpochStore(svc.store.GetEpoch())
@@ -225,6 +203,33 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// load caches for mutable values to avoid race condition
 	svc.store.GetBlockEpochState()
 	svc.store.GetHighestLamport()
+
+	// create GPO
+	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
+
+	// create checkers
+	net := store.GetRules()
+	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                             // read pub keys of current epoch from disk
+	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
+	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
+
+	// create tx pool
+	stateReader := svc.GetEvmStateReader()
+	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), stateReader)
+
+	// init dialCandidates
+	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
+	var err error
+	svc.dialCandidates, err = dnsclient.NewIterator()
+
+	// create protocol manager
+	svc.pm, err = newHandler(handlerConfig{config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent})
+	if err != nil {
+		return nil, err
+	}
+
+	// create API backend
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, config.AllowUnprotectedTxs}
 
 	svc.emitter = svc.makeEmitter(signer)
 

@@ -17,229 +17,171 @@
 package gasprice
 
 import (
-	"context"
+	"fmt"
 	"math/big"
-	"sort"
 	"sync"
+	"time"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
 )
-
-const sampleNumber = 3 // Number of transactions sampled in a block
 
 var DefaultMaxPrice = big.NewInt(1000000 * params.GWei)
 
+var secondBn = big.NewInt(int64(time.Second))
+
+const DecimalUnit = piecefunc.DecimalUnit
+
+var DecimalUnitBn = big.NewInt(DecimalUnit)
+
 type Config struct {
-	Blocks     int
-	Percentile int
-	MaxPrice   *big.Int `toml:",omitempty"`
-	MinPrice   *big.Int `toml:",omitempty"`
+	MaxPrice                   *big.Int `toml:",omitempty"`
+	MinPrice                   *big.Int `toml:",omitempty"`
+	MaxPriceMultiplierRatio    *big.Int `toml:",omitempty"`
+	MiddlePriceMultiplierRatio *big.Int `toml:",omitempty"`
+	GasPowerWallRatio          *big.Int `toml:",omitempty"`
 }
 
 type Reader interface {
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
-	ChainConfig() *params.ChainConfig
-	MinGasPrice() *big.Int
-}
-
-type configuredMinGasPrice struct {
-	Reader
-	minPrice *big.Int
-}
-
-func (b configuredMinGasPrice) MinGasPrice() *big.Int {
-	backendValue := b.Reader.MinGasPrice()
-	if backendValue.Cmp(b.minPrice) > 0 {
-		return backendValue
-	}
-	return b.minPrice
+	GetLatestBlockIndex() idx.Block
+	TotalGasPowerLeft() uint64
+	GetRules() opera.Rules
+	GetPendingRules() opera.Rules
 }
 
 // Oracle recommends gas prices based on the content of recent
 // blocks. Suitable for both light and full clients.
 type Oracle struct {
 	backend   Reader
-	lastHead  common.Hash
+	lastHead  idx.Block
 	lastPrice *big.Int
-	maxPrice  *big.Int
-	cacheLock sync.RWMutex
-	fetchLock sync.Mutex
 
-	checkBlocks int
-	percentile  int
+	cfg Config
+
+	cacheLock sync.RWMutex
+}
+
+func sanitizeBigInt(val, min, max, _default *big.Int, name string) *big.Int {
+	if val == nil || val.Sign() == 0 {
+		log.Warn(fmt.Sprintf("Sanitizing invalid parameter %s of gasprice oracle", name), "provided", val, "updated", _default)
+		return _default
+	}
+	if min != nil && val.Cmp(min) < 0 {
+		log.Warn(fmt.Sprintf("Sanitizing invalid parameter %s of gasprice oracle", name), "provided", val, "updated", min)
+		return min
+	}
+	if max != nil && val.Cmp(max) > 0 {
+		log.Warn(fmt.Sprintf("Sanitizing invalid parameter %s of gasprice oracle", name), "provided", val, "updated", max)
+		return max
+	}
+	return val
 }
 
 // NewOracle returns a new gasprice oracle which can recommend suitable
 // gasprice for newly created transaction.
 func NewOracle(backend Reader, params Config) *Oracle {
-	blocks := params.Blocks
-	if blocks < 1 {
-		blocks = 1
-		log.Warn("Sanitizing invalid gasprice oracle sample blocks", "provided", params.Blocks, "updated", blocks)
-	}
-	percent := params.Percentile
-	if percent < 0 {
-		percent = 0
-		log.Warn("Sanitizing invalid gasprice oracle sample percentile", "provided", params.Percentile, "updated", percent)
-	}
-	if percent > 100 {
-		percent = 100
-		log.Warn("Sanitizing invalid gasprice oracle sample percentile", "provided", params.Percentile, "updated", percent)
-	}
-	maxPrice := params.MaxPrice
-	if maxPrice == nil || maxPrice.Sign() <= 0 {
-		maxPrice = DefaultMaxPrice
-		log.Warn("Sanitizing invalid gasprice oracle price cap", "provided", params.MaxPrice, "updated", maxPrice)
-	}
-	minPrice := params.MinPrice
-	if minPrice == nil || minPrice.Sign() < 0 {
-		minPrice = new(big.Int)
-		log.Warn("Sanitizing invalid gasprice oracle price minimum", "provided", params.MinPrice, "updated", minPrice)
-	}
-	backend = configuredMinGasPrice{backend, minPrice}
+	params.MaxPrice = sanitizeBigInt(params.MaxPrice, nil, nil, DefaultMaxPrice, "MaxPrice")
+	params.MinPrice = sanitizeBigInt(params.MinPrice, nil, nil, new(big.Int), "MinPrice")
+	params.GasPowerWallRatio = sanitizeBigInt(params.GasPowerWallRatio, big.NewInt(1), big.NewInt(DecimalUnit-2), big.NewInt(1), "GasPowerWallRatio")
+	params.MaxPriceMultiplierRatio = sanitizeBigInt(params.MaxPriceMultiplierRatio, DecimalUnitBn, nil, big.NewInt(10*DecimalUnit), "MaxPriceMultiplierRatio")
+	params.MiddlePriceMultiplierRatio = sanitizeBigInt(params.MiddlePriceMultiplierRatio, DecimalUnitBn, params.MaxPriceMultiplierRatio, big.NewInt(2*DecimalUnit), "MiddlePriceMultiplierRatio")
 	return &Oracle{
-		backend:     backend,
-		lastPrice:   backend.MinGasPrice(),
-		maxPrice:    maxPrice,
-		checkBlocks: blocks,
-		percentile:  percent,
+		backend: backend,
+		cfg:     params,
 	}
+}
+
+func (gpo *Oracle) minGasPrice() *big.Int {
+	minPrice := gpo.backend.GetRules().Economy.MinGasPrice
+	pendingMinPrice := gpo.backend.GetPendingRules().Economy.MinGasPrice
+	if minPrice.Cmp(pendingMinPrice) < 0 {
+		minPrice = pendingMinPrice
+	}
+	if minPrice.Cmp(gpo.cfg.MinPrice) < 0 {
+		minPrice = gpo.cfg.MinPrice
+	}
+	return new(big.Int).Set(minPrice)
+}
+
+func (gpo *Oracle) maxTotalGasPower() *big.Int {
+	rules := gpo.backend.GetRules()
+
+	allocBn := new(big.Int).SetUint64(rules.Economy.LongGasPower.AllocPerSec)
+	periodBn := new(big.Int).SetUint64(uint64(rules.Economy.LongGasPower.MaxAllocPeriod))
+	maxTotalGasPowerBn := new(big.Int).Mul(allocBn, periodBn)
+	maxTotalGasPowerBn.Div(maxTotalGasPowerBn, secondBn)
+	return maxTotalGasPowerBn
+}
+
+func (gpo *Oracle) suggestPrice() *big.Int {
+	max := gpo.maxTotalGasPower()
+
+	current := new(big.Int).SetUint64(gpo.backend.TotalGasPowerLeft())
+
+	freeRatioBn := current.Mul(current, DecimalUnitBn)
+	freeRatioBn.Div(freeRatioBn, max)
+	freeRatio := freeRatioBn.Uint64()
+	if freeRatio > DecimalUnit {
+		freeRatio = DecimalUnit
+	}
+
+	multiplierFn := piecefunc.NewFunc([]piecefunc.Dot{
+		{
+			X: 0,
+			Y: gpo.cfg.MaxPriceMultiplierRatio.Uint64(),
+		},
+		{
+			X: gpo.cfg.GasPowerWallRatio.Uint64(),
+			Y: gpo.cfg.MaxPriceMultiplierRatio.Uint64(),
+		},
+		{
+			X: gpo.cfg.GasPowerWallRatio.Uint64() + (DecimalUnit-gpo.cfg.GasPowerWallRatio.Uint64())/2,
+			Y: gpo.cfg.MiddlePriceMultiplierRatio.Uint64(),
+		},
+		{
+			X: DecimalUnit,
+			Y: DecimalUnit,
+		},
+	})
+
+	multiplier := new(big.Int).SetUint64(multiplierFn(freeRatio))
+
+	// price = multiplier * min gas price
+	price := multiplier.Mul(multiplier, gpo.minGasPrice())
+	price.Div(price, DecimalUnitBn)
+	return price
 }
 
 // SuggestPrice returns a gasprice so that newly created transaction can
 // have a very high chance to be included in the following blocks.
-func (gpo *Oracle) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	head, _ := gpo.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
-	headHash := head.Hash
+func (gpo *Oracle) SuggestPrice() *big.Int {
+	head := gpo.backend.GetLatestBlockIndex()
 
 	// If the latest gasprice is still available, return it.
 	gpo.cacheLock.RLock()
 	lastHead, lastPrice := gpo.lastHead, gpo.lastPrice
 	gpo.cacheLock.RUnlock()
-	if headHash == lastHead {
-		return lastPrice, nil
-	}
-	gpo.fetchLock.Lock()
-	defer gpo.fetchLock.Unlock()
-
-	// Try checking the cache again, maybe the last fetch fetched what we need
-	gpo.cacheLock.RLock()
-	lastHead, lastPrice = gpo.lastHead, gpo.lastPrice
-	gpo.cacheLock.RUnlock()
-	if headHash == lastHead {
-		return lastPrice, nil
+	if head == lastHead {
+		return lastPrice
 	}
 
-	var (
-		sent, exp int
-		number    = head.Number.Uint64()
-		result    = make(chan getBlockPricesResult, gpo.checkBlocks)
-		quit      = make(chan struct{})
-		txPrices  []*big.Int
-	)
-	for sent < gpo.checkBlocks && number > 0 {
-		go gpo.getBlockPrices(ctx, number, sampleNumber, result, quit)
-		sent++
-		exp++
-		number--
+	price := gpo.suggestPrice()
+	if price.Cmp(gpo.cfg.MaxPrice) > 0 {
+		price = new(big.Int).Set(gpo.cfg.MaxPrice)
 	}
-	for exp > 0 {
-		res := <-result
-		if res.err != nil {
-			close(quit)
-			return lastPrice, res.err
-		}
-		exp--
-		// Nothing returned. There are two special cases here:
-		// - The block is empty
-		// - All the transactions included are sent by the miner itself.
-		// In these cases, use the latest calculated price for samping.
-		if len(res.prices) == 0 {
-			res.prices = []*big.Int{lastPrice}
-		}
-
-		// Besides, in order to collect enough data for sampling, if nothing
-		// meaningful returned, try to query more blocks. But the maximum
-		// is 2*checkBlocks.
-		if len(res.prices) == 1 && len(txPrices)+1+exp < gpo.checkBlocks*2 && number > 0 {
-			go gpo.getBlockPrices(ctx, number, sampleNumber, result, quit)
-			sent++
-			exp++
-			number--
-		}
-		txPrices = append(txPrices, res.prices...)
-	}
-	price := lastPrice
-	if len(txPrices) > 0 {
-		sort.Sort(bigIntArray(txPrices))
-		price = txPrices[(len(txPrices)-1)*gpo.percentile/100]
-	}
-	if price.Cmp(gpo.maxPrice) > 0 {
-		price = new(big.Int).Set(gpo.maxPrice)
-	}
-	minimum := gpo.backend.MinGasPrice()
+	minimum := gpo.minGasPrice()
 	if price.Cmp(minimum) < 0 {
 		price = minimum
 	}
 
 	gpo.cacheLock.Lock()
-	gpo.lastHead = headHash
+	gpo.lastHead = head
 	gpo.lastPrice = price
 	gpo.cacheLock.Unlock()
-	return price, nil
+	return price
 }
-
-type getBlockPricesResult struct {
-	prices []*big.Int
-	err    error
-}
-
-type transactionsByGasPrice []*types.Transaction
-
-func (t transactionsByGasPrice) Len() int           { return len(t) }
-func (t transactionsByGasPrice) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
-func (t transactionsByGasPrice) Less(i, j int) bool { return t[i].GasPriceCmp(t[j]) < 0 }
-
-// getBlockPrices calculates the lowest transaction gas price in a given block
-// and sends it to the result channel. If the block is empty or all transactions
-// are sent by the miner itself(it doesn't make any sense to include this kind of
-// transaction prices for sampling), nil gasprice is returned.
-func (gpo *Oracle) getBlockPrices(ctx context.Context, blockNum uint64, limit int, result chan getBlockPricesResult, quit chan struct{}) {
-	block, err := gpo.backend.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
-	if block == nil {
-		select {
-		case result <- getBlockPricesResult{nil, err}:
-		case <-quit:
-		}
-		return
-	}
-	blockTxs := block.Transactions
-	txs := make([]*types.Transaction, len(blockTxs))
-	copy(txs, blockTxs)
-	sort.Sort(transactionsByGasPrice(txs))
-
-	var prices []*big.Int
-	for _, tx := range txs {
-		prices = append(prices, tx.GasPrice())
-		if len(prices) >= limit {
-			break
-		}
-	}
-	select {
-	case result <- getBlockPricesResult{prices, nil}:
-	case <-quit:
-	}
-}
-
-type bigIntArray []*big.Int
-
-func (s bigIntArray) Len() int           { return len(s) }
-func (s bigIntArray) Less(i, j int) bool { return s[i].Cmp(s[j]) < 0 }
-func (s bigIntArray) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

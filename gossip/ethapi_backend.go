@@ -25,7 +25,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
-	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
@@ -39,7 +38,6 @@ type EthAPIBackend struct {
 	extRPCEnabled       bool
 	svc                 *Service
 	state               *EvmStateReader
-	gpo                 *gasprice.Oracle
 	allowUnprotectedTxs bool
 }
 
@@ -413,7 +411,7 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 }
 
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.gpo.SuggestPrice(ctx)
+	return b.svc.gpo.SuggestPrice(), nil
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
