@@ -233,7 +233,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			BlocksSize: scale.U(512 * opt.KiB),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),
-		MaxNonFlushedSize:   22 * opt.MiB,
+		MaxNonFlushedSize:   17*opt.MiB + scale.I(5*opt.MiB),
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
@@ -255,9 +255,9 @@ func LiteStoreConfig() StoreConfig {
 
 func DefaultPeerCacheConfig(scale cachescale.Func) PeerCacheConfig {
 	return PeerCacheConfig{
-		MaxKnownTxs:    scale.I(24576),
-		MaxKnownEvents: scale.I(24576),
-		MaxQueuedItems: scale.Events(4096),
-		MaxQueuedSize:  scale.U64(protocolMaxMsgSize + 1024),
+		MaxKnownTxs:    24576*3/4 + scale.I(24576/4),
+		MaxKnownEvents: 24576*3/4 + scale.I(24576/4),
+		MaxQueuedItems: 4096*3/4 + scale.Events(4096/4),
+		MaxQueuedSize:  protocolMaxMsgSize*3/4 + 1024 + scale.U64(protocolMaxMsgSize/4),
 	}
 }
