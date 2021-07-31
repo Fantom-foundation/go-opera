@@ -115,19 +115,20 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	}
 	head := header.Number.Uint64()
 
-	if f.begin == -1 {
-		f.begin = int64(head)
+	begin := uint64(f.begin)
+	if f.begin < 0 {
+		begin = head
 	}
 	end := uint64(f.end)
-	if f.end == -1 {
+	if f.end < 0 {
 		end = head
 	}
 
 	if isEmpty(f.topics) {
-		return f.unindexedLogs(ctx, int64(end))
+		return f.unindexedLogs(ctx, begin, end)
+	} else {
+		return f.indexedLogs(ctx, idx.Block(begin), idx.Block(end))
 	}
-
-	return f.indexedLogs(ctx, idx.Block(f.begin), idx.Block(end))
 }
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
@@ -148,13 +149,13 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 
 // indexedLogs returns the logs matching the filter criteria based on raw block
 // iteration.
-func (f *Filter) unindexedLogs(ctx context.Context, end int64) (logs []*types.Log, err error) {
+func (f *Filter) unindexedLogs(ctx context.Context, begin, end uint64) (logs []*types.Log, err error) {
 	var (
 		header *evmcore.EvmHeader
 		found  []*types.Log
 	)
-	for ; f.begin <= end; f.begin++ {
-		header, err = f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
+	for n := begin; n <= end; n++ {
+		header, err = f.backend.HeaderByNumber(ctx, rpc.BlockNumber(n))
 		if header == nil || err != nil {
 			return
 		}
