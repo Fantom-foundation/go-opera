@@ -19,6 +19,7 @@ package filters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -33,6 +34,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
+
+const maxBlocksRange = 5000
+
+var ErrTooWideBlocksRange = fmt.Errorf("too wide blocks range, the limit is %d", maxBlocksRange)
 
 type Backend interface {
 	ChainDb() ethdb.Database
@@ -122,6 +127,10 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	end := uint64(f.end)
 	if f.end < 0 {
 		end = head
+	}
+
+	if (end - begin) > maxBlocksRange {
+		return nil, ErrTooWideBlocksRange
 	}
 
 	if isEmpty(f.topics) {
