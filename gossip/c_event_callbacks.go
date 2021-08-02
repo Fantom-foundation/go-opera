@@ -110,8 +110,8 @@ func processEventHeads(heads *concurrent.EventsSet, e *inter.EventPayload) *conc
 	// track events with no descendants, i.e. "heads"
 	heads.Lock()
 	defer heads.Unlock()
-	heads.Erase(e.Parents()...)
-	heads.Add(e.ID())
+	heads.Val.Erase(e.Parents()...)
+	heads.Val.Add(e.ID())
 	return heads
 }
 
@@ -119,7 +119,7 @@ func processLastEvent(lasts *concurrent.ValidatorEventsSet, e *inter.EventPayloa
 	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	lasts.Lock()
 	defer lasts.Unlock()
-	lasts.ValidatorEventsSet[e.Creator()] = e.ID()
+	lasts.Val[e.Creator()] = e.ID()
 	return lasts
 }
 

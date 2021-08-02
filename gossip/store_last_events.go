@@ -61,8 +61,8 @@ func (es *epochStore) FlushLastEvents() {
 	}
 
 	// sort values for determinism
-	sortedLastEvents := make([]sortedLastEvent, 0, len(lasts.ValidatorEventsSet))
-	for vid, eid := range lasts.ValidatorEventsSet {
+	sortedLastEvents := make([]sortedLastEvent, 0, len(lasts.Val))
+	for vid, eid := range lasts.Val {
 		b := append(vid.Bytes(), eid.Bytes()...)
 		sortedLastEvents = append(sortedLastEvents, b)
 	}
@@ -101,7 +101,7 @@ func (s *Store) GetLastEvent(epoch idx.Epoch, vid idx.ValidatorID) *hash.Event {
 	lasts := s.GetLastEvents(epoch)
 	lasts.RLock()
 	defer lasts.RUnlock()
-	last, ok := lasts.ValidatorEventsSet[vid]
+	last, ok := lasts.Val[vid]
 	if !ok {
 		return nil
 	}

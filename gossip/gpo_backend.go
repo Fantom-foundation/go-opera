@@ -37,7 +37,7 @@ func (b *GPOBackend) TotalGasPowerLeft() uint64 {
 	metValidators := map[idx.ValidatorID]bool{}
 	total := uint64(0)
 	// count GasPowerLeft from latest events of this epoch
-	for _, tip := range set.ValidatorEventsSet {
+	for _, tip := range set.Val {
 		e := b.store.GetEvent(tip)
 		total += e.GasPowerLeft().Gas[inter.LongTermGas]
 		metValidators[e.Creator()] = true
