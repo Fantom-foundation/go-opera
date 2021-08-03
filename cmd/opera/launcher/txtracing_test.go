@@ -63,7 +63,7 @@ func TestTxTracing(t *testing.T) {
 	cliConsoleOutput = ""
 	for len(cliConsoleOutput) == 0 {
 		time.Sleep(50 * time.Millisecond)
-		cliConsole.InputLine("ftm.getTransaction(" + txHashDeploy + ")")
+		cliConsole.InputLine("ftm.getTransactionReceipt(" + txHashDeploy + ")")
 		cliConsoleOutput = *cliConsole.GetOutDataTillCursor()
 		if strings.Contains(cliConsoleOutput, "Error") {
 			cliConsoleOutput = ""
