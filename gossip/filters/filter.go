@@ -111,20 +111,20 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		if header == nil {
 			return nil, errors.New("unknown block")
 		}
-		return f.blockLogs(ctx, header)
+		return f.blockLogs(ctx, header.Hash)
 	}
 	// Figure out the limits of the filter range
 	header, _ := f.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if header == nil {
 		return nil, nil
 	}
-	head := header.Number.Uint64()
+	head := idx.Block(header.Number.Uint64())
 
-	begin := uint64(f.begin)
+	begin := idx.Block(f.begin)
 	if f.begin < 0 {
 		begin = head
 	}
-	end := uint64(f.end)
+	end := idx.Block(f.end)
 	if f.end < 0 {
 		end = head
 	}
@@ -136,7 +136,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if isEmpty(f.topics) {
 		return f.unindexedLogs(ctx, begin, end)
 	} else {
-		return f.indexedLogs(ctx, idx.Block(begin), idx.Block(end))
+		return f.indexedLogs(ctx, begin, end)
 	}
 }
 
@@ -158,7 +158,7 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 
 // indexedLogs returns the logs matching the filter criteria based on raw block
 // iteration.
-func (f *Filter) unindexedLogs(ctx context.Context, begin, end uint64) (logs []*types.Log, err error) {
+func (f *Filter) unindexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
 	var (
 		header *evmcore.EvmHeader
 		found  []*types.Log
@@ -173,7 +173,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, begin, end uint64) (logs []*
 		if header == nil || err != nil {
 			return
 		}
-		found, err = f.blockLogs(ctx, header)
+		found, err = f.blockLogs(ctx, header.Hash)
 		if err != nil {
 			return
 		}
@@ -183,21 +183,9 @@ func (f *Filter) unindexedLogs(ctx context.Context, begin, end uint64) (logs []*
 }
 
 // blockLogs returns the logs matching the filter criteria within a single block.
-func (f *Filter) blockLogs(ctx context.Context, header *evmcore.EvmHeader) (logs []*types.Log, err error) {
-	found, err := f.checkMatches(ctx, header)
-	if err != nil {
-		return
-	}
-	logs = append(logs, found...)
-
-	return
-}
-
-// checkMatches checks if the receipts belonging to the given header contain any log events that
-// match the filter criteria.
-func (f *Filter) checkMatches(ctx context.Context, header *evmcore.EvmHeader) (logs []*types.Log, err error) {
+func (f *Filter) blockLogs(ctx context.Context, header common.Hash) ([]*types.Log, error) {
 	// Get the logs of the block
-	logsList, err := f.backend.GetLogs(ctx, header.Hash)
+	logsList, err := f.backend.GetLogs(ctx, header)
 	if err != nil {
 		return nil, err
 	}
@@ -207,11 +195,11 @@ func (f *Filter) checkMatches(ctx context.Context, header *evmcore.EvmHeader) (l
 		unfiltered = append(unfiltered, logs...)
 	}
 
-	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+	logs := filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == common.Hash(hash.Zero) {
-			receipts, err := f.backend.GetReceipts(ctx, header.Hash)
+			receipts, err := f.backend.GetReceipts(ctx, header)
 			if err != nil {
 				return nil, err
 			}
