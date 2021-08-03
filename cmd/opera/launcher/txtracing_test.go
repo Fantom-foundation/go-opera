@@ -3,7 +3,6 @@ package launcher
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,7 +20,6 @@ func TestTxTracing(t *testing.T) {
 	configFilePath := tmpdir(t) + "/config.toml"
 	data := []byte("[Opera.Emitter.EmitIntervals]\nMin = 5000000\nConfirming = 5000000")
 	err := ioutil.WriteFile(configFilePath, data, 0777)
-	fmt.Println("config file:", configFilePath)
 
 	// Start test node on random ports and keep it running for another requests
 	port := strconv.Itoa(trulyRandInt(10000, 65536))
