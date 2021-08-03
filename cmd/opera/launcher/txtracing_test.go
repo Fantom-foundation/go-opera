@@ -3,6 +3,7 @@ package launcher
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,11 +18,16 @@ import (
 
 func TestTxTracing(t *testing.T) {
 
+	configFilePath := tmpdir(t) + "/config.toml"
+	data := []byte("[Opera.Emitter.EmitIntervals]\nMin = 5000000\nConfirming = 5000000")
+	err := ioutil.WriteFile(configFilePath, data, 0777)
+	fmt.Println("config file:", configFilePath)
+
 	// Start test node on random ports and keep it running for another requests
 	port := strconv.Itoa(trulyRandInt(10000, 65536))
 	wsport := strconv.Itoa(trulyRandInt(10000, 65536))
 	cliNode := exec(t,
-		"--fakenet", "1/1", "--tracenode", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
+		"--fakenet", "1/1", "--config", configFilePath, "--tracenode", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ws", "--ws.port", wsport, "--http", "--http.api", "eth,web3,net,txpool,ftm,sfc,trace", "--http.port", port)
 
 	// Wait for node to start
@@ -55,7 +61,16 @@ func TestTxTracing(t *testing.T) {
 	cliConsole.InputLine("testContract.deploy.sendTransaction({from:ftm.accounts[1]})")
 	cliConsoleOutput = *cliConsole.GetOutDataTillCursor()
 	txHashDeploy := cliConsoleOutput[strings.Index(cliConsoleOutput, "0x") : len(cliConsoleOutput)-3]
-	time.Sleep(500 * time.Millisecond)
+
+	cliConsoleOutput = ""
+	for len(cliConsoleOutput) == 0 {
+		time.Sleep(50 * time.Millisecond)
+		cliConsole.InputLine("ftm.getTransaction(" + txHashDeploy + ")")
+		cliConsoleOutput = *cliConsole.GetOutDataTillCursor()
+		if strings.Contains(cliConsoleOutput, "Error") {
+			cliConsoleOutput = ""
+		}
+	}
 
 	// Close node console
 	cliConsole.InputLine("exit")
