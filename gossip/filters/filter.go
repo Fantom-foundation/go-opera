@@ -164,6 +164,11 @@ func (f *Filter) unindexedLogs(ctx context.Context, begin, end uint64) (logs []*
 		found  []*types.Log
 	)
 	for n := begin; n <= end; n++ {
+		err = ctx.Err()
+		if err != nil {
+			return
+		}
+
 		header, err = f.backend.HeaderByNumber(ctx, rpc.BlockNumber(n))
 		if header == nil || err != nil {
 			return
