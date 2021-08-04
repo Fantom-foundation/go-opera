@@ -35,10 +35,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
 
-const maxBlocksRange = 5000
-
-var ErrTooWideBlocksRange = fmt.Errorf("too wide blocks range, the limit is %d", maxBlocksRange)
-
 type Backend interface {
 	ChainDb() ethdb.Database
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
@@ -56,6 +52,7 @@ type Backend interface {
 // Filter can be used to retrieve and filter logs.
 type Filter struct {
 	backend Backend
+	config  Config
 
 	db        ethdb.Database
 	addresses []common.Address
@@ -67,9 +64,9 @@ type Filter struct {
 
 // NewRangeFilter creates a new filter which inspects the blocks to
 // figure out whether a particular block is interesting or not.
-func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewRangeFilter(backend Backend, cfg Config, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a range filter
-	filter := newFilter(backend, addresses, topics)
+	filter := newFilter(backend, cfg, addresses, topics)
 
 	filter.begin = begin
 	filter.end = end
@@ -79,9 +76,9 @@ func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Addres
 
 // NewBlockFilter creates a new filter which directly inspects the contents of
 // a block to figure out whether it is interesting or not.
-func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewBlockFilter(backend Backend, cfg Config, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a block filter
-	filter := newFilter(backend, addresses, topics)
+	filter := newFilter(backend, cfg, addresses, topics)
 
 	filter.block = block
 
@@ -90,9 +87,10 @@ func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Addre
 
 // newFilter creates a generic filter that can either filter based on a block hash,
 // or based on range queries. The search criteria needs to be explicitly set.
-func newFilter(backend Backend, addresses []common.Address, topics [][]common.Hash) *Filter {
+func newFilter(backend Backend, cfg Config, addresses []common.Address, topics [][]common.Hash) *Filter {
 	return &Filter{
 		backend:   backend,
+		config:    cfg,
 		addresses: addresses,
 		topics:    topics,
 		db:        backend.ChainDb(),
@@ -129,10 +127,6 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		end = head
 	}
 
-	if (end - begin) > maxBlocksRange {
-		return nil, ErrTooWideBlocksRange
-	}
-
 	if isEmpty(f.topics) {
 		return f.unindexedLogs(ctx, begin, end)
 	} else {
@@ -142,6 +136,10 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*types.Log, error) {
+	if uint(end-begin) > f.config.IndexedLogsBlockRangeLimit {
+		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.IndexedLogsBlockRangeLimit)
+	}
+
 	addresses := make([]common.Hash, len(f.addresses))
 	for i, addr := range f.addresses {
 		addresses[i] = addr.Hash()
@@ -159,6 +157,10 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 // indexedLogs returns the logs matching the filter criteria based on raw block
 // iteration.
 func (f *Filter) unindexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
+	if uint(end-begin) > f.config.UnindexedLogsBlockRangeLimit {
+		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.UnindexedLogsBlockRangeLimit)
+	}
+
 	var (
 		header *evmcore.EvmHeader
 		found  []*types.Log

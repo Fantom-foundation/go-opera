@@ -19,6 +19,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 )
 
@@ -51,10 +52,13 @@ type (
 
 		PeerCache PeerCacheConfig
 	}
+
 	// Config for the gossip service.
 	Config struct {
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
+
+		FiltersAPI filters.Config
 
 		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
@@ -82,6 +86,7 @@ type (
 
 		RPCLogsBloom bool
 	}
+
 	StoreCacheConfig struct {
 		// Cache size for full events.
 		EventsNum  int
@@ -116,6 +121,8 @@ func DefaultConfig(scale cachescale.Func) Config {
 	cfg := Config{
 		Emitter: emitter.DefaultConfig(),
 		TxPool:  evmcore.DefaultTxPoolConfig,
+
+		FiltersAPI: filters.DefaultConfig(),
 
 		TxIndex: true,
 
