@@ -21,7 +21,6 @@ var (
 	big4 = big.NewInt(4)
 )
 
-
 type EvmStateReader struct {
 	*ServiceFeed
 

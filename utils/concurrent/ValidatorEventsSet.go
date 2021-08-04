@@ -3,17 +3,18 @@ package concurrent
 import (
 	"sync"
 
-	"github.com/Fantom-foundation/go-opera/utils/hash"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
 type ValidatorEventsSet struct {
 	sync.RWMutex
-	hash.ValidatorEventsSet
+	Val map[idx.ValidatorID]hash.Event
 }
 
-func WrapValidatorEventsSet(v hash.ValidatorEventsSet) *ValidatorEventsSet {
+func WrapValidatorEventsSet(v map[idx.ValidatorID]hash.Event) *ValidatorEventsSet {
 	return &ValidatorEventsSet{
-		RWMutex:            sync.RWMutex{},
-		ValidatorEventsSet: v,
+		RWMutex: sync.RWMutex{},
+		Val:     v,
 	}
 }

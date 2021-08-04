@@ -8,12 +8,12 @@ import (
 
 type EventsSet struct {
 	sync.RWMutex
-	hash.EventsSet
+	Val hash.EventsSet
 }
 
 func WrapEventsSet(v hash.EventsSet) *EventsSet {
 	return &EventsSet{
-		RWMutex:   sync.RWMutex{},
-		EventsSet: v,
+		RWMutex: sync.RWMutex{},
+		Val:     v,
 	}
 }

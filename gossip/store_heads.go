@@ -61,8 +61,8 @@ func (es *epochStore) FlushHeads() {
 	}
 
 	// sort values for determinism
-	sortedHeads := make([]sortedHead, 0, len(ids.EventsSet))
-	for id := range ids.EventsSet {
+	sortedHeads := make([]sortedHead, 0, len(ids.Val))
+	for id := range ids.Val {
 		sortedHeads = append(sortedHeads, id.Bytes())
 	}
 	sort.Slice(sortedHeads, func(i, j int) bool {
@@ -85,7 +85,7 @@ func (s *Store) GetHeadsSlice(epoch idx.Epoch) hash.Events {
 	heads := s.GetHeads(epoch)
 	heads.RLock()
 	defer heads.RUnlock()
-	return heads.EventsSet.Slice()
+	return heads.Val.Slice()
 }
 
 // GetHeads returns set of all the epoch event IDs with no descendants
