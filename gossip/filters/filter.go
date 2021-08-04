@@ -126,6 +126,9 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if f.end < 0 {
 		end = head
 	}
+	if begin > end {
+		return []*types.Log{}, nil
+	}
 
 	if isEmpty(f.topics) && len(f.addresses) == 0 {
 		return f.unindexedLogs(ctx, begin, end)
