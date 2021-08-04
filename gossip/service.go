@@ -327,7 +327,7 @@ func (s *Service) APIs() []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s.EthAPI, s.config.FiltersAPI),
+			Service:   filters.NewPublicFilterAPI(s.EthAPI, s.config.FilterAPI),
 			Public:    true,
 		}, {
 			Namespace: "net",

@@ -58,7 +58,7 @@ type (
 		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
 
-		FiltersAPI filters.Config
+		FilterAPI filters.Config
 
 		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
@@ -122,7 +122,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 		Emitter: emitter.DefaultConfig(),
 		TxPool:  evmcore.DefaultTxPoolConfig,
 
-		FiltersAPI: filters.DefaultConfig(),
+		FilterAPI: filters.DefaultConfig(),
 
 		TxIndex: true,
 
