@@ -145,7 +145,7 @@ func TestBlockSubscription(t *testing.T) {
 
 	var (
 		backend = newTestBackend()
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, testConfig())
 
 		net         = makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
 		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
@@ -207,7 +207,7 @@ func TestPendingTxFilter(t *testing.T) {
 
 	var (
 		backend = newTestBackend()
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, testConfig())
 
 		transactions = []*types.Transaction{
 			types.NewTransaction(0, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
@@ -261,7 +261,7 @@ func TestPendingTxFilter(t *testing.T) {
 func TestLogFilterCreation(t *testing.T) {
 	var (
 		backend = newTestBackend()
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, testConfig())
 
 		testCases = []struct {
 			crit    FilterCriteria
@@ -304,7 +304,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 
 	var (
 		backend = newTestBackend()
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, testConfig())
 	)
 
 	// different situations where log filter creation should fail.
@@ -325,7 +325,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
 		backend   = newTestBackend()
-		api       = NewPublicFilterAPI(backend)
+		api       = NewPublicFilterAPI(backend, testConfig())
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
 
@@ -349,7 +349,7 @@ func TestLogFilter(t *testing.T) {
 
 	var (
 		backend = newTestBackend()
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, testConfig())
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")

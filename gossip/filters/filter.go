@@ -19,6 +19,7 @@ package filters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -51,6 +52,7 @@ type Backend interface {
 // Filter can be used to retrieve and filter logs.
 type Filter struct {
 	backend Backend
+	config  Config
 
 	db        ethdb.Database
 	addresses []common.Address
@@ -62,9 +64,9 @@ type Filter struct {
 
 // NewRangeFilter creates a new filter which inspects the blocks to
 // figure out whether a particular block is interesting or not.
-func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewRangeFilter(backend Backend, cfg Config, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a range filter
-	filter := newFilter(backend, addresses, topics)
+	filter := newFilter(backend, cfg, addresses, topics)
 
 	filter.begin = begin
 	filter.end = end
@@ -74,9 +76,9 @@ func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Addres
 
 // NewBlockFilter creates a new filter which directly inspects the contents of
 // a block to figure out whether it is interesting or not.
-func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
+func NewBlockFilter(backend Backend, cfg Config, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a block filter
-	filter := newFilter(backend, addresses, topics)
+	filter := newFilter(backend, cfg, addresses, topics)
 
 	filter.block = block
 
@@ -85,9 +87,10 @@ func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Addre
 
 // newFilter creates a generic filter that can either filter based on a block hash,
 // or based on range queries. The search criteria needs to be explicitly set.
-func newFilter(backend Backend, addresses []common.Address, topics [][]common.Hash) *Filter {
+func newFilter(backend Backend, cfg Config, addresses []common.Address, topics [][]common.Hash) *Filter {
 	return &Filter{
 		backend:   backend,
+		config:    cfg,
 		addresses: addresses,
 		topics:    topics,
 		db:        backend.ChainDb(),
@@ -106,32 +109,37 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		if header == nil {
 			return nil, errors.New("unknown block")
 		}
-		return f.blockLogs(ctx, header)
+		return f.blockLogs(ctx, header.Hash)
 	}
 	// Figure out the limits of the filter range
 	header, _ := f.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if header == nil {
 		return nil, nil
 	}
-	head := header.Number.Uint64()
+	head := idx.Block(header.Number.Uint64())
 
-	if f.begin == -1 {
-		f.begin = int64(head)
+	begin := idx.Block(f.begin)
+	if f.begin < 0 {
+		begin = head
 	}
-	end := uint64(f.end)
-	if f.end == -1 {
+	end := idx.Block(f.end)
+	if f.end < 0 {
 		end = head
 	}
 
 	if isEmpty(f.topics) {
-		return f.unindexedLogs(ctx, int64(end))
+		return f.unindexedLogs(ctx, begin, end)
+	} else {
+		return f.indexedLogs(ctx, begin, end)
 	}
-
-	return f.indexedLogs(ctx, idx.Block(f.begin), idx.Block(end))
 }
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*types.Log, error) {
+	if uint(end-begin) > f.config.IndexedLogsBlockRangeLimit {
+		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.IndexedLogsBlockRangeLimit)
+	}
+
 	addresses := make([]common.Hash, len(f.addresses))
 	for i, addr := range f.addresses {
 		addresses[i] = addr.Hash()
@@ -148,17 +156,26 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 
 // indexedLogs returns the logs matching the filter criteria based on raw block
 // iteration.
-func (f *Filter) unindexedLogs(ctx context.Context, end int64) (logs []*types.Log, err error) {
+func (f *Filter) unindexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
+	if uint(end-begin) > f.config.UnindexedLogsBlockRangeLimit {
+		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.UnindexedLogsBlockRangeLimit)
+	}
+
 	var (
 		header *evmcore.EvmHeader
 		found  []*types.Log
 	)
-	for ; f.begin <= end; f.begin++ {
-		header, err = f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
+	for n := begin; n <= end; n++ {
+		err = ctx.Err()
+		if err != nil {
+			return
+		}
+
+		header, err = f.backend.HeaderByNumber(ctx, rpc.BlockNumber(n))
 		if header == nil || err != nil {
 			return
 		}
-		found, err = f.blockLogs(ctx, header)
+		found, err = f.blockLogs(ctx, header.Hash)
 		if err != nil {
 			return
 		}
@@ -168,21 +185,9 @@ func (f *Filter) unindexedLogs(ctx context.Context, end int64) (logs []*types.Lo
 }
 
 // blockLogs returns the logs matching the filter criteria within a single block.
-func (f *Filter) blockLogs(ctx context.Context, header *evmcore.EvmHeader) (logs []*types.Log, err error) {
-	found, err := f.checkMatches(ctx, header)
-	if err != nil {
-		return
-	}
-	logs = append(logs, found...)
-
-	return
-}
-
-// checkMatches checks if the receipts belonging to the given header contain any log events that
-// match the filter criteria.
-func (f *Filter) checkMatches(ctx context.Context, header *evmcore.EvmHeader) (logs []*types.Log, err error) {
+func (f *Filter) blockLogs(ctx context.Context, header common.Hash) ([]*types.Log, error) {
 	// Get the logs of the block
-	logsList, err := f.backend.GetLogs(ctx, header.Hash)
+	logsList, err := f.backend.GetLogs(ctx, header)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +197,11 @@ func (f *Filter) checkMatches(ctx context.Context, header *evmcore.EvmHeader) (l
 		unfiltered = append(unfiltered, logs...)
 	}
 
-	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+	logs := filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == common.Hash(hash.Zero) {
-			receipts, err := f.backend.GetReceipts(ctx, header.Hash)
+			receipts, err := f.backend.GetReceipts(ctx, header)
 			if err != nil {
 				return nil, err
 			}
