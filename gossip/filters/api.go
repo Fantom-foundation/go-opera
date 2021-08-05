@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -51,14 +52,14 @@ type filter struct {
 // Config is a provided API params.
 type Config struct {
 	// Block range limit for logs search (indexed).
-	IndexedLogsBlockRangeLimit uint
+	IndexedLogsBlockRangeLimit idx.Block
 	// Block range limit for logs search (unindexed).
-	UnindexedLogsBlockRangeLimit uint
+	UnindexedLogsBlockRangeLimit idx.Block
 }
 
 func DefaultConfig() Config {
 	return Config{
-		IndexedLogsBlockRangeLimit:   99999999,
+		IndexedLogsBlockRangeLimit:   999999999999999999,
 		UnindexedLogsBlockRangeLimit: 100,
 	}
 }

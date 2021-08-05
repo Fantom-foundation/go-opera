@@ -126,8 +126,11 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if f.end < 0 {
 		end = head
 	}
+	if begin > end {
+		return []*types.Log{}, nil
+	}
 
-	if isEmpty(f.topics) {
+	if isEmpty(f.topics) && len(f.addresses) == 0 {
 		return f.unindexedLogs(ctx, begin, end)
 	} else {
 		return f.indexedLogs(ctx, begin, end)
@@ -136,7 +139,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*types.Log, error) {
-	if uint(end-begin) > f.config.IndexedLogsBlockRangeLimit {
+	if end-begin > f.config.IndexedLogsBlockRangeLimit {
 		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.IndexedLogsBlockRangeLimit)
 	}
 
@@ -157,7 +160,7 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 // indexedLogs returns the logs matching the filter criteria based on raw block
 // iteration.
 func (f *Filter) unindexedLogs(ctx context.Context, begin, end idx.Block) (logs []*types.Log, err error) {
-	if uint(end-begin) > f.config.UnindexedLogsBlockRangeLimit {
+	if end-begin > f.config.UnindexedLogsBlockRangeLimit {
 		return nil, fmt.Errorf("too wide blocks range, the limit is %d", f.config.UnindexedLogsBlockRangeLimit)
 	}
 
