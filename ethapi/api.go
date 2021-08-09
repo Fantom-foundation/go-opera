@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -47,7 +46,6 @@ import (
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
@@ -1141,73 +1139,6 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 		}
 	}
 	return formatted
-}
-
-// RPCMarshalEventHeader converts the given header to the RPC output .
-func RPCMarshalEventHeader(header inter.EventI) map[string]interface{} {
-	return map[string]interface{}{
-		"epoch":            hexutil.Uint64(header.Epoch()),
-		"seq":              hexutil.Uint64(header.Seq()),
-		"id":               hexutil.Bytes(header.ID().Bytes()),
-		"frame":            hexutil.Uint64(header.Frame()),
-		"creator":          hexutil.Uint64(header.Creator()),
-		"prevEpochHash":    header.PrevEpochHash(),
-		"parents":          eventIDsToHex(header.Parents()),
-		"lamport":          hexutil.Uint64(header.Lamport()),
-		"creationTime":     hexutil.Uint64(header.CreationTime()),
-		"medianTime":       hexutil.Uint64(header.MedianTime()),
-		"extraData":        hexutil.Bytes(header.Extra()),
-		"transactionsRoot": hexutil.Bytes(header.TxHash().Bytes()),
-		"gasPowerLeft": map[string]interface{}{
-			"shortTerm": hexutil.Uint64(header.GasPowerLeft().Gas[inter.ShortTermGas]),
-			"longTerm":  hexutil.Uint64(header.GasPowerLeft().Gas[inter.LongTermGas]),
-		},
-		"gasPowerUsed": hexutil.Uint64(header.GasPowerUsed()),
-	}
-}
-
-// RPCMarshalEvent converts the given event to the RPC output which depends on fullTx. If inclTx is true transactions are
-// returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
-// transaction hashes.
-func RPCMarshalEvent(event inter.EventPayloadI, inclTx bool, fullTx bool) (map[string]interface{}, error) {
-	fields := RPCMarshalEventHeader(event)
-	fields["size"] = hexutil.Uint64(event.Size())
-
-	if inclTx {
-		formatTx := func(tx *types.Transaction) (interface{}, error) {
-			return tx.Hash(), nil
-		}
-		if fullTx {
-			// TODO full txs for events API
-			//formatTx = func(tx *types.Transaction) (interface{}, error) {
-			//	return newRPCTransactionFromBlockHash(event, tx.Hash()), nil
-			//}
-		}
-		txs := event.Txs()
-		transactions := make([]interface{}, len(txs))
-		var err error
-		for i, tx := range txs {
-			if transactions[i], err = formatTx(tx); err != nil {
-				return nil, err
-			}
-		}
-
-		fields["transactions"] = transactions
-	}
-
-	return fields, nil
-}
-
-func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
-	res := make([]hexutil.Bytes, len(ids))
-	for i, id := range ids {
-		res[i] = eventIDToHex(id)
-	}
-	return res
-}
-
-func eventIDToHex(id hash.Event) hexutil.Bytes {
-	return hexutil.Bytes(id.Bytes())
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
