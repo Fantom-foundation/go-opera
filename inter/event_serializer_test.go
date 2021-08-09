@@ -2,6 +2,7 @@ package inter
 
 import (
 	"bytes"
+	"encoding/json"
 	"math"
 	"math/big"
 	"math/rand"
@@ -214,6 +215,25 @@ func BenchmarkEventPayload_DecodeRLP(b *testing.B) {
 	}
 }
 
+func TestEventRPCMarshaling(t *testing.T) {
+	require := require.New(t)
+
+	for i := 0; i < 10; i++ {
+		var event0 EventI = FakeEvent(i)
+
+		mapping := RPCMarshalEvent(event0)
+		bb, err := json.Marshal(mapping)
+		require.NoError(err)
+
+		mapping = make(map[string]interface{})
+		err = json.Unmarshal(bb, &mapping)
+		require.NoError(err)
+
+		event1 := RPCUnmarshalEvent(mapping)
+		require.Equal(event0, event1)
+	}
+}
+
 func randBig(r *rand.Rand) *big.Int {
 	b := make([]byte, r.Intn(8))
 	_, _ = r.Read(b)
@@ -254,7 +274,6 @@ func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
 
 // FakeEvent generates random event for testing purpose.
 func FakeEvent(txsNum int) *EventPayload {
-
 	r := rand.New(rand.NewSource(int64(0)))
 	random := MutableEventPayload{}
 	random.SetLamport(1000)
