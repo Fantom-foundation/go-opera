@@ -59,7 +59,7 @@ func (tt *Index) walkFirst(
 			id := extractLogrecID(it.Key())
 			rec := newLogrec(id, topicCount)
 
-			if blockEnd > 0 && rec.ID.BlockNumber() > blockEnd {
+			if blockStart != nil && rec.ID.BlockNumber() > blockEnd {
 				break
 			}
 
