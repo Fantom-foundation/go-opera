@@ -251,23 +251,23 @@ func RPCMarshalEvent(e EventI) map[string]interface{} {
 }
 
 // RPCUnmarshalEvent converts the RPC output to the header.
-func RPCUnmarshalEvent(data map[string]interface{}) EventI {
+func RPCUnmarshalEvent(fields map[string]interface{}) EventI {
 	mustBeUint64 := func(name string) uint64 {
-		s := data[name].(string)
+		s := fields[name].(string)
 		return hexutil.MustDecodeUint64(s)
 	}
 	mustBeBytes := func(name string) []byte {
-		s := data[name].(string)
+		s := fields[name].(string)
 		return hexutil.MustDecode(s)
 	}
 	mustBeID := func(name string) (id [24]byte) {
-		s := data[name].(string)
+		s := fields[name].(string)
 		bb := hexutil.MustDecode(s)
 		copy(id[:], bb)
 		return
 	}
 	mayBeHash := func(name string) *hash.Hash {
-		s, ok := data[name].(string)
+		s, ok := fields[name].(string)
 		if !ok {
 			return nil
 		}
@@ -284,7 +284,7 @@ func RPCUnmarshalEvent(data map[string]interface{}) EventI {
 	e.SetFrame(idx.Frame(mustBeUint64("frame")))
 	e.SetCreator(idx.ValidatorID(mustBeUint64("creator")))
 	e.SetPrevEpochHash(mayBeHash("prevEpochHash"))
-	e.SetParents(HexToEventIDs(data["parents"].([]interface{})))
+	e.SetParents(HexToEventIDs(fields["parents"].([]interface{})))
 	e.SetLamport(idx.Lamport(mustBeUint64("lamport")))
 	e.SetCreationTime(Timestamp(mustBeUint64("creationTime")))
 	e.SetMedianTime(Timestamp(mustBeUint64("medianTime")))
@@ -293,12 +293,12 @@ func RPCUnmarshalEvent(data map[string]interface{}) EventI {
 	e.SetGasPowerUsed(mustBeUint64("gasPowerUsed"))
 
 	gas := GasPowerLeft{}
-	obj := data["gasPowerLeft"].(map[string]interface{})
+	obj := fields["gasPowerLeft"].(map[string]interface{})
 	gas.Gas[ShortTermGas] = hexutil.MustDecodeUint64(obj["shortTerm"].(string))
 	gas.Gas[LongTermGas] = hexutil.MustDecodeUint64(obj["longTerm"].(string))
 	e.SetGasPowerLeft(gas)
 
-	return e.Build()
+	return &e.Build().Event
 }
 
 // RPCMarshalEventPayload converts the given event to the RPC output which depends on fullTx. If inclTx is true transactions are
@@ -313,7 +313,8 @@ func RPCMarshalEventPayload(event EventPayloadI, inclTx bool, fullTx bool) (map[
 			return tx.Hash(), nil
 		}
 		if fullTx {
-			// TODO full txs for events API
+			// TODO: full txs for events API
+			panic("is not implemented")
 			//formatTx = func(tx *types.Transaction) (interface{}, error) {
 			//	return newRPCTransactionFromBlockHash(event, tx.Hash()), nil
 			//}

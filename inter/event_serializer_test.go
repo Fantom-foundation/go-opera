@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -216,22 +217,42 @@ func BenchmarkEventPayload_DecodeRLP(b *testing.B) {
 }
 
 func TestEventRPCMarshaling(t *testing.T) {
-	require := require.New(t)
+	t.Run("Event", func(t *testing.T) {
+		require := require.New(t)
+		for i := 0; i < 3; i++ {
+			var event0 EventI = &FakeEvent(i).Event
+			mapping := RPCMarshalEvent(event0)
+			bb, err := json.Marshal(mapping)
+			require.NoError(err)
 
-	for i := 0; i < 10; i++ {
-		var event0 EventI = FakeEvent(i)
+			mapping = make(map[string]interface{})
+			err = json.Unmarshal(bb, &mapping)
+			require.NoError(err)
+			event1 := RPCUnmarshalEvent(mapping)
 
-		mapping := RPCMarshalEvent(event0)
-		bb, err := json.Marshal(mapping)
-		require.NoError(err)
+			require.Equal(event0, event1, i)
+		}
+	})
 
-		mapping = make(map[string]interface{})
-		err = json.Unmarshal(bb, &mapping)
-		require.NoError(err)
+	t.Run("EventPayload", func(t *testing.T) {
+		require := require.New(t)
+		for i := 0; i < 3; i++ {
+			var event0 EventPayloadI = FakeEvent(i)
+			mapping, err := RPCMarshalEventPayload(event0, true, false)
+			require.NoError(err)
+			bb, err := json.Marshal(mapping)
+			require.NoError(err)
 
-		event1 := RPCUnmarshalEvent(mapping)
-		require.Equal(event0, event1)
-	}
+			mapping = make(map[string]interface{})
+			err = json.Unmarshal(bb, &mapping)
+			require.NoError(err)
+			// TODO: enable if RPCUnmarshalEventPayload() exists
+			/*
+				event1 := RPCUnmarshalEventPayload(mapping)
+				require.Equal(event0, event1, i)
+			*/
+		}
+	})
 }
 
 func randBig(r *rand.Rand) *big.Int {
@@ -319,10 +340,10 @@ func FakeEvent(txsNum int) *EventPayload {
 			txs = append(txs, tx)
 		}
 	}
-	if txs.Len() == 0 {
-		random.SetTxHash(EmptyTxHash)
-	}
 	random.SetTxs(txs)
+	if txs.Len() > 0 {
+		random.SetTxHash(hash.Hash(types.DeriveSha(txs, new(trie.Trie))))
+	}
 
 	parent := MutableEventPayload{}
 	parent.SetLamport(random.Lamport() - 500)
