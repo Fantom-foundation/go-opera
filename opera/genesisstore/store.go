@@ -39,8 +39,8 @@ func NewMemStore() *Store {
 func NewStore(db kvdb.Store) *Store {
 	s := &Store{
 		db:       db,
-		Instance: logger.MakeInstance(),
-		rlp:      rlpstore.Helper{logger.MakeInstance()},
+		Instance: logger.New("genesis-store"),
+		rlp:      rlpstore.Helper{logger.New("rlp")},
 	}
 
 	table.MigrateTables(&s.table, s.db)

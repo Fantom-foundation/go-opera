@@ -91,9 +91,9 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 		cfg:           cfg,
 		async:         newAsyncStore(asyncDB),
 		mainDB:        mainDB,
-		Instance:      logger.MakeInstance(),
+		Instance:      logger.New("gossip-store"),
 		prevFlushTime: time.Now(),
-		rlp:           rlpstore.Helper{logger.MakeInstance()},
+		rlp:           rlpstore.Helper{logger.New("rlp")},
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
