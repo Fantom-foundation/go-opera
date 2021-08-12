@@ -154,10 +154,8 @@ func newHandler(
 		quitSync:             make(chan struct{}),
 		quitProgressBradcast: make(chan struct{}),
 
-		Instance: logger.MakeInstance(),
+		Instance: logger.New("PM"),
 	}
-
-	pm.SetName("PM")
 
 	pm.dagFetcher = itemsfetcher.New(pm.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
@@ -273,15 +271,10 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 				pm.engineMu.Lock()
 				defer pm.engineMu.Unlock()
 
-				start := time.Now()
 				err := pm.processEvent(e)
 				if err != nil {
 					return err
 				}
-				end := time.Now()
-				log.Info("New event", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
-					"frame", e.Frame(), "txs", e.Txs().Len(),
-					"age", common.PrettyDuration(end.Sub(e.CreationTime().Time())), "t", common.PrettyDuration(end.Sub(start)))
 
 				// event is connected, announce it if synced up
 				if atomic.LoadUint32(&pm.synced) != 0 {

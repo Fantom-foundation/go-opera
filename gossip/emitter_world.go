@@ -32,6 +32,8 @@ func (ew *emitterWorld) Check(emitted *inter.EventPayload, parents inter.Events)
 }
 
 func (ew *emitterWorld) Process(emitted *inter.EventPayload) error {
+	done := ew.s.eventsLogger.EventConnectionStarted(emitted, true)
+	defer done()
 	return ew.s.processEvent(emitted)
 }
 

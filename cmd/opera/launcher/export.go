@@ -119,7 +119,6 @@ func makeRawGossipStore(rawProducer kvdb.IterableDBProducer, cfg *config) (*goss
 	}
 	dbs := &integration.DummyFlushableProducer{rawProducer}
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
-	gdb.SetName("gossip-db")
 	return gdb, nil
 }
 

@@ -29,7 +29,7 @@ func New(cfg Config, store *Store) *VerWarcher {
 		cfg:      cfg,
 		store:    store,
 		done:     make(chan struct{}),
-		Instance: logger.MakeInstance(),
+		Instance: logger.New(),
 	}
 }
 
