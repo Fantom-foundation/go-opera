@@ -12,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
@@ -101,7 +100,7 @@ func NewEmitter(
 		originatedTxs: originatedtxs.New(SenderCountBufferSize),
 		txTime:        txTime,
 		intervals:     config.EmitIntervals,
-		Periodic:      logger.Periodic{Instance: logger.MakeInstance()},
+		Periodic:      logger.Periodic{Instance: logger.New()},
 	}
 }
 
@@ -235,8 +234,6 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	em.world.Lock()
 	defer em.world.Unlock()
 
-	start := time.Now()
-
 	e := em.createEvent(sortedTxs)
 	if e == nil {
 		return nil
@@ -255,8 +252,6 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 
 	em.prevEmittedAtTime = time.Now() // record time after connecting, to add the event processing time"
 	em.prevEmittedAtBlock = em.world.GetLatestBlockIndex()
-	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(),
-		"frame", e.Frame(), "txs", e.Txs().Len(), "age", common.PrettyDuration(0), "t", common.PrettyDuration(time.Since(start)))
 
 	// metrics
 	if tracing.Enabled() {

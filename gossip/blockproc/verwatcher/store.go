@@ -17,7 +17,7 @@ type Store struct {
 func NewStore(mainDB kvdb.Store) *Store {
 	s := &Store{
 		mainDB:   mainDB,
-		Instance: logger.MakeInstance(),
+		Instance: logger.New("verwatcher-store"),
 	}
 
 	return s

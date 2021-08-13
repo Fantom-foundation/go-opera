@@ -43,7 +43,7 @@ func newEpochStore(epoch idx.Epoch, db kvdb.DropableStore) *epochStore {
 	es := &epochStore{
 		epoch:    epoch,
 		db:       db,
-		Instance: logger.MakeInstance(),
+		Instance: logger.New("epoch-store"),
 	}
 	table.MigrateTables(&es.table, db)
 
