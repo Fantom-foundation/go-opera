@@ -34,8 +34,8 @@ github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbt
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
-github.com/Fantom-foundation/go-ethereum v1.9.7-0.20210712220008-ef39bedfbb55 h1:ii4yI0HhsRXId2FbsNrx+ZBj2VB+JeTkBcgdYdduCnc=
-github.com/Fantom-foundation/go-ethereum v1.9.7-0.20210712220008-ef39bedfbb55/go.mod h1:AItrK6rpGqvJuNAK06OPjCgxS71WP1EmWbn/t9zAM/M=
+github.com/Fantom-foundation/go-ethereum v1.9.7-0.20210817093144-c7491520e043 h1:aAddLPeHxJIOwxo+dCQs4ABKOlT58R1pRlKUPddw6XY=
+github.com/Fantom-foundation/go-ethereum v1.9.7-0.20210817093144-c7491520e043/go.mod h1:AItrK6rpGqvJuNAK06OPjCgxS71WP1EmWbn/t9zAM/M=
 github.com/Fantom-foundation/lachesis-base v0.0.0-20210721130657-54ad3c8a18c1 h1:FeYLXvgi3MSsWpNJcT1Jzr3LOPWR0c4qEV6C4WY5ISQ=
 github.com/Fantom-foundation/lachesis-base v0.0.0-20210721130657-54ad3c8a18c1/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
