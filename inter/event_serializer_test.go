@@ -237,7 +237,7 @@ func TestEventRPCMarshaling(t *testing.T) {
 	t.Run("EventPayload", func(t *testing.T) {
 		require := require.New(t)
 		for i := 0; i < 3; i++ {
-			var event0 EventPayloadI = FakeEvent(i)
+			var event0 = FakeEvent(i)
 			mapping, err := RPCMarshalEventPayload(event0, true, false)
 			require.NoError(err)
 			bb, err := json.Marshal(mapping)
@@ -245,12 +245,9 @@ func TestEventRPCMarshaling(t *testing.T) {
 
 			mapping = make(map[string]interface{})
 			err = json.Unmarshal(bb, &mapping)
-			require.NoError(err)
-			// TODO: enable if RPCUnmarshalEventPayload() exists
-			/*
-				event1 := RPCUnmarshalEventPayload(mapping)
-				require.Equal(event0, event1, i)
-			*/
+
+			event1 := RPCUnmarshalEvent(mapping)
+			require.Equal(&event0.SignedEvent.Event, event1, i)
 		}
 	})
 }
