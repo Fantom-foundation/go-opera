@@ -191,9 +191,10 @@ func (me *MutableEventPayload) immutable() *EventPayload {
 }
 
 func (e *MutableEventPayload) Build() *EventPayload {
-	if e.txs.Len() < 1 {
+	if e.txHash == hash.Zero && e.txs.Len() == 0 {
 		e.txHash = EmptyTxHash
 	}
+
 	eventSer, _ := e.immutable().Event.MarshalBinary()
 	h := eventHash(eventSer)
 	payloadSer, _ := e.immutable().MarshalBinary()

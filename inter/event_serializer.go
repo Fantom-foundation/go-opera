@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -224,4 +225,127 @@ func (e *MutableEventPayload) DecodeRLP(src *rlp.Stream) error {
 	}
 
 	return e.UnmarshalBinary(bytes)
+}
+
+// RPCMarshalEvent converts the given event to the RPC output .
+func RPCMarshalEvent(e EventI) map[string]interface{} {
+	return map[string]interface{}{
+		"epoch":            hexutil.Uint64(e.Epoch()),
+		"seq":              hexutil.Uint64(e.Seq()),
+		"id":               hexutil.Bytes(e.ID().Bytes()),
+		"frame":            hexutil.Uint64(e.Frame()),
+		"creator":          hexutil.Uint64(e.Creator()),
+		"prevEpochHash":    e.PrevEpochHash(),
+		"parents":          EventIDsToHex(e.Parents()),
+		"lamport":          hexutil.Uint64(e.Lamport()),
+		"creationTime":     hexutil.Uint64(e.CreationTime()),
+		"medianTime":       hexutil.Uint64(e.MedianTime()),
+		"extraData":        hexutil.Bytes(e.Extra()),
+		"transactionsRoot": hexutil.Bytes(e.TxHash().Bytes()),
+		"gasPowerLeft": map[string]interface{}{
+			"shortTerm": hexutil.Uint64(e.GasPowerLeft().Gas[ShortTermGas]),
+			"longTerm":  hexutil.Uint64(e.GasPowerLeft().Gas[LongTermGas]),
+		},
+		"gasPowerUsed": hexutil.Uint64(e.GasPowerUsed()),
+	}
+}
+
+// RPCUnmarshalEvent converts the RPC output to the header.
+func RPCUnmarshalEvent(fields map[string]interface{}) EventI {
+	mustBeUint64 := func(name string) uint64 {
+		s := fields[name].(string)
+		return hexutil.MustDecodeUint64(s)
+	}
+	mustBeBytes := func(name string) []byte {
+		s := fields[name].(string)
+		return hexutil.MustDecode(s)
+	}
+	mustBeID := func(name string) (id [24]byte) {
+		s := fields[name].(string)
+		bb := hexutil.MustDecode(s)
+		copy(id[:], bb)
+		return
+	}
+	mayBeHash := func(name string) *hash.Hash {
+		s, ok := fields[name].(string)
+		if !ok {
+			return nil
+		}
+		bb := hexutil.MustDecode(s)
+		h := hash.BytesToHash(bb)
+		return &h
+	}
+
+	e := MutableEventPayload{}
+
+	e.SetEpoch(idx.Epoch(mustBeUint64("epoch")))
+	e.SetSeq(idx.Event(mustBeUint64("seq")))
+	e.SetID(mustBeID("id"))
+	e.SetFrame(idx.Frame(mustBeUint64("frame")))
+	e.SetCreator(idx.ValidatorID(mustBeUint64("creator")))
+	e.SetPrevEpochHash(mayBeHash("prevEpochHash"))
+	e.SetParents(HexToEventIDs(fields["parents"].([]interface{})))
+	e.SetLamport(idx.Lamport(mustBeUint64("lamport")))
+	e.SetCreationTime(Timestamp(mustBeUint64("creationTime")))
+	e.SetMedianTime(Timestamp(mustBeUint64("medianTime")))
+	e.SetExtra(mustBeBytes("extraData"))
+	e.SetTxHash(*mayBeHash("transactionsRoot"))
+	e.SetGasPowerUsed(mustBeUint64("gasPowerUsed"))
+
+	gas := GasPowerLeft{}
+	obj := fields["gasPowerLeft"].(map[string]interface{})
+	gas.Gas[ShortTermGas] = hexutil.MustDecodeUint64(obj["shortTerm"].(string))
+	gas.Gas[LongTermGas] = hexutil.MustDecodeUint64(obj["longTerm"].(string))
+	e.SetGasPowerLeft(gas)
+
+	return &e.Build().Event
+}
+
+// RPCMarshalEventPayload converts the given event to the RPC output which depends on fullTx. If inclTx is true transactions are
+// returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
+// transaction hashes.
+func RPCMarshalEventPayload(event EventPayloadI, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+	fields := RPCMarshalEvent(event)
+	fields["size"] = hexutil.Uint64(event.Size())
+
+	if inclTx {
+		formatTx := func(tx *types.Transaction) (interface{}, error) {
+			return tx.Hash(), nil
+		}
+		if fullTx {
+			// TODO: full txs for events API
+			panic("is not implemented")
+			//formatTx = func(tx *types.Transaction) (interface{}, error) {
+			//	return newRPCTransactionFromBlockHash(event, tx.Hash()), nil
+			//}
+		}
+		txs := event.Txs()
+		transactions := make([]interface{}, len(txs))
+		var err error
+		for i, tx := range txs {
+			if transactions[i], err = formatTx(tx); err != nil {
+				return nil, err
+			}
+		}
+
+		fields["transactions"] = transactions
+	}
+
+	return fields, nil
+}
+
+func EventIDsToHex(ids hash.Events) []hexutil.Bytes {
+	res := make([]hexutil.Bytes, len(ids))
+	for i, id := range ids {
+		res[i] = hexutil.Bytes(id.Bytes())
+	}
+	return res
+}
+
+func HexToEventIDs(bb []interface{}) hash.Events {
+	res := make(hash.Events, len(bb))
+	for i, b := range bb {
+		res[i] = hash.BytesToEvent(hexutil.MustDecode(b.(string)))
+	}
+	return res
 }
