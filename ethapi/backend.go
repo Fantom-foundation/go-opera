@@ -37,6 +37,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 // PeerProgress is synchronization status of a peer
@@ -75,6 +76,10 @@ type Backend interface {
 	GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, vmConfig *vm.Config) (*vm.EVM, func() error, error)
 	MinGasPrice() *big.Int
 	MaxGasLimit() uint64
+
+	// Transaction trace API
+	TxTraceByHash(ctx context.Context, h common.Hash) (*[]txtrace.ActionTrace, error)
+	TxTraceSave(ctx context.Context, h common.Hash, traces []byte) error
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
@@ -171,6 +176,11 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicAbftAPI(apiBackend),
 			Public:    false,
+		}, {
+			Namespace: "trace",
+			Version:   "1.0",
+			Service:   NewPublicTxTraceAPI(apiBackend),
+			Public:    true,
 		},
 	}
 

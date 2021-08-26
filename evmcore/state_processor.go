@@ -19,6 +19,7 @@ package evmcore
 import (
 	"fmt"
 
+	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -78,7 +79,7 @@ func (p *StateProcessor) Process(
 		}
 
 		statedb.Prepare(tx.Hash(), block.Hash, i)
-		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, block.Header(), tx, usedGas, vmenv, onNewLog)
+		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, block.Header(), tx, usedGas, vmenv, cfg, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
 			err = nil
@@ -102,6 +103,7 @@ func applyTransaction(
 	tx *types.Transaction,
 	usedGas *uint64,
 	evm *vm.EVM,
+	cfg vm.Config,
 	onNewLog func(*types.Log, *state.StateDB),
 ) (
 	*types.Receipt,
@@ -113,6 +115,20 @@ func applyTransaction(
 	txContext := NewEVMTxContext(msg)
 	evm.Reset(txContext, statedb)
 
+	// Test if type of tracer is transaction tracing
+	// logger, in that case, set a info for it
+	var traceLogger *txtrace.TraceStructLogger
+	switch cfg.Tracer.(type) {
+	case *txtrace.TraceStructLogger:
+		traceLogger = cfg.Tracer.(*txtrace.TraceStructLogger)
+		traceLogger.SetTx(tx.Hash())
+		traceLogger.SetFrom(msg.From())
+		traceLogger.SetTo(msg.To())
+		traceLogger.SetValue(*msg.Value())
+		traceLogger.SetBlockHash(statedb.BlockHash())
+		traceLogger.SetBlockNumber(header.Number)
+		traceLogger.SetTxIndex(uint(statedb.TxIndex()))
+	}
 	// Apply the transaction to the current state (included in the env).
 	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
@@ -154,5 +170,14 @@ func applyTransaction(
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
+
+	// Set post informations and save trace
+	if traceLogger != nil {
+		traceLogger.SetGasUsed(result.UsedGas)
+		traceLogger.SetNewAddress(receipt.ContractAddress)
+		traceLogger.ProcessTx()
+		traceLogger.SaveTrace()
+	}
+
 	return receipt, result.UsedGas, false, err
 }

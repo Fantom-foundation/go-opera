@@ -212,6 +212,24 @@ func (tt *TestCmd) StderrText() string {
 	return tt.stderr.buf.String()
 }
 
+// GetOutPipeData returns everything, what is on command stdout pipe
+func (tt *TestCmd) GetOutPipeData() *[]byte {
+	var output []byte
+	output, _ = ioutil.ReadAll(tt.stdout)
+	if len(output) > 0 {
+		return &output
+	} else {
+		tt.Errorf("No data on stdout")
+		return nil
+	}
+}
+
+// GetOutPipeData returns string till '>' cursor character on command stdout pipe
+func (tt *TestCmd) GetOutDataTillCursor() *string {
+	str, _ := tt.stdout.ReadString('>')
+	return &str
+}
+
 func (tt *TestCmd) CloseStdin() {
 	tt.stdin.Close()
 }

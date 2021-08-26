@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/node"
@@ -29,11 +30,15 @@ func overrideFlags() {
 
 // NodeDefaultConfig contains reasonable default settings.
 var NodeDefaultConfig = node.Config{
-	DataDir:             DefaultDataDir(),
-	HTTPPort:            DefaultHTTPPort,
-	HTTPModules:         []string{},
-	HTTPVirtualHosts:    []string{"localhost"},
-	HTTPTimeouts:        rpc.DefaultHTTPTimeouts,
+	DataDir:          DefaultDataDir(),
+	HTTPPort:         DefaultHTTPPort,
+	HTTPModules:      []string{},
+	HTTPVirtualHosts: []string{"localhost"},
+	HTTPTimeouts: rpc.HTTPTimeouts{
+		ReadTimeout:  120 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		WriteTimeout: 120 * time.Second,
+	},
 	WSPort:              DefaultWSPort,
 	WSModules:           []string{},
 	GraphQLVirtualHosts: []string{"localhost"},
