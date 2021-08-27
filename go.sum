@@ -319,8 +319,8 @@ github.com/uber/jaeger-client-go v2.20.1+incompatible h1:HgqpYBng0n7tLJIlyT4kPCI
 github.com/uber/jaeger-client-go v2.20.1+incompatible/go.mod h1:WVhlPFC8FDjOFMMWRy2pZqQJSXxYSwNYOkTr/Z6d3Kk=
 github.com/uber/jaeger-lib v2.2.0+incompatible h1:MxZXOiR2JuoANZ3J6DE/U0kSFv/eJ/GfSYVCjK7dyaw=
 github.com/uber/jaeger-lib v2.2.0+incompatible/go.mod h1:ComeNDZlWwrWnDv8aPp0Ba6+uUTzImX/AauajbLI56U=
-github.com/uprendis/go-ethereum v1.9.7-0.20210501212005-da4db6546f89 h1:XW6JOLMYwa2z8x3C8PO9uQkoRT8GLroBbLZLivJX9uM=
-github.com/uprendis/go-ethereum v1.9.7-0.20210501212005-da4db6546f89/go.mod h1:27ZY0H7YdbxCL0E/d23qHo9WCkjqnmFKHQl9UaUSw8s=
+github.com/uprendis/go-ethereum v1.9.7-0.20210827181020-ad76c97705ea h1:xk1IFtzh1oAjOyCi98brZyC+yqjj0oEmZkUWiomsiMA=
+github.com/uprendis/go-ethereum v1.9.7-0.20210827181020-ad76c97705ea/go.mod h1:27ZY0H7YdbxCL0E/d23qHo9WCkjqnmFKHQl9UaUSw8s=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 h1:1cngl9mPEoITZG8s8cVcUy5CeIBYhEESkOB7m6Gmkrk=
 github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208/go.mod h1:IotVbo4F+mw0EzQ08zFqg7pK3FebNXpaMsRy2RT+Ees=
