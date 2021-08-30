@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -31,6 +32,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 // EthAPIBackend implements ethapi.Backend.
@@ -68,6 +70,28 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmco
 		return nil, nil
 	}
 	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
+}
+
+// TxTraceByHash returns transaction trace from store db by the hash.
+func (b *EthAPIBackend) TxTraceByHash(ctx context.Context, h common.Hash) (*[]txtrace.ActionTrace, error) {
+	if b.state.store.txtrace == nil {
+		return nil, errors.New("Transaction trace key-value store db is not initialized")
+	}
+	txBytes := b.state.store.txtrace.GetTx(h)
+	traces := make([]txtrace.ActionTrace, 0)
+	json.Unmarshal(txBytes, &traces)
+	if len(traces) == 0 {
+		return nil, fmt.Errorf("No trace for tx hash: %s", h.String())
+	}
+	return &traces, nil
+}
+
+// TxTraceSave saves transaction trace into store db
+func (b *EthAPIBackend) TxTraceSave(ctx context.Context, h common.Hash, traces []byte) error {
+	if b.state.store.txtrace != nil {
+		return b.state.store.txtrace.SetTxTrace(h, traces)
+	}
+	return errors.New("Transaction trace key-value store db is not initialized")
 }
 
 // BlockByNumber returns block by its number.

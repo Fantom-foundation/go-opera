@@ -94,6 +94,11 @@ var (
 		opera.MainNetworkID: hash.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),
 		opera.TestNetworkID: hash.HexToHash("0xc4a5fc96e575a16a9a0c7349d44dc4d0f602a54e0a8543360c2fee4c3937b49e"),
 	}
+	// TraceNodeFlag enables transaction tracing recording
+	TraceNodeFlag = cli.BoolFlag{
+		Name:  "tracenode",
+		Usage: "If present, than this node records inner transaction traces",
+	}
 )
 
 const (
@@ -378,6 +383,10 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 
 	if err := cfg.Opera.Validate(); err != nil {
 		return nil, err
+	}
+
+	if ctx.GlobalIsSet(TraceNodeFlag.Name) {
+		cfg.OperaStore.TraceTransactions = true
 	}
 
 	return &cfg, nil

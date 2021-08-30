@@ -25,6 +25,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 type ExtendedTxPosition struct {
@@ -152,9 +153,17 @@ func consensusCallbackBeginBlockFn(
 				}
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
 
+				// Providing default config
+				// In case of trace transaction node, this config is changed
+				evmCfg := opera.DefaultVMConfig
+				if store.txtrace != nil {
+					evmCfg.Debug = true
+					evmCfg.Tracer = txtrace.NewTraceStructLogger(store.txtrace)
+				}
+
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true)
+				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true, evmCfg)
 				bs = txListener.Finalize()
 				for _, r := range preInternalReceipts {
 					if r.Status == 0 {
@@ -175,7 +184,7 @@ func consensusCallbackBeginBlockFn(
 				blockFn := func() {
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-					internalReceipts := evmProcessor.Execute(internalTxs, true)
+					internalReceipts := evmProcessor.Execute(internalTxs, true, evmCfg)
 					for _, r := range internalReceipts {
 						if r.Status == 0 {
 							log.Warn("Internal transaction reverted", "txid", r.TxHash.String())
@@ -201,7 +210,7 @@ func consensusCallbackBeginBlockFn(
 						txs = append(txs, e.Txs()...)
 					}
 
-					externalReceipts := evmProcessor.Execute(txs, false)
+					externalReceipts := evmProcessor.Execute(txs, false, evmCfg)
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 
 					block.SkippedTxs = skippedTxs

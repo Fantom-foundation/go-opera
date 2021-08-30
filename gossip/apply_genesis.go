@@ -18,6 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 // ApplyGenesis writes initial state.
@@ -140,6 +141,14 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 		Atropos: hash.Event{},
 	}
 
+	// Providing default config
+	// In case of trace transaction node, this config is changed
+	evmCfg := opera.DefaultVMConfig
+	if s.txtrace != nil {
+		evmCfg.Debug = true
+		evmCfg.Tracer = txtrace.NewTraceStructLogger(s.txtrace)
+	}
+
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 	sealing := true
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
@@ -150,12 +159,12 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	// Execute genesis-internal transactions
 	genesisInternalTxs := blockProc.GenesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-	evmProcessor.Execute(genesisInternalTxs, true)
+	evmProcessor.Execute(genesisInternalTxs, true, evmCfg)
 	bs = txListener.Finalize()
 
 	// Execute pre-internal transactions
 	preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-	evmProcessor.Execute(preInternalTxs, true)
+	evmProcessor.Execute(preInternalTxs, true, evmCfg)
 	bs = txListener.Finalize()
 
 	// Seal epoch if requested
@@ -167,7 +176,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	// Execute post-internal transactions
 	internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-	evmProcessor.Execute(internalTxs, true)
+	evmProcessor.Execute(internalTxs, true, evmCfg)
 	evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
 	for _, r := range receipts {
 		if r.Status == 0 {
