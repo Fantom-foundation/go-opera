@@ -20,7 +20,6 @@ var ageUnits = []struct {
 }{
 	{12 * 30 * 24 * time.Hour, "y"},
 	{30 * 24 * time.Hour, "mo"},
-	{7 * 24 * time.Hour, "w"},
 	{24 * time.Hour, "d"},
 	{time.Hour, "h"},
 	{time.Minute, "m"},
