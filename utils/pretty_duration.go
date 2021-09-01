@@ -33,6 +33,10 @@ func (t PrettyDuration) String() string {
 	diff := time.Duration(t)
 	// Accumulate a precision of 3 components before returning
 	result, prec := "", 0
+	if diff < 0 {
+		diff = -diff
+		result = "-"
+	}
 
 	for _, unit := range ageUnits {
 		if diff > unit.Size {
