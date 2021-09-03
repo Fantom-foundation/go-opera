@@ -56,6 +56,10 @@ type OperaEVMProcessor struct {
 }
 
 func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlock {
+	baseFee := p.net.Economy.MinGasPrice
+	if !p.net.Upgrades.London {
+		baseFee = nil
+	}
 	h := &evmcore.EvmHeader{
 		Number:     p.blockIdx,
 		Hash:       common.Hash(p.block.Atropos),
@@ -65,6 +69,7 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 		Coinbase:   common.Address{},
 		GasLimit:   math.MaxUint64,
 		GasUsed:    p.gasUsed,
+		BaseFee:    baseFee,
 	}
 
 	return evmcore.NewEvmBlock(h, txs)

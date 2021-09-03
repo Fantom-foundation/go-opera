@@ -22,6 +22,8 @@ const (
 	TestNetworkID   uint64 = 0xfa2
 	FakeNetworkID   uint64 = 0xfa3
 	DefaultEventGas uint64 = 28000
+	berlinBit              = 1 << 0
+	londonBit              = 1 << 1
 )
 
 var DefaultVMConfig = vm.Config{
@@ -106,6 +108,7 @@ type BlocksRules struct {
 
 type Upgrades struct {
 	Berlin bool
+	London bool
 }
 
 // EvmChainConfig returns ChainConfig for transactions signing and execution
@@ -114,6 +117,9 @@ func (r Rules) EvmChainConfig() *ethparams.ChainConfig {
 	cfg.ChainID = new(big.Int).SetUint64(r.NetworkID)
 	if !r.Upgrades.Berlin {
 		cfg.BerlinBlock = nil
+	}
+	if !r.Upgrades.London {
+		cfg.LondonBlock = nil
 	}
 	return &cfg
 }
@@ -317,5 +323,33 @@ func (r *Rules) DecodeRLP(s *rlp.Stream) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// EncodeRLP is for RLP serialization.
+func (u Upgrades) EncodeRLP(w io.Writer) error {
+	bitmap := struct {
+		V uint64
+	}{}
+	if u.Berlin {
+		bitmap.V |= berlinBit
+	}
+	if u.London {
+		bitmap.V |= londonBit
+	}
+	return rlp.Encode(w, &bitmap)
+}
+
+// DecodeRLP is for RLP serialization.
+func (u *Upgrades) DecodeRLP(s *rlp.Stream) error {
+	bitmap := struct {
+		V uint64
+	}{}
+	err := s.Decode(&bitmap)
+	if err != nil {
+		return err
+	}
+	u.Berlin = (bitmap.V & berlinBit) != 0
+	u.London = (bitmap.V & londonBit) != 0
 	return nil
 }

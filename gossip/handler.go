@@ -370,6 +370,13 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 }
 
 func (pm *ProtocolManager) removePeer(id string) {
+	peer := pm.peers.Peer(id)
+	if peer != nil {
+		peer.Peer.Disconnect(p2p.DiscUselessPeer)
+	}
+}
+
+func (pm *ProtocolManager) unregisterPeer(id string) {
 	// Short circuit if the peer was already removed
 	peer := pm.peers.Peer(id)
 	if peer == nil {
@@ -382,10 +389,6 @@ func (pm *ProtocolManager) removePeer(id string) {
 	_ = pm.seeder.UnregisterPeer(id)
 	if err := pm.peers.Unregister(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
-	}
-	// Hard disconnect at the networking layer
-	if peer != nil {
-		peer.Peer.Disconnect(p2p.DiscUselessPeer)
 	}
 }
 

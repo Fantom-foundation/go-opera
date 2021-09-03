@@ -254,7 +254,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 // makeCheckers builds event checkers
 func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, gsignercache.Wrap(types.NewEIP2930Signer(chainID)))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, gsignercache.Wrap(types.NewLondonSigner(chainID)))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -269,7 +269,7 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 }
 
 func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := gsignercache.Wrap(types.NewEIP2930Signer(s.store.GetRules().EvmChainConfig().ChainID))
+	txSigner := gsignercache.Wrap(types.NewLondonSigner(s.store.GetRules().EvmChainConfig().ChainID))
 
 	return emitter.NewEmitter(s.config.Emitter, emitter.World{
 		External: &emitterWorld{

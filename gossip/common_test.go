@@ -83,7 +83,7 @@ func newTestEnv() *testEnv {
 	env := &testEnv{
 		blockProcModules: blockProc,
 		store:            store,
-		signer:           gsignercache.Wrap(types.NewEIP2930Signer(big.NewInt(int64(genesis.Rules.NetworkID)))),
+		signer:           gsignercache.Wrap(types.NewLondonSigner(big.NewInt(int64(genesis.Rules.NetworkID)))),
 
 		lastBlock:     1,
 		lastState:     store.GetBlockState().FinalizedStateRoot,
@@ -274,6 +274,16 @@ func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blo
 	return rval, err
 }
 
+func (env *testEnv) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	var num64 uint64
+	if number == nil {
+		num64 = uint64(env.lastBlock)
+	} else {
+		num64 = number.Uint64()
+	}
+	return env.GetEvmStateReader().GetHeader(common.Hash{}, num64).EthHeader(), nil
+}
+
 // callContract implements common code between normal and pending contract calls.
 // state is modified during execution, make sure to copy it if necessary.
 func (env *testEnv) callContract(
@@ -325,7 +335,13 @@ func (env *testEnv) PendingNonceAt(ctx context.Context, account common.Address) 
 	return nonce, nil
 }
 
-// SuggestGasPrice retrieves the currently suggested gas price to allow a timely
+// SuggestGasTipCap retrieves the currently suggested gas price tip to allow a timely
+// execution of a transaction.
+func (env *testEnv) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	return new(big.Int), nil
+}
+
+// SuggestGasTipCap retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (env *testEnv) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	return env.store.GetRules().Economy.MinGasPrice, nil
@@ -377,9 +393,11 @@ type callmsg struct {
 func (m callmsg) From() common.Address         { return m.CallMsg.From }
 func (m callmsg) To() *common.Address          { return m.CallMsg.To }
 func (m callmsg) GasPrice() *big.Int           { return m.CallMsg.GasPrice }
+func (m callmsg) GasTipCap() *big.Int          { return m.CallMsg.GasTipCap }
+func (m callmsg) GasFeeCap() *big.Int          { return m.CallMsg.GasFeeCap }
 func (m callmsg) Gas() uint64                  { return m.CallMsg.Gas }
 func (m callmsg) Value() *big.Int              { return m.CallMsg.Value }
 func (m callmsg) Nonce() uint64                { return 0 }
-func (m callmsg) CheckNonce() bool             { return false }
+func (m callmsg) IsFake() bool                 { return true }
 func (m callmsg) Data() []byte                 { return m.CallMsg.Data }
 func (m callmsg) AccessList() types.AccessList { return nil }

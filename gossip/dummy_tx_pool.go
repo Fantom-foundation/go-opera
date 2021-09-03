@@ -35,7 +35,7 @@ func (p *dummyTxPool) AddRemotes(txs []*types.Transaction) []error {
 }
 
 // Pending returns all the transactions known to the pool
-func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
+func (p *dummyTxPool) Pending(enforceTips bool) (map[common.Address]types.Transactions, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 

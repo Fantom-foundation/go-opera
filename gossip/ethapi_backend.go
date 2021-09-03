@@ -332,7 +332,7 @@ func (b *EthAPIBackend) SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	pending, err := b.svc.txpool.Pending()
+	pending, err := b.svc.txpool.Pending(false)
 	if err != nil {
 		return nil, err
 	}
@@ -410,8 +410,12 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	}
 }
 
-func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.svc.gpo.SuggestPrice(), nil
+func (b *EthAPIBackend) TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	return b.svc.txpool.ContentFrom(addr)
+}
+
+func (b *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	return b.svc.gpo.SuggestTipCap(), nil
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {

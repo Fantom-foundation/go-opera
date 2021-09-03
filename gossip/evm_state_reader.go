@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -41,16 +42,10 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return r.store.GetRules().Economy.MinGasPrice
 }
 
-// RecommendedMinGasPrice returns current soft lower bound for gas price
-func (r *EvmStateReader) RecommendedMinGasPrice() *big.Int {
-	est := new(big.Int).Set(r.gpo.SuggestPrice())
-	est.Mul(est, big3)
+// RecommendedGasTip returns current soft lower bound for gas tip
+func (r *EvmStateReader) RecommendedGasTip() *big.Int {
+	est := new(big.Int).Mul(r.gpo.SuggestTipCap(), big3)
 	est.Div(est, big4)
-
-	min := r.MinGasPrice()
-	if min.Cmp(est) > 0 {
-		return min
-	}
 
 	return est
 }
@@ -137,11 +132,18 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 		transactions = make(types.Transactions, 0)
 	}
 
+	// find block rules
+	epoch := r.store.FindBlockEpoch(n)
+	_, es := r.store.GetHistoryBlockEpochState(epoch)
+	var rules opera.Rules
+	if es != nil {
+		rules = es.Rules
+	}
 	var prev hash.Event
 	if n != 0 {
 		prev = r.store.GetBlock(n - 1).Atropos
 	}
-	evmHeader := evmcore.ToEvmHeader(block, n, prev)
+	evmHeader := evmcore.ToEvmHeader(block, n, prev, rules)
 
 	var evmBlock *evmcore.EvmBlock
 	if readTxs {
@@ -159,8 +161,4 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
 	return r.store.evm.StateDB(hash.Hash(root))
-}
-
-func (r *EvmStateReader) TxExists(txid common.Hash) bool {
-	return r.store.EvmStore().GetTxPosition(txid) != nil
 }

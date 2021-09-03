@@ -23,6 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 // statePrefetcher is a basic Prefetcher, which blindly executes a block on top
@@ -50,7 +52,7 @@ func (p *statePrefetcher) Prefetch(block *EvmBlock, statedb *state.StateDB, cfg 
 		gaspool      = new(GasPool).AddGas(block.GasLimit)
 		blockContext = NewEVMBlockContext(header, p.bc, nil)
 		evm          = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
-		signer       = types.MakeSigner(p.config, header.Number)
+		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number))
 	)
 	// Iterate over and process the individual transactions
 	byzantium := p.config.IsByzantium(block.Number)
@@ -60,11 +62,11 @@ func (p *statePrefetcher) Prefetch(block *EvmBlock, statedb *state.StateDB, cfg 
 			return
 		}
 		// Convert the transaction into an executable message and pre-cache its sender
-		msg, err := tx.AsMessage(signer)
+		msg, err := tx.AsMessage(signer, header.BaseFee)
 		if err != nil {
 			return // Also invalid block, bail out
 		}
-		statedb.Prepare(tx.Hash(), block.Hash, i)
+		statedb.Prepare(tx.Hash(), i)
 		if err := precacheTransaction(msg, p.config, gaspool, statedb, header, evm); err != nil {
 			return // Ugh, something went horribly wrong, bail out
 		}

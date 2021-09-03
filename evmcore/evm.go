@@ -32,12 +32,18 @@ type DummyChain interface {
 
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(header *EvmHeader, chain DummyChain, author *common.Address) vm.BlockContext {
+	var (
+		beneficiary common.Address
+		baseFee     *big.Int
+	)
 	// If we don't have an explicit author (i.e. not mining), extract from the header
-	var beneficiary common.Address
 	if author == nil {
 		beneficiary = header.Coinbase
 	} else {
 		beneficiary = *author
+	}
+	if header.BaseFee != nil {
+		baseFee = new(big.Int).Set(header.BaseFee)
 	}
 	return vm.BlockContext{
 		CanTransfer: CanTransfer,
@@ -47,6 +53,7 @@ func NewEVMBlockContext(header *EvmHeader, chain DummyChain, author *common.Addr
 		BlockNumber: new(big.Int).Set(header.Number),
 		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
 		Difficulty:  big.NewInt(1),
+		BaseFee:     baseFee,
 		GasLimit:    header.GasLimit,
 	}
 }

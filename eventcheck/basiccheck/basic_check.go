@@ -15,6 +15,9 @@ var (
 	ErrZeroTime      = errors.New("event has zero timestamp")
 	ErrNegativeValue = errors.New("negative value")
 	ErrIntrinsicGas  = errors.New("intrinsic gas too low")
+	// ErrTipAboveFeeCap is a sanity error to ensure no one is able to specify a
+	// transaction with a tip higher than the total fee cap.
+	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
 )
 
 type Checker struct {
@@ -30,7 +33,7 @@ func New() *Checker {
 
 // validateTx checks whether a transaction is valid according to the consensus
 // rules
-func (v *Checker) validateTx(tx *types.Transaction) error {
+func validateTx(tx *types.Transaction) error {
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 || tx.GasPrice().Sign() < 0 {
@@ -44,12 +47,15 @@ func (v *Checker) validateTx(tx *types.Transaction) error {
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
+	if tx.GasFeeCapIntCmp(tx.GasTipCap()) < 0 {
+		return ErrTipAboveFeeCap
+	}
 	return nil
 }
 
 func (v *Checker) checkTxs(e inter.EventPayloadI) error {
 	for _, tx := range e.Txs() {
-		if err := v.validateTx(tx); err != nil {
+		if err := validateTx(tx); err != nil {
 			return err
 		}
 	}

@@ -62,9 +62,7 @@ func initFlags() {
 	}
 
 	// Flags that configure the node.
-	gpoFlags = []cli.Flag{
-		utils.GpoMaxGasPriceFlag,
-	}
+	gpoFlags = []cli.Flag{}
 	accountFlags = []cli.Flag{
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,

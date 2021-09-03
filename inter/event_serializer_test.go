@@ -71,7 +71,7 @@ func TestEventPayloadSerialization(t *testing.T) {
 	ee := map[string]EventPayload{
 		"empty":  emptyEvent(),
 		"max":    *max.Build(),
-		"random": *FakeEvent(2),
+		"random": *FakeEvent(12),
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -307,7 +307,7 @@ func FakeEvent(txsNum int) *EventPayload {
 	for i := 0; i < txsNum; i++ {
 		h := hash.Hash{}
 		r.Read(h[:])
-		if i%2 == 0 {
+		if i%3 == 0 {
 			tx := types.NewTx(&types.LegacyTx{
 				Nonce:    r.Uint64(),
 				GasPrice: randBig(r),
@@ -320,11 +320,27 @@ func FakeEvent(txsNum int) *EventPayload {
 				S:        h.Big(),
 			})
 			txs = append(txs, tx)
-		} else {
+		} else if i%3 == 1 {
 			tx := types.NewTx(&types.AccessListTx{
 				ChainID:    randBig(r),
 				Nonce:      r.Uint64(),
 				GasPrice:   randBig(r),
+				Gas:        r.Uint64(),
+				To:         randAddrPtr(r),
+				Value:      randBig(r),
+				Data:       randBytes(r, r.Intn(300)),
+				AccessList: randAccessList(r, 300, 300),
+				V:          big.NewInt(int64(r.Intn(0xffffffff))),
+				R:          h.Big(),
+				S:          h.Big(),
+			})
+			txs = append(txs, tx)
+		} else {
+			tx := types.NewTx(&types.DynamicFeeTx{
+				ChainID:    randBig(r),
+				Nonce:      r.Uint64(),
+				GasTipCap:  randBig(r),
+				GasFeeCap:  randBig(r),
 				Gas:        r.Uint64(),
 				To:         randAddrPtr(r),
 				Value:      randBig(r),

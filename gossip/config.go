@@ -170,11 +170,11 @@ func DefaultConfig(scale cachescale.Func) Config {
 		},
 
 		GPO: gasprice.Config{
-			MaxPrice:                   gasprice.DefaultMaxPrice,
-			MinPrice:                   new(big.Int),
-			MaxPriceMultiplierRatio:    big.NewInt(20 * gasprice.DecimalUnit),
-			MiddlePriceMultiplierRatio: big.NewInt(4 * gasprice.DecimalUnit),
-			GasPowerWallRatio:          big.NewInt(0.05 * gasprice.DecimalUnit),
+			MaxTipCap:                   gasprice.DefaultMaxTipCap,
+			MinTipCap:                   new(big.Int),
+			MaxTipCapMultiplierRatio:    big.NewInt(20 * gasprice.DecimalUnit),
+			MiddleTipCapMultiplierRatio: big.NewInt(3 * gasprice.DecimalUnit),
+			GasPowerWallRatio:           big.NewInt(0.05 * gasprice.DecimalUnit),
 		},
 
 		VersionWatcher: verwatcher.Config{
@@ -183,7 +183,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 		},
 		RPCLogsBloom: true,
 
-		RPCGasCap:   25000000,
+		RPCGasCap:   50000000,
 		RPCTxFeeCap: 100, // 100 FTM
 	}
 	cfg.Protocol.Processor.EventsBufferLimit.Num = idx.Event(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Num + softLimitItems

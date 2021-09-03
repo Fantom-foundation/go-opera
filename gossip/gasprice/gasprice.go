@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var DefaultMaxPrice = big.NewInt(1000000 * params.GWei)
+var DefaultMaxTipCap = big.NewInt(100000 * params.GWei)
 
 var secondBn = big.NewInt(int64(time.Second))
 
@@ -40,11 +40,11 @@ const DecimalUnit = piecefunc.DecimalUnit
 var DecimalUnitBn = big.NewInt(DecimalUnit)
 
 type Config struct {
-	MaxPrice                   *big.Int `toml:",omitempty"`
-	MinPrice                   *big.Int `toml:",omitempty"`
-	MaxPriceMultiplierRatio    *big.Int `toml:",omitempty"`
-	MiddlePriceMultiplierRatio *big.Int `toml:",omitempty"`
-	GasPowerWallRatio          *big.Int `toml:",omitempty"`
+	MaxTipCap                   *big.Int `toml:",omitempty"`
+	MinTipCap                   *big.Int `toml:",omitempty"`
+	MaxTipCapMultiplierRatio    *big.Int `toml:",omitempty"`
+	MiddleTipCapMultiplierRatio *big.Int `toml:",omitempty"`
+	GasPowerWallRatio           *big.Int `toml:",omitempty"`
 }
 
 type Reader interface {
@@ -54,20 +54,24 @@ type Reader interface {
 	GetPendingRules() opera.Rules
 }
 
+type cache struct {
+	head  idx.Block
+	lock  sync.RWMutex
+	value *big.Int
+}
+
 // Oracle recommends gas prices based on the content of recent
 // blocks. Suitable for both light and full clients.
 type Oracle struct {
-	backend   Reader
-	lastHead  idx.Block
-	lastPrice *big.Int
+	backend Reader
 
 	cfg Config
 
-	cacheLock sync.RWMutex
+	cache cache
 }
 
 func sanitizeBigInt(val, min, max, _default *big.Int, name string) *big.Int {
-	if val == nil || val.Sign() == 0 {
+	if val == nil || (val.Sign() == 0 && _default.Sign() != 0) {
 		log.Warn(fmt.Sprintf("Sanitizing invalid parameter %s of gasprice oracle", name), "provided", val, "updated", _default)
 		return _default
 	}
@@ -85,11 +89,11 @@ func sanitizeBigInt(val, min, max, _default *big.Int, name string) *big.Int {
 // NewOracle returns a new gasprice oracle which can recommend suitable
 // gasprice for newly created transaction.
 func NewOracle(backend Reader, params Config) *Oracle {
-	params.MaxPrice = sanitizeBigInt(params.MaxPrice, nil, nil, DefaultMaxPrice, "MaxPrice")
-	params.MinPrice = sanitizeBigInt(params.MinPrice, nil, nil, new(big.Int), "MinPrice")
+	params.MaxTipCap = sanitizeBigInt(params.MaxTipCap, nil, nil, DefaultMaxTipCap, "MaxTipCap")
+	params.MinTipCap = sanitizeBigInt(params.MinTipCap, nil, nil, new(big.Int), "MinTipCap")
 	params.GasPowerWallRatio = sanitizeBigInt(params.GasPowerWallRatio, big.NewInt(1), big.NewInt(DecimalUnit-2), big.NewInt(1), "GasPowerWallRatio")
-	params.MaxPriceMultiplierRatio = sanitizeBigInt(params.MaxPriceMultiplierRatio, DecimalUnitBn, nil, big.NewInt(10*DecimalUnit), "MaxPriceMultiplierRatio")
-	params.MiddlePriceMultiplierRatio = sanitizeBigInt(params.MiddlePriceMultiplierRatio, DecimalUnitBn, params.MaxPriceMultiplierRatio, big.NewInt(2*DecimalUnit), "MiddlePriceMultiplierRatio")
+	params.MaxTipCapMultiplierRatio = sanitizeBigInt(params.MaxTipCapMultiplierRatio, DecimalUnitBn, nil, big.NewInt(10*DecimalUnit), "MaxTipCapMultiplierRatio")
+	params.MiddleTipCapMultiplierRatio = sanitizeBigInt(params.MiddleTipCapMultiplierRatio, DecimalUnitBn, params.MaxTipCapMultiplierRatio, big.NewInt(2*DecimalUnit), "MiddleTipCapMultiplierRatio")
 	return &Oracle{
 		backend: backend,
 		cfg:     params,
@@ -101,9 +105,6 @@ func (gpo *Oracle) minGasPrice() *big.Int {
 	pendingMinPrice := gpo.backend.GetPendingRules().Economy.MinGasPrice
 	if minPrice.Cmp(pendingMinPrice) < 0 {
 		minPrice = pendingMinPrice
-	}
-	if minPrice.Cmp(gpo.cfg.MinPrice) < 0 {
-		minPrice = gpo.cfg.MinPrice
 	}
 	return new(big.Int).Set(minPrice)
 }
@@ -118,7 +119,7 @@ func (gpo *Oracle) maxTotalGasPower() *big.Int {
 	return maxTotalGasPowerBn
 }
 
-func (gpo *Oracle) suggestPrice() *big.Int {
+func (gpo *Oracle) suggestTipCap() *big.Int {
 	max := gpo.maxTotalGasPower()
 
 	current := new(big.Int).SetUint64(gpo.backend.TotalGasPowerLeft())
@@ -133,55 +134,58 @@ func (gpo *Oracle) suggestPrice() *big.Int {
 	multiplierFn := piecefunc.NewFunc([]piecefunc.Dot{
 		{
 			X: 0,
-			Y: gpo.cfg.MaxPriceMultiplierRatio.Uint64(),
+			Y: gpo.cfg.MaxTipCapMultiplierRatio.Uint64(),
 		},
 		{
 			X: gpo.cfg.GasPowerWallRatio.Uint64(),
-			Y: gpo.cfg.MaxPriceMultiplierRatio.Uint64(),
+			Y: gpo.cfg.MaxTipCapMultiplierRatio.Uint64(),
 		},
 		{
 			X: gpo.cfg.GasPowerWallRatio.Uint64() + (DecimalUnit-gpo.cfg.GasPowerWallRatio.Uint64())/2,
-			Y: gpo.cfg.MiddlePriceMultiplierRatio.Uint64(),
+			Y: gpo.cfg.MiddleTipCapMultiplierRatio.Uint64(),
 		},
 		{
 			X: DecimalUnit,
-			Y: DecimalUnit,
+			Y: 0,
 		},
 	})
 
 	multiplier := new(big.Int).SetUint64(multiplierFn(freeRatio))
 
-	// price = multiplier * min gas price
-	price := multiplier.Mul(multiplier, gpo.minGasPrice())
-	price.Div(price, DecimalUnitBn)
-	return price
+	// tip cap = multiplier * min gas price
+	tip := multiplier.Mul(multiplier, gpo.minGasPrice())
+	tip.Div(tip, DecimalUnitBn)
+	if tip.Cmp(gpo.cfg.MinTipCap) < 0 {
+		return gpo.cfg.MinTipCap
+	}
+	if tip.Cmp(gpo.cfg.MaxTipCap) > 0 {
+		return gpo.cfg.MaxTipCap
+	}
+	return tip
 }
 
-// SuggestPrice returns a gasprice so that newly created transaction can
-// have a very high chance to be included in the following blocks.
-func (gpo *Oracle) SuggestPrice() *big.Int {
+// SuggestTipCap returns a tip cap so that newly created transaction can have a
+// very high chance to be included in the following blocks.
+//
+// Note, for legacy transactions and the legacy eth_gasPrice RPC call, it will be
+// necessary to add the basefee to the returned number to fall back to the legacy
+// behavior.
+func (gpo *Oracle) SuggestTipCap() *big.Int {
 	head := gpo.backend.GetLatestBlockIndex()
 
 	// If the latest gasprice is still available, return it.
-	gpo.cacheLock.RLock()
-	lastHead, lastPrice := gpo.lastHead, gpo.lastPrice
-	gpo.cacheLock.RUnlock()
-	if head == lastHead {
-		return lastPrice
+	gpo.cache.lock.RLock()
+	cachedHead, cachedValue := gpo.cache.head, gpo.cache.value
+	gpo.cache.lock.RUnlock()
+	if head == cachedHead {
+		return new(big.Int).Set(cachedValue)
 	}
 
-	price := gpo.suggestPrice()
-	if price.Cmp(gpo.cfg.MaxPrice) > 0 {
-		price = new(big.Int).Set(gpo.cfg.MaxPrice)
-	}
-	minimum := gpo.minGasPrice()
-	if price.Cmp(minimum) < 0 {
-		price = minimum
-	}
+	value := gpo.suggestTipCap()
 
-	gpo.cacheLock.Lock()
-	gpo.lastHead = head
-	gpo.lastPrice = price
-	gpo.cacheLock.Unlock()
-	return price
+	gpo.cache.lock.Lock()
+	gpo.cache.head = head
+	gpo.cache.value = value
+	gpo.cache.lock.Unlock()
+	return new(big.Int).Set(value)
 }

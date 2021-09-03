@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"math"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -129,4 +131,20 @@ func (s *Store) GetGenesisTime() inter.Timestamp {
 		return 0
 	}
 	return block.Time
+}
+
+func (s *Store) SetEpochBlock(b idx.Block, e idx.Epoch) {
+	err := s.table.EpochBlocks.Put((math.MaxUint64 - b).Bytes(), e.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to set key-value", "err", err)
+	}
+}
+
+func (s *Store) FindBlockEpoch(b idx.Block) idx.Epoch {
+	it := s.table.EpochBlocks.NewIterator(nil, (math.MaxUint64 - b).Bytes())
+	defer it.Release()
+	if !it.Next() {
+		return 0
+	}
+	return idx.BytesToEpoch(it.Value())
 }

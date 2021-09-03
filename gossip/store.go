@@ -32,10 +32,12 @@ type Store struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
-		BlockEpochState kvdb.Store `table:"D"`
-		Events          kvdb.Store `table:"e"`
-		Blocks          kvdb.Store `table:"b"`
-		Genesis         kvdb.Store `table:"g"`
+		BlockEpochState        kvdb.Store `table:"D"`
+		BlockEpochStateHistory kvdb.Store `table:"h"`
+		Events                 kvdb.Store `table:"e"`
+		Blocks                 kvdb.Store `table:"b"`
+		EpochBlocks            kvdb.Store `table:"P"`
+		Genesis                kvdb.Store `table:"g"`
 
 		// P2P-only
 		HighestLamport kvdb.Store `table:"l"`
