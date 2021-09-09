@@ -181,6 +181,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	bs.FinalizedStateRoot = hash.Hash(evmBlock.Root)
 
 	bs.LastBlock = blockCtx
+	s.SetHistoryBlockEpochState(es.Epoch, bs, es)
 	s.SetBlockEpochState(bs, es)
 
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
@@ -222,6 +223,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}
 
 	s.commitEVM()
+	s.SetEpochBlock(blockCtx.Idx, es.Epoch)
 	s.SetBlock(blockCtx.Idx, block)
 	s.SetBlockIndex(genesisAtropos, blockCtx.Idx)
 	s.SetGenesisBlockIndex(blockCtx.Idx)
