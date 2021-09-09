@@ -163,6 +163,10 @@ func FakeNetRules() Rules {
 			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(3 * time.Second),
 		},
+		Upgrades: Upgrades{
+			Berlin: true,
+			London: true,
+		},
 	}
 }
 
