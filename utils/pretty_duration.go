@@ -20,7 +20,6 @@ var ageUnits = []struct {
 }{
 	{12 * 30 * 24 * time.Hour, "y"},
 	{30 * 24 * time.Hour, "mo"},
-	{7 * 24 * time.Hour, "w"},
 	{24 * time.Hour, "d"},
 	{time.Hour, "h"},
 	{time.Minute, "m"},
@@ -33,6 +32,10 @@ func (t PrettyDuration) String() string {
 	diff := time.Duration(t)
 	// Accumulate a precision of 3 components before returning
 	result, prec := "", 0
+	if diff < 0 {
+		diff = -diff
+		result = "-"
+	}
 
 	for _, unit := range ageUnits {
 		if diff > unit.Size {
