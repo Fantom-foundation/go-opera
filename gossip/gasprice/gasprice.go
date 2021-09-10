@@ -176,15 +176,17 @@ func (gpo *Oracle) SuggestTipCap() *big.Int {
 	gpo.cache.lock.RLock()
 	cachedHead, cachedValue := gpo.cache.head, gpo.cache.value
 	gpo.cache.lock.RUnlock()
-	if head == cachedHead {
+	if head <= cachedHead {
 		return new(big.Int).Set(cachedValue)
 	}
 
 	value := gpo.suggestTipCap()
 
 	gpo.cache.lock.Lock()
-	gpo.cache.head = head
-	gpo.cache.value = value
+	if head > gpo.cache.head {
+		gpo.cache.head = head
+		gpo.cache.value = value
+	}
 	gpo.cache.lock.Unlock()
 	return new(big.Int).Set(value)
 }
