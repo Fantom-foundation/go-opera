@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common/math"
 
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
@@ -100,15 +101,6 @@ func NewOracle(backend Reader, params Config) *Oracle {
 	}
 }
 
-func (gpo *Oracle) minGasPrice() *big.Int {
-	minPrice := gpo.backend.GetRules().Economy.MinGasPrice
-	pendingMinPrice := gpo.backend.GetPendingRules().Economy.MinGasPrice
-	if minPrice.Cmp(pendingMinPrice) < 0 {
-		minPrice = pendingMinPrice
-	}
-	return new(big.Int).Set(minPrice)
-}
-
 func (gpo *Oracle) maxTotalGasPower() *big.Int {
 	rules := gpo.backend.GetRules()
 
@@ -152,9 +144,16 @@ func (gpo *Oracle) suggestTipCap() *big.Int {
 
 	multiplier := new(big.Int).SetUint64(multiplierFn(freeRatio))
 
-	// tip cap = multiplier * min gas price
-	tip := multiplier.Mul(multiplier, gpo.minGasPrice())
+	minPrice := gpo.backend.GetRules().Economy.MinGasPrice
+	pendingMinPrice := gpo.backend.GetPendingRules().Economy.MinGasPrice
+	adjustedMinPrice := math.BigMax(minPrice, pendingMinPrice)
+
+	// tip cap = multiplier * min gas price + adjustedMinPrice - minPrice
+	tip := multiplier.Mul(multiplier, adjustedMinPrice)
 	tip.Div(tip, DecimalUnitBn)
+	tip.Add(tip, adjustedMinPrice)
+	tip.Sub(tip, minPrice)
+
 	if tip.Cmp(gpo.cfg.MinTipCap) < 0 {
 		return gpo.cfg.MinTipCap
 	}
