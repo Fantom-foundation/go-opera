@@ -1,6 +1,7 @@
 # Demo
 
-Contains the scripts to do opera benchmarking (only for fakenet).
+This directory contains the scripts to run fakenet (private testing network) with N local nodes,
+primarily for benchmarking purposes.
 
 ## Scripts
 
