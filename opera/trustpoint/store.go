@@ -1,6 +1,9 @@
 package trustpoint
 
 import (
+	"crypto/sha256"
+
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
@@ -19,6 +22,8 @@ type Store struct {
 		BlockEpochState kvdb.Store `table:"s"`
 		Events          kvdb.Store `table:"e"`
 		Blocks          kvdb.Store `table:"b"`
+		Txs             kvdb.Store `table:"t"`
+		Receipts        kvdb.Store `table:"r"`
 		RawEvmItems     kvdb.Store `table:"v"`
 	}
 
@@ -49,4 +54,19 @@ func (s *Store) Close() {
 	table.MigrateTables(&s.table, nil)
 
 	_ = s.db.Close()
+}
+
+func (s *Store) Hash() hash.Hash {
+	hasher := sha256.New()
+	it := s.db.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		k := it.Key()
+		v := it.Value()
+		hasher.Write(bigendian.Uint32ToBytes(uint32(len(k))))
+		hasher.Write(k)
+		hasher.Write(bigendian.Uint32ToBytes(uint32(len(v))))
+		hasher.Write(v)
+	}
+	return hash.BytesToHash(hasher.Sum(nil))
 }
