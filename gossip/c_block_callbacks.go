@@ -29,7 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
-type ExtendedTxPosition struct {
+type extendedTxPosition struct {
 	evmstore.TxPosition
 	EventCreator idx.ValidatorID
 }
@@ -210,14 +210,14 @@ func consensusCallbackBeginBlockFn(
 					block.GasUsed = evmBlock.GasUsed
 
 					// memorize event position of each tx
-					txPositions := make(map[common.Hash]ExtendedTxPosition)
+					txPositions := make(map[common.Hash]extendedTxPosition)
 					for _, e := range blockEvents {
 						for i, tx := range e.Txs() {
 							// If tx was met in multiple events, then assign to first ordered event
 							if _, ok := txPositions[tx.Hash()]; ok {
 								continue
 							}
-							txPositions[tx.Hash()] = ExtendedTxPosition{
+							txPositions[tx.Hash()] = extendedTxPosition{
 								TxPosition: evmstore.TxPosition{
 									Event:       e.ID(),
 									EventOffset: uint32(i),
