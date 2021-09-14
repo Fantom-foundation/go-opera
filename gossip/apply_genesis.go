@@ -138,7 +138,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, genesisTxTransactor bloc
 		Atropos: hash.Event{},
 	}
 
-	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
+	sealer := blockProc.SealerModule.Start(blockCtx)
 	sealing := true
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
 	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, func(l *types.Log) {
@@ -158,8 +158,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, genesisTxTransactor bloc
 
 	// Seal epoch if requested
 	if sealing {
-		sealer.Update(bs, es)
-		bs, es = sealer.SealEpoch()
+		bs, es = sealer.SealEpoch(bs, es)
 		txListener.Update(bs, es)
 	}
 

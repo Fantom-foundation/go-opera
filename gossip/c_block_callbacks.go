@@ -138,8 +138,8 @@ func consensusCallbackBeginBlockFn(
 					return nil
 				}
 
-				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
-				sealing := sealer.EpochSealing()
+				sealer := blockProc.SealerModule.Start(blockCtx)
+				sealing := sealer.EpochSealing(bs, es)
 				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
 				evmStateReader := &EvmStateReader{
 					ServiceFeed: feed,
@@ -166,8 +166,7 @@ func consensusCallbackBeginBlockFn(
 
 				// Seal epoch if requested
 				if sealing {
-					sealer.Update(bs, es)
-					bs, es = sealer.SealEpoch() // TODO: refactor to not mutate the bs, it is unclear
+					bs, es = sealer.SealEpoch(bs, es)
 					store.SetBlockEpochState(bs, es)
 					newValidators = es.Validators
 					txListener.Update(bs, es)

@@ -26,13 +26,12 @@ type TxTransactor interface {
 }
 
 type SealerProcessor interface {
-	EpochSealing() bool
-	SealEpoch() (BlockState, EpochState)
-	Update(bs BlockState, es EpochState)
+	EpochSealing(BlockState, EpochState) bool
+	SealEpoch(BlockState, EpochState) (BlockState, EpochState)
 }
 
 type SealerModule interface {
-	Start(block BlockCtx, bs BlockState, es EpochState) SealerProcessor
+	Start(block BlockCtx) SealerProcessor
 }
 
 type ConfirmedEventsProcessor interface {

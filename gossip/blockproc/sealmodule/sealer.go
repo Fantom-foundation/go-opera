@@ -16,42 +16,34 @@ func New() *OperaEpochsSealerModule {
 	return &OperaEpochsSealerModule{}
 }
 
-func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx, bs blockproc.BlockState, es blockproc.EpochState) blockproc.SealerProcessor {
+func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx) blockproc.SealerProcessor {
 	return &OperaEpochsSealer{
 		block: block,
-		es:    es,
-		bs:    bs,
 	}
 }
 
 type OperaEpochsSealer struct {
 	block blockproc.BlockCtx
-	es    blockproc.EpochState
-	bs    blockproc.BlockState
 }
 
-func (s *OperaEpochsSealer) EpochSealing() bool {
-	sealEpoch := s.bs.EpochGas >= s.es.Rules.Epochs.MaxEpochGas
-	sealEpoch = sealEpoch || (s.block.Time-s.es.EpochStart) >= s.es.Rules.Epochs.MaxEpochDuration
-	sealEpoch = sealEpoch || s.bs.AdvanceEpochs > 0
-	return sealEpoch || s.bs.EpochCheaters.Len() != 0
-}
-
-func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochState) {
-	p.bs, p.es = bs, es
+func (s *OperaEpochsSealer) EpochSealing(bs blockproc.BlockState, es blockproc.EpochState) bool {
+	sealEpoch := bs.EpochGas >= es.Rules.Epochs.MaxEpochGas
+	sealEpoch = sealEpoch || (s.block.Time-es.EpochStart) >= es.Rules.Epochs.MaxEpochDuration
+	sealEpoch = sealEpoch || bs.AdvanceEpochs > 0
+	return sealEpoch || bs.EpochCheaters.Len() != 0
 }
 
 // SealEpoch is called after pre-internal transactions are executed
-func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
+func (s *OperaEpochsSealer) SealEpoch(bs blockproc.BlockState, es blockproc.EpochState) (blockproc.BlockState, blockproc.EpochState) {
 	// Select new validators
-	oldValidators := s.es.Validators
+	oldValidators := es.Validators
 	builder := pos.NewBigBuilder()
-	for v, profile := range s.bs.NextValidatorProfiles {
+	for v, profile := range bs.NextValidatorProfiles {
 		builder.Set(v, profile.Weight)
 	}
 	newValidators := builder.Build()
-	s.es.Validators = newValidators
-	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles.Copy()
+	es.Validators = newValidators
+	es.ValidatorProfiles = bs.NextValidatorProfiles.Copy()
 
 	// Build new []ValidatorEpochState and []ValidatorBlockState
 	newValidatorEpochStates := make([]blockproc.ValidatorEpochState, newValidators.Len())
@@ -70,30 +62,30 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 			continue
 		}
 		oldValIdx := oldValidators.GetIdx(valID)
-		newValidatorBlockStates[newValIdx] = s.bs.ValidatorStates[oldValIdx]
+		newValidatorBlockStates[newValIdx] = bs.ValidatorStates[oldValIdx]
 		newValidatorBlockStates[newValIdx].DirtyGasRefund = 0
 		newValidatorBlockStates[newValIdx].Uptime = 0
-		newValidatorEpochStates[newValIdx].GasRefund = s.bs.ValidatorStates[oldValIdx].DirtyGasRefund
-		newValidatorEpochStates[newValIdx].PrevEpochEvent = s.bs.ValidatorStates[oldValIdx].LastEvent
+		newValidatorEpochStates[newValIdx].GasRefund = bs.ValidatorStates[oldValIdx].DirtyGasRefund
+		newValidatorEpochStates[newValIdx].PrevEpochEvent = bs.ValidatorStates[oldValIdx].LastEvent
 	}
-	s.es.ValidatorStates = newValidatorEpochStates
-	s.bs.ValidatorStates = newValidatorBlockStates
-	s.es.Validators = newValidators
+	es.ValidatorStates = newValidatorEpochStates
+	bs.ValidatorStates = newValidatorBlockStates
+	es.Validators = newValidators
 
 	// dirty data becomes active
-	s.es.PrevEpochStart = s.es.EpochStart
-	s.es.EpochStart = s.block.Time
-	s.es.Rules = s.bs.DirtyRules.Copy()
-	s.es.EpochStateRoot = s.bs.FinalizedStateRoot
+	es.PrevEpochStart = es.EpochStart
+	es.EpochStart = s.block.Time
+	es.Rules = bs.DirtyRules.Copy()
+	es.EpochStateRoot = bs.FinalizedStateRoot
 
-	s.bs.EpochGas = 0
-	s.bs.EpochCheaters = lachesis.Cheaters{}
-	newEpoch := s.es.Epoch + 1
-	s.es.Epoch = newEpoch
+	bs.EpochGas = 0
+	bs.EpochCheaters = lachesis.Cheaters{}
+	newEpoch := es.Epoch + 1
+	es.Epoch = newEpoch
 
-	if s.bs.AdvanceEpochs > 0 {
-		s.bs.AdvanceEpochs--
+	if bs.AdvanceEpochs > 0 {
+		bs.AdvanceEpochs--
 	}
 
-	return s.bs, s.es
+	return bs, es
 }
