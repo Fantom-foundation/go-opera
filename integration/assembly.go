@@ -209,11 +209,6 @@ func makeEngine(
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
-	if *gdb.GetGenesisHash() != inputGenesis.Hash {
-		err = fmt.Errorf("genesis hash mismatch with genesis file header: %s != %s", gdb.GetGenesisHash().String(), inputGenesis.Hash.String())
-		return nil, nil, nil, nil, gossip.BlockProc{}, err
-	}
-
 	err = gdb.Commit()
 	if err != nil {
 		err = fmt.Errorf("failed to commit DBs: %v", err)
