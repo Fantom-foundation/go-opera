@@ -57,25 +57,6 @@ func (s *Store) GetEvent(id hash.Event) *inter.EventPayload {
 	return e
 }
 
-/*
-func (s *Store) ForEachEvent(onEvent func(event *inter.EventPayload) bool) {
-	it := s.table.Events.NewIterator(nil, nil)
-	defer it.Release()
-
-	for it.Next() {
-		event := &inter.EventPayload{}
-		err := rlp.DecodeBytes(it.Value(), event)
-		if err != nil {
-			s.Log.Crit("Trustpoint event error", "err", err)
-		}
-
-		if !onEvent(event) {
-			return
-		}
-	}
-}
-*/
-
 func (s *Store) SetBlock(index idx.Block, block *inter.Block) {
 	s.rlp.Set(s.table.Blocks, index.Bytes(), block)
 }
@@ -102,22 +83,6 @@ func (s *Store) GetTx(id common.Hash) *types.Transaction {
 	tx := s.rlp.Get(s.table.Txs, id.Bytes(), &types.Transaction{}).(*types.Transaction)
 	return tx
 }
-
-/*
-func (s *Store) ForEachTx(fn func(common.Hash, *types.Transaction)) {
-	it := s.table.Txs.NewIterator(nil, nil)
-	defer it.Release()
-	for it.Next() {
-		id := common.BytesToHash(it.Key())
-		tx := &types.Transaction{}
-		err := rlp.DecodeBytes(it.Value(), tx)
-		if err != nil {
-			log.Crit("Trustpoint txs error", "err", err)
-		}
-		fn(id, tx)
-	}
-}
-*/
 
 func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
 	receiptsStorage := make([]*types.ReceiptForStorage, len(receipts))

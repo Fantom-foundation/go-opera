@@ -5,76 +5,35 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/opera/trustpoint"
 )
-
-func (s *Store) firstEpochBlock() (b *inter.Block, n idx.Block, err error) {
-	bs, es := s.GetBlockEpochState()
-
-	for n = bs.LastBlock.Idx; n > 0; n-- {
-		b = s.GetBlock(n)
-		if b == nil || (b.Time == es.EpochStart) {
-			break
-		}
-	}
-	if b == nil {
-		err = fmt.Errorf("1st block of epoch %d is not found", es.Epoch)
-		return
-	}
-
-	return
-}
 
 // SaveTrustpoint saves initial state of current epoch.
 func (s *Store) SaveTrustpoint(g *trustpoint.Store) (err error) {
 	g.GenesisHash = *s.GetGenesisHash()
 
-	bs, es := s.GetBlockEpochState()
-	bs, es = bs.Copy(), es.Copy()
+	curr, _ := s.GetBlockEpochState()
+	epoch := s.FindBlockEpoch(curr.LastBlock.Idx) - 1
+	bs, es := s.GetHistoryBlockEpochState(epoch)
+	g.SetBlockEpochState(bs, es)
 
-	lastBlock, lastBlockN, err := s.firstEpochBlock()
-	if err != nil {
-		return err
-	}
-
-	s.Log.Info("Save trustpoint", "block", lastBlockN)
-
-	// reset to epoch start
-	bs.FinalizedStateRoot = lastBlock.Root
-	bs.LastBlock = blockproc.BlockCtx{
-		Idx:     lastBlockN,
-		Time:    lastBlock.Time,
-		Atropos: lastBlock.Atropos,
-	}
-
-	bs.EpochGas = 0
-	bs.EpochCheaters = lachesis.Cheaters{}
-	bs.NextValidatorProfiles = make(map[idx.ValidatorID]drivertype.Validator)
-	for i, vs := range bs.ValidatorStates {
-		vs.DirtyGasRefund = 0
-		vs.Uptime = 0
-		bs.ValidatorStates[i] = vs
-	}
-	g.SetBlockEpochState(&bs, &es)
+	s.Log.Info("Save trustpoint", "block", bs.LastBlock.Idx)
 
 	// export of blocks
 	// EVM needs last 256 blocks only, see core/vm.opBlockhash() instruction
 	const history idx.Block = 256
-	var firstBlockN idx.Block
-	if lastBlockN > history {
-		firstBlockN = lastBlockN - history
+	var firstBlockIdx idx.Block
+	if bs.LastBlock.Idx > history {
+		firstBlockIdx = bs.LastBlock.Idx - history
 	}
 	evm := s.EvmStore()
-	for index := firstBlockN; index <= lastBlockN; index++ {
+	for index := firstBlockIdx; index <= bs.LastBlock.Idx; index++ {
 		block := s.GetBlock(index)
 		g.SetBlock(index, block)
 
@@ -92,13 +51,11 @@ func (s *Store) SaveTrustpoint(g *trustpoint.Store) (err error) {
 		g.SetReceipts(index, receipts)
 	}
 
-	// check events
-	// TODO: rm
-	for i, val := range es.ValidatorStates {
+	// prev epoch events
+	for _, val := range es.ValidatorStates {
 		if val.PrevEpochEvent != hash.ZeroEvent {
-			if s.GetEventPayload(val.PrevEpochEvent) == nil {
-				log.Crit("PrevEpochEvent not found", "hash", val.PrevEpochEvent, "validator", i)
-			}
+			e := s.GetEventPayload(val.PrevEpochEvent)
+			g.SetEvent(e)
 		}
 	}
 
@@ -127,6 +84,14 @@ func (s *Store) ApplyTrustpoint(g *trustpoint.Store) (err error) {
 
 	bs, es := g.GetBlockEpochState()
 	s.SetBlockEpochState(*bs, *es)
+	s.SetHistoryBlockEpochState(es.Epoch, *bs, *es)
+	s.SetEpochBlock(bs.LastBlock.Idx, es.Epoch)
+	for _, val := range es.ValidatorStates {
+		if val.PrevEpochEvent != hash.ZeroEvent {
+			e := g.GetEvent(val.PrevEpochEvent)
+			s.SetEvent(e)
+		}
+	}
 
 	g.ForEachBlock(func(index idx.Block, block *inter.Block) {
 		s.SetBlock(index, block)
