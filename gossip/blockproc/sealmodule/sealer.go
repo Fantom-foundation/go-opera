@@ -83,7 +83,10 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	// dirty data becomes active
 	s.es.PrevEpochStart = s.es.EpochStart
 	s.es.EpochStart = s.block.Time
-	s.es.Rules = s.bs.DirtyRules.Copy()
+	if s.bs.DirtyRules != nil {
+		s.es.Rules = s.bs.DirtyRules.Copy()
+		s.bs.DirtyRules = nil
+	}
 	s.es.EpochStateRoot = s.bs.FinalizedStateRoot
 
 	s.bs.EpochGas = 0

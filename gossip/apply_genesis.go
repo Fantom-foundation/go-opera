@@ -105,7 +105,7 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		EpochCheaters:         lachesis.Cheaters{},
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
-		DirtyRules:            g.Rules,
+		DirtyRules:            nil,
 	}, blockproc.EpochState{
 		Epoch:             g.FirstEpoch - 1,
 		EpochStart:        g.PrevEpochTime,

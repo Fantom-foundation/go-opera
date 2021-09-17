@@ -251,11 +251,16 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 			return
 		}
 
-		p.bs.DirtyRules, err = opera.UpdateRules(p.bs.DirtyRules, diff)
+		last := &p.es.Rules
+		if p.bs.DirtyRules != nil {
+			last = p.bs.DirtyRules
+		}
+		updated, err := opera.UpdateRules(*last, diff)
 		if err != nil {
 			log.Warn("Network rules update error", "err", err)
 			return
 		}
+		p.bs.DirtyRules = &updated
 	}
 	// Advance epochs
 	if l.Topics[0] == driverpos.Topics.AdvanceEpochs && len(l.Data) >= 32 {

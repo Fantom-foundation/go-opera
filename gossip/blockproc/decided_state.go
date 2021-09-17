@@ -46,7 +46,7 @@ type BlockState struct {
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
 
-	DirtyRules opera.Rules
+	DirtyRules *opera.Rules `rlp:"nil"` // nil means that's no changes compared to epoch rules
 
 	AdvanceEpochs idx.Epoch
 }
@@ -61,7 +61,10 @@ func (bs BlockState) Copy() BlockState {
 	for k, v := range bs.NextValidatorProfiles {
 		cp.NextValidatorProfiles[k] = v
 	}
-	cp.DirtyRules = bs.DirtyRules.Copy()
+	if bs.DirtyRules != nil {
+		rules := bs.DirtyRules.Copy()
+		cp.DirtyRules = &rules
+	}
 	return cp
 }
 
