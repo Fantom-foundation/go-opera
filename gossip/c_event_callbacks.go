@@ -140,8 +140,8 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		return err
 	}
 
-	oldEpoch := s.store.GetEpoch()
 	es := s.store.GetEpochState()
+	oldEpoch := es.Epoch
 
 	// check prev epoch hash
 	if e.PrevEpochHash() != nil {

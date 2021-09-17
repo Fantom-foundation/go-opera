@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -52,7 +53,11 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 	for i, val := range es.ValidatorStates {
 		validatorStates[i].GasRefund = val.GasRefund
 		if val.PrevEpochEvent != hash.ZeroEvent {
-			validatorStates[i].PrevEpochEvent = s.GetEvent(val.PrevEpochEvent)
+			e := s.GetEvent(val.PrevEpochEvent)
+			if e == nil {
+				log.Crit("validator prev epoch event not found", "event", val.PrevEpochEvent)
+			}
+			validatorStates[i].PrevEpochEvent = e
 		}
 	}
 

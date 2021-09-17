@@ -18,12 +18,11 @@ import (
 func (s *Store) SaveTrustpoint(g *trustpoint.Store) (err error) {
 	g.GenesisHash = *s.GetGenesisHash()
 
-	curr, _ := s.GetBlockEpochState()
-	epoch := s.FindBlockEpoch(curr.LastBlock.Idx) - 1
-	bs, es := s.GetHistoryBlockEpochState(epoch)
+	_, curr := s.GetBlockEpochState()
+	bs, es := s.GetHistoryBlockEpochState(curr.Epoch - 1)
 	g.SetBlockEpochState(bs, es)
 
-	s.Log.Info("Save trustpoint", "block", bs.LastBlock.Idx)
+	s.Log.Info("Creating trustpoint", "epoch", es.Epoch, "block", bs.LastBlock.Idx)
 
 	// export of blocks
 	// EVM needs last 256 blocks only, see core/vm.opBlockhash() instruction
@@ -39,6 +38,9 @@ func (s *Store) SaveTrustpoint(g *trustpoint.Store) (err error) {
 
 		for _, e := range block.Events {
 			event := s.GetEventPayload(e)
+			if event == nil {
+				log.Crit("block event not found", "block", index, "event", e)
+			}
 			g.SetEvent(event)
 		}
 
@@ -55,6 +57,19 @@ func (s *Store) SaveTrustpoint(g *trustpoint.Store) (err error) {
 	for _, val := range es.ValidatorStates {
 		if val.PrevEpochEvent != hash.ZeroEvent {
 			e := s.GetEventPayload(val.PrevEpochEvent)
+			if e == nil {
+				log.Crit("validator prev epoch event not found", "event", val.PrevEpochEvent)
+			}
+			g.SetEvent(e)
+		}
+	}
+	// last events
+	for _, val := range bs.ValidatorStates {
+		if val.LastEvent != hash.ZeroEvent {
+			e := s.GetEventPayload(val.LastEvent)
+			if e == nil {
+				log.Crit("validator last event not found", "event", val.LastEvent)
+			}
 			g.SetEvent(e)
 		}
 	}
@@ -79,16 +94,32 @@ func (s *Store) ApplyTrustpoint(g *trustpoint.Store) (err error) {
 	genesisHash := *s.GetGenesisHash()
 	if genesisHash != g.GenesisHash {
 		err = fmt.Errorf("Genesis mismatch")
-		s.Log.Error("ApplyTrustpoint", "genesis", genesisHash, "trustpoint", g.GenesisHash, "err", err)
+		s.Log.Error("Applying trustpoint", "genesis", genesisHash, "trustpoint", g.GenesisHash, "err", err)
 	}
 
 	bs, es := g.GetBlockEpochState()
+	s.Log.Info("Applying trustpoint", "genesis", genesisHash, "epoch", es.Epoch)
 	s.SetBlockEpochState(*bs, *es)
 	s.SetHistoryBlockEpochState(es.Epoch, *bs, *es)
 	s.SetEpochBlock(bs.LastBlock.Idx, es.Epoch)
+
+	// prev epoch events
 	for _, val := range es.ValidatorStates {
 		if val.PrevEpochEvent != hash.ZeroEvent {
 			e := g.GetEvent(val.PrevEpochEvent)
+			if e == nil {
+				log.Crit("validator prev epoch event not found", "event", val.PrevEpochEvent)
+			}
+			s.SetEvent(e)
+		}
+	}
+	// last events
+	for _, val := range bs.ValidatorStates {
+		if val.LastEvent != hash.ZeroEvent {
+			e := g.GetEvent(val.LastEvent)
+			if e == nil {
+				log.Crit("validator last event not found", "event", val.LastEvent)
+			}
 			s.SetEvent(e)
 		}
 	}
@@ -109,6 +140,9 @@ func (s *Store) ApplyTrustpoint(g *trustpoint.Store) (err error) {
 
 		for _, id := range block.Events {
 			e := g.GetEvent(id)
+			if e == nil {
+				log.Crit("block event not found", "block", index, "event", id)
+			}
 			s.SetEvent(e)
 			for i, tx := range e.Txs() {
 				h := tx.Hash()
