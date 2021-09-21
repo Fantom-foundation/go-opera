@@ -64,14 +64,6 @@ Note: datadir shoul be empty.
 )
 
 func trustpointCreate(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, _, err := makeRawStores(rawProducer, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
-	defer gdb.Close()
-
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
 		return errors.New("too many arguments")
@@ -81,6 +73,14 @@ func trustpointCreate(ctx *cli.Context) error {
 		return errors.New("file name argument required")
 	}
 	file := ctx.Args()[0]
+
+	cfg := makeAllConfigs(ctx)
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	gdb, _, err := makeRawStores(rawProducer, cfg)
+	if err != nil {
+		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
+	}
+	defer gdb.Close()
 
 	if false { // TODO: enable later
 		es := gdb.GetEpochState()
@@ -116,6 +116,16 @@ func trustpointCreate(ctx *cli.Context) error {
 }
 
 func trustpointApply(ctx *cli.Context) error {
+	if ctx.NArg() > 1 {
+		log.Error("Too many arguments given")
+		return errors.New("too many arguments")
+	}
+	if ctx.NArg() < 1 {
+		log.Error("File name argument required")
+		return errors.New("file name argument required")
+	}
+	file := ctx.Args()[0]
+
 	cfg := makeAllConfigs(ctx)
 
 	gdbDatadir := path.Join(cfg.Node.DataDir, "chaindata")
@@ -148,16 +158,6 @@ func trustpointApply(ctx *cli.Context) error {
 	dbs := integration.NewDummyFlushableProducer(rawProducer)
 	gdb, cdb := integration.MakeStores(dbs, cfg.AppConfigs())
 	defer gdb.Close()
-
-	if ctx.NArg() > 1 {
-		log.Error("Too many arguments given")
-		return errors.New("too many arguments")
-	}
-	if ctx.NArg() < 1 {
-		log.Error("File name argument required")
-		return errors.New("file name argument required")
-	}
-	file := ctx.Args()[0]
 
 	db, err := dbs.OpenDB("trustpoint")
 	if err != nil {
