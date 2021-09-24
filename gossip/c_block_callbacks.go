@@ -167,7 +167,7 @@ func consensusCallbackBeginBlockFn(
 				// Seal epoch if requested
 				if sealing {
 					bs, es = sealer.SealEpoch(bs, es)
-					store.SetBlockEpochState(bs, es)
+					store.SetBlockEpochState(bs, es) // TODO: don't save inconsistent data or do make it consistent (don't mutate bs below)
 					newValidators = es.Validators
 					txListener.Update(bs, es)
 				}
@@ -267,7 +267,10 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					bs.LastBlock = blockCtx
-					store.SetHistoryBlockEpochState(es.Epoch, bs, es)
+					if sealing {
+						// History stores data as of the beginning of the epoch
+						store.SetHistoryBlockEpochState(es.Epoch, bs, es)
+					}
 					store.SetEpochBlock(blockCtx.Idx, es.Epoch)
 					store.SetBlock(blockCtx.Idx, block)
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
@@ -298,6 +301,7 @@ func consensusCallbackBeginBlockFn(
 						evmBlock.GasUsed, "txs", fmt.Sprintf("%d/%d", len(evmBlock.Transactions), len(block.SkippedTxs)),
 						"age", utils.PrettyDuration(now.Sub(block.Time.Time())), "t", utils.PrettyDuration(now.Sub(start)))
 				}
+
 				if confirmedEvents.Len() != 0 {
 					atomic.StoreUint32(blockBusyFlag, 1)
 					wg.Add(1)
