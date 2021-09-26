@@ -206,8 +206,6 @@ func init() {
 		checkCommand,
 		// See snapshotcmd.go
 		snapshotCommand,
-		// See trustpointcmd.go
-		trustpointCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
