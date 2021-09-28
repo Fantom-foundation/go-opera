@@ -100,7 +100,7 @@ func makeConsensus(gdb *gossip.Store, cdb *abft.Store, cfg Configs) (*abft.Lache
 	return engine, vecClock, nil
 }
 
-func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.SyncedPool, error) {
+func MakeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.SyncedPool, error) {
 	existingDBs := rawProducer.Names()
 	err := CheckDBList(existingDBs)
 	if err != nil {
@@ -175,7 +175,7 @@ func makeEngine(
 		}
 	}
 
-	dbs, err := makeFlushableProducer(rawProducer)
+	dbs, err := MakeFlushableProducer(rawProducer)
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}

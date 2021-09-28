@@ -7,7 +7,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
@@ -106,13 +105,11 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 
 type dummyFlushableProducer struct {
 	kvdb.IterableDBProducer
-	opened map[string]kvdb.DropableStore
 }
 
 func NewDummyFlushableProducer(dbs kvdb.IterableDBProducer) kvdb.FlushableDBProducer {
 	return &dummyFlushableProducer{
 		IterableDBProducer: dbs,
-		opened:             make(map[string]kvdb.DropableStore),
 	}
 }
 
@@ -120,32 +117,6 @@ func (p *dummyFlushableProducer) NotFlushedSizeEst() int {
 	return 0
 }
 
-func (p *dummyFlushableProducer) OpenDB(name string) (kvdb.DropableStore, error) {
-	if db, ok := p.opened[name]; ok {
-		return db, nil
-	}
-
-	db, err := p.IterableDBProducer.OpenDB(name)
-	if err != nil {
-		return nil, err
-	}
-
-	p.opened[name] = db
-	return db, nil
-}
-
-func (p *dummyFlushableProducer) Flush(id []byte) error {
-	for _, name := range p.Names() {
-		db, err := p.OpenDB(name)
-		if err != nil {
-			// skip dropped
-			continue
-		}
-
-		err = db.Put(FlushIDKey, append([]byte{flushable.CleanPrefix}, id...))
-		if err != nil {
-			return err
-		}
-	}
+func (p *dummyFlushableProducer) Flush(_ []byte) error {
 	return nil
 }
