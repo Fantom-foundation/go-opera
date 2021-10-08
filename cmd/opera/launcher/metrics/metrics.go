@@ -7,25 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	cli "gopkg.in/urfave/cli.v1"
-
-	"github.com/Fantom-foundation/go-opera/metrics/prometheus"
 )
-
-var PrometheusEndpointFlag = cli.StringFlag{
-	Name:  "metrics.prometheus.endpoint",
-	Usage: "Prometheus API endpoint to report metrics to",
-	Value: ":19090",
-}
-
-func SetupPrometheus(ctx *cli.Context) {
-	if !metrics.Enabled {
-		return
-	}
-	prometheus.SetNamespace("opera")
-	var endpoint = ctx.GlobalString(PrometheusEndpointFlag.Name)
-	prometheus.ListenTo(endpoint, nil)
-}
 
 var (
 	// TODO: refactor it
