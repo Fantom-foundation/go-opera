@@ -25,18 +25,23 @@ func measureDbDir() (size int64) {
 		return
 	}
 
-	err := filepath.Walk(datadir, func(_ string, info os.FileInfo, err error) error {
+	err := filepath.Walk(datadir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			log.Debug("datadir walk", "path", path, "err", err)
+			return filepath.SkipDir
 		}
-		if !info.IsDir() {
-			size += info.Size()
+
+		if info.IsDir() {
+			return nil
 		}
-		return err
+
+		size += info.Size()
+
+		return nil
 	})
+
 	if err != nil {
-		log.Error("filepath.Walk", "path", datadir, "err", err)
-		return 0
+		log.Debug("datadir walk", "path", datadir, "err", err)
 	}
 
 	return
