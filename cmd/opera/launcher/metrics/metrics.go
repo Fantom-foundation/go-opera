@@ -24,8 +24,11 @@ func measureDbDir() (size int64) {
 	if !ok || datadir == "" || datadir == "inmemory" {
 		return
 	}
+	return sizeOfDir(datadir)
+}
 
-	err := filepath.Walk(datadir, func(path string, info os.FileInfo, err error) error {
+func sizeOfDir(dir string) (size int64) {
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Debug("datadir walk", "path", path, "err", err)
 			return filepath.SkipDir
@@ -35,13 +38,18 @@ func measureDbDir() (size int64) {
 			return nil
 		}
 
-		size += info.Size()
+		dst, err := filepath.EvalSymlinks(path)
+		if err == nil && dst != path {
+			size += sizeOfDir(dst)
+		} else {
+			size += info.Size()
+		}
 
 		return nil
 	})
 
 	if err != nil {
-		log.Debug("datadir walk", "path", datadir, "err", err)
+		log.Debug("datadir walk", "path", dir, "err", err)
 	}
 
 	return
