@@ -92,7 +92,7 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	s.initCache()
 
-	var nilBlock *types.Block
+	var nilBlock *evmcore.EvmBlock
 	s.currentBlock.Store(nilBlock)
 
 	return s
@@ -156,7 +156,7 @@ func (s *Store) Flush() {
 	var snapBase common.Hash
 	if s.snaps != nil {
 		var err error
-		if snapBase, err = s.snaps.Journal(s.CurrentBlock().Root()); err != nil {
+		if snapBase, err = s.snaps.Journal(s.CurrentBlock().Root); err != nil {
 			s.Log.Error("Failed to journal state snapshot", "err", err)
 		}
 	}
@@ -172,8 +172,8 @@ func (s *Store) Flush() {
 			if number := s.CurrentBlock().NumberU64(); number > offset {
 				recent := s.GetBlockByNumber(number - offset)
 
-				s.Log.Info("Writing cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "root", recent.Root())
-				if err := triedb.Commit(recent.Root(), true, nil); err != nil {
+				s.Log.Info("Writing cached state to disk", "block", recent.Number, "hash", recent.Hash, "root", recent.Root)
+				if err := triedb.Commit(recent.Root, true, nil); err != nil {
 					s.Log.Error("Failed to commit recent state trie", "err", err)
 				}
 			}
@@ -201,13 +201,13 @@ func (s *Store) Flush() {
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
-func (s *Store) CurrentBlock() *types.Block {
-	return s.currentBlock.Load().(*types.Block)
+func (s *Store) CurrentBlock() *evmcore.EvmBlock {
+	return s.currentBlock.Load().(*evmcore.EvmBlock)
 }
 
 // GetBlockByNumber retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
-func (s *Store) GetBlockByNumber(number uint64) *types.Block {
+func (s *Store) GetBlockByNumber(number uint64) *evmcore.EvmBlock {
 	hash := rawdb.ReadCanonicalHash(s.table.Evm, number)
 	if hash == (common.Hash{}) {
 		return nil
@@ -217,18 +217,22 @@ func (s *Store) GetBlockByNumber(number uint64) *types.Block {
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
-func (s *Store) GetBlock(hash common.Hash, number uint64) *types.Block {
+func (s *Store) GetBlock(hash common.Hash, number uint64) *evmcore.EvmBlock {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := s.cache.EvmBlocks.Get(hash); ok {
-		return block.(*types.Block)
+		return block.(*evmcore.EvmBlock)
 	}
 	block := rawdb.ReadBlock(s.table.Evm, hash, number)
 	if block == nil {
 		return nil
 	}
+	evmBlock := &evmcore.EvmBlock{
+		EvmHeader:    *evmcore.ConvertFromEthHeader(block.Header()),
+		Transactions: block.Transactions(),
+	}
 	// Cache the found block for next time and return
-	s.cache.EvmBlocks.Add(block.Hash(), block, 1)
-	return block
+	s.cache.EvmBlocks.Add(evmBlock.Hash, evmBlock, 1)
+	return evmBlock
 }
 
 func (s *Store) Cap(max, min int) {
