@@ -122,7 +122,7 @@ func (s *Store) Commit(root hash.Hash, block *evmcore.EvmBlock) error {
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(common.Hash(root), common.Hash{}) // metadata reference to keep trie alive
-		s.triegc.Push(root, -int64(block.NumberU64()))
+		s.triegc.Push(common.Hash(root), -int64(block.NumberU64()))
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
@@ -171,7 +171,6 @@ func (s *Store) Flush() {
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := s.CurrentBlock().NumberU64(); number > offset {
 				recent := s.GetBlockByNumber(number - offset)
-
 				s.Log.Info("Writing cached state to disk", "block", recent.Number, "hash", recent.Hash, "root", recent.Root)
 				if err := triedb.Commit(recent.Root, true, nil); err != nil {
 					s.Log.Error("Failed to commit recent state trie", "err", err)
