@@ -27,7 +27,7 @@ type (
 		// Whether to disable trie write caching and GC altogether (archive node)
 		TrieDirtyDisabled bool
 		// Memory limit (MB) at which to start flushing dirty trie nodes to disk
-		TrieDirtyLimit int
+		TrieDirtyLimit uint
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
@@ -49,7 +49,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmSnap:        scale.I(32 * opt.MiB),
 			EvmBlocksNum:   scale.I(5000),
 			EvmBlocksSize:  scale.U(6 * opt.MiB),
-			TrieDirtyLimit: scale.I(256 * opt.MiB),
+			TrieDirtyLimit: scale.U(400 * opt.MiB),
 		},
 		EnableSnapshots:         true,
 		EnablePreimageRecording: true,
