@@ -110,25 +110,25 @@ func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
 }
 
 // Commit changes.
-func (s *Store) Commit(root hash.Hash, block *evmcore.EvmBlock) error {
+func (s *Store) Commit(block *evmcore.EvmBlock, genesis bool) error {
 	triedb := s.table.EvmState.TrieDB()
-	// If we're running an archive node, always flush
-	if s.cfg.Cache.TrieDirtyDisabled {
-		err := triedb.Commit(common.Hash(root), false, nil)
+	// If we're applying genesis or running an archive node, always flush
+	if genesis == true || s.cfg.Cache.TrieDirtyDisabled {
+		err := triedb.Commit(block.Root, false, nil)
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 		}
 		return err
 	} else {
 		// Full but not archive node, do proper garbage collection
-		triedb.Reference(common.Hash(root), common.Hash{}) // metadata reference to keep trie alive
-		s.triegc.Push(common.Hash(root), -int64(block.NumberU64()))
+		triedb.Reference(block.Root, common.Hash{}) // metadata reference to keep trie alive
+		s.triegc.Push(block.Root, -int64(block.NumberU64()))
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs = triedb.Size()
-				limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit) * 1024 * 1024
+				limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit)
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
 				triedb.Cap(limit - ethdb.IdealBatchSize)

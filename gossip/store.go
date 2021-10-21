@@ -152,8 +152,8 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 }
 
 // commitEVM commits EVM storage
-func (s *Store) commitEVM(block *evmcore.EvmBlock) {
-	err := s.evm.Commit(s.GetBlockState().FinalizedStateRoot, block)
+func (s *Store) commitEVM(block *evmcore.EvmBlock, genesis bool) {
+	err := s.evm.Commit(block, genesis)
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}

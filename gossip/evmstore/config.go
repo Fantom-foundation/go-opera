@@ -49,7 +49,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmSnap:        scale.I(32 * opt.MiB),
 			EvmBlocksNum:   scale.I(5000),
 			EvmBlocksSize:  scale.U(6 * opt.MiB),
-			TrieDirtyLimit: scale.I(256),
+			TrieDirtyLimit: scale.I(256 * opt.MiB),
 		},
 		EnableSnapshots:         true,
 		EnablePreimageRecording: true,

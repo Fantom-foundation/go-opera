@@ -389,9 +389,8 @@ func (s *Service) Stop() error {
 
 	s.blockProcWg.Wait()
 	close(s.blockProcTasksDone)
-	s.store.Commit()
 	s.store.evm.Flush()
-	return nil
+	return s.store.Commit()
 }
 
 // AccountManager return node's account manager
