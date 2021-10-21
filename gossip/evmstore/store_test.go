@@ -10,13 +10,13 @@ import (
 func cachedStore() *Store {
 	cfg := LiteStoreConfig()
 
-	return NewStore(memorydb.New(), cfg)
+	return NewStore(memorydb.New(), nil, cfg)
 }
 
 func nonCachedStore() *Store {
 	cfg := StoreConfig{}
 
-	return NewStore(memorydb.New(), cfg)
+	return NewStore(memorydb.New(), nil, cfg)
 }
 
 func withDelay(db kvdb.DropableStore) kvdb.DropableStore {

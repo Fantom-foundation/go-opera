@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
@@ -20,6 +21,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
@@ -28,11 +30,16 @@ import (
 
 const nominalSize uint = 1
 
+type ChainReader interface {
+	GetBlock(n idx.Block) *inter.Block
+}
+
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	cfg StoreConfig
 
 	mainDB kvdb.Store
+	chain  ChainReader
 	table  struct {
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
@@ -70,10 +77,11 @@ const (
 )
 
 // NewStore creates store over key-value db.
-func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
+func NewStore(mainDB kvdb.Store, chain ChainReader, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDB:   mainDB,
+		chain:    chain,
 		Instance: logger.MakeInstance(),
 		rlp:      rlpstore.Helper{logger.MakeInstance()},
 		triegc:   prque.New(nil),
@@ -118,6 +126,7 @@ func (s *Store) Commit(block *evmcore.EvmBlock, genesis bool) error {
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 		}
+		s.currentBlock.Store(block)
 		return err
 	} else {
 		// Full but not archive node, do proper garbage collection
@@ -170,9 +179,9 @@ func (s *Store) Flush() {
 
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := s.CurrentBlock().NumberU64(); number > offset {
-				recent := s.GetBlockByNumber(number - offset)
-				s.Log.Info("Writing cached state to disk", "block", recent.Number, "hash", recent.Hash, "root", recent.Root)
-				if err := triedb.Commit(recent.Root, true, nil); err != nil {
+				recent := s.chain.GetBlock(idx.Block(number - offset))
+				s.Log.Info("Writing cached state to disk", "block", number-offset, "root", recent.Root)
+				if err := triedb.Commit(common.Hash(recent.Root), true, nil); err != nil {
 					s.Log.Error("Failed to commit recent state trie", "err", err)
 				}
 			}
@@ -202,36 +211,6 @@ func (s *Store) Flush() {
 // block is retrieved from the blockchain's internal cache.
 func (s *Store) CurrentBlock() *evmcore.EvmBlock {
 	return s.currentBlock.Load().(*evmcore.EvmBlock)
-}
-
-// GetBlockByNumber retrieves a block from the database by number, caching it
-// (associated with its hash) if found.
-func (s *Store) GetBlockByNumber(number uint64) *evmcore.EvmBlock {
-	hash := rawdb.ReadCanonicalHash(s.table.Evm, number)
-	if hash == (common.Hash{}) {
-		return nil
-	}
-	return s.GetBlock(hash, number)
-}
-
-// GetBlock retrieves a block from the database by hash and number,
-// caching it if found.
-func (s *Store) GetBlock(hash common.Hash, number uint64) *evmcore.EvmBlock {
-	// Short circuit if the block's already in the cache, retrieve otherwise
-	if block, ok := s.cache.EvmBlocks.Get(hash); ok {
-		return block.(*evmcore.EvmBlock)
-	}
-	block := rawdb.ReadBlock(s.table.Evm, hash, number)
-	if block == nil {
-		return nil
-	}
-	evmBlock := &evmcore.EvmBlock{
-		EvmHeader:    *evmcore.ConvertFromEthHeader(block.Header()),
-		Transactions: block.Transactions(),
-	}
-	// Cache the found block for next time and return
-	s.cache.EvmBlocks.Add(evmBlock.Hash, evmBlock, 1)
-	return evmBlock
 }
 
 func (s *Store) Cap(max, min int) {

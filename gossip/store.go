@@ -102,7 +102,7 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	table.MigrateTables(&s.table, s.mainDB)
 
 	s.initCache()
-	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+	s.evm = evmstore.NewStore(s.mainDB, s, cfg.EVM)
 	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
 
 	if err := s.migrateData(); err != nil {
