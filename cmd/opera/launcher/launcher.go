@@ -28,6 +28,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
 )
 
 const (
@@ -220,7 +221,8 @@ func init() {
 
 		// Start metrics export if enabled
 		utils.SetupMetrics(ctx)
-
+		// Start system runtime metrics collection
+		go evmetrics.CollectProcessMetrics(3 * time.Second)
 		return nil
 	}
 
