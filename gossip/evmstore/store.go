@@ -76,8 +76,8 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDB:   mainDB,
-		Instance: logger.MakeInstance(),
-		rlp:      rlpstore.Helper{logger.MakeInstance()},
+		Instance: logger.New("evm-store"),
+		rlp:      rlpstore.Helper{logger.New("rlp")},
 		triegc:   prque.New(nil),
 	}
 
