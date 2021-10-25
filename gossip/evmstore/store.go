@@ -30,16 +30,11 @@ import (
 
 const nominalSize uint = 1
 
-type ChainReader interface {
-	GetBlock(n idx.Block) *inter.Block
-}
-
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	cfg StoreConfig
 
 	mainDB kvdb.Store
-	chain  ChainReader
 	table  struct {
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
@@ -77,11 +72,10 @@ const (
 )
 
 // NewStore creates store over key-value db.
-func NewStore(mainDB kvdb.Store, chain ChainReader, cfg StoreConfig) *Store {
+func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDB:   mainDB,
-		chain:    chain,
 		Instance: logger.MakeInstance(),
 		rlp:      rlpstore.Helper{logger.MakeInstance()},
 		triegc:   prque.New(nil),
@@ -160,7 +154,7 @@ func (s *Store) Commit(block *evmcore.EvmBlock, genesis bool) error {
 	}
 }
 
-func (s *Store) Flush() {
+func (s *Store) Flush(getBlock func(n idx.Block) *inter.Block) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
 	if s.snaps != nil {
@@ -179,7 +173,7 @@ func (s *Store) Flush() {
 
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := s.CurrentBlock().NumberU64(); number > offset {
-				recent := s.chain.GetBlock(idx.Block(number - offset))
+				recent := getBlock(idx.Block(number - offset))
 				s.Log.Info("Writing cached state to disk", "block", number-offset, "root", recent.Root)
 				if err := triedb.Commit(common.Hash(recent.Root), true, nil); err != nil {
 					s.Log.Error("Failed to commit recent state trie", "err", err)
