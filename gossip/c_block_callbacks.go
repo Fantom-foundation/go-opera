@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
@@ -26,6 +27,38 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
+)
+
+var (
+	// Ethereum compatible metrics set (see go-ethereum/core)
+
+	headBlockGauge     = metrics.GetOrRegisterGauge("chain/head/block", nil)
+	headHeaderGauge    = metrics.GetOrRegisterGauge("chain/head/header", nil)
+	headFastBlockGauge = metrics.GetOrRegisterGauge("chain/head/receipt", nil)
+
+	accountReadTimer   = metrics.GetOrRegisterTimer("chain/account/reads", nil)
+	accountHashTimer   = metrics.GetOrRegisterTimer("chain/account/hashes", nil)
+	accountUpdateTimer = metrics.GetOrRegisterTimer("chain/account/updates", nil)
+	accountCommitTimer = metrics.GetOrRegisterTimer("chain/account/commits", nil)
+
+	storageReadTimer   = metrics.GetOrRegisterTimer("chain/storage/reads", nil)
+	storageHashTimer   = metrics.GetOrRegisterTimer("chain/storage/hashes", nil)
+	storageUpdateTimer = metrics.GetOrRegisterTimer("chain/storage/updates", nil)
+	storageCommitTimer = metrics.GetOrRegisterTimer("chain/storage/commits", nil)
+
+	snapshotAccountReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/account/reads", nil)
+	snapshotStorageReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/storage/reads", nil)
+	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
+
+	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
+	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
+	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
+	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
+
+	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
 )
 
 type ExtendedTxPosition struct {
@@ -151,7 +184,9 @@ func consensusCallbackBeginBlockFn(
 					}
 					sfcapi.OnNewLog(store.sfcapi, l)
 				}
+
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
+				substart := time.Now()
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -272,6 +307,26 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlockEpochState(bs, es)
 					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
 
+					// Update the metrics touched during block processing
+					accountReadTimer.Update(statedb.AccountReads)
+					storageReadTimer.Update(statedb.StorageReads)
+					accountUpdateTimer.Update(statedb.AccountUpdates)
+					storageUpdateTimer.Update(statedb.StorageUpdates)
+					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
+					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
+					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
+					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
+					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
+					// Update the metrics touched during block validation
+					accountHashTimer.Update(statedb.AccountHashes)
+					storageHashTimer.Update(statedb.StorageHashes)
+					blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
+					// Update the metrics touched by new block
+					headBlockGauge.Update(int64(blockCtx.Idx))
+					headHeaderGauge.Update(int64(blockCtx.Idx))
+					headFastBlockGauge.Update(int64(blockCtx.Idx))
+
 					// Notify about new block
 					if feed != nil {
 						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
@@ -289,6 +344,12 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					store.commitEVM()
+					// Update the metrics touched during block commit
+					accountCommitTimer.Update(statedb.AccountCommits)
+					storageCommitTimer.Update(statedb.StorageCommits)
+					snapshotCommitTimer.Update(statedb.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",

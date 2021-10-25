@@ -157,7 +157,6 @@ func initFlags() {
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
-		metrics.PrometheusEndpointFlag,
 		tracing.EnableFlag,
 	}
 
@@ -222,7 +221,6 @@ func init() {
 
 		// Start metrics export if enabled
 		utils.SetupMetrics(ctx)
-		metrics.SetupPrometheus(ctx)
 
 		return nil
 	}
