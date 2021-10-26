@@ -2,7 +2,6 @@ package evmstore
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -20,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -59,8 +58,6 @@ type Store struct {
 
 	rlp rlpstore.Helper
 
-	currentBlock atomic.Value // Current head of the block chain
-
 	snaps  *snapshot.Tree // Snapshot tree for fast trie leaf access
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 
@@ -94,9 +91,6 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	s.initCache()
 
-	var nilBlock *evmcore.EvmBlock
-	s.currentBlock.Store(nilBlock)
-
 	return s
 }
 
@@ -112,22 +106,22 @@ func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
 }
 
 // Commit changes.
-func (s *Store) Commit(block *evmcore.EvmBlock, genesis bool) error {
+func (s *Store) Commit(block blockproc.BlockState, genesis bool) error {
 	triedb := s.table.EvmState.TrieDB()
+	stateRoot := common.Hash(block.FinalizedStateRoot)
 	// If we're applying genesis or running an archive node, always flush
 	if genesis == true || s.cfg.Cache.TrieDirtyDisabled {
-		err := triedb.Commit(block.Root, false, nil)
+		err := triedb.Commit(stateRoot, false, nil)
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 		}
-		s.currentBlock.Store(block)
 		return err
 	} else {
 		// Full but not archive node, do proper garbage collection
-		triedb.Reference(block.Root, common.Hash{}) // metadata reference to keep trie alive
-		s.triegc.Push(block.Root, -int64(block.NumberU64()))
+		triedb.Reference(stateRoot, common.Hash{}) // metadata reference to keep trie alive
+		s.triegc.Push(stateRoot, -int64(block.LastBlock.Idx))
 
-		if current := block.NumberU64(); current > TriesInMemory {
+		if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			var (
 				nodes, imgs = triedb.Size()
@@ -149,17 +143,16 @@ func (s *Store) Commit(block *evmcore.EvmBlock, genesis bool) error {
 				triedb.Dereference(root.(common.Hash))
 			}
 		}
-		s.currentBlock.Store(block)
 		return nil
 	}
 }
 
-func (s *Store) Flush(getBlock func(n idx.Block) *inter.Block) {
+func (s *Store) Flush(block blockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
 	if s.snaps != nil {
 		var err error
-		if snapBase, err = s.snaps.Journal(s.CurrentBlock().Root); err != nil {
+		if snapBase, err = s.snaps.Journal(common.Hash(block.FinalizedStateRoot)); err != nil {
 			s.Log.Error("Failed to journal state snapshot", "err", err)
 		}
 	}
@@ -167,12 +160,12 @@ func (s *Store) Flush(getBlock func(n idx.Block) *inter.Block) {
 	// We're writing three different states to catch different restart scenarios:
 	//  - HEAD:     So we don't need to reprocess any blocks in the general case
 	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
-	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
+	//  - HEAD-31:  So we have a hard limit on the number of blocks reexecuted
 	if !s.cfg.Cache.TrieDirtyDisabled {
 		triedb := s.table.EvmState.TrieDB()
 
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
-			if number := s.CurrentBlock().NumberU64(); number > offset {
+			if number := uint64(block.LastBlock.Idx); number > offset {
 				recent := getBlock(idx.Block(number - offset))
 				s.Log.Info("Writing cached state to disk", "block", number-offset, "root", recent.Root)
 				if err := triedb.Commit(common.Hash(recent.Root), true, nil); err != nil {
@@ -199,12 +192,6 @@ func (s *Store) Flush(getBlock func(n idx.Block) *inter.Block) {
 		triedb := s.table.EvmState.TrieDB()
 		triedb.SaveCache(s.cfg.Cache.TrieCleanJournal)
 	}
-}
-
-// CurrentBlock retrieves the current head block of the canonical chain. The
-// block is retrieved from the blockchain's internal cache.
-func (s *Store) CurrentBlock() *evmcore.EvmBlock {
-	return s.currentBlock.Load().(*evmcore.EvmBlock)
 }
 
 func (s *Store) Cap(max, min int) {

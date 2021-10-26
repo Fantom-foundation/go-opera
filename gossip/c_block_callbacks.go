@@ -348,7 +348,7 @@ func consensusCallbackBeginBlockFn(
 						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 					}
 
-					store.commitEVM(evmBlock, false)
+					store.commitEVM(false)
 					// Update the metrics touched during block commit
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)

@@ -12,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -152,8 +151,8 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 }
 
 // commitEVM commits EVM storage
-func (s *Store) commitEVM(block *evmcore.EvmBlock, genesis bool) {
-	err := s.evm.Commit(block, genesis)
+func (s *Store) commitEVM(genesis bool) {
+	err := s.evm.Commit(s.GetBlockState(), genesis)
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
