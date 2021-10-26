@@ -389,8 +389,8 @@ func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, 
 
 // Progress returns current synchronization status of this node
 func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
-	p2pProgress := b.svc.pm.myProgress()
-	highestP2pProgress := b.svc.pm.highestPeerProgress()
+	p2pProgress := b.svc.handler.myProgress()
+	highestP2pProgress := b.svc.handler.highestPeerProgress()
 	b.svc.engineMu.RLock()
 	lastBlock := b.svc.store.GetBlock(p2pProgress.LastBlockIdx)
 	b.svc.engineMu.RUnlock()

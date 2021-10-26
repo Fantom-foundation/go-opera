@@ -137,7 +137,7 @@ type Service struct {
 	gpo *gasprice.Oracle
 
 	// application protocol
-	pm *ProtocolManager
+	handler *handler
 
 	dialCandidates enode.Iterator
 
@@ -219,7 +219,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.dialCandidates, err = dnsclient.NewIterator()
 
 	// create protocol manager
-	svc.pm, err = newHandler(handlerConfig{
+	svc.handler, err = newHandler(handlerConfig{
 		config:   config,
 		notifier: &svc.feed,
 		txpool:   svc.txpool,
@@ -278,7 +278,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `opera`.
-func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) []p2p.Protocol {
+func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
 		version := version // Closure
@@ -318,7 +318,7 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) 
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	return MakeProtocols(s, s.pm, s.dialCandidates)
+	return MakeProtocols(s, s.handler, s.dialCandidates)
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
@@ -358,7 +358,7 @@ func (s *Service) Start() error {
 
 	s.blockProcTasks.Start(1)
 
-	s.pm.Start(s.p2pServer.MaxPeers)
+	s.handler.Start(s.p2pServer.MaxPeers)
 
 	s.emitter.Start()
 
@@ -378,7 +378,7 @@ func (s *Service) Stop() error {
 	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
-	s.pm.Stop()
+	s.handler.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
 
