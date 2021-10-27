@@ -12,7 +12,6 @@ rm -f ./transactions.rlp
 for ((i=0;i<$N;i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
-    rm -fr ${DATADIR}
     mkdir -p ${DATADIR}
 
     PORT=$(($PORT_BASE+$i))
@@ -20,6 +19,7 @@ do
     WSP=$(($WSP_BASE+$i))
     ACC=$(($i+1))
     (../build/demo_opera \
+	--gcmode=full \
 	--datadir=${DATADIR} \
 	--fakenet=${ACC}/$N \
 	--port=${PORT} \
