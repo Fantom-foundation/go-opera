@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -17,6 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/dag/dagstream"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -421,6 +424,30 @@ func (p *peer) RequestTransactions(txids []common.Hash) error {
 		}
 	}
 	return nil
+}
+
+func (p *peer) SendBVsStream(r bvstream.Response) error {
+	return p2p.Send(p.rw, BVsStreamResponse, r)
+}
+
+func (p *peer) RequestBVsStream(r bvstream.Request) error {
+	return p2p.Send(p.rw, RequestBVsStream, r)
+}
+
+func (p *peer) SendBRsStream(r brstream.Response) error {
+	return p2p.Send(p.rw, BRsStreamResponse, r)
+}
+
+func (p *peer) RequestBRsStream(r brstream.Request) error {
+	return p2p.Send(p.rw, RequestBRsStream, r)
+}
+
+func (p *peer) SendEPsStream(r epstream.Response) error {
+	return p2p.Send(p.rw, EPsStreamResponse, r)
+}
+
+func (p *peer) RequestEPsStream(r epstream.Request) error {
+	return p2p.Send(p.rw, RequestEPsStream, r)
 }
 
 func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {

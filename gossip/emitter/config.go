@@ -25,7 +25,7 @@ type ValidatorConfig struct {
 	PubKey validatorpk.PubKey
 }
 
-type PrevEmittedEventFile struct {
+type FileConfig struct {
 	Path     string
 	SyncMode bool
 }
@@ -49,7 +49,9 @@ type Config struct {
 
 	TxsCacheInvalidation time.Duration
 
-	PrevEmittedEventFile PrevEmittedEventFile
+	PrevEmittedEventFile FileConfig
+	PrevBlockVotesFile   FileConfig
+	PrevEpochVoteFile    FileConfig
 }
 
 // DefaultConfig returns the default configurations for the events emitter.

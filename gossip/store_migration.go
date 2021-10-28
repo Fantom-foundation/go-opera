@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 	"github.com/Fantom-foundation/go-opera/utils/migration"
@@ -270,14 +270,14 @@ type ValidatorBlockStateV0 struct {
 }
 
 type BlockStateV0 struct {
-	LastBlock          blockproc.BlockCtx
+	LastBlock          iblockproc.BlockCtx
 	FinalizedStateRoot hash.Hash
 
 	EpochGas      uint64
 	EpochCheaters lachesis.Cheaters
 
 	ValidatorStates       []ValidatorBlockStateV0
-	NextValidatorProfiles blockproc.ValidatorProfiles
+	NextValidatorProfiles iblockproc.ValidatorProfiles
 
 	DirtyRules opera.Rules
 
@@ -286,17 +286,17 @@ type BlockStateV0 struct {
 
 type BlockEpochStateV0 struct {
 	BlockState *BlockStateV0
-	EpochState *blockproc.EpochState
+	EpochState *iblockproc.EpochState
 }
 
 func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 	oldES := oldEBS.EpochState
 	oldBS := oldEBS.BlockState
 
-	newValidatorState := make([]blockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
+	newValidatorState := make([]iblockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
 	cheatersWritten := 0
 	for i, vs := range oldBS.ValidatorStates {
-		newValidatorState[i] = blockproc.ValidatorBlockState{
+		newValidatorState[i] = iblockproc.ValidatorBlockState{
 			LastEvent:        vs.LastEvent,
 			Uptime:           vs.Uptime,
 			LastOnlineTime:   vs.LastOnlineTime,
@@ -310,7 +310,7 @@ func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 		}
 	}
 
-	newBS := &blockproc.BlockState{
+	newBS := &iblockproc.BlockState{
 		LastBlock:             oldBS.LastBlock,
 		FinalizedStateRoot:    oldBS.FinalizedStateRoot,
 		EpochGas:              oldBS.EpochGas,

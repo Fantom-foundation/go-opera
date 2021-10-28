@@ -3,6 +3,7 @@ package eventmodule
 import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 )
 
 type ValidatorEventsModule struct{}
@@ -11,7 +12,7 @@ func New() *ValidatorEventsModule {
 	return &ValidatorEventsModule{}
 }
 
-func (m *ValidatorEventsModule) Start(bs blockproc.BlockState, es blockproc.EpochState) blockproc.ConfirmedEventsProcessor {
+func (m *ValidatorEventsModule) Start(bs iblockproc.BlockState, es iblockproc.EpochState) blockproc.ConfirmedEventsProcessor {
 	return &ValidatorEventsProcessor{
 		es:                     es,
 		bs:                     bs,
@@ -20,8 +21,8 @@ func (m *ValidatorEventsModule) Start(bs blockproc.BlockState, es blockproc.Epoc
 }
 
 type ValidatorEventsProcessor struct {
-	es                     blockproc.EpochState
-	bs                     blockproc.BlockState
+	es                     iblockproc.EpochState
+	bs                     iblockproc.BlockState
 	validatorHighestEvents inter.EventIs
 }
 
@@ -34,7 +35,7 @@ func (p *ValidatorEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 	p.bs.EpochGas += e.GasPowerUsed()
 }
 
-func (p *ValidatorEventsProcessor) Finalize(block blockproc.BlockCtx, _ bool) blockproc.BlockState {
+func (p *ValidatorEventsProcessor) Finalize(block iblockproc.BlockCtx, _ bool) iblockproc.BlockState {
 	for _, v := range p.bs.EpochCheaters {
 		creatorIdx := p.es.Validators.GetIdx(v)
 		p.validatorHighestEvents[creatorIdx] = nil

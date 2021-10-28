@@ -1,27 +1,29 @@
 package heavycheck
 
 import (
+	"bytes"
 	"errors"
 	"runtime"
 	"sync"
 
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/lachesis-base/eventcheck/queuedcheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/trie"
 
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
 var (
-	ErrWrongEventSig  = errors.New("event has wrong signature")
-	ErrMalformedTxSig = errors.New("tx has wrong signature")
-	ErrWrongTxHash    = errors.New("tx has wrong txs Merkle tree root")
+	ErrWrongEventSig            = errors.New("event has wrong signature")
+	ErrMalformedTxSig           = errors.New("tx has wrong signature")
+	ErrWrongPayloadHash         = errors.New("event has wrong txs payload hash")
+	ErrPubkeyChanged            = errors.New("validator pubkey has changed, cannot create BVs/EV for older epochs")
+	ErrUnknownEpochEventLocator = errors.New("event locator has unknown epoch")
+	ErrUnknownEpochBVs          = errors.New("BVs is unprocessable yet")
+	ErrUnknownEpochEV           = errors.New("EV is unprocessable yet")
 
 	errTerminated = errors.New("terminated") // internal err
 )
@@ -29,6 +31,7 @@ var (
 // Reader is accessed by the validator to get the current state.
 type Reader interface {
 	GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch)
+	GetEpochPubKeysOf(idx.Epoch) map[idx.ValidatorID]validatorpk.PubKey
 }
 
 // Checker which requires only parents list + current epoch info
@@ -37,15 +40,17 @@ type Checker struct {
 	txSigner types.Signer
 	reader   Reader
 
-	tasksQ chan *TasksData
+	tasksQ chan *taskData
 	quit   chan struct{}
 	wg     sync.WaitGroup
 }
 
-type TasksData struct {
-	Tasks []queuedcheck.EventTask // events to validate
+type taskData struct {
+	event inter.EventPayloadI
+	bvs   *inter.LlrSignedBlockVotes
+	ers   *inter.LlrSignedEpochVote
 
-	onValidated func([]queuedcheck.EventTask)
+	onValidated func(error)
 }
 
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
@@ -63,7 +68,7 @@ func New(config Config, reader Reader, txSigner types.Signer) *Checker {
 		config:   config,
 		txSigner: txSigner,
 		reader:   reader,
-		tasksQ:   make(chan *TasksData, config.MaxQueuedBatches),
+		tasksQ:   make(chan *taskData, config.MaxQueuedTasks),
 		quit:     make(chan struct{}),
 	}
 }
@@ -81,55 +86,151 @@ func (v *Checker) Stop() {
 }
 
 func (v *Checker) Overloaded() bool {
-	return len(v.tasksQ) > v.config.MaxQueuedBatches/2
+	return len(v.tasksQ) > v.config.MaxQueuedTasks/2
 }
 
-func (v *Checker) Enqueue(tasks []queuedcheck.EventTask, onValidated func([]queuedcheck.EventTask)) error {
-	// divide big batch into smaller ones
-	for start := 0; start < len(tasks); start += v.config.MaxBatch {
-		end := len(tasks)
-		if end > start+v.config.MaxBatch {
-			end = start + v.config.MaxBatch
-		}
-		op := &TasksData{
-			Tasks:       tasks[start:end],
-			onValidated: onValidated,
-		}
-		select {
-		case v.tasksQ <- op:
-			continue
-		case <-v.quit:
-			return errTerminated
-		}
+func (v *Checker) EnqueueEvent(e inter.EventPayloadI, onValidated func(error)) error {
+	op := &taskData{
+		event:       e,
+		onValidated: onValidated,
+	}
+	select {
+	case v.tasksQ <- op:
+		return nil
+	case <-v.quit:
+		return errTerminated
+	}
+}
+
+func (v *Checker) EnqueueBVs(bvs inter.LlrSignedBlockVotes, onValidated func(error)) error {
+	op := &taskData{
+		bvs:         &bvs,
+		onValidated: onValidated,
+	}
+	select {
+	case v.tasksQ <- op:
+		return nil
+	case <-v.quit:
+		return errTerminated
+	}
+}
+
+func (v *Checker) EnqueueEV(ers inter.LlrSignedEpochVote, onValidated func(error)) error {
+	op := &taskData{
+		ers:         &ers,
+		onValidated: onValidated,
+	}
+	select {
+	case v.tasksQ <- op:
+		return nil
+	case <-v.quit:
+		return errTerminated
+	}
+}
+
+// verifySignature checks the signature against e.Creator.
+func verifySignature(signedHash hash.Hash, sig inter.Signature, pubkey validatorpk.PubKey) bool {
+	if pubkey.Type != validatorpk.Types.Secp256k1 {
+		return false
+	}
+	return crypto.VerifySignature(pubkey.Raw, signedHash.Bytes(), sig.Bytes())
+}
+
+func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx.Epoch, authErr error) error {
+	pubkeys := v.reader.GetEpochPubKeysOf(authEpoch)
+	if len(pubkeys) == 0 {
+		return authErr
+	}
+	pubkey, ok := pubkeys[e.Creator]
+	if !ok {
+		return epochcheck.ErrAuth
+	}
+	if !verifySignature(e.HashToSign(), e.Sig, pubkey) {
+		return ErrWrongEventSig
 	}
 	return nil
 }
 
-// verifySignature checks the signature against e.Creator.
-func verifySignature(e inter.EventPayloadI, pubkey validatorpk.PubKey) bool {
-	if pubkey.Type != validatorpk.Types.Secp256k1 {
-		return false
+func (v *Checker) matchPubkey(creator idx.ValidatorID, epoch idx.Epoch, want []byte, authErr error) error {
+	pubkeys := v.reader.GetEpochPubKeysOf(epoch)
+	if len(pubkeys) == 0 {
+		return authErr
 	}
-	signedHash := e.HashToSign().Bytes()
-	sig := e.Sig()
-	return crypto.VerifySignature(pubkey.Raw, signedHash, sig.Bytes())
+	pubkey, ok := pubkeys[creator]
+	if !ok {
+		return epochcheck.ErrAuth
+	}
+	if bytes.Compare(pubkey.Bytes(), want) != 0 {
+		return ErrPubkeyChanged
+	}
+	return nil
 }
 
-// Validate event
-func (v *Checker) Validate(de dag.Event) error {
-	e := de.(inter.EventPayloadI)
-	addrs, epoch := v.reader.GetEpochPubKeys()
+func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
+	if bvs.CalcPayloadHash() != bvs.EventLocator.PayloadHash {
+		return ErrWrongPayloadHash
+	}
+	return v.ValidateEventLocator(bvs.EventLocator, bvs.Epoch, ErrUnknownEpochBVs)
+}
+
+func (v *Checker) ValidateEV(ers inter.LlrSignedEpochVote) error {
+	if ers.CalcPayloadHash() != ers.EventLocator.PayloadHash {
+		return ErrWrongPayloadHash
+	}
+	return v.ValidateEventLocator(ers.EventLocator, ers.Epoch-1, ErrUnknownEpochEV)
+}
+
+// ValidateEvent runs heavy checks for event
+func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
+	pubkeys, epoch := v.reader.GetEpochPubKeys()
 	if e.Epoch() != epoch {
 		return epochcheck.ErrNotRelevant
 	}
 	// validatorID
-	addr, ok := addrs[e.Creator()]
+	pubkey, ok := pubkeys[e.Creator()]
 	if !ok {
 		return epochcheck.ErrAuth
 	}
 	// event sig
-	if !verifySignature(e, addr) {
+	if !verifySignature(e.HashToSign(), e.Sig(), pubkey) {
 		return ErrWrongEventSig
+	}
+	// MPs
+	for _, mp := range e.MisbehaviourProofs() {
+		if proof := mp.EventsDoublesign; proof != nil {
+			if err := v.ValidateEventLocator(proof.Pair[0], proof.Pair[0].Epoch, ErrUnknownEpochEventLocator); err != nil {
+				return err
+			}
+			if err := v.ValidateEventLocator(proof.Pair[1], proof.Pair[1].Epoch, ErrUnknownEpochEventLocator); err != nil {
+				return err
+			}
+		}
+		if proof := mp.BlockVoteDoublesign; proof != nil {
+			if err := v.ValidateBVs(proof.Pair[0]); err != nil {
+				return err
+			}
+			if err := v.ValidateBVs(proof.Pair[1]); err != nil {
+				return err
+			}
+		}
+		if proof := mp.WrongBlockVote; proof != nil {
+			if err := v.ValidateBVs(proof.Votes); err != nil {
+				return err
+			}
+		}
+		if proof := mp.EpochVoteDoublesign; proof != nil {
+			if err := v.ValidateEV(proof.Pair[0]); err != nil {
+				return err
+			}
+			if err := v.ValidateEV(proof.Pair[1]); err != nil {
+				return err
+			}
+		}
+		if proof := mp.WrongEpochVote; proof != nil {
+			if err := v.ValidateEV(proof.Votes); err != nil {
+				return err
+			}
+		}
 	}
 	// pre-cache tx sig
 	for _, tx := range e.Txs() {
@@ -138,9 +239,20 @@ func (v *Checker) Validate(de dag.Event) error {
 			return ErrMalformedTxSig
 		}
 	}
-	// Merkle tree
-	if e.TxHash() != hash.Hash(types.DeriveSha(e.Txs(), new(trie.Trie))) {
-		return ErrWrongTxHash
+	// Payload hash
+	if e.PayloadHash() != inter.CalcPayloadHash(e) {
+		return ErrWrongPayloadHash
+	}
+	// Epochs of BVs and EV
+	if e.EpochVote().Epoch != 0 {
+		if err := v.matchPubkey(e.Creator(), e.EpochVote().Epoch-1, pubkey.Bytes(), ErrUnknownEpochEV); err != nil {
+			return err
+		}
+	}
+	if e.BlockVotes().Epoch != 0 {
+		if err := v.matchPubkey(e.Creator(), e.BlockVotes().Epoch, pubkey.Bytes(), ErrUnknownEpochBVs); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -151,10 +263,13 @@ func (v *Checker) loop() {
 	for {
 		select {
 		case op := <-v.tasksQ:
-			for _, t := range op.Tasks {
-				t.SetResult(v.Validate(t.Event()))
+			if op.event != nil {
+				op.onValidated(v.ValidateEvent(op.event))
+			} else if op.bvs != nil {
+				op.onValidated(v.ValidateBVs(*op.bvs))
+			} else {
+				op.onValidated(v.ValidateEV(*op.ers))
 			}
-			op.onValidated(op.Tasks)
 
 		case <-v.quit:
 			return

@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -22,7 +23,7 @@ func New() *EVMModule {
 	return &EVMModule{}
 }
 
-func (p *EVMModule) Start(block blockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
+func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
 	var prevBlockHash common.Hash
 	if block.Idx != 0 {
 		prevBlockHash = reader.GetHeader(common.Hash{}, uint64(block.Idx-1)).Hash
@@ -39,7 +40,7 @@ func (p *EVMModule) Start(block blockproc.BlockCtx, statedb *state.StateDB, read
 }
 
 type OperaEVMProcessor struct {
-	block    blockproc.BlockCtx
+	block    iblockproc.BlockCtx
 	reader   evmcore.DummyChain
 	statedb  *state.StateDB
 	onNewLog func(*types.Log)

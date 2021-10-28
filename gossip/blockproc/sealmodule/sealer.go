@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 )
 
 type OperaEpochsSealerModule struct{}
@@ -16,7 +17,7 @@ func New() *OperaEpochsSealerModule {
 	return &OperaEpochsSealerModule{}
 }
 
-func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx, bs blockproc.BlockState, es blockproc.EpochState) blockproc.SealerProcessor {
+func (m *OperaEpochsSealerModule) Start(block iblockproc.BlockCtx, bs iblockproc.BlockState, es iblockproc.EpochState) blockproc.SealerProcessor {
 	return &OperaEpochsSealer{
 		block: block,
 		es:    es,
@@ -25,9 +26,9 @@ func (m *OperaEpochsSealerModule) Start(block blockproc.BlockCtx, bs blockproc.B
 }
 
 type OperaEpochsSealer struct {
-	block blockproc.BlockCtx
-	es    blockproc.EpochState
-	bs    blockproc.BlockState
+	block iblockproc.BlockCtx
+	es    iblockproc.EpochState
+	bs    iblockproc.BlockState
 }
 
 func (s *OperaEpochsSealer) EpochSealing() bool {
@@ -37,12 +38,12 @@ func (s *OperaEpochsSealer) EpochSealing() bool {
 	return sealEpoch || s.bs.EpochCheaters.Len() != 0
 }
 
-func (p *OperaEpochsSealer) Update(bs blockproc.BlockState, es blockproc.EpochState) {
+func (p *OperaEpochsSealer) Update(bs iblockproc.BlockState, es iblockproc.EpochState) {
 	p.bs, p.es = bs, es
 }
 
 // SealEpoch is called after pre-internal transactions are executed
-func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochState) {
+func (s *OperaEpochsSealer) SealEpoch() (iblockproc.BlockState, iblockproc.EpochState) {
 	// Select new validators
 	oldValidators := s.es.Validators
 	builder := pos.NewBigBuilder()
@@ -54,11 +55,11 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 	s.es.ValidatorProfiles = s.bs.NextValidatorProfiles.Copy()
 
 	// Build new []ValidatorEpochState and []ValidatorBlockState
-	newValidatorEpochStates := make([]blockproc.ValidatorEpochState, newValidators.Len())
-	newValidatorBlockStates := make([]blockproc.ValidatorBlockState, newValidators.Len())
+	newValidatorEpochStates := make([]iblockproc.ValidatorEpochState, newValidators.Len())
+	newValidatorBlockStates := make([]iblockproc.ValidatorBlockState, newValidators.Len())
 	for newValIdx := idx.Validator(0); newValIdx < newValidators.Len(); newValIdx++ {
 		// default values
-		newValidatorBlockStates[newValIdx] = blockproc.ValidatorBlockState{
+		newValidatorBlockStates[newValIdx] = iblockproc.ValidatorBlockState{
 			Originated: new(big.Int),
 		}
 		// inherit validator's state from previous epoch, if any

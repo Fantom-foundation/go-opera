@@ -52,8 +52,20 @@ type (
 	}
 )
 
+type LlrReader interface {
+	GetLowestBlockToDecide() idx.Block
+	GetLastBV(id idx.ValidatorID) *idx.Block
+	GetBlockRecordHash(idx.Block) *hash.Hash
+	GetBlockEpoch(idx.Block) idx.Epoch
+
+	GetLowestEpochToDecide() idx.Epoch
+	GetLastEV(id idx.ValidatorID) *idx.Epoch
+	GetEpochRecordHash(epoch idx.Epoch) *hash.Hash
+}
+
 // Reader is a callback for getting events from an external storage.
 type Reader interface {
+	LlrReader
 	GetLatestBlockIndex() idx.Block
 	GetEpochValidators() (*pos.Validators, idx.Epoch)
 	GetEvent(hash.Event) *inter.Event

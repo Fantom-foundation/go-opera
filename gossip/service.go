@@ -39,6 +39,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/gossip/proclogger"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -144,10 +145,11 @@ type Service struct {
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
 
+	procLogger *proclogger.Logger
+
 	stopped bool
 
 	logger.Instance
-	eventsLogger *EventsLogger
 }
 
 func NewService(stack *node.Node, config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
@@ -184,8 +186,8 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 		dagIndexer:         dagIndexer,
 		engineMu:           new(sync.RWMutex),
 		uniqueEventIDs:     uniqueID{new(big.Int)},
+		procLogger:         proclogger.NewLogger(),
 		Instance:           logger.New("gossip-service"),
-		eventsLogger:       NewEventsLogger(),
 	}
 
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
@@ -199,13 +201,16 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// load caches for mutable values to avoid race condition
 	svc.store.GetBlockEpochState()
 	svc.store.GetHighestLamport()
+	svc.store.GetLastBVs()
+	svc.store.GetLastEVs()
 
 	// create GPO
 	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
-	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                             // read pub keys of current epoch from disk
+	svc.heavyCheckReader.Store = store
+	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from disk
 	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
 	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
@@ -226,11 +231,18 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 		engineMu: svc.engineMu,
 		checkers: svc.checkers,
 		s:        store,
-		processEvent: func(e *inter.EventPayload) error {
-			done := svc.eventsLogger.EventConnectionStarted(e, false)
-			defer done()
-			return svc.processEvent(e)
-		}})
+		process: processCallback{
+			Event: func(event *inter.EventPayload) error {
+				done := svc.procLogger.EventConnectionStarted(event, false)
+				defer done()
+				return svc.processEvent(event)
+			},
+			BVs: svc.ProcessBlockVotes,
+			BR:  svc.ProcessFullBlockRecord,
+			EV:  svc.ProcessEpochVote,
+			ER:  svc.ProcessFullEpochRecord,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

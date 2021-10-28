@@ -62,8 +62,8 @@ func (es *epochStore) FlushLastEvents() {
 
 	// sort values for determinism
 	sortedLastEvents := make([]sortedLastEvent, 0, len(lasts.Val))
-	for vid, eid := range lasts.Val {
-		b := append(vid.Bytes(), eid.Bytes()...)
+	for vid, val := range lasts.Val {
+		b := append(vid.Bytes(), val.Bytes()...)
 		sortedLastEvents = append(sortedLastEvents, b)
 	}
 	sort.Slice(sortedLastEvents, func(i, j int) bool {

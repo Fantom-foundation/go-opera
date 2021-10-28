@@ -2,8 +2,6 @@ package opera
 
 import (
 	"encoding/json"
-	"errors"
-	"io"
 	"math/big"
 	"time"
 
@@ -11,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
@@ -24,6 +21,7 @@ const (
 	DefaultEventGas uint64 = 28000
 	berlinBit              = 1 << 0
 	londonBit              = 1 << 1
+	llrBit                 = 1 << 2
 )
 
 var DefaultVMConfig = vm.Config{
@@ -63,12 +61,19 @@ type GasPowerRules struct {
 	MinStartupGas      uint64
 }
 
-type GasRules struct {
+type GasRulesRLPV1 struct {
 	MaxEventGas  uint64
 	EventGas     uint64
 	ParentGas    uint64
 	ExtraDataGas uint64
+	// Post-LLR fields
+	BlockVotesBaseGas    uint64
+	BlockVoteGas         uint64
+	EpochVoteGas         uint64
+	MisbehaviourProofGas uint64
 }
+
+type GasRules GasRulesRLPV1
 
 type EpochsRules struct {
 	MaxEpochGas      uint64
@@ -109,6 +114,7 @@ type BlocksRules struct {
 type Upgrades struct {
 	Berlin bool
 	London bool
+	Llr    bool
 }
 
 // EvmChainConfig returns ChainConfig for transactions signing and execution
@@ -166,6 +172,7 @@ func FakeNetRules() Rules {
 		Upgrades: Upgrades{
 			Berlin: true,
 			London: true,
+			Llr:    true,
 		},
 	}
 }
@@ -206,10 +213,14 @@ func DefaultEpochsRules() EpochsRules {
 
 func DefaultGasRules() GasRules {
 	return GasRules{
-		MaxEventGas:  10000000 + DefaultEventGas,
-		EventGas:     DefaultEventGas,
-		ParentGas:    2400,
-		ExtraDataGas: 25,
+		MaxEventGas:          10000000 + DefaultEventGas,
+		EventGas:             DefaultEventGas,
+		ParentGas:            2400,
+		ExtraDataGas:         25,
+		BlockVotesBaseGas:    1024,
+		BlockVoteGas:         512,
+		EpochVoteGas:         1536,
+		MisbehaviourProofGas: 71536,
 	}
 }
 
@@ -263,97 +274,4 @@ func (r Rules) Copy() Rules {
 func (r Rules) String() string {
 	b, _ := json.Marshal(&r)
 	return string(b)
-}
-
-// EncodeRLP is for RLP serialization.
-func (r Rules) EncodeRLP(w io.Writer) error {
-	// write the type
-	rType := uint8(0)
-	if r.Upgrades != (Upgrades{}) {
-		rType = 1
-		_, err := w.Write([]byte{rType})
-		if err != nil {
-			return err
-		}
-	}
-	// write the main body
-	rlpR := RulesRLP(r)
-	err := rlp.Encode(w, &rlpR)
-	if err != nil {
-		return err
-	}
-	// write additional fields, depending on the type
-	if rType > 0 {
-		err := rlp.Encode(w, &r.Upgrades)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// DecodeRLP is for RLP serialization.
-func (r *Rules) DecodeRLP(s *rlp.Stream) error {
-	kind, _, err := s.Kind()
-	if err != nil {
-		return err
-	}
-	// read rType
-	rType := uint8(0)
-	if kind == rlp.Byte {
-		var b []byte
-		if b, err = s.Bytes(); err != nil {
-			return err
-		}
-		if len(b) == 0 {
-			return errors.New("empty typed")
-		}
-		rType = b[0]
-		if rType == 0 || rType > 1 {
-			return errors.New("unknown type")
-		}
-	}
-	// decode the main body
-	rlpR := RulesRLP{}
-	err = s.Decode(&rlpR)
-	if err != nil {
-		return err
-	}
-	*r = Rules(rlpR)
-	// decode additional fields, depending on the type
-	if rType >= 1 {
-		err = s.Decode(&r.Upgrades)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// EncodeRLP is for RLP serialization.
-func (u Upgrades) EncodeRLP(w io.Writer) error {
-	bitmap := struct {
-		V uint64
-	}{}
-	if u.Berlin {
-		bitmap.V |= berlinBit
-	}
-	if u.London {
-		bitmap.V |= londonBit
-	}
-	return rlp.Encode(w, &bitmap)
-}
-
-// DecodeRLP is for RLP serialization.
-func (u *Upgrades) DecodeRLP(s *rlp.Stream) error {
-	bitmap := struct {
-		V uint64
-	}{}
-	err := s.Decode(&bitmap)
-	if err != nil {
-		return err
-	}
-	u.Berlin = (bitmap.V & berlinBit) != 0
-	u.London = (bitmap.V & londonBit) != 0
-	return nil
 }

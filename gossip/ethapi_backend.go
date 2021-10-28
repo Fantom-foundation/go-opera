@@ -23,10 +23,10 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
@@ -526,7 +526,7 @@ func (b *EthAPIBackend) GetStakerDelegationsClaimedRewards(ctx context.Context, 
 	return b.svc.store.sfcapi.GetStakerDelegationsClaimedRewards(stakerID), nil
 }
 
-func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.SfcStaker, bs blockproc.BlockState, es blockproc.EpochState) *sfcapi.SfcStaker {
+func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.SfcStaker, bs iblockproc.BlockState, es iblockproc.EpochState) *sfcapi.SfcStaker {
 	selfDelegation := b.svc.store.sfcapi.GetSfcDelegation(sfcapi.DelegationID{staker.Address, stakerID})
 	if selfDelegation != nil {
 		staker.StakeAmount = selfDelegation.Amount

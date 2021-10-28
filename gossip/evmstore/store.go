@@ -19,8 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
@@ -106,7 +106,7 @@ func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
 }
 
 // Commit changes.
-func (s *Store) Commit(block blockproc.BlockState, genesis bool) error {
+func (s *Store) Commit(block iblockproc.BlockState, genesis bool) error {
 	triedb := s.table.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
 	// If we're applying genesis or running an archive node, always flush
@@ -147,7 +147,7 @@ func (s *Store) Commit(block blockproc.BlockState, genesis bool) error {
 	}
 }
 
-func (s *Store) Flush(block blockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
+func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
 	if s.snaps != nil {

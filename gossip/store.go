@@ -48,6 +48,16 @@ type Store struct {
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
 		SfcAPI      kvdb.Store `table:"S"`
+
+		LlrState           kvdb.Store `table:"!"`
+		LlrBlockResults    kvdb.Store `table:"@"`
+		LlrEpochResults    kvdb.Store `table:"#"`
+		LlrBlockVotes      kvdb.Store `table:"$"`
+		LlrBlockVotesIndex kvdb.Store `table:"%"`
+		LlrEpochVotes      kvdb.Store `table:"^"`
+		LlrEpochVoteIndex  kvdb.Store `table:"&"`
+		LlrLastBlockVotes  kvdb.Store `table:"*"`
+		LlrLastEpochVote   kvdb.Store `table:"("`
 	}
 
 	prevFlushTime time.Time
@@ -62,6 +72,8 @@ type Store struct {
 		EvmBlocks       *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState atomic.Value // store by value
 		HighestLamport  atomic.Value // store by value
+		LastBVs         atomic.Value
+		LastEV          atomic.Value
 	}
 
 	rlp rlpstore.Helper
@@ -190,6 +202,8 @@ func (s *Store) Commit() error {
 	// Flush the DBs
 	s.FlushBlockEpochState()
 	s.FlushHighestLamport()
+	s.FlushLastBVs()
+	s.FlushLastEV()
 	es := s.getAnyEpochStore()
 	if es != nil {
 		es.FlushHeads()
