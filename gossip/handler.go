@@ -516,7 +516,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		p.Log().Warn("Leecher peer registration failed", "err", err)
 		return err
 	}
-	defer pm.removePeer(p.id)
+	defer pm.unregisterPeer(p.id)
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
