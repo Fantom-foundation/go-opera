@@ -21,6 +21,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -118,6 +119,7 @@ type handler struct {
 	// and processing
 	loopsWg sync.WaitGroup
 	wg      sync.WaitGroup
+	peerWG  sync.WaitGroup
 
 	logger.Instance
 }
@@ -357,6 +359,21 @@ func (h *handler) onlyInterestedEvents(ids hash.Events) hash.Events {
 	return interested
 }
 
+// runSnapExtension registers a `snap` peer into the joint eth/snap peerset and
+// starts handling inbound messages. As `snap` is only a satellite protocol to
+// `eth`, all subsystem registrations and lifecycle management will be done by
+// the main `eth` handler to prevent strange races.
+func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error {
+	h.peerWG.Add(1)
+	defer h.peerWG.Done()
+
+	if err := h.peers.RegisterSnapExtension(peer); err != nil {
+		peer.Log().Error("Snapshot extension registration failed", "err", err)
+		return err
+	}
+	return handler(peer)
+}
+
 func (h *handler) removePeer(id string) {
 	peer := h.peers.Peer(id)
 	if peer != nil {
@@ -375,7 +392,7 @@ func (h *handler) unregisterPeer(id string) {
 	// Unregister the peer from the leecher's and seeder's and peer sets
 	_ = h.leecher.UnregisterPeer(id)
 	_ = h.seeder.UnregisterPeer(id)
-	if err := h.peers.Unregister(id); err != nil {
+	if err := h.peers.UnregisterPeer(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
 	}
 }
@@ -449,6 +466,7 @@ func (h *handler) Stop() {
 
 	// Wait for all peer handler goroutines to come down.
 	h.wg.Wait()
+	h.peerWG.Wait()
 
 	log.Info("Fantom protocol stopped")
 }
@@ -483,6 +501,17 @@ func (h *handler) handle(p *peer) error {
 	}
 	p.Log().Debug("Peer connected", "name", p.Name())
 
+	// If the peer has a `snap` extension, wait for it to connect so we can have
+	// a uniform initialization/teardown mechanism
+	snap, err := h.peers.WaitSnapExtension(p)
+	if err != nil {
+		p.Log().Error("Snapshot extension barrier failed", "err", err)
+		return err
+	}
+
+	h.peerWG.Add(1)
+	defer h.peerWG.Done()
+
 	// Execute the handshake
 	var (
 		genesis    = *h.store.GetGenesisHash()
@@ -492,11 +521,9 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
-	//if rw, ok := p.rw.(*meteredMsgReadWriter); ok {
-	//	rw.Init(p.version)
-	//}
+
 	// Register the peer locally
-	if err := h.peers.Register(p); err != nil {
+	if err := h.peers.RegisterPeer(p, snap); err != nil {
 		p.Log().Warn("Peer registration failed", "err", err)
 		return err
 	}

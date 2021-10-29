@@ -17,7 +17,7 @@
 package gossip
 
 import (
-	"github.com/ethereum/go-ethereum/core"
+	//	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
@@ -26,7 +26,7 @@ import (
 // packets that are sent as replies or broadcasts.
 type snapHandler handler
 
-func (h *snapHandler) Chain() *core.BlockChain { return h.chain }
+//func (h *snapHandler) Chain() *core.BlockChain { return h.chain }
 
 // RunPeer is invoked when a peer joins on the `snap` protocol.
 func (h *snapHandler) RunPeer(peer *snap.Peer, hand snap.Handler) error {
@@ -35,7 +35,7 @@ func (h *snapHandler) RunPeer(peer *snap.Peer, hand snap.Handler) error {
 
 // PeerInfo retrieves all known `snap` information about a peer.
 func (h *snapHandler) PeerInfo(id enode.ID) interface{} {
-	if p := h.peers.peer(id.String()); p != nil {
+	if p := h.peers.Peer(id.String()); p != nil {
 		if p.snapExt != nil {
 			return p.snapExt.info()
 		}

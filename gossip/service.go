@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -139,7 +140,8 @@ type Service struct {
 	// application protocol
 	handler *handler
 
-	dialCandidates enode.Iterator
+	operaDialCandidates     enode.Iterator
+	snapDialCandidates enode.Iterator
 
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
@@ -216,7 +218,14 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// init dialCandidates
 	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
 	var err error
-	svc.dialCandidates, err = dnsclient.NewIterator()
+	svc.operaDialCandidates, err = dnsclient.NewIterator(config.OperaDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
+	svc.snapDialCandidates, err = dnsclient.NewIterator(config.SnapDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
 
 	// create protocol manager
 	svc.handler, err = newHandler(handlerConfig{
@@ -318,7 +327,11 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	return MakeProtocols(s, s.handler, s.dialCandidates)
+	protos := MakeProtocols(s, s.handler, s.operaDialCandidates)
+	if s.config.SnapshotCache > 0 {
+		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
+	}
+	return protos
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
@@ -378,6 +391,11 @@ func (s *Service) Stop() error {
 	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
+
+	// Stop all the peer-related stuff first.
+	s.operaDialCandidates.Close()
+	s.snapDialCandidates.Close()
+
 	s.handler.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()

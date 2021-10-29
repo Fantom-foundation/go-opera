@@ -14,6 +14,8 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -60,6 +62,10 @@ type peer struct {
 	term                chan struct{} // Termination channel to stop the broadcaster
 
 	progress PeerProgress
+
+	snapExt  *snapPeer     // Satellite `snap` connection
+	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
+	snapWait chan struct{} // Notification channel for snap connections
 
 	sync.RWMutex
 }
@@ -522,14 +528,14 @@ func (p *peer) String() string {
 
 // peerSet represents the collection of active peers currently participating in
 // the sub-protocol.
-type peerSet struct {
+type peerSetL struct {
 	peers  map[string]*peer
 	lock   sync.RWMutex
 	closed bool
 }
 
 // newPeerSet creates a new peer set to track the active participants.
-func newPeerSet() *peerSet {
+func newPeerSetL() *peerSet {
 	return &peerSet{
 		peers: make(map[string]*peer),
 	}
@@ -538,7 +544,7 @@ func newPeerSet() *peerSet {
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
-func (ps *peerSet) Register(p *peer) error {
+func (ps *peerSetL) Register(p *peer) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -556,7 +562,7 @@ func (ps *peerSet) Register(p *peer) error {
 
 // Unregister removes a remote peer from the active set, disabling any further
 // actions to/from that particular entity.
-func (ps *peerSet) Unregister(id string) error {
+func (ps *peerSetL) Unregister(id string) error {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -571,7 +577,7 @@ func (ps *peerSet) Unregister(id string) error {
 }
 
 // Peer retrieves the registered peer with the given id.
-func (ps *peerSet) Peer(id string) *peer {
+func (ps *peerSetL) Peer(id string) *peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -579,7 +585,7 @@ func (ps *peerSet) Peer(id string) *peer {
 }
 
 // Len returns if the current number of peers in the set.
-func (ps *peerSet) Len() int {
+func (ps *peerSetL) Len() int {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -588,7 +594,7 @@ func (ps *peerSet) Len() int {
 
 // PeersWithoutEvent retrieves a list of peers that do not have a given event in
 // their set of known hashes.
-func (ps *peerSet) PeersWithoutEvent(e hash.Event) []*peer {
+func (ps *peerSetL) PeersWithoutEvent(e hash.Event) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -601,7 +607,7 @@ func (ps *peerSet) PeersWithoutEvent(e hash.Event) []*peer {
 	return list
 }
 
-func (ps *peerSet) List() []*peer {
+func (ps *peerSetL) List() []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -614,7 +620,7 @@ func (ps *peerSet) List() []*peer {
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+func (ps *peerSetL) PeersWithoutTx(hash common.Hash) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -628,7 +634,7 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 }
 
 // BestPeer retrieves the known peer with the currently highest total difficulty.
-func (ps *peerSet) BestPeer() *peer {
+func (ps *peerSetL) BestPeer() *peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -646,7 +652,7 @@ func (ps *peerSet) BestPeer() *peer {
 
 // Close disconnects all peers.
 // No new peers can be registered after Close has returned.
-func (ps *peerSet) Close() {
+func (ps *peerSetL) Close() {
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -654,4 +660,22 @@ func (ps *peerSet) Close() {
 		p.Disconnect(p2p.DiscQuitting)
 	}
 	ps.closed = true
+}
+
+// snapPeerInfo represents a short summary of the `snap` sub-protocol metadata known
+// about a connected peer.
+type snapPeerInfo struct {
+	Version uint `json:"version"` // Snapshot protocol version negotiated
+}
+
+// snapPeer is a wrapper around snap.Peer to maintain a few extra metadata.
+type snapPeer struct {
+	*snap.Peer
+}
+
+// info gathers and returns some `snap` protocol metadata known about a peer.
+func (p *snapPeer) info() *snapPeerInfo {
+	return &snapPeerInfo{
+		Version: p.Version(),
+	}
 }
