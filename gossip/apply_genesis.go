@@ -182,7 +182,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	bs.LastBlock = blockCtx
 	s.SetHistoryBlockEpochState(es.Epoch, bs, es)
-	s.SetEpochBlock(blockCtx.Idx, es.Epoch)
+	s.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
 	s.SetBlockEpochState(bs, es)
 
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
