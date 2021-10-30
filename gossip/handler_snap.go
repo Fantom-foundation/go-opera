@@ -17,16 +17,42 @@
 package gossip
 
 import (
-	//	"github.com/ethereum/go-ethereum/core"
+	"time"
+
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // snapHandler implements the snap.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
 type snapHandler handler
 
-//func (h *snapHandler) Chain() *core.BlockChain { return h.chain }
+func (h *snapHandler) Chain() *core.BlockChain {
+	db := h.store.EvmStore().EvmTable()
+	// TODO: user defined config
+	cacheConfig := &core.CacheConfig{
+		TrieCleanLimit: 256,
+		TrieDirtyLimit: 256,
+		TrieTimeLimit:  5 * time.Minute,
+		SnapshotLimit:  256,
+		SnapshotWait:   true,
+	}
+	chainConfig := &params.ChainConfig{}
+	engine := (consensus.Engine)(nil)
+	vmConfig := vm.Config{}
+	shouldPreserve := func(block *types.Block) bool { return false }
+	txLookupLimit := uint64(0)
+	bc, err := core.NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, &txLookupLimit)
+	if err != nil {
+		panic(err)
+	}
+	return bc
+}
 
 // RunPeer is invoked when a peer joins on the `snap` protocol.
 func (h *snapHandler) RunPeer(peer *snap.Peer, hand snap.Handler) error {
