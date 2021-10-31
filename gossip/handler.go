@@ -75,6 +75,7 @@ type dagNotifier interface {
 type handlerConfig struct {
 	config       Config
 	notifier     dagNotifier
+	EventMux     *event.TypeMux
 	txpool       txPool
 	engineMu     sync.Locker
 	checkers     *eventcheck.Checkers
@@ -177,9 +178,9 @@ func newHandler(
 		configBloomCache uint64                    = 0 // Megabytes to alloc for fast sync bloom
 		configDatabase                             = h.store.EvmStore().EvmTable()
 		// TODO: Legacy event mux, deprecate for `feed`
-		configEventMux *event.TypeMux = new(event.TypeMux) // Nicety initialization for tests.
-		txLookupLimit  uint64         = 0
-		vmConfig                      = vm.Config{}
+
+		txLookupLimit uint64 = 0
+		vmConfig             = vm.Config{}
 
 		// TODO: user defined config
 		cacheConfig = &core.CacheConfig{
@@ -231,6 +232,9 @@ func newHandler(
 		h.checkpointNumber = (configCheckpoint.SectionIndex+1)*params.CHTFrequency - 1
 		h.checkpointHash = configCheckpoint.SectionHead
 	}
+	if c.EventMux == nil {
+		c.EventMux = new(event.TypeMux) // Nicety initialization for tests.
+	}
 	// Construct the downloader (long sync) and its backing state bloom if fast
 	// sync is requested. The downloader is responsible for deallocating the state
 	// bloom when it's done.
@@ -241,7 +245,7 @@ func newHandler(
 	if atomic.LoadUint32(&h.fastSync) == 1 && atomic.LoadUint32(&h.snapSync) == 0 {
 		h.stateBloom = trie.NewSyncBloom(configBloomCache, configDatabase)
 	}
-	h.downloader = downloader.New(h.checkpointNumber, configDatabase, h.stateBloom, configEventMux, h.chain, nil, h.removePeer)
+	h.downloader = downloader.New(h.checkpointNumber, configDatabase, h.stateBloom, c.EventMux, h.chain, nil, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {

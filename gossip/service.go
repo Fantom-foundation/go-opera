@@ -13,7 +13,9 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -133,15 +135,16 @@ type Service struct {
 	blockBusyFlag uint32
 	eventBusyFlag uint32
 
-	feed ServiceFeed
+	feed     ServiceFeed
+	eventMux *event.TypeMux
 
 	gpo *gasprice.Oracle
 
 	// application protocol
 	handler *handler
 
-	operaDialCandidates     enode.Iterator
-	snapDialCandidates enode.Iterator
+	operaDialCandidates enode.Iterator
+	snapDialCandidates  enode.Iterator
 
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
@@ -168,6 +171,7 @@ func NewService(stack *node.Node, config Config, store *Store, signer valkeystor
 
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
+	svc.eventMux = stack.EventMux()
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 
@@ -231,6 +235,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.handler, err = newHandler(handlerConfig{
 		config:   config,
 		notifier: &svc.feed,
+		EventMux: svc.eventMux,
 		txpool:   svc.txpool,
 		engineMu: svc.engineMu,
 		checkers: svc.checkers,
@@ -350,6 +355,11 @@ func (s *Service) APIs() []rpc.API {
 			Service:   filters.NewPublicFilterAPI(s.EthAPI, s.config.FilterAPI),
 			Public:    true,
 		}, {
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   downloader.NewPublicDownloaderAPI(s.handler.downloader, s.eventMux),
+			Public:    true,
+		}, {
 			Namespace: "net",
 			Version:   "1.0",
 			Service:   s.netRPCService,
@@ -387,6 +397,7 @@ func (s *Service) WaitBlockEnd() {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+
 	defer log.Info("Fantom service stopped")
 	s.verWatcher.Stop()
 	close(s.done)
@@ -399,6 +410,7 @@ func (s *Service) Stop() error {
 	s.handler.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
+	s.eventMux.Stop()
 
 	// flush the state at exit, after all the routines stopped
 	s.engineMu.Lock()
