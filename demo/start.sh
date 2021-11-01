@@ -19,14 +19,13 @@ do
     WSP=$(($WSP_BASE+$i))
     ACC=$(($i+1))
     (../build/demo_opera \
-	--gcmode=full \
 	--datadir=${DATADIR} \
 	--fakenet=${ACC}/$N \
 	--port=${PORT} \
 	--nat extip:127.0.0.1 \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
-	--nousb --verbosity=3 --tracing &>> opera$i.log)&
+	--verbosity=3 --tracing &>> opera$i.log)&
 
     echo -e "\tnode$i ok"
 done
