@@ -135,6 +135,9 @@ func (b *EvmBlock) Header() *EvmHeader {
 	h := b.EvmHeader
 	// copy refs
 	h.Number = new(big.Int).Set(b.Number)
+	if b.BaseFee != nil {
+		h.BaseFee = new(big.Int).Set(b.BaseFee)
+	}
 
 	return &h
 }
