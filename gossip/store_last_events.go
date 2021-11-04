@@ -91,7 +91,7 @@ func (s *Store) GetLastEvents(epoch idx.Epoch) *concurrent.ValidatorEventsSet {
 	return es.GetLastEvents()
 }
 
-// GetLastEvents returns latest connected epoch event from specified validator
+// GetLastEvent returns latest connected epoch event from specified validator
 func (s *Store) GetLastEvent(epoch idx.Epoch, vid idx.ValidatorID) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {

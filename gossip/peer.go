@@ -269,7 +269,7 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions, queue chan broadcas
 	}
 }
 
-// AsyncSendTransactions queues list of transactions propagation to a remote
+// AsyncSendTransactionHashes queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the transactions are silently dropped.
 func (p *peer) AsyncSendTransactionHashes(txids []common.Hash, queue chan broadcastItem) {
 	if p.asyncSendNonEncodedItem(txids, NewEvmTxHashesMsg, queue) {
@@ -312,7 +312,7 @@ func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	return p2p.Send(p.rw, NewEventIDsMsg, hashes)
 }
 
-// AsyncSendNewEventHash queues the availability of a event for propagation to a
+// AsyncSendEventIDs queues the availability of a event for propagation to a
 // remote peer. If the peer's broadcast queue is full, the event is silently
 // dropped.
 func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
