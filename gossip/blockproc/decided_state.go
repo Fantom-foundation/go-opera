@@ -15,7 +15,6 @@ import (
 )
 
 type ValidatorBlockState struct {
-	Cheater          bool
 	LastEvent        hash.Event
 	Uptime           inter.Timestamp
 	LastOnlineTime   inter.Timestamp
@@ -40,8 +39,9 @@ type BlockState struct {
 	LastBlock          BlockCtx
 	FinalizedStateRoot hash.Hash
 
-	EpochGas      uint64
-	EpochCheaters lachesis.Cheaters
+	EpochGas        uint64
+	EpochCheaters   lachesis.Cheaters
+	CheatersWritten uint32
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles

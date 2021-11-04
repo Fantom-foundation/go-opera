@@ -268,6 +268,7 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					bs.LastBlock = blockCtx
+					bs.CheatersWritten = uint32(bs.EpochCheaters.Len())
 					if sealing {
 						store.SetHistoryBlockEpochState(es.Epoch, bs, es)
 						store.SetEpochBlock(blockCtx.Idx+1, es.Epoch)

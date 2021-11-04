@@ -91,6 +91,7 @@ func (s *OperaEpochsSealer) SealEpoch() (blockproc.BlockState, blockproc.EpochSt
 
 	s.bs.EpochGas = 0
 	s.bs.EpochCheaters = lachesis.Cheaters{}
+	s.bs.CheatersWritten = 0
 	newEpoch := s.es.Epoch + 1
 	s.es.Epoch = newEpoch
 
