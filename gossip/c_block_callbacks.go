@@ -268,8 +268,10 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					bs.LastBlock = blockCtx
-					store.SetHistoryBlockEpochState(es.Epoch, bs, es)
-					store.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
+					if sealing {
+						store.SetHistoryBlockEpochState(es.Epoch, bs, es)
+						store.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
+					}
 					store.SetBlock(blockCtx.Idx, block)
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
 					store.SetBlockEpochState(bs, es)
