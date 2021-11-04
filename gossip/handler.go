@@ -131,18 +131,12 @@ func newHandler(
 	*ProtocolManager,
 	error,
 ) {
-	warningFn := func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
-		log.Warn("P2P messages semaphore inconsistency",
-			"receivedNum", received.Num, "receivedSize", received.Size,
-			"processingNum", processing.Num, "processingSize", processing.Size,
-			"releasingNum", releasing.Num, "releasingSize", releasing.Size)
-	}
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:               c.config,
 		notifier:             c.notifier,
 		txpool:               c.txpool,
-		msgSemaphore:         datasemaphore.New(c.config.Protocol.MsgsSemaphoreLimit, warningFn),
+		msgSemaphore:         datasemaphore.New(c.config.Protocol.MsgsSemaphoreLimit, getSemaphoreWarningFn("P2P messages")),
 		store:                c.s,
 		processEvent:         c.processEvent,
 		checkers:             c.checkers,
@@ -256,13 +250,7 @@ func (pm *ProtocolManager) makeProcessor(checkers *eventcheck.Checkers) *dagproc
 		LightCheck:     lightCheck,
 	})
 
-	warningFn := func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
-		log.Warn("DAG events semaphore inconsistency",
-			"receivedNum", received.Num, "receivedSize", received.Size,
-			"processingNum", processing.Num, "processingSize", processing.Size,
-			"releasingNum", releasing.Num, "releasingSize", releasing.Size)
-	}
-	newProcessor := dagprocessor.New(datasemaphore.New(pm.config.Protocol.EventsSemaphoreLimit, warningFn), pm.config.Protocol.Processor, dagprocessor.Callback{
+	newProcessor := dagprocessor.New(datasemaphore.New(pm.config.Protocol.EventsSemaphoreLimit, getSemaphoreWarningFn("DAG events")), pm.config.Protocol.Processor, dagprocessor.Callback{
 		// DAG callbacks
 		Event: dagprocessor.EventCallback{
 			Process: func(_e dag.Event) error {
@@ -1053,5 +1041,14 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 		Genesis:     common.Hash(*pm.store.GetGenesisHash()),
 		Epoch:       pm.store.GetEpoch(),
 		NumOfBlocks: numOfBlocks,
+	}
+}
+
+func getSemaphoreWarningFn(name string) func(dag.Metric, dag.Metric, dag.Metric) {
+	return func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
+		log.Warn(fmt.Sprintf("%s semaphore inconsistency", name),
+			"receivedNum", received.Num, "receivedSize", received.Size,
+			"processingNum", processing.Num, "processingSize", processing.Size,
+			"releasingNum", releasing.Num, "releasingSize", releasing.Size)
 	}
 }
