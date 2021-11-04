@@ -148,7 +148,7 @@ func (gpo *Oracle) suggestTipCap() *big.Int {
 	pendingMinPrice := gpo.backend.GetPendingRules().Economy.MinGasPrice
 	adjustedMinPrice := math.BigMax(minPrice, pendingMinPrice)
 
-	// tip cap = multiplier * min gas price + adjustedMinPrice - minPrice
+	// tip cap = (multiplier * adjustedMinPrice + adjustedMinPrice) - minPrice
 	tip := multiplier.Mul(multiplier, adjustedMinPrice)
 	tip.Div(tip, DecimalUnitBn)
 	tip.Add(tip, adjustedMinPrice)

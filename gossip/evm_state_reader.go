@@ -44,9 +44,16 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 
 // RecommendedGasTip returns current soft lower bound for gas tip
 func (r *EvmStateReader) RecommendedGasTip() *big.Int {
-	est := new(big.Int).Mul(r.gpo.SuggestTipCap(), big3)
+	// max((SuggestedGasTip+minGasPrice)*0.75-minGasPrice, 0)
+	min := r.MinGasPrice()
+	est := new(big.Int).Set(r.gpo.SuggestTipCap())
+	est.Add(est, min)
+	est.Mul(est, big3)
 	est.Div(est, big4)
-
+	est.Sub(est, min)
+	if est.Sign() < 0 {
+		return new(big.Int)
+	}
 	return est
 }
 
