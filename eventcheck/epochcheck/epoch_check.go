@@ -69,13 +69,16 @@ func (v *Checker) checkGas(e inter.EventPayloadI, rules opera.Rules) error {
 func CheckTxs(txs types.Transactions, rules opera.Rules) error {
 	maxType := uint8(0)
 	if rules.Upgrades.Berlin {
-		maxType++
+		maxType = 1
+	}
+	if rules.Upgrades.London {
+		maxType = 2
 	}
 	for _, tx := range txs {
 		if tx.Type() > maxType {
 			return ErrUnsupportedTxType
 		}
-		if tx.GasPrice().Cmp(rules.Economy.MinGasPrice) < 0 {
+		if tx.GasFeeCapIntCmp(rules.Economy.MinGasPrice) < 0 {
 			return ErrUnderpriced
 		}
 	}

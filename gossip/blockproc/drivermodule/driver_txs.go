@@ -121,12 +121,7 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block blockproc.BlockCtx, bs bloc
 	internalTxs := make(types.Transactions, 0, 8)
 
 	// write cheaters
-	for _, validatorID := range bs.EpochCheaters {
-		valIdx := es.Validators.GetIdx(validatorID)
-		if bs.ValidatorStates[valIdx].Cheater {
-			continue
-		}
-		bs.ValidatorStates[valIdx].Cheater = true
+	for _, validatorID := range bs.EpochCheaters[bs.CheatersWritten:] {
 		calldata := drivercall.DeactivateValidator(validatorID, drivertype.DoublesignBit)
 		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
 	}
@@ -251,11 +246,16 @@ func (p *DriverTxListener) OnNewLog(l *types.Log) {
 			return
 		}
 
-		p.bs.DirtyRules, err = opera.UpdateRules(p.bs.DirtyRules, diff)
+		last := &p.es.Rules
+		if p.bs.DirtyRules != nil {
+			last = p.bs.DirtyRules
+		}
+		updated, err := opera.UpdateRules(*last, diff)
 		if err != nil {
 			log.Warn("Network rules update error", "err", err)
 			return
 		}
+		p.bs.DirtyRules = &updated
 	}
 	// Advance epochs
 	if l.Topics[0] == driverpos.Topics.AdvanceEpochs && len(l.Data) >= 32 {

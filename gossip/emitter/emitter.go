@@ -202,7 +202,7 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 		return em.cache.sortedTxs.Copy()
 	}
 	// Build the cache
-	pendingTxs, err := em.world.TxPool.Pending()
+	pendingTxs, err := em.world.TxPool.Pending(true)
 	if err != nil {
 		em.Log.Error("Tx pool transactions fetching error", "err", err)
 		return nil
@@ -213,7 +213,7 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 			pendingTxs[from] = txs[:em.config.MaxTxsPerAddress]
 		}
 	}
-	sortedTxs := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, pendingTxs)
+	sortedTxs := types.NewTransactionsByPriceAndNonce(em.world.TxSigner, pendingTxs, em.world.GetRules().Economy.MinGasPrice)
 	em.cache.sortedTxs = sortedTxs
 	em.cache.poolCount = poolCount
 	em.cache.poolBlock = em.world.GetLatestBlockIndex()

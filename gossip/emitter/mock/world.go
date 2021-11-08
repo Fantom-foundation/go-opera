@@ -197,20 +197,6 @@ func (mr *MockExternalMockRecorder) GetLatestBlockIndex() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBlockIndex", reflect.TypeOf((*MockExternal)(nil).GetLatestBlockIndex))
 }
 
-// GetRecommendedGasPrice mocks base method
-func (m *MockExternal) GetRecommendedGasPrice() *big.Int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRecommendedGasPrice")
-	ret0, _ := ret[0].(*big.Int)
-	return ret0
-}
-
-// GetRecommendedGasPrice indicates an expected call of GetRecommendedGasPrice
-func (mr *MockExternalMockRecorder) GetRecommendedGasPrice() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecommendedGasPrice", reflect.TypeOf((*MockExternal)(nil).GetRecommendedGasPrice))
-}
-
 // GetRules mocks base method
 func (m *MockExternal) GetRules() opera.Rules {
 	m.ctrl.T.Helper()
@@ -357,18 +343,18 @@ func (mr *MockTxPoolMockRecorder) Has(arg0 interface{}) *gomock.Call {
 }
 
 // Pending mocks base method
-func (m *MockTxPool) Pending() (map[common.Address]types.Transactions, error) {
+func (m *MockTxPool) Pending(arg0 bool) (map[common.Address]types.Transactions, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Pending")
+	ret := m.ctrl.Call(m, "Pending", arg0)
 	ret0, _ := ret[0].(map[common.Address]types.Transactions)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Pending indicates an expected call of Pending
-func (mr *MockTxPoolMockRecorder) Pending() *gomock.Call {
+func (mr *MockTxPoolMockRecorder) Pending(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pending", reflect.TypeOf((*MockTxPool)(nil).Pending))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pending", reflect.TypeOf((*MockTxPool)(nil).Pending), arg0)
 }
 
 // SubscribeNewTxsNotify mocks base method

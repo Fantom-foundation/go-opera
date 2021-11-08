@@ -70,5 +70,5 @@ func (ew *emitterWorld) GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *has
 	return ew.Store.GetLastEvent(epoch, from)
 }
 func (ew *emitterWorld) GetRecommendedGasPrice() *big.Int {
-	return ew.s.GetEvmStateReader().RecommendedMinGasPrice()
+	return ew.s.GetEvmStateReader().RecommendedGasTip()
 }

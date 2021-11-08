@@ -16,6 +16,21 @@ type BlockEpochState struct {
 	EpochState *blockproc.EpochState
 }
 
+func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs blockproc.BlockState, es blockproc.EpochState) {
+	s.rlp.Set(s.table.BlockEpochStateHistory, epoch.Bytes(), BlockEpochState{
+		BlockState: &bs,
+		EpochState: &es,
+	})
+}
+
+func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*blockproc.BlockState, *blockproc.EpochState) {
+	v, ok := s.rlp.Get(s.table.BlockEpochStateHistory, epoch.Bytes(), &BlockEpochState{}).(*BlockEpochState)
+	if !ok {
+		return nil, nil
+	}
+	return v.BlockState, v.EpochState
+}
+
 // SetBlockEpochState stores the latest block and epoch state in memory
 func (s *Store) SetBlockEpochState(bs blockproc.BlockState, es blockproc.EpochState) {
 	bs, es = bs.Copy(), es.Copy()

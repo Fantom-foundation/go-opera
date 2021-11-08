@@ -25,6 +25,9 @@ func decodeSig(sig [64]byte) (r, s *big.Int) {
 }
 
 func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
+	if tx.Type() != types.LegacyTxType && tx.Type() != types.AccessListTxType && tx.Type() != types.DynamicFeeTxType {
+		return ErrUnknownTxType
+	}
 	if tx.Type() != types.LegacyTxType {
 		// marker of a non-standard tx
 		w.BitsW.Write(6, 0)
@@ -35,7 +38,12 @@ func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
 	}
 	w.U64(tx.Nonce())
 	w.U64(tx.Gas())
-	w.BigInt(tx.GasPrice())
+	if tx.Type() == types.DynamicFeeTxType {
+		w.BigInt(tx.GasTipCap())
+		w.BigInt(tx.GasFeeCap())
+	} else {
+		w.BigInt(tx.GasPrice())
+	}
 	w.BigInt(tx.Value())
 	w.Bool(tx.To() != nil)
 	if tx.To() != nil {
@@ -46,9 +54,7 @@ func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
 	w.BigInt(v)
 	sig := encodeSig(r, s)
 	w.FixedBytes(sig[:])
-	if tx.Type() == types.LegacyTxType {
-		return nil
-	} else if tx.Type() == types.AccessListTxType {
+	if tx.Type() == types.AccessListTxType || tx.Type() == types.DynamicFeeTxType {
 		w.BigInt(tx.ChainId())
 		w.U32(uint32(len(tx.AccessList())))
 		for _, tuple := range tx.AccessList() {
@@ -58,9 +64,8 @@ func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
 				w.FixedBytes(h.Bytes())
 			}
 		}
-		return nil
 	}
-	return ErrUnknownTxType
+	return nil
 }
 
 func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
@@ -72,7 +77,15 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 
 	nonce := r.U64()
 	gasLimit := r.U64()
-	gasPrice := r.BigInt()
+	var gasPrice *big.Int
+	var gasTipCap *big.Int
+	var gasFeeCap *big.Int
+	if txType == types.DynamicFeeTxType {
+		gasTipCap = r.BigInt()
+		gasFeeCap = r.BigInt()
+	} else {
+		gasPrice = r.BigInt()
+	}
 	amount := r.BigInt()
 	toExists := r.Bool()
 	var to *common.Address
@@ -100,7 +113,7 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 			R:        _r,
 			S:        s,
 		}), nil
-	} else if txType == types.AccessListTxType {
+	} else if txType == types.AccessListTxType || txType == types.DynamicFeeTxType {
 		chainID := r.BigInt()
 		accessListLen := r.U32()
 		accessList := make(types.AccessList, accessListLen)
@@ -112,19 +125,36 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 				r.FixedBytes(accessList[i].StorageKeys[j][:])
 			}
 		}
-		return types.NewTx(&types.AccessListTx{
-			ChainID:    chainID,
-			Nonce:      nonce,
-			GasPrice:   gasPrice,
-			Gas:        gasLimit,
-			To:         to,
-			Value:      amount,
-			Data:       data,
-			AccessList: accessList,
-			V:          v,
-			R:          _r,
-			S:          s,
-		}), nil
+		if txType == types.AccessListTxType {
+			return types.NewTx(&types.AccessListTx{
+				ChainID:    chainID,
+				Nonce:      nonce,
+				GasPrice:   gasPrice,
+				Gas:        gasLimit,
+				To:         to,
+				Value:      amount,
+				Data:       data,
+				AccessList: accessList,
+				V:          v,
+				R:          _r,
+				S:          s,
+			}), nil
+		} else {
+			return types.NewTx(&types.DynamicFeeTx{
+				ChainID:    chainID,
+				Nonce:      nonce,
+				GasTipCap:  gasTipCap,
+				GasFeeCap:  gasFeeCap,
+				Gas:        gasLimit,
+				To:         to,
+				Value:      amount,
+				Data:       data,
+				AccessList: accessList,
+				V:          v,
+				R:          _r,
+				S:          s,
+			}), nil
+		}
 	}
 	return nil, ErrUnknownTxType
 }

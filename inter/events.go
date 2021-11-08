@@ -44,10 +44,10 @@ func (ee Events) Interfaces() EventIs {
 	return res
 }
 
-func (hh Events) Len() int      { return len(hh) }
-func (hh Events) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh Events) Less(i, j int) bool {
-	return bytes.Compare(hh[i].ID().Bytes(), hh[j].ID().Bytes()) < 0
+func (ee Events) Len() int      { return len(ee) }
+func (ee Events) Swap(i, j int) { ee[i], ee[j] = ee[j], ee[i] }
+func (ee Events) Less(i, j int) bool {
+	return bytes.Compare(ee[i].ID().Bytes(), ee[j].ID().Bytes()) < 0
 }
 
 // EventPayloads is a ordered slice of EventPayload.
@@ -79,10 +79,10 @@ func (ee EventPayloads) Bases() dag.Events {
 	return res
 }
 
-func (hh EventPayloads) Len() int      { return len(hh) }
-func (hh EventPayloads) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh EventPayloads) Less(i, j int) bool {
-	return bytes.Compare(hh[i].ID().Bytes(), hh[j].ID().Bytes()) < 0
+func (ee EventPayloads) Len() int      { return len(ee) }
+func (ee EventPayloads) Swap(i, j int) { ee[i], ee[j] = ee[j], ee[i] }
+func (ee EventPayloads) Less(i, j int) bool {
+	return bytes.Compare(ee[i].ID().Bytes(), ee[j].ID().Bytes()) < 0
 }
 
 // EventIs is a ordered slice of events.
@@ -114,8 +114,8 @@ func (ee EventIs) Bases() dag.Events {
 	return res
 }
 
-func (hh EventIs) Len() int      { return len(hh) }
-func (hh EventIs) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh EventIs) Less(i, j int) bool {
-	return bytes.Compare(hh[i].ID().Bytes(), hh[j].ID().Bytes()) < 0
+func (ee EventIs) Len() int      { return len(ee) }
+func (ee EventIs) Swap(i, j int) { ee[i], ee[j] = ee[j], ee[i] }
+func (ee EventIs) Less(i, j int) bool {
+	return bytes.Compare(ee[i].ID().Bytes(), ee[j].ID().Bytes()) < 0
 }

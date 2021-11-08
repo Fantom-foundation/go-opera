@@ -22,13 +22,15 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	if em.maxParents > rules.Dag.MaxParents {
 		em.maxParents = rules.Dag.MaxParents
 	}
+	if em.validators != nil && em.isValidator() && !em.validators.Exists(em.config.Validator.ID) && newValidators.Exists(em.config.Validator.ID) {
+		em.syncStatus.becameValidator = time.Now()
+	}
 
 	em.validators, em.epoch = newValidators, newEpoch
 
 	if !em.isValidator() {
 		return
 	}
-	// update myValidatorID
 	em.prevEmittedAtTime = em.loadPrevEmitTime()
 
 	em.originatedTxs.Clear()

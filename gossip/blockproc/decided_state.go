@@ -15,7 +15,6 @@ import (
 )
 
 type ValidatorBlockState struct {
-	Cheater          bool
 	LastEvent        hash.Event
 	Uptime           inter.Timestamp
 	LastOnlineTime   inter.Timestamp
@@ -40,13 +39,14 @@ type BlockState struct {
 	LastBlock          BlockCtx
 	FinalizedStateRoot hash.Hash
 
-	EpochGas      uint64
-	EpochCheaters lachesis.Cheaters
+	EpochGas        uint64
+	EpochCheaters   lachesis.Cheaters
+	CheatersWritten uint32
 
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
 
-	DirtyRules opera.Rules
+	DirtyRules *opera.Rules `rlp:"nil"` // nil means that's no changes compared to epoch rules
 
 	AdvanceEpochs idx.Epoch
 }
@@ -61,7 +61,10 @@ func (bs BlockState) Copy() BlockState {
 	for k, v := range bs.NextValidatorProfiles {
 		cp.NextValidatorProfiles[k] = v
 	}
-	cp.DirtyRules = bs.DirtyRules.Copy()
+	if bs.DirtyRules != nil {
+		rules := bs.DirtyRules.Copy()
+		cp.DirtyRules = &rules
+	}
 	return cp
 }
 

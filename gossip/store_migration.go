@@ -1,14 +1,19 @@
 package gossip
 
 import (
+	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 	"github.com/Fantom-foundation/go-opera/utils/migration"
 )
@@ -37,7 +42,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("used gas recovery", s.recoverUsedGas).
 		Next("tx hashes recovery", s.recoverTxHashes).
 		Next("DAG heads recovery", s.recoverHeadsStorage).
-		Next("DAG last events recovery", s.recoverLastEventsStorage)
+		Next("DAG last events recovery", s.recoverLastEventsStorage).
+		Next("BlockState recovery", s.recoverBlockState)
 }
 
 func (s *Store) recoverUsedGas() error {
@@ -249,5 +255,77 @@ func (s *Store) recoverLastEventsStorage() error {
 	}
 	es.SetLastEvents(concurrent.WrapValidatorEventsSet(lasts))
 	es.FlushLastEvents()
+	return nil
+}
+
+type ValidatorBlockStateV0 struct {
+	Cheater          bool
+	LastEvent        hash.Event
+	Uptime           inter.Timestamp
+	LastOnlineTime   inter.Timestamp
+	LastGasPowerLeft inter.GasPowerLeft
+	LastBlock        idx.Block
+	DirtyGasRefund   uint64
+	Originated       *big.Int
+}
+
+type BlockStateV0 struct {
+	LastBlock          blockproc.BlockCtx
+	FinalizedStateRoot hash.Hash
+
+	EpochGas      uint64
+	EpochCheaters lachesis.Cheaters
+
+	ValidatorStates       []ValidatorBlockStateV0
+	NextValidatorProfiles blockproc.ValidatorProfiles
+
+	DirtyRules opera.Rules
+
+	AdvanceEpochs idx.Epoch
+}
+
+type BlockEpochStateV0 struct {
+	BlockState *BlockStateV0
+	EpochState *blockproc.EpochState
+}
+
+func (s *Store) recoverBlockState() error {
+	v, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochStateV0{}).(*BlockEpochStateV0)
+	if !ok {
+		return errors.New("epoch state reading failed: genesis not applied")
+	}
+	oldBs := v.BlockState
+	newValidatorState := make([]blockproc.ValidatorBlockState, len(oldBs.ValidatorStates))
+	cheatersWritten := 0
+	for i, vs := range oldBs.ValidatorStates {
+		newValidatorState[i] = blockproc.ValidatorBlockState{
+			LastEvent:        vs.LastEvent,
+			Uptime:           vs.Uptime,
+			LastOnlineTime:   vs.LastOnlineTime,
+			LastGasPowerLeft: vs.LastGasPowerLeft,
+			LastBlock:        vs.LastBlock,
+			DirtyGasRefund:   vs.DirtyGasRefund,
+			Originated:       vs.Originated,
+		}
+		if vs.Cheater {
+			cheatersWritten++
+		}
+	}
+	newBs := blockproc.BlockState{
+		LastBlock:             oldBs.LastBlock,
+		FinalizedStateRoot:    oldBs.FinalizedStateRoot,
+		EpochGas:              oldBs.EpochGas,
+		EpochCheaters:         oldBs.EpochCheaters,
+		CheatersWritten:       uint32(cheatersWritten),
+		ValidatorStates:       newValidatorState,
+		NextValidatorProfiles: oldBs.NextValidatorProfiles,
+		DirtyRules:            &oldBs.DirtyRules,
+		AdvanceEpochs:         oldBs.AdvanceEpochs,
+	}
+	if v.EpochState.Rules.String() == v.BlockState.DirtyRules.String() {
+		newBs.DirtyRules = nil
+	}
+	s.SetBlockEpochState(newBs, *v.EpochState)
+	s.FlushBlockEpochState()
 	return nil
 }

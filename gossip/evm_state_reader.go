@@ -8,12 +8,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -41,17 +40,18 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return r.store.GetRules().Economy.MinGasPrice
 }
 
-// RecommendedMinGasPrice returns current soft lower bound for gas price
-func (r *EvmStateReader) RecommendedMinGasPrice() *big.Int {
-	est := new(big.Int).Set(r.gpo.SuggestPrice())
+// RecommendedGasTip returns current soft lower bound for gas tip
+func (r *EvmStateReader) RecommendedGasTip() *big.Int {
+	// max((SuggestedGasTip+minGasPrice)*0.75-minGasPrice, 0)
+	min := r.MinGasPrice()
+	est := new(big.Int).Set(r.gpo.SuggestTipCap())
+	est.Add(est, min)
 	est.Mul(est, big3)
 	est.Div(est, big4)
-
-	min := r.MinGasPrice()
-	if min.Cmp(est) > 0 {
-		return min
+	est.Sub(est, min)
+	if est.Sign() < 0 {
+		return new(big.Int)
 	}
-
 	return est
 }
 
@@ -106,42 +106,23 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 
 	var transactions types.Transactions
 	if readTxs {
-		transactions = make(types.Transactions, 0, len(block.Txs)+len(block.InternalTxs)+len(block.Events)*10)
-		for _, txid := range block.InternalTxs {
-			tx := r.store.evm.GetTx(txid)
-			if tx == nil {
-				log.Crit("Internal tx not found", "tx", txid.String())
-				continue
-			}
-			transactions = append(transactions, tx)
-		}
-		for _, txid := range block.Txs {
-			tx := r.store.evm.GetTx(txid)
-			if tx == nil {
-				log.Crit("Tx not found", "tx", txid.String())
-				continue
-			}
-			transactions = append(transactions, tx)
-		}
-		for _, id := range block.Events {
-			e := r.store.GetEventPayload(id)
-			if e == nil {
-				log.Crit("Block event not found", "event", id.String())
-				continue
-			}
-			transactions = append(transactions, e.Txs()...)
-		}
-
-		transactions = inter.FilterSkippedTxs(transactions, block.SkippedTxs)
+		transactions = r.store.GetBlockTxs(n, block)
 	} else {
 		transactions = make(types.Transactions, 0)
 	}
 
+	// find block rules
+	epoch := r.store.FindBlockEpoch(n)
+	_, es := r.store.GetHistoryBlockEpochState(epoch)
+	var rules opera.Rules
+	if es != nil {
+		rules = es.Rules
+	}
 	var prev hash.Event
 	if n != 0 {
 		prev = r.store.GetBlock(n - 1).Atropos
 	}
-	evmHeader := evmcore.ToEvmHeader(block, n, prev)
+	evmHeader := evmcore.ToEvmHeader(block, n, prev, rules)
 
 	var evmBlock *evmcore.EvmBlock
 	if readTxs {
@@ -159,8 +140,4 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
 	return r.store.evm.StateDB(hash.Hash(root))
-}
-
-func (r *EvmStateReader) TxExists(txid common.Hash) bool {
-	return r.store.EvmStore().GetTxPosition(txid) != nil
 }

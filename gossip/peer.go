@@ -14,7 +14,6 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -92,12 +91,6 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 }
 
 func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
-	warningFn := func(received dag.Metric, processing dag.Metric, releasing dag.Metric) {
-		log.Warn("Peer queue semaphore inconsistency",
-			"receivedNum", received.Num, "receivedSize", received.Size,
-			"processingNum", processing.Num, "processingSize", processing.Size,
-			"releasingNum", releasing.Num, "releasingSize", releasing.Size)
-	}
 	return &peer{
 		cfg:                 cfg,
 		Peer:                p,
@@ -107,7 +100,7 @@ func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig
 		knownTxs:            mapset.NewSet(),
 		knownEvents:         mapset.NewSet(),
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
-		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, warningFn),
+		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
 	}
 }
@@ -276,7 +269,7 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions, queue chan broadcas
 	}
 }
 
-// AsyncSendTransactions queues list of transactions propagation to a remote
+// AsyncSendTransactionHashes queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the transactions are silently dropped.
 func (p *peer) AsyncSendTransactionHashes(txids []common.Hash, queue chan broadcastItem) {
 	if p.asyncSendNonEncodedItem(txids, NewEvmTxHashesMsg, queue) {
@@ -319,7 +312,7 @@ func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	return p2p.Send(p.rw, NewEventIDsMsg, hashes)
 }
 
-// AsyncSendNewEventHash queues the availability of a event for propagation to a
+// AsyncSendEventIDs queues the availability of a event for propagation to a
 // remote peer. If the peer's broadcast queue is full, the event is silently
 // dropped.
 func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {

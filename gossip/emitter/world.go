@@ -2,7 +2,6 @@ package emitter
 
 import (
 	"errors"
-	"math/big"
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -63,7 +62,6 @@ type Reader interface {
 	GetHeads(idx.Epoch) hash.Events
 	GetGenesisTime() inter.Timestamp
 	GetRules() opera.Rules
-	GetRecommendedGasPrice() *big.Int
 }
 
 type TxPool interface {
@@ -72,7 +70,7 @@ type TxPool interface {
 	Has(hash common.Hash) bool
 	// Pending should return pending transactions.
 	// The slice should be modifiable by the caller.
-	Pending() (map[common.Address]types.Transactions, error)
+	Pending(enforceTips bool) (map[common.Address]types.Transactions, error)
 
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.

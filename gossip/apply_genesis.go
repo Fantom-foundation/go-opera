@@ -103,9 +103,11 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		FinalizedStateRoot:    hash.Hash(evmBlock.Root),
 		EpochGas:              0,
 		EpochCheaters:         lachesis.Cheaters{},
+		CheatersWritten:       0,
 		ValidatorStates:       make([]blockproc.ValidatorBlockState, 0),
 		NextValidatorProfiles: make(map[idx.ValidatorID]drivertype.Validator),
-		DirtyRules:            g.Rules,
+		DirtyRules:            nil,
+		AdvanceEpochs:         0,
 	}, blockproc.EpochState{
 		Epoch:             g.FirstEpoch - 1,
 		EpochStart:        g.PrevEpochTime,
@@ -181,6 +183,8 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	bs.FinalizedStateRoot = hash.Hash(evmBlock.Root)
 
 	bs.LastBlock = blockCtx
+	s.SetHistoryBlockEpochState(es.Epoch, bs, es)
+	s.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
 	s.SetBlockEpochState(bs, es)
 
 	prettyHash := func(root common.Hash, g opera.Genesis) hash.Event {
@@ -222,6 +226,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	}
 
 	s.commitEVM()
+	s.SetEpochBlock(blockCtx.Idx, es.Epoch)
 	s.SetBlock(blockCtx.Idx, block)
 	s.SetBlockIndex(genesisAtropos, blockCtx.Idx)
 	s.SetGenesisBlockIndex(blockCtx.Idx)
