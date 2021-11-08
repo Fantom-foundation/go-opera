@@ -25,7 +25,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -42,9 +41,9 @@ type Backend interface {
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
-	SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) notify.Subscription
-	SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription
+	SubscribeNewBlockNotify(ch chan<- evmcore.ChainHeadNotify) notify.Subscription
+	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+	SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription
 
 	EvmLogIndex() *topicsdb.Index
 }

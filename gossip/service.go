@@ -12,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -56,7 +55,6 @@ type ServiceFeed struct {
 	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
-	newTxs          notify.Feed
 	newLogs         notify.Feed
 }
 
@@ -70,10 +68,6 @@ func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.EventPayload) notify.
 
 func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
 	return f.scope.Track(f.newBlock.Subscribe(ch))
-}
-
-func (f *ServiceFeed) SubscribeNewTxs(ch chan<- core.NewTxsEvent) notify.Subscription {
-	return f.scope.Track(f.newTxs.Subscribe(ch))
 }
 
 func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscription {

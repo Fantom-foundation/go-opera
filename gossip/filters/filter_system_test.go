@@ -25,7 +25,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -119,15 +118,15 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 	return logs, nil
 }
 
-func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
+func (b *testBackend) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
 	return b.txsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
+func (b *testBackend) SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription {
 	return b.logsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
+func (b *testBackend) SubscribeNewBlockNotify(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
 	return b.blocksFeed.Subscribe(ch)
 }
 
@@ -223,7 +222,7 @@ func TestPendingTxFilter(t *testing.T) {
 	fid0 := api.NewPendingTransactionFilter()
 
 	time.Sleep(1 * time.Second)
-	backend.txsFeed.Send(core.NewTxsEvent{Txs: transactions})
+	backend.txsFeed.Send(evmcore.NewTxsNotify{Txs: transactions})
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
