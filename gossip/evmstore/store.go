@@ -110,7 +110,7 @@ func (s *Store) Commit(block blockproc.BlockState, genesis bool) error {
 	triedb := s.table.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
 	// If we're applying genesis or running an archive node, always flush
-	if genesis == true || s.cfg.Cache.TrieDirtyDisabled {
+	if genesis || s.cfg.Cache.TrieDirtyDisabled {
 		err := triedb.Commit(stateRoot, false, nil)
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
