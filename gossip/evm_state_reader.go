@@ -8,12 +8,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -108,33 +106,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 
 	var transactions types.Transactions
 	if readTxs {
-		transactions = make(types.Transactions, 0, len(block.Txs)+len(block.InternalTxs)+len(block.Events)*10)
-		for _, txid := range block.InternalTxs {
-			tx := r.store.evm.GetTx(txid)
-			if tx == nil {
-				log.Crit("Internal tx not found", "tx", txid.String())
-				continue
-			}
-			transactions = append(transactions, tx)
-		}
-		for _, txid := range block.Txs {
-			tx := r.store.evm.GetTx(txid)
-			if tx == nil {
-				log.Crit("Tx not found", "tx", txid.String())
-				continue
-			}
-			transactions = append(transactions, tx)
-		}
-		for _, id := range block.Events {
-			e := r.store.GetEventPayload(id)
-			if e == nil {
-				log.Crit("Block event not found", "event", id.String())
-				continue
-			}
-			transactions = append(transactions, e.Txs()...)
-		}
-
-		transactions = inter.FilterSkippedTxs(transactions, block.SkippedTxs)
+		transactions = r.store.GetBlockTxs(n, block)
 	} else {
 		transactions = make(types.Transactions, 0)
 	}
