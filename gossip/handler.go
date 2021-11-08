@@ -176,8 +176,6 @@ func newHandler(
 		engine           consensus.Engine          = nil
 		configCheckpoint *params.TrustedCheckpoint = nil
 		configBloomCache uint64                    = 0 // Megabytes to alloc for fast sync bloom
-		configDatabase                             = h.store.EvmStore().EvmTable()
-		// TODO: Legacy event mux, deprecate for `feed`
 
 		txLookupLimit uint64 = 0
 		vmConfig             = vm.Config{}
@@ -196,7 +194,12 @@ func newHandler(
 	)
 
 	var err error
-	h.chain, err = core.NewBlockChain(configDatabase, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, &txLookupLimit)
+	h.chain, err = core.NewBlockChain(nil, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, &txLookupLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	blockchain, err := newEthBlockChain(c.s, cacheConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -210,13 +213,13 @@ func newHandler(
 		// * the last fast sync is not finished while user specifies a full sync this
 		//   time. But we don't have any recent state for full sync.
 		// In these cases however it's safe to reenable fast sync.
-		fullBlock, fastBlock := h.chain.CurrentBlock(), h.chain.CurrentFastBlock()
+		fullBlock, fastBlock := blockchain.CurrentBlock(), blockchain.CurrentFastBlock()
 		if fullBlock.NumberU64() == 0 && fastBlock.NumberU64() > 0 {
 			h.fastSync = uint32(1)
 			log.Warn("Switch sync mode from full sync to fast sync")
 		}
 	} else {
-		if h.chain.CurrentBlock().NumberU64() > 0 {
+		if blockchain.CurrentBlock().NumberU64() > 0 {
 			// Print warning log if database is not empty to run fast sync.
 			log.Warn("Switch sync mode from fast sync to full sync")
 		} else {
@@ -242,10 +245,11 @@ func newHandler(
 	// and the heal-portion of the snap sync is much lighter than fast. What we particularly
 	// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
 	// indexing the entire trie
+	stateDb := h.store.EvmStore().EvmTable()
 	if atomic.LoadUint32(&h.fastSync) == 1 && atomic.LoadUint32(&h.snapSync) == 0 {
-		h.stateBloom = trie.NewSyncBloom(configBloomCache, configDatabase)
+		h.stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
 	}
-	h.downloader = downloader.New(h.checkpointNumber, configDatabase, h.stateBloom, c.EventMux, h.chain, nil, h.removePeer)
+	h.downloader = downloader.New(h.checkpointNumber, stateDb, h.stateBloom, c.EventMux, blockchain, nil, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
