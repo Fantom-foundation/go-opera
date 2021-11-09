@@ -223,7 +223,8 @@ func (bc *ethBlockChain) getHeader(n idx.Block) *types.Header {
 		prev = bc.store.GetBlock(n - 1).Atropos
 	}
 
-	header := evmcore.ToEvmHeader(block, n, prev)
+	net := bc.store.GetRules() // TODO: get actual rules
+	header := evmcore.ToEvmHeader(block, n, prev, net)
 	return header.EthHeader()
 }
 
