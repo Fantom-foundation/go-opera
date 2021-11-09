@@ -71,7 +71,6 @@ var (
 		Usage: "Megabytes of memory allocated to internal caching",
 		Value: DefaultCacheSize,
 	}
-
 	// GenesisFlag specifies network genesis configuration
 	GenesisFlag = cli.StringFlag{
 		Name:  "genesis",
@@ -98,8 +97,9 @@ var (
 const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
 	// Average memory consumption might be 3-5 times lower than the maximum
-	DefaultCacheSize  = 3200
-	ConstantCacheSize = 1024
+	DefaultCacheSize   = 3200
+	DefaultGCCacheSize = 400
+	ConstantCacheSize  = 1024
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -302,6 +302,12 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 
 func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossip.StoreConfig, error) {
 	cfg := src
+	if gcmode := ctx.GlobalString(utils.GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
+		utils.Fatalf("--%s must be either 'full' or 'archive'", utils.GCModeFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.GCModeFlag.Name) {
+		cfg.EVM.Cache.TrieDirtyDisabled = ctx.GlobalString(utils.GCModeFlag.Name) == "archive"
+	}
 	if !ctx.GlobalBool(utils.SnapshotFlag.Name) {
 		cfg.EVM.EnableSnapshots = false
 	}
@@ -323,11 +329,15 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 		return cachescale.Identity
 	}
 	totalCache := ctx.GlobalInt(CacheFlag.Name)
-	if totalCache < DefaultCacheSize {
-		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", DefaultCacheSize))
+	cacheSize := DefaultCacheSize
+	if ctx.GlobalString(utils.GCModeFlag.Name) == "full" {
+		cacheSize = DefaultCacheSize + DefaultGCCacheSize
+	}
+	if totalCache < cacheSize {
+		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", cacheSize))
 	}
 	return cachescale.Ratio{
-		Base:   DefaultCacheSize - ConstantCacheSize,
+		Base:   uint64(cacheSize - ConstantCacheSize),
 		Target: uint64(totalCache - ConstantCacheSize),
 	}
 }
