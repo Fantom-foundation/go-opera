@@ -20,10 +20,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/event"
@@ -124,7 +122,7 @@ type handler struct {
 	noMorePeers chan struct{}
 
 	// geth fields
-	chain            *core.BlockChain
+	chain            *ethBlockChain
 	fastSync         uint32      // Flag whether fast sync is enabled (gets disabled if we already have blocks)
 	snapSync         uint32      // Flag whether fast sync should operate on top of the snap protocol
 	checkpointNumber uint64      // Block number for the sync progress validator to cross reference
@@ -173,12 +171,8 @@ func newHandler(
 	// TODO: configure it
 	var (
 		configSync                                 = downloader.FullSync
-		engine           consensus.Engine          = nil
 		configCheckpoint *params.TrustedCheckpoint = nil
 		configBloomCache uint64                    = 0 // Megabytes to alloc for fast sync bloom
-
-		txLookupLimit uint64 = 0
-		vmConfig             = vm.Config{}
 
 		// TODO: user defined config
 		cacheConfig = &core.CacheConfig{
@@ -188,13 +182,10 @@ func newHandler(
 			SnapshotLimit:  256,
 			SnapshotWait:   true,
 		}
-		chainConfig = &params.ChainConfig{}
-
-		shouldPreserve = func(block *types.Block) bool { return false }
 	)
 
 	var err error
-	h.chain, err = core.NewBlockChain(nil, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve, &txLookupLimit)
+	h.chain, err = newEthBlockChain(c.s, cacheConfig)
 	if err != nil {
 		return nil, err
 	}

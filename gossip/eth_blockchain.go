@@ -96,6 +96,17 @@ func (bc *ethBlockChain) GetTd(common.Hash, uint64) *big.Int {
 	return big.NewInt(0)
 }
 
+// StateCache returns the caching database underpinning the blockchain instance.
+func (bc *ethBlockChain) StateCache() state.Database {
+	return bc.stateCache
+}
+
+// ContractCode retrieves a blob of data associated with a contract hash
+// either from ephemeral in-memory cache, or from persistent storage.
+func (bc *ethBlockChain) ContractCode(hash common.Hash) ([]byte, error) {
+	return bc.stateCache.ContractCode(common.Hash{}, hash)
+}
+
 // HasHeader verifies a header's presence in the local chain.
 func (bc *ethBlockChain) HasHeader(h common.Hash, index uint64) bool {
 	var empty common.Hash
