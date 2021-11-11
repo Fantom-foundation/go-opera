@@ -158,27 +158,31 @@ func consensusCallbackBeginBlockFn(
 							reportCheater(e.Creator(), proof.Pair[0].EventLocator.Creator)
 						}
 						if proof := mp.WrongBlockVote; proof != nil {
-							firstBlockEpoch := store.FindBlockEpoch(proof.Votes.Start)
-							lastBlockEpoch := store.FindBlockEpoch(proof.Votes.LastBlock())
-							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != proof.Votes.Epoch {
-								reportCheater(e.Creator(), proof.Votes.EventLocator.Creator)
+							// all other votes are the same, see MinAccomplicesForProof
+							vote := proof.Pals[0]
+							firstBlockEpoch := store.FindBlockEpoch(vote.Start)
+							lastBlockEpoch := store.FindBlockEpoch(vote.LastBlock())
+							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != vote.Epoch {
+								reportCheater(e.Creator(), vote.EventLocator.Creator)
 								continue
 							}
 							actualRecord := store.GetFullBlockRecord(proof.Block)
 							if actualRecord == nil {
 								continue
 							}
-							if proof.GetVote() != actualRecord.Hash() {
-								reportCheater(e.Creator(), proof.Votes.EventLocator.Creator)
+							if proof.GetVote(0) != actualRecord.Hash() {
+								reportCheater(e.Creator(), vote.EventLocator.Creator)
 							}
 						}
 						if proof := mp.WrongEpochVote; proof != nil {
-							actualRecord := store.GetFullEpochRecord(proof.Votes.Epoch)
+							// all other votes are the same, see MinAccomplicesForProof
+							vote := proof.Pals[0]
+							actualRecord := store.GetFullEpochRecord(vote.Epoch)
 							if actualRecord == nil {
 								continue
 							}
-							if proof.Votes.Vote != actualRecord.Hash() {
-								reportCheater(e.Creator(), proof.Votes.EventLocator.Creator)
+							if vote.Vote != actualRecord.Hash() {
+								reportCheater(e.Creator(), vote.EventLocator.Creator)
 							}
 						}
 					}

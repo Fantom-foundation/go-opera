@@ -89,7 +89,7 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		if proof.Pair[0].Seq != proof.Pair[1].Seq {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].HashToSign() == proof.Pair[1].HashToSign() {
+		if proof.Pair[0].EventLocator == proof.Pair[1].EventLocator {
 			return ErrWrongMP
 		}
 		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs {
@@ -119,14 +119,25 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	}
 	if proof := mp.WrongBlockVote; proof != nil {
 		count++
-		if err := v.ValidateBVs(proof.Votes); err != nil {
-			return ErrWrongMP
-		}
-		if proof.Block < proof.Votes.Start || proof.Block >= proof.Votes.Start+idx.Block(len(proof.Votes.Votes)) {
-			return ErrWrongMP
-		}
-		if msgEpoch > proof.Votes.Epoch+MaxLiableEpochs {
-			return ErrMPTooLate
+		for i, pal := range proof.Pals {
+			if err := v.ValidateBVs(pal); err != nil {
+				return ErrWrongMP
+			}
+			if proof.Block < pal.Start || proof.Block >= pal.Start+idx.Block(len(pal.Votes)) {
+				return ErrWrongMP
+			}
+			if msgEpoch > pal.Epoch+MaxLiableEpochs {
+				return ErrMPTooLate
+			}
+			// see MinAccomplicesForProof
+			if i > 0 && proof.GetVote(i-1) != proof.GetVote(i) {
+				return ErrWrongMP
+			}
+			for _, prev := range proof.Pals[:i] {
+				if prev.EventLocator == pal.EventLocator {
+					return ErrWrongMP
+				}
+			}
 		}
 	}
 	if proof := mp.EpochVoteDoublesign; proof != nil {
@@ -149,11 +160,22 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	}
 	if proof := mp.WrongEpochVote; proof != nil {
 		count++
-		if err := v.ValidateEV(proof.Votes); err != nil {
-			return ErrWrongMP
-		}
-		if msgEpoch > proof.Votes.Epoch+MaxLiableEpochs {
-			return ErrMPTooLate
+		for i, pal := range proof.Pals {
+			if err := v.ValidateEV(pal); err != nil {
+				return ErrWrongMP
+			}
+			if msgEpoch > pal.Epoch+MaxLiableEpochs {
+				return ErrMPTooLate
+			}
+			// see MinAccomplicesForProof
+			if i > 0 && proof.Pals[i-1].LlrEpochVote != proof.Pals[i].LlrEpochVote {
+				return ErrWrongMP
+			}
+			for _, prev := range proof.Pals[:i] {
+				if prev.EventLocator == pal.EventLocator {
+					return ErrWrongMP
+				}
+			}
 		}
 	}
 	if count != 1 {

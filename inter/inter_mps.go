@@ -5,6 +5,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
+const (
+	// MinAccomplicesForProof defines how many validators must have signed the same wrong vote.
+	// Otherwise, wrong-signer is not liable as a protection against singular software/hardware failures
+	MinAccomplicesForProof = 2
+)
+
 type EventsDoublesign struct {
 	Pair [2]SignedEventLocator
 }
@@ -20,11 +26,11 @@ func (p BlockVoteDoublesign) GetVote(i int) hash.Hash {
 
 type WrongBlockVote struct {
 	Block idx.Block
-	Votes LlrSignedBlockVotes
+	Pals  [MinAccomplicesForProof]LlrSignedBlockVotes
 }
 
-func (p WrongBlockVote) GetVote() hash.Hash {
-	return p.Votes.Votes[p.Block-p.Votes.Start]
+func (p WrongBlockVote) GetVote(i int) hash.Hash {
+	return p.Pals[i].Votes[p.Block-p.Pals[i].Start]
 }
 
 type EpochVoteDoublesign struct {
@@ -32,7 +38,7 @@ type EpochVoteDoublesign struct {
 }
 
 type WrongEpochVote struct {
-	Votes LlrSignedEpochVote
+	Pals [MinAccomplicesForProof]LlrSignedEpochVote
 }
 
 type MisbehaviourProof struct {

@@ -198,37 +198,38 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 	// MPs
 	for _, mp := range e.MisbehaviourProofs() {
 		if proof := mp.EventsDoublesign; proof != nil {
-			if err := v.ValidateEventLocator(proof.Pair[0], proof.Pair[0].Epoch, ErrUnknownEpochEventLocator); err != nil {
-				return err
-			}
-			if err := v.ValidateEventLocator(proof.Pair[1], proof.Pair[1].Epoch, ErrUnknownEpochEventLocator); err != nil {
-				return err
+			for _, vote := range proof.Pair {
+				if err := v.ValidateEventLocator(vote, vote.Epoch, ErrUnknownEpochEventLocator); err != nil {
+					return err
+				}
 			}
 		}
 		if proof := mp.BlockVoteDoublesign; proof != nil {
-			if err := v.ValidateBVs(proof.Pair[0]); err != nil {
-				return err
-			}
-			if err := v.ValidateBVs(proof.Pair[1]); err != nil {
-				return err
+			for _, vote := range proof.Pair {
+				if err := v.ValidateBVs(vote); err != nil {
+					return err
+				}
 			}
 		}
 		if proof := mp.WrongBlockVote; proof != nil {
-			if err := v.ValidateBVs(proof.Votes); err != nil {
-				return err
+			for _, pal := range proof.Pals {
+				if err := v.ValidateBVs(pal); err != nil {
+					return err
+				}
 			}
 		}
 		if proof := mp.EpochVoteDoublesign; proof != nil {
-			if err := v.ValidateEV(proof.Pair[0]); err != nil {
-				return err
-			}
-			if err := v.ValidateEV(proof.Pair[1]); err != nil {
-				return err
+			for _, vote := range proof.Pair {
+				if err := v.ValidateEV(vote); err != nil {
+					return err
+				}
 			}
 		}
 		if proof := mp.WrongEpochVote; proof != nil {
-			if err := v.ValidateEV(proof.Votes); err != nil {
-				return err
+			for _, pal := range proof.Pals {
+				if err := v.ValidateEV(pal); err != nil {
+					return err
+				}
 			}
 		}
 	}
