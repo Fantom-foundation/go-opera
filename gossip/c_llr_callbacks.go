@@ -104,7 +104,9 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 		s.store.EvmStore().SetTx(tx.Hash(), tx)
 	}
 
-	s.store.EvmStore().SetRawReceipts(br.Idx, br.Receipts)
+	if len(br.Receipts) != 0 {
+		s.store.EvmStore().SetRawReceipts(br.Idx, br.Receipts)
+	}
 	for _, tx := range br.Txs {
 		s.store.EvmStore().SetTx(tx.Hash(), tx)
 	}
