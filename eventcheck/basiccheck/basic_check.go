@@ -74,6 +74,12 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	count := 0
 	if proof := mp.EventsDoublesign; proof != nil {
 		count++
+		if err := v.validateEventLocator(proof.Pair[0].EventLocator); err != nil {
+			return ErrWrongMP
+		}
+		if err := v.validateEventLocator(proof.Pair[1].EventLocator); err != nil {
+			return ErrWrongMP
+		}
 		if proof.Pair[0].Creator != proof.Pair[1].Creator {
 			return ErrWrongMP
 		}
@@ -191,6 +197,14 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 		return err
 	}
 
+	return nil
+}
+
+func (v *Checker) validateEventLocator(e inter.EventLocator) error {
+	if e.Seq >= math.MaxInt32-1 || e.Epoch >= math.MaxInt32-1 ||
+		e.Lamport >= math.MaxInt32-1 {
+		return base.ErrHugeValue
+	}
 	return nil
 }
 
