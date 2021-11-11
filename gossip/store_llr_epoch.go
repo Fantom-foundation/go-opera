@@ -1,17 +1,13 @@
 package gossip
 
 import (
-	"errors"
-
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
 
 const (
@@ -75,87 +71,6 @@ func (s *Store) GetLlrEpochResult(epoch idx.Epoch) *hash.Hash {
 	}
 	bv := hash.BytesToHash(bvB)
 	return &bv
-}
-
-func (s *Service) processEpochVote(epoch idx.Epoch, weight pos.Weight, totalWeight pos.Weight, bv hash.Hash, llrs *LlrState) {
-	newWeight := s.store.AddLlrEpochVoteWeight(epoch, bv, weight)
-	if newWeight >= totalWeight/3+1 {
-		wonBr := s.store.GetLlrEpochResult(epoch)
-		if wonBr == nil {
-			s.store.SetLlrEpochResult(epoch, bv)
-			llrs.LowestEpochToDecide = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToDecide), uint64(epoch), func(u uint64) bool {
-				return s.store.GetLlrEpochResult(idx.Epoch(u)) != nil
-			}))
-		} else if *wonBr != bv {
-			s.Log.Error("LLR voting doublesign is met", "epoch", epoch)
-		}
-	}
-}
-
-func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
-	// engineMu should be locked here
-	if ev.Val.Epoch == 0 {
-		// short circuit if no records
-		return nil
-	}
-	if s.store.HasEpochVote(ev.Val.Epoch, ev.Signed.Locator.ID()) {
-		return eventcheck.ErrAlreadyProcessedEV
-	}
-	done := s.procLogger.EpochVoteConnectionStarted(ev)
-	defer done()
-	vid := ev.Signed.Locator.Creator
-	// get the validators group
-	_, es := s.store.GetHistoryBlockEpochState(ev.Val.Epoch - 1)
-	if es == nil {
-		return eventcheck.ErrUnknownEpochEV
-	}
-
-	llrs := s.store.GetLlrState()
-	s.processEpochVote(ev.Val.Epoch, es.Validators.Get(vid), es.Validators.TotalWeight(), ev.Val.Vote, &llrs)
-	s.store.SetLlrState(llrs)
-	s.store.SetEpochVote(ev)
-	lEVs := s.store.GetLastEVs()
-	lEVs.Lock()
-	if ev.Val.Epoch > lEVs.Val[vid] {
-		lEVs.Val[vid] = ev.Val.Epoch
-		s.store.SetLastEVs(lEVs)
-	}
-	lEVs.Unlock()
-
-	return nil
-}
-
-func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
-	// engineMu should NOT be locked here
-	if s.store.HasHistoryBlockEpochState(er.Idx) {
-		return eventcheck.ErrAlreadyProcessedER
-	}
-	done := s.procLogger.EpochRecordConnectionStarted(er)
-	defer done()
-	res := s.store.GetLlrEpochResult(er.Idx)
-	if res == nil {
-		return eventcheck.ErrUndecidedER
-	}
-
-	if er.Hash() != *res {
-		return errors.New("epoch record hash mismatch")
-	}
-
-	s.store.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
-	s.store.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
-	s.engineMu.Lock()
-	defer s.engineMu.Unlock()
-	updateLowestEpochToFill(er.Idx, s.store)
-
-	return nil
-}
-
-func updateLowestEpochToFill(epoch idx.Epoch, store *Store) {
-	llrs := store.GetLlrState()
-	llrs.LowestEpochToFill = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToFill), uint64(epoch), func(u uint64) bool {
-		return store.HasHistoryBlockEpochState(idx.Epoch(u))
-	}))
-	store.SetLlrState(llrs)
 }
 
 type LlrIdxFullEpochRecordRLP struct {
