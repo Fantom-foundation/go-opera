@@ -18,7 +18,7 @@ import (
 )
 
 func (s *Store) SetBlockVotes(bvs inter.LlrSignedBlockVotes) {
-	s.rlp.Set(s.table.LlrBlockVotes, append(bvs.Epoch.Bytes(), append(bvs.LastBlock().Bytes(), bvs.EventLocator.ID().Bytes()...)...), &bvs)
+	s.rlp.Set(s.table.LlrBlockVotes, append(bvs.Val.Epoch.Bytes(), append(bvs.Val.LastBlock().Bytes(), bvs.Signed.Locator.ID().Bytes()...)...), &bvs)
 }
 
 func (s *Store) HasBlockVotes(epoch idx.Epoch, lastBlock idx.Block, id hash.Event) bool {
@@ -103,26 +103,26 @@ func (s *Service) ProcessBlockVote(block idx.Block, weight pos.Weight, totalWeig
 
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	// engineMu should be locked here
-	if len(bvs.Votes) == 0 {
+	if len(bvs.Val.Votes) == 0 {
 		// short circuit if no records
 		return nil
 	}
-	if s.store.HasBlockVotes(bvs.Epoch, bvs.LastBlock(), bvs.EventLocator.ID()) {
+	if s.store.HasBlockVotes(bvs.Val.Epoch, bvs.Val.LastBlock(), bvs.Signed.Locator.ID()) {
 		return eventcheck.ErrAlreadyProcessedBVs
 	}
 	done := s.procLogger.BlockVotesConnectionStarted(bvs)
 	defer done()
-	vid := bvs.EventLocator.Creator
+	vid := bvs.Signed.Locator.Creator
 	// get the validators group
-	epoch := bvs.LlrBlockVotes.Epoch
+	epoch := bvs.Signed.Locator.Epoch
 	_, es := s.store.GetHistoryBlockEpochState(epoch)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
 	}
 
 	llrs := s.store.GetLlrState()
-	b := bvs.Start
-	for _, bv := range bvs.Votes {
+	b := bvs.Val.Start
+	for _, bv := range bvs.Val.Votes {
 		s.ProcessBlockVote(b, es.Validators.Get(vid), es.Validators.TotalWeight(), bv, &llrs)
 		b++
 	}
@@ -130,8 +130,8 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.store.SetBlockVotes(bvs)
 	lBVs := s.store.GetLastBVs()
 	lBVs.Lock()
-	if bvs.LastBlock() > lBVs.Val[vid] {
-		lBVs.Val[vid] = bvs.LastBlock()
+	if bvs.Val.LastBlock() > lBVs.Val[vid] {
+		lBVs.Val[vid] = bvs.Val.LastBlock()
 		s.store.SetLastBVs(lBVs)
 	}
 	lBVs.Unlock()

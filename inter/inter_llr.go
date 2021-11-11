@@ -24,34 +24,34 @@ type LlrEpochVote struct {
 }
 
 type LlrSignedBlockVotes struct {
-	EventLocator                 SignedEventLocator
+	Signed                       SignedEventLocator
 	TxsAndMisbehaviourProofsHash hash.Hash
 	EpochVoteHash                hash.Hash
-	LlrBlockVotes
+	Val                          LlrBlockVotes
 }
 
 type LlrSignedEpochVote struct {
-	EventLocator                 SignedEventLocator
+	Signed                       SignedEventLocator
 	TxsAndMisbehaviourProofsHash hash.Hash
 	BlockVotesHash               hash.Hash
-	LlrEpochVote
+	Val                          LlrEpochVote
 }
 
 func AsSignedBlockVotes(e EventPayloadI) LlrSignedBlockVotes {
 	return LlrSignedBlockVotes{
-		EventLocator:                 AsSignedEventLocator(e),
+		Signed:                       AsSignedEventLocator(e),
 		TxsAndMisbehaviourProofsHash: hash.Of(CalcTxHash(e.Txs()).Bytes(), CalcMisbehaviourProofsHash(e.MisbehaviourProofs()).Bytes()),
 		EpochVoteHash:                e.EpochVote().Hash(),
-		LlrBlockVotes:                e.BlockVotes(),
+		Val:                          e.BlockVotes(),
 	}
 }
 
 func AsSignedEpochVote(e EventPayloadI) LlrSignedEpochVote {
 	return LlrSignedEpochVote{
-		EventLocator:                 AsSignedEventLocator(e),
+		Signed:                       AsSignedEventLocator(e),
 		TxsAndMisbehaviourProofsHash: hash.Of(CalcTxHash(e.Txs()).Bytes(), CalcMisbehaviourProofsHash(e.MisbehaviourProofs()).Bytes()),
 		BlockVotesHash:               e.BlockVotes().Hash(),
-		LlrEpochVote:                 e.EpochVote(),
+		Val:                          e.EpochVote(),
 	}
 }
 
@@ -60,7 +60,7 @@ func (r SignedEventLocator) Size() uint64 {
 }
 
 func (bvs LlrSignedBlockVotes) Size() uint64 {
-	return bvs.EventLocator.Size() + uint64(len(bvs.Votes))*32 + 32*2 + 8 + 4
+	return bvs.Signed.Size() + uint64(len(bvs.Val.Votes))*32 + 32*2 + 8 + 4
 }
 
 func (ers LlrEpochVote) Hash() hash.Hash {
@@ -82,13 +82,13 @@ func (bvs LlrBlockVotes) Hash() hash.Hash {
 }
 
 func (bvs LlrSignedBlockVotes) CalcPayloadHash() hash.Hash {
-	return hash.Of(bvs.TxsAndMisbehaviourProofsHash.Bytes(), hash.Of(bvs.EpochVoteHash.Bytes(), bvs.Hash().Bytes()).Bytes())
+	return hash.Of(bvs.TxsAndMisbehaviourProofsHash.Bytes(), hash.Of(bvs.EpochVoteHash.Bytes(), bvs.Val.Hash().Bytes()).Bytes())
 }
 
 func (ev LlrSignedEpochVote) CalcPayloadHash() hash.Hash {
-	return hash.Of(ev.TxsAndMisbehaviourProofsHash.Bytes(), hash.Of(ev.Hash().Bytes(), ev.BlockVotesHash.Bytes()).Bytes())
+	return hash.Of(ev.TxsAndMisbehaviourProofsHash.Bytes(), hash.Of(ev.Val.Hash().Bytes(), ev.BlockVotesHash.Bytes()).Bytes())
 }
 
 func (ev LlrSignedEpochVote) Size() uint64 {
-	return ev.EventLocator.Size() + 32 + 32*2 + 4 + 4
+	return ev.Signed.Size() + 32 + 32*2 + 4 + 4
 }

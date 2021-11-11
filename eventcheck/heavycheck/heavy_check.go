@@ -141,11 +141,11 @@ func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx
 	if len(pubkeys) == 0 {
 		return authErr
 	}
-	pubkey, ok := pubkeys[e.Creator]
+	pubkey, ok := pubkeys[e.Locator.Creator]
 	if !ok {
 		return epochcheck.ErrAuth
 	}
-	if !verifySignature(e.HashToSign(), e.Sig, pubkey) {
+	if !verifySignature(e.Locator.HashToSign(), e.Sig, pubkey) {
 		return ErrWrongEventSig
 	}
 	return nil
@@ -167,17 +167,17 @@ func (v *Checker) matchPubkey(creator idx.ValidatorID, epoch idx.Epoch, want []b
 }
 
 func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
-	if bvs.CalcPayloadHash() != bvs.EventLocator.PayloadHash {
+	if bvs.CalcPayloadHash() != bvs.Signed.Locator.PayloadHash {
 		return ErrWrongPayloadHash
 	}
-	return v.ValidateEventLocator(bvs.EventLocator, bvs.Epoch, ErrUnknownEpochBVs)
+	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs)
 }
 
 func (v *Checker) ValidateEV(ers inter.LlrSignedEpochVote) error {
-	if ers.CalcPayloadHash() != ers.EventLocator.PayloadHash {
+	if ers.CalcPayloadHash() != ers.Signed.Locator.PayloadHash {
 		return ErrWrongPayloadHash
 	}
-	return v.ValidateEventLocator(ers.EventLocator, ers.Epoch-1, ErrUnknownEpochEV)
+	return v.ValidateEventLocator(ers.Signed, ers.Val.Epoch-1, ErrUnknownEpochEV)
 }
 
 // ValidateEvent runs heavy checks for event
@@ -199,7 +199,7 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 	for _, mp := range e.MisbehaviourProofs() {
 		if proof := mp.EventsDoublesign; proof != nil {
 			for _, vote := range proof.Pair {
-				if err := v.ValidateEventLocator(vote, vote.Epoch, ErrUnknownEpochEventLocator); err != nil {
+				if err := v.ValidateEventLocator(vote, vote.Locator.Epoch, ErrUnknownEpochEventLocator); err != nil {
 					return err
 				}
 			}

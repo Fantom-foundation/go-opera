@@ -19,7 +19,7 @@ const (
 )
 
 func (s *Store) SetEpochVote(ev inter.LlrSignedEpochVote) {
-	s.rlp.Set(s.table.LlrEpochVotes, append(ev.Epoch.Bytes(), ev.EventLocator.ID().Bytes()...), &ev)
+	s.rlp.Set(s.table.LlrEpochVotes, append(ev.Val.Epoch.Bytes(), ev.Signed.Locator.ID().Bytes()...), &ev)
 }
 
 func (s *Store) HasEpochVote(epoch idx.Epoch, id hash.Event) bool {
@@ -94,30 +94,30 @@ func (s *Service) processEpochVote(epoch idx.Epoch, weight pos.Weight, totalWeig
 
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	// engineMu should be locked here
-	if ev.Epoch == 0 {
+	if ev.Val.Epoch == 0 {
 		// short circuit if no records
 		return nil
 	}
-	if s.store.HasEpochVote(ev.Epoch, ev.EventLocator.ID()) {
+	if s.store.HasEpochVote(ev.Val.Epoch, ev.Signed.Locator.ID()) {
 		return eventcheck.ErrAlreadyProcessedEV
 	}
 	done := s.procLogger.EpochVoteConnectionStarted(ev)
 	defer done()
-	vid := ev.EventLocator.Creator
+	vid := ev.Signed.Locator.Creator
 	// get the validators group
-	_, es := s.store.GetHistoryBlockEpochState(ev.LlrEpochVote.Epoch - 1)
+	_, es := s.store.GetHistoryBlockEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}
 
 	llrs := s.store.GetLlrState()
-	s.processEpochVote(ev.Epoch, es.Validators.Get(vid), es.Validators.TotalWeight(), ev.Vote, &llrs)
+	s.processEpochVote(ev.Val.Epoch, es.Validators.Get(vid), es.Validators.TotalWeight(), ev.Val.Vote, &llrs)
 	s.store.SetLlrState(llrs)
 	s.store.SetEpochVote(ev)
 	lEVs := s.store.GetLastEVs()
 	lEVs.Lock()
-	if ev.Epoch > lEVs.Val[vid] {
-		lEVs.Val[vid] = ev.Epoch
+	if ev.Val.Epoch > lEVs.Val[vid] {
+		lEVs.Val[vid] = ev.Val.Epoch
 		s.store.SetLastEVs(lEVs)
 	}
 	lEVs.Unlock()

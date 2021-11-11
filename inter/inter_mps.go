@@ -21,7 +21,7 @@ type BlockVoteDoublesign struct {
 }
 
 func (p BlockVoteDoublesign) GetVote(i int) hash.Hash {
-	return p.Pair[i].Votes[p.Block-p.Pair[i].Start]
+	return p.Pair[i].Val.Votes[p.Block-p.Pair[i].Val.Start]
 }
 
 type WrongBlockVote struct {
@@ -30,7 +30,7 @@ type WrongBlockVote struct {
 }
 
 func (p WrongBlockVote) GetVote(i int) hash.Hash {
-	return p.Pals[i].Votes[p.Block-p.Pals[i].Start]
+	return p.Pals[i].Val.Votes[p.Block-p.Pals[i].Val.Start]
 }
 
 type EpochVoteDoublesign struct {

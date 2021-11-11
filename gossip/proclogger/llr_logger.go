@@ -72,16 +72,16 @@ func (l *Logger) summary(now time.Time) {
 // BlockVotesConnectionStarted starts the BVs logging
 // Not safe for concurrent use
 func (l *Logger) BlockVotesConnectionStarted(bvs inter.LlrSignedBlockVotes) func() {
-	if bvs.Epoch == 0 {
+	if bvs.Val.Epoch == 0 {
 		return func() {}
 	}
-	l.llrSum.bvs += idx.Block(len(bvs.Votes))
+	l.llrSum.bvs += idx.Block(len(bvs.Val.Votes))
 
 	start := time.Now()
 
 	return func() {
-		if l.lastBlock < bvs.LastBlock() {
-			l.lastBlock = bvs.LastBlock()
+		if l.lastBlock < bvs.Val.LastBlock() {
+			l.lastBlock = bvs.Val.LastBlock()
 		}
 		now := time.Now()
 		// logging for the individual item
@@ -91,8 +91,8 @@ func (l *Logger) BlockVotesConnectionStarted(bvs inter.LlrSignedBlockVotes) func
 			msg = "New BVs emitted"
 			logType = l.Log.Info
 		}
-		logType(msg, "id", bvs.EventLocator.ID(), "by", bvs.EventLocator.Creator,
-			"blocks", fmt.Sprintf("%d-%d", bvs.Start, bvs.LastBlock()),
+		logType(msg, "id", bvs.Signed.Locator.ID(), "by", bvs.Signed.Locator.Creator,
+			"blocks", fmt.Sprintf("%d-%d", bvs.Val.Start, bvs.Val.LastBlock()),
 			"t", utils.PrettyDuration(now.Sub(start)))
 		l.summary(now)
 	}
@@ -126,7 +126,7 @@ func (l *Logger) BlockRecordConnectionStarted(br ibr.LlrIdxFullBlockRecord) func
 // EpochVoteConnectionStarted starts the EV logging
 // Not safe for concurrent use
 func (l *Logger) EpochVoteConnectionStarted(ev inter.LlrSignedEpochVote) func() {
-	if ev.Epoch == 0 {
+	if ev.Val.Epoch == 0 {
 		return func() {}
 	}
 	l.llrSum.evs++
@@ -134,8 +134,8 @@ func (l *Logger) EpochVoteConnectionStarted(ev inter.LlrSignedEpochVote) func() 
 	start := time.Now()
 
 	return func() {
-		if l.lastEpoch < ev.Epoch {
-			l.lastEpoch = ev.Epoch
+		if l.lastEpoch < ev.Val.Epoch {
+			l.lastEpoch = ev.Val.Epoch
 		}
 		now := time.Now()
 		// logging for the individual item
@@ -145,8 +145,8 @@ func (l *Logger) EpochVoteConnectionStarted(ev inter.LlrSignedEpochVote) func() 
 			msg = "New EV emitted"
 			logType = l.Log.Info
 		}
-		logType(msg, "id", ev.EventLocator.ID(), "by", ev.EventLocator.Creator,
-			"epoch", ev.Epoch,
+		logType(msg, "id", ev.Signed.Locator.ID(), "by", ev.Signed.Locator.Creator,
+			"epoch", ev.Val.Epoch,
 			"t", utils.PrettyDuration(now.Sub(start)))
 		l.summary(now)
 	}

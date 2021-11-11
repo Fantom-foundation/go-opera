@@ -149,21 +149,21 @@ func consensusCallbackBeginBlockFn(
 					for _, mp := range mps {
 						// self-contained parts of proofs are already checked by the checkers
 						if proof := mp.BlockVoteDoublesign; proof != nil {
-							reportCheater(e.Creator(), proof.Pair[0].EventLocator.Creator)
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
 						}
 						if proof := mp.EpochVoteDoublesign; proof != nil {
-							reportCheater(e.Creator(), proof.Pair[0].EventLocator.Creator)
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
 						}
 						if proof := mp.EventsDoublesign; proof != nil {
-							reportCheater(e.Creator(), proof.Pair[0].EventLocator.Creator)
+							reportCheater(e.Creator(), proof.Pair[0].Locator.Creator)
 						}
 						if proof := mp.WrongBlockVote; proof != nil {
 							// all other votes are the same, see MinAccomplicesForProof
 							vote := proof.Pals[0]
-							firstBlockEpoch := store.FindBlockEpoch(vote.Start)
-							lastBlockEpoch := store.FindBlockEpoch(vote.LastBlock())
-							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != vote.Epoch {
-								reportCheater(e.Creator(), vote.EventLocator.Creator)
+							firstBlockEpoch := store.FindBlockEpoch(vote.Val.Start)
+							lastBlockEpoch := store.FindBlockEpoch(vote.Val.LastBlock())
+							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != vote.Val.Epoch {
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
 								continue
 							}
 							actualRecord := store.GetFullBlockRecord(proof.Block)
@@ -171,18 +171,18 @@ func consensusCallbackBeginBlockFn(
 								continue
 							}
 							if proof.GetVote(0) != actualRecord.Hash() {
-								reportCheater(e.Creator(), vote.EventLocator.Creator)
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
 							}
 						}
 						if proof := mp.WrongEpochVote; proof != nil {
 							// all other votes are the same, see MinAccomplicesForProof
 							vote := proof.Pals[0]
-							actualRecord := store.GetFullEpochRecord(vote.Epoch)
+							actualRecord := store.GetFullEpochRecord(vote.Val.Epoch)
 							if actualRecord == nil {
 								continue
 							}
-							if vote.Vote != actualRecord.Hash() {
-								reportCheater(e.Creator(), vote.EventLocator.Creator)
+							if vote.Val.Vote != actualRecord.Hash() {
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
 							}
 						}
 					}

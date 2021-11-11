@@ -43,14 +43,14 @@ type EventLocator struct {
 }
 
 type SignedEventLocator struct {
-	EventLocator
-	Sig Signature
+	Locator EventLocator
+	Sig     Signature
 }
 
 func AsSignedEventLocator(e EventPayloadI) SignedEventLocator {
 	return SignedEventLocator{
-		EventLocator: e.Locator(),
-		Sig:          e.Sig(),
+		Locator: e.Locator(),
+		Sig:     e.Sig(),
 	}
 }
 

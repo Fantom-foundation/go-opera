@@ -442,7 +442,7 @@ func (pm *ProtocolManager) makeDagProcessor(checkers *eventcheck.Checkers) *dagp
 func (pm *ProtocolManager) makeBvProcessor(checkers *eventcheck.Checkers) *bvprocessor.Processor {
 	// checkers
 	lightCheck := func(bvs inter.LlrSignedBlockVotes) error {
-		if pm.store.HasBlockVotes(bvs.Epoch, bvs.LastBlock(), bvs.EventLocator.ID()) {
+		if pm.store.HasBlockVotes(bvs.Val.Epoch, bvs.Val.LastBlock(), bvs.Signed.Locator.ID()) {
 			return eventcheck.ErrAlreadyProcessedBVs
 		}
 		return checkers.Basiccheck.ValidateBVs(bvs)
@@ -461,7 +461,7 @@ func (pm *ProtocolManager) makeBvProcessor(checkers *eventcheck.Checkers) *bvpro
 			},
 			Released: func(bvs inter.LlrSignedBlockVotes, peer string, err error) {
 				if eventcheck.IsBan(err) {
-					log.Warn("Incoming BVs rejected", "BVs", bvs.EventLocator.ID(), "creator", bvs.EventLocator.Creator, "err", err)
+					log.Warn("Incoming BVs rejected", "BVs", bvs.Signed.Locator.ID(), "creator", bvs.Signed.Locator.Creator, "err", err)
 					pm.removePeer(peer)
 				}
 			},
@@ -489,7 +489,7 @@ func (pm *ProtocolManager) makeBrProcessor() *brprocessor.Processor {
 func (pm *ProtocolManager) makeEpProcessor(checkers *eventcheck.Checkers) *epprocessor.Processor {
 	// checkers
 	lightCheck := func(ev inter.LlrSignedEpochVote) error {
-		if pm.store.HasEpochVote(ev.Epoch, ev.EventLocator.ID()) {
+		if pm.store.HasEpochVote(ev.Val.Epoch, ev.Signed.Locator.ID()) {
 			return eventcheck.ErrAlreadyProcessedEV
 		}
 		return checkers.Basiccheck.ValidateEV(ev)
@@ -510,7 +510,7 @@ func (pm *ProtocolManager) makeEpProcessor(checkers *eventcheck.Checkers) *eppro
 			ProcessER: pm.process.ER,
 			ReleasedEV: func(ev inter.LlrSignedEpochVote, peer string, err error) {
 				if eventcheck.IsBan(err) {
-					log.Warn("Incoming EV rejected", "event", ev.EventLocator.ID(), "creator", ev.EventLocator.Creator, "err", err)
+					log.Warn("Incoming EV rejected", "event", ev.Signed.Locator.ID(), "creator", ev.Signed.Locator.Creator, "err", err)
 					pm.removePeer(peer)
 				}
 			},
@@ -1104,9 +1104,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if len(chunk.BVs) != 0 {
 			_ = pm.bvProcessor.Enqueue(p.id, chunk.BVs, nil)
 			last = bvstreamleecher.BVsID{
-				Epoch:     chunk.BVs[len(chunk.BVs)-1].Epoch,
-				LastBlock: chunk.BVs[len(chunk.BVs)-1].LastBlock(),
-				ID:        chunk.BVs[len(chunk.BVs)-1].EventLocator.ID(),
+				Epoch:     chunk.BVs[len(chunk.BVs)-1].Val.Epoch,
+				LastBlock: chunk.BVs[len(chunk.BVs)-1].Val.LastBlock(),
+				ID:        chunk.BVs[len(chunk.BVs)-1].Signed.Locator.ID(),
 			}
 		}
 

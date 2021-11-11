@@ -74,25 +74,25 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	count := 0
 	if proof := mp.EventsDoublesign; proof != nil {
 		count++
-		if err := v.validateEventLocator(proof.Pair[0].EventLocator); err != nil {
+		if err := v.validateEventLocator(proof.Pair[0].Locator); err != nil {
 			return ErrWrongMP
 		}
-		if err := v.validateEventLocator(proof.Pair[1].EventLocator); err != nil {
+		if err := v.validateEventLocator(proof.Pair[1].Locator); err != nil {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].Creator != proof.Pair[1].Creator {
+		if proof.Pair[0].Locator.Creator != proof.Pair[1].Locator.Creator {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].Epoch != proof.Pair[1].Epoch {
+		if proof.Pair[0].Locator.Epoch != proof.Pair[1].Locator.Epoch {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].Seq != proof.Pair[1].Seq {
+		if proof.Pair[0].Locator.Seq != proof.Pair[1].Locator.Seq {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].EventLocator == proof.Pair[1].EventLocator {
+		if proof.Pair[0].Locator == proof.Pair[1].Locator {
 			return ErrWrongMP
 		}
-		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs {
+		if msgEpoch > proof.Pair[0].Locator.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
 		}
 	}
@@ -104,16 +104,16 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		if err := v.ValidateBVs(proof.Pair[1]); err != nil {
 			return ErrWrongMP
 		}
-		if proof.Block < proof.Pair[0].Start || proof.Block >= proof.Pair[0].Start+idx.Block(len(proof.Pair[0].Votes)) {
+		if proof.Block < proof.Pair[0].Val.Start || proof.Block >= proof.Pair[0].Val.Start+idx.Block(len(proof.Pair[0].Val.Votes)) {
 			return ErrWrongMP
 		}
-		if proof.Block < proof.Pair[1].Start || proof.Block >= proof.Pair[1].Start+idx.Block(len(proof.Pair[1].Votes)) {
+		if proof.Block < proof.Pair[1].Val.Start || proof.Block >= proof.Pair[1].Val.Start+idx.Block(len(proof.Pair[1].Val.Votes)) {
 			return ErrWrongMP
 		}
 		if proof.GetVote(0) == proof.GetVote(1) {
 			return ErrWrongMP
 		}
-		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs || msgEpoch > proof.Pair[1].Epoch+MaxLiableEpochs {
+		if msgEpoch > proof.Pair[0].Val.Epoch+MaxLiableEpochs || msgEpoch > proof.Pair[1].Val.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
 		}
 	}
@@ -123,10 +123,10 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 			if err := v.ValidateBVs(pal); err != nil {
 				return ErrWrongMP
 			}
-			if proof.Block < pal.Start || proof.Block >= pal.Start+idx.Block(len(pal.Votes)) {
+			if proof.Block < pal.Val.Start || proof.Block >= pal.Val.Start+idx.Block(len(pal.Val.Votes)) {
 				return ErrWrongMP
 			}
-			if msgEpoch > pal.Epoch+MaxLiableEpochs {
+			if msgEpoch > pal.Val.Epoch+MaxLiableEpochs {
 				return ErrMPTooLate
 			}
 			// see MinAccomplicesForProof
@@ -134,7 +134,7 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 				return ErrWrongMP
 			}
 			for _, prev := range proof.Pals[:i] {
-				if prev.EventLocator == pal.EventLocator {
+				if prev.Signed.Locator == pal.Signed.Locator {
 					return ErrWrongMP
 				}
 			}
@@ -148,13 +148,13 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		if err := v.ValidateEV(proof.Pair[1]); err != nil {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].Epoch != proof.Pair[1].Epoch {
+		if proof.Pair[0].Val.Epoch != proof.Pair[1].Val.Epoch {
 			return ErrWrongMP
 		}
-		if proof.Pair[0].Vote == proof.Pair[1].Vote {
+		if proof.Pair[0].Val.Vote == proof.Pair[1].Val.Vote {
 			return ErrWrongMP
 		}
-		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs {
+		if msgEpoch > proof.Pair[0].Val.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
 		}
 	}
@@ -164,15 +164,15 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 			if err := v.ValidateEV(pal); err != nil {
 				return ErrWrongMP
 			}
-			if msgEpoch > pal.Epoch+MaxLiableEpochs {
+			if msgEpoch > pal.Val.Epoch+MaxLiableEpochs {
 				return ErrMPTooLate
 			}
 			// see MinAccomplicesForProof
-			if i > 0 && proof.Pals[i-1].LlrEpochVote != proof.Pals[i].LlrEpochVote {
+			if i > 0 && proof.Pals[i-1].Val != proof.Pals[i].Val {
 				return ErrWrongMP
 			}
 			for _, prev := range proof.Pals[:i] {
-				if prev.EventLocator == pal.EventLocator {
+				if prev.Signed.Locator == pal.Signed.Locator {
 					return ErrWrongMP
 				}
 			}
@@ -272,9 +272,9 @@ func (v *Checker) validateEV(eventEpoch idx.Epoch, ev inter.LlrEpochVote, greedy
 }
 
 func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
-	return v.validateBVs(bvs.EventLocator.Epoch, bvs.LlrBlockVotes, true)
+	return v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
 }
 
 func (v *Checker) ValidateEV(ev inter.LlrSignedEpochVote) error {
-	return v.validateEV(ev.EventLocator.Epoch, ev.LlrEpochVote, true)
+	return v.validateEV(ev.Signed.Locator.Epoch, ev.Val, true)
 }
