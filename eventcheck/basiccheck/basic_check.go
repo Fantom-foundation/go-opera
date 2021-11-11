@@ -21,6 +21,7 @@ var (
 	// transaction with a tip higher than the total fee cap.
 	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
 	ErrWrongMP        = errors.New("inconsistent misbehaviour proof")
+	ErrMPTooLate      = errors.New("too old misbehaviour proof")
 	ErrMalformedMP    = errors.New("malformed MP union struct")
 	FutureBVsEpoch    = errors.New("future block votes epoch")
 	FutureEVEpoch     = errors.New("future epoch vote")
@@ -33,6 +34,7 @@ var (
 
 const (
 	MaxBlockVotesPerEvent = 64
+	MaxLiableEpochs       = 16384
 )
 
 type Checker struct {
@@ -68,7 +70,7 @@ func validateTx(tx *types.Transaction) error {
 	return nil
 }
 
-func (v *Checker) validateMP(mp inter.MisbehaviourProof) error {
+func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) error {
 	count := 0
 	if proof := mp.EventsDoublesign; proof != nil {
 		count++
@@ -83,6 +85,9 @@ func (v *Checker) validateMP(mp inter.MisbehaviourProof) error {
 		}
 		if proof.Pair[0].HashToSign() == proof.Pair[1].HashToSign() {
 			return ErrWrongMP
+		}
+		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs {
+			return ErrMPTooLate
 		}
 	}
 	if proof := mp.BlockVoteDoublesign; proof != nil {
@@ -102,6 +107,9 @@ func (v *Checker) validateMP(mp inter.MisbehaviourProof) error {
 		if proof.GetVote(0) == proof.GetVote(1) {
 			return ErrWrongMP
 		}
+		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs || msgEpoch > proof.Pair[1].Epoch+MaxLiableEpochs {
+			return ErrMPTooLate
+		}
 	}
 	if proof := mp.WrongBlockVote; proof != nil {
 		count++
@@ -110,6 +118,9 @@ func (v *Checker) validateMP(mp inter.MisbehaviourProof) error {
 		}
 		if proof.Block < proof.Votes.Start || proof.Block >= proof.Votes.Start+idx.Block(len(proof.Votes.Votes)) {
 			return ErrWrongMP
+		}
+		if msgEpoch > proof.Votes.Epoch+MaxLiableEpochs {
+			return ErrMPTooLate
 		}
 	}
 	if proof := mp.EpochVoteDoublesign; proof != nil {
@@ -126,11 +137,17 @@ func (v *Checker) validateMP(mp inter.MisbehaviourProof) error {
 		if proof.Pair[0].Vote == proof.Pair[1].Vote {
 			return ErrWrongMP
 		}
+		if msgEpoch > proof.Pair[0].Epoch+MaxLiableEpochs {
+			return ErrMPTooLate
+		}
 	}
 	if proof := mp.WrongEpochVote; proof != nil {
 		count++
 		if err := v.ValidateEV(proof.Votes); err != nil {
 			return ErrWrongMP
+		}
+		if msgEpoch > proof.Votes.Epoch+MaxLiableEpochs {
+			return ErrMPTooLate
 		}
 	}
 	if count != 1 {
@@ -163,7 +180,7 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 		return err
 	}
 	for _, mp := range e.MisbehaviourProofs() {
-		if err := v.validateMP(mp); err != nil {
+		if err := v.validateMP(e.Epoch(), mp); err != nil {
 			return err
 		}
 	}
