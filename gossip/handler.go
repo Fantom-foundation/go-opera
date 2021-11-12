@@ -31,7 +31,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 const (
@@ -76,8 +75,8 @@ type handlerConfig struct {
 }
 
 type ProtocolManager struct {
-	config Config
-	net    opera.Rules
+	NetworkID uint64
+	config    Config
 
 	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
@@ -133,6 +132,7 @@ func newHandler(
 ) {
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
+		NetworkID:            c.s.GetRules().NetworkID,
 		config:               c.config,
 		notifier:             c.notifier,
 		txpool:               c.txpool,
@@ -488,7 +488,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		genesis    = *pm.store.GetGenesisHash()
 		myProgress = pm.myProgress()
 	)
-	if err := p.Handshake(pm.net.NetworkID, myProgress, common.Hash(genesis)); err != nil {
+	if err := p.Handshake(pm.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
@@ -1037,7 +1037,7 @@ type NodeInfo struct {
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	numOfBlocks := pm.store.GetLatestBlockIndex()
 	return &NodeInfo{
-		Network:     pm.net.NetworkID,
+		Network:     pm.NetworkID,
 		Genesis:     common.Hash(*pm.store.GetGenesisHash()),
 		Epoch:       pm.store.GetEpoch(),
 		NumOfBlocks: numOfBlocks,
