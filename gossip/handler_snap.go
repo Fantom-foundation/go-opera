@@ -49,3 +49,18 @@ func (h *snapHandler) PeerInfo(id enode.ID) interface{} {
 func (h *snapHandler) Handle(peer *snap.Peer, packet snap.Packet) error {
 	return h.downloader.DeliverSnapPacket(peer, packet)
 }
+
+// runSnapExtension registers a `snap` peer into the joint eth/snap peerset and
+// starts handling inbound messages. As `snap` is only a satellite protocol to
+// `eth`, all subsystem registrations and lifecycle management will be done by
+// the main `eth` handler to prevent strange races.
+func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error {
+	h.peerWG.Add(1)
+	defer h.peerWG.Done()
+
+	if err := h.peers.RegisterSnapExtension(peer); err != nil {
+		peer.Log().Error("Snapshot extension registration failed", "err", err)
+		return err
+	}
+	return handler(peer)
+}

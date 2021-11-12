@@ -8,20 +8,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/prque"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-)
-
-const (
-	TriesInMemory = 128
 )
 
 // ethBlockChain encapsulates functions required to sync a (full or fast) blockchain.
@@ -29,51 +21,18 @@ const (
 type ethBlockChain struct {
 	store *Store
 
-	running int32 // 0 if chain is running, 1 when stopped
-
 	currentBlock     atomic.Value // Current head of the block chain
 	currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
-
-	cacheConfig *core.CacheConfig
-	stateCache  state.Database // State database to reuse between imports (contains state cache)
-	snaps       *snapshot.Tree
-
-	// TODO: enable it later
-	triegc *prque.Prque // Priority queue mapping block numbers to tries to gc
 }
 
-func newEthBlockChain(s *Store, cacheConfig *core.CacheConfig) (*ethBlockChain, error) {
-	db := s.EvmStore().EvmTable()
-
+func newEthBlockChain(s *Store) (*ethBlockChain, error) {
 	bc := &ethBlockChain{
-		store:       s,
-		cacheConfig: cacheConfig,
-		stateCache: state.NewDatabaseWithConfig(db, &trie.Config{
-			Cache:     cacheConfig.TrieCleanLimit,
-			Journal:   cacheConfig.TrieCleanJournal,
-			Preimages: cacheConfig.Preimages,
-		}),
+		store: s,
 	}
 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
-
-	// Load any existing snapshot, regenerating it if loading failed
-	if bc.cacheConfig.SnapshotLimit > 0 {
-		// If the chain was rewound past the snapshot persistent layer (causing
-		// a recovery block number to be persisted to disk), check if we're still
-		// in recovery mode and in that case, don't invalidate the snapshot on a
-		// head mismatch.
-		var recover bool
-		head := bc.CurrentBlock()
-		if layer := rawdb.ReadSnapshotRecoveryNumber(db); layer != nil && *layer > head.NumberU64() {
-			log.Warn("Enabling snapshot recovery", "chainhead", head.NumberU64(), "diskbase", *layer)
-			recover = true
-		}
-		bc.snaps, _ = snapshot.New(db, bc.stateCache.TrieDB(), bc.cacheConfig.SnapshotLimit, head.Root(), !bc.cacheConfig.SnapshotWait, true, recover)
-	}
-
 	return bc, nil
 }
 
@@ -98,13 +57,13 @@ func (bc *ethBlockChain) GetTd(common.Hash, uint64) *big.Int {
 
 // StateCache returns the caching database underpinning the blockchain instance.
 func (bc *ethBlockChain) StateCache() state.Database {
-	return bc.stateCache
+	return bc.store.EvmStore().EvmDatabase()
 }
 
 // ContractCode retrieves a blob of data associated with a contract hash
 // either from ephemeral in-memory cache, or from persistent storage.
 func (bc *ethBlockChain) ContractCode(hash common.Hash) ([]byte, error) {
-	return bc.stateCache.ContractCode(common.Hash{}, hash)
+	return bc.store.EvmStore().EvmDatabase().ContractCode(common.Hash{}, hash)
 }
 
 // HasHeader verifies a header's presence in the local chain.
@@ -191,17 +150,14 @@ func (bc *ethBlockChain) FastSyncCommitHead(h common.Hash) error {
 	if block == nil {
 		return fmt.Errorf("non existent block [%x..]", h[:4])
 	}
-	if _, err := trie.NewSecure(block.Root(), bc.stateCache.TrieDB()); err != nil {
-		return err
-	}
+
 	// If all checks out, manually set the head block
 	bc.currentBlock.Store(block)
 
 	// Destroy any existing state snapshot and regenerate it in the background,
 	// also resuming the normal maintenance of any previously paused snapshot.
-	if bc.snaps != nil {
-		bc.snaps.Rebuild(block.Root())
-	}
+	bc.store.EvmStore().RebuildEvmSnapshot(block.Root())
+
 	log.Info("Committed new head block", "number", block.Number(), "hash", h)
 	return nil
 }
@@ -220,7 +176,7 @@ func (bc *ethBlockChain) InsertReceiptChain(types.Blocks, []types.Receipts, uint
 
 // Snapshots returns the blockchain snapshot tree to paused it during sync.
 func (bc *ethBlockChain) Snapshots() *snapshot.Tree {
-	return bc.snaps
+	return bc.store.EvmStore().Snapshots()
 }
 
 func (bc *ethBlockChain) getHeader(n idx.Block) *types.Header {
@@ -242,54 +198,5 @@ func (bc *ethBlockChain) getHeader(n idx.Block) *types.Header {
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (bc *ethBlockChain) Stop() {
-	if !atomic.CompareAndSwapInt32(&bc.running, 0, 1) {
-		return
-	}
 
-	// Ensure that the entirety of the state snapshot is journalled to disk.
-	var snapBase common.Hash
-	if bc.snaps != nil {
-		var err error
-		if snapBase, err = bc.snaps.Journal(bc.CurrentBlock().Root()); err != nil {
-			log.Error("Failed to journal state snapshot", "err", err)
-		}
-	}
-	// Ensure the state of a recent block is also stored to disk before exiting.
-	// We're writing three different states to catch different restart scenarios:
-	//  - HEAD:     So we don't need to reprocess any blocks in the general case
-	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
-	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
-	if !bc.cacheConfig.TrieDirtyDisabled {
-		triedb := bc.stateCache.TrieDB()
-
-		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
-			if number := bc.CurrentBlock().NumberU64(); number > offset {
-				recent := bc.GetBlockByNumber(number - offset)
-
-				log.Info("Writing cached state to disk", "block", recent.Number(), "hash", recent.Hash(), "root", recent.Root())
-				if err := triedb.Commit(recent.Root(), true, nil); err != nil {
-					log.Error("Failed to commit recent state trie", "err", err)
-				}
-			}
-		}
-		if snapBase != (common.Hash{}) {
-			log.Info("Writing snapshot state to disk", "root", snapBase)
-			if err := triedb.Commit(snapBase, true, nil); err != nil {
-				log.Error("Failed to commit recent state trie", "err", err)
-			}
-		}
-		for !bc.triegc.Empty() {
-			triedb.Dereference(bc.triegc.PopItem().(common.Hash))
-		}
-		if size, _ := triedb.Size(); size != 0 {
-			log.Error("Dangling trie nodes after full cleanup")
-		}
-	}
-	// Ensure all live cached entries be saved into disk, so that we can skip
-	// cache warmup when node restarts.
-	if bc.cacheConfig.TrieCleanJournal != "" {
-		triedb := bc.stateCache.TrieDB()
-		triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
-	}
-	log.Info("Blockchain stopped")
 }

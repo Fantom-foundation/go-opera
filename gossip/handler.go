@@ -20,10 +20,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -173,24 +171,10 @@ func newHandler(
 		configSync                                 = downloader.FullSync
 		configCheckpoint *params.TrustedCheckpoint = nil
 		configBloomCache uint64                    = 0 // Megabytes to alloc for fast sync bloom
-
-		// TODO: user defined config
-		cacheConfig = &core.CacheConfig{
-			TrieCleanLimit: 256,
-			TrieDirtyLimit: 256,
-			TrieTimeLimit:  5 * time.Minute,
-			SnapshotLimit:  256,
-			SnapshotWait:   true,
-		}
 	)
 
 	var err error
-	h.chain, err = newEthBlockChain(c.s, cacheConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	blockchain, err := newEthBlockChain(c.s, cacheConfig)
+	h.chain, err = newEthBlockChain(c.s)
 	if err != nil {
 		return nil, err
 	}
@@ -204,13 +188,13 @@ func newHandler(
 		// * the last fast sync is not finished while user specifies a full sync this
 		//   time. But we don't have any recent state for full sync.
 		// In these cases however it's safe to reenable fast sync.
-		fullBlock, fastBlock := blockchain.CurrentBlock(), blockchain.CurrentFastBlock()
+		fullBlock, fastBlock := h.chain.CurrentBlock(), h.chain.CurrentFastBlock()
 		if fullBlock.NumberU64() == 0 && fastBlock.NumberU64() > 0 {
 			h.fastSync = uint32(1)
 			log.Warn("Switch sync mode from full sync to fast sync")
 		}
 	} else {
-		if blockchain.CurrentBlock().NumberU64() > 0 {
+		if h.chain.CurrentBlock().NumberU64() > 0 {
 			// Print warning log if database is not empty to run fast sync.
 			log.Warn("Switch sync mode from fast sync to full sync")
 		} else {
@@ -240,7 +224,7 @@ func newHandler(
 	if atomic.LoadUint32(&h.fastSync) == 1 && atomic.LoadUint32(&h.snapSync) == 0 {
 		h.stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
 	}
-	h.downloader = downloader.New(h.checkpointNumber, stateDb, h.stateBloom, c.EventMux, blockchain, nil, h.removePeer)
+	h.downloader = downloader.New(h.checkpointNumber, stateDb, h.stateBloom, c.EventMux, h.chain, nil, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
@@ -446,21 +430,6 @@ func (h *handler) onlyInterestedEvents(ids hash.Events) hash.Events {
 		}
 	}
 	return interested
-}
-
-// runSnapExtension registers a `snap` peer into the joint eth/snap peerset and
-// starts handling inbound messages. As `snap` is only a satellite protocol to
-// `eth`, all subsystem registrations and lifecycle management will be done by
-// the main `eth` handler to prevent strange races.
-func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error {
-	h.peerWG.Add(1)
-	defer h.peerWG.Done()
-
-	if err := h.peers.RegisterSnapExtension(peer); err != nil {
-		peer.Log().Error("Snapshot extension registration failed", "err", err)
-		return err
-	}
-	return handler(peer)
 }
 
 func (h *handler) removePeer(id string) {

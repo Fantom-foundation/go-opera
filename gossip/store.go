@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -166,7 +167,8 @@ func (s *Store) Init() error {
 	// DB is being flushed in a middle of this call to limit memory usage of initial snapshot building
 	res := make(chan error)
 	go func() {
-		res <- s.EvmStore().InitEvmSnapshot(s.GetBlockState().FinalizedStateRoot)
+		root := common.Hash(s.GetBlockState().FinalizedStateRoot)
+		res <- s.EvmStore().InitEvmSnapshot(root)
 	}()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
