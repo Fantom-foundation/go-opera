@@ -20,6 +20,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -43,7 +44,6 @@ type Store struct {
 		Evm      ethdb.Database
 		EvmState state.Database
 		EvmLogs  *topicsdb.Index
-		Snaps    *snapshot.Tree
 	}
 
 	cache struct {
@@ -100,9 +100,28 @@ func (s *Store) initCache() {
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
 }
 
-func (s *Store) InitEvmSnapshot(root hash.Hash) (err error) {
-	s.table.Snaps, err = snapshot.New(kvdb2ethdb.Wrap(nokeyiserr.Wrap(s.EvmKvdbTable())), s.table.EvmState.TrieDB(), s.cfg.Cache.EvmSnap/opt.MiB, common.Hash(root), false, true, false)
-	return err
+func (s *Store) InitEvmSnapshot(root common.Hash) (err error) {
+	s.snaps, err = snapshot.New(
+		s.EvmTable(),
+		s.table.EvmState.TrieDB(),
+		s.cfg.Cache.EvmSnap/opt.MiB,
+		root,
+		false,
+		true,
+		false)
+	return
+}
+
+func (s *Store) RebuildEvmSnapshot(root common.Hash) {
+	if s.snaps == nil {
+		return
+	}
+
+	s.snaps.Rebuild(root)
+}
+
+func (s *Store) NewPruner(genesisRoot, root common.Hash, datadir string, bloomSize uint64) (*evmpruner.Pruner, error) {
+	return evmpruner.NewPruner(s.EvmTable(), genesisRoot, root, datadir, bloomSize)
 }
 
 // Commit changes.
@@ -205,7 +224,7 @@ func (s *Store) Cap(max, min int) {
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.table.Snaps, 0)
+	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.snaps, 0)
 }
 
 // IndexLogs indexes EVM logs
@@ -230,6 +249,10 @@ func (s *Store) EvmDatabase() state.Database {
 
 func (s *Store) EvmLogs() *topicsdb.Index {
 	return s.table.EvmLogs
+}
+
+func (s *Store) Snapshots() *snapshot.Tree {
+	return s.snaps
 }
 
 /*

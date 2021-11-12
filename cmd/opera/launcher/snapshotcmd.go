@@ -27,14 +27,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 	"github.com/Fantom-foundation/go-opera/integration"
 )
 
@@ -171,7 +169,7 @@ func pruneState(ctx *cli.Context) error {
 
 	genesisRoot := common.Hash(gdb.GetBlock(*gdb.GetGenesisBlockIndex()).Root)
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmTable(), genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
+	pruner, err := gdb.EvmStore().NewPruner(genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -208,10 +206,11 @@ func verifyState(ctx *cli.Context) error {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}
-	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	chaindb := gdb.EvmStore().EvmTable()
 
-	snaptree, err := snapshot.New(chaindb, trie.NewDatabase(chaindb), 256, root, false, false, false)
+	evmStore := gdb.EvmStore()
+	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
+
+	err = evmStore.InitEvmSnapshot(root)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -220,6 +219,7 @@ func verifyState(ctx *cli.Context) error {
 		log.Error("Too many arguments given")
 		return errors.New("too many arguments")
 	}
+
 	if ctx.NArg() == 1 {
 		root, err = parseRoot(ctx.Args()[0])
 		if err != nil {
@@ -227,7 +227,7 @@ func verifyState(ctx *cli.Context) error {
 			return err
 		}
 	}
-	if err := snaptree.Verify(root); err != nil {
+	if err := evmStore.Snapshots().Verify(root); err != nil {
 		log.Error("Failed to verfiy state", "root", root, "err", err)
 		return err
 	}
