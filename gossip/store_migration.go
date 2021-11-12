@@ -289,15 +289,13 @@ type BlockEpochStateV0 struct {
 	EpochState *blockproc.EpochState
 }
 
-func (s *Store) recoverBlockState() error {
-	v, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochStateV0{}).(*BlockEpochStateV0)
-	if !ok {
-		return errors.New("epoch state reading failed: genesis not applied")
-	}
-	oldBs := v.BlockState
-	newValidatorState := make([]blockproc.ValidatorBlockState, len(oldBs.ValidatorStates))
+func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
+	oldES := oldEBS.EpochState
+	oldBS := oldEBS.BlockState
+
+	newValidatorState := make([]blockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
 	cheatersWritten := 0
-	for i, vs := range oldBs.ValidatorStates {
+	for i, vs := range oldBS.ValidatorStates {
 		newValidatorState[i] = blockproc.ValidatorBlockState{
 			LastEvent:        vs.LastEvent,
 			Uptime:           vs.Uptime,
@@ -311,21 +309,47 @@ func (s *Store) recoverBlockState() error {
 			cheatersWritten++
 		}
 	}
-	newBs := blockproc.BlockState{
-		LastBlock:             oldBs.LastBlock,
-		FinalizedStateRoot:    oldBs.FinalizedStateRoot,
-		EpochGas:              oldBs.EpochGas,
-		EpochCheaters:         oldBs.EpochCheaters,
+
+	newBS := &blockproc.BlockState{
+		LastBlock:             oldBS.LastBlock,
+		FinalizedStateRoot:    oldBS.FinalizedStateRoot,
+		EpochGas:              oldBS.EpochGas,
+		EpochCheaters:         oldBS.EpochCheaters,
 		CheatersWritten:       uint32(cheatersWritten),
 		ValidatorStates:       newValidatorState,
-		NextValidatorProfiles: oldBs.NextValidatorProfiles,
-		DirtyRules:            &oldBs.DirtyRules,
-		AdvanceEpochs:         oldBs.AdvanceEpochs,
+		NextValidatorProfiles: oldBS.NextValidatorProfiles,
+		DirtyRules:            &oldBS.DirtyRules,
+		AdvanceEpochs:         oldBS.AdvanceEpochs,
 	}
-	if v.EpochState.Rules.String() == v.BlockState.DirtyRules.String() {
-		newBs.DirtyRules = nil
+	if oldES.Rules.String() == oldBS.DirtyRules.String() {
+		newBS.DirtyRules = nil
 	}
-	s.SetBlockEpochState(newBs, *v.EpochState)
+
+	return BlockEpochState{
+		BlockState: newBS,
+		EpochState: oldES,
+	}
+}
+
+func (s *Store) recoverBlockState() error {
+	// current block state
+	v0, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochStateV0{}).(*BlockEpochStateV0)
+	if !ok {
+		return errors.New("epoch state reading failed: genesis not applied")
+	}
+	v1 := convertBlockEpochStateV0(v0)
+	s.SetBlockEpochState(*v1.BlockState, *v1.EpochState)
 	s.FlushBlockEpochState()
+
+	// history block state
+	for epoch := idx.Epoch(1); epoch <= v0.EpochState.Epoch; epoch++ {
+		v, ok := s.rlp.Get(s.table.BlockEpochStateHistory, epoch.Bytes(), &BlockEpochStateV0{}).(*BlockEpochStateV0)
+		if !ok {
+			continue
+		}
+		v1 = convertBlockEpochStateV0(v)
+		s.SetHistoryBlockEpochState(epoch, *v1.BlockState, *v1.EpochState)
+	}
+
 	return nil
 }
