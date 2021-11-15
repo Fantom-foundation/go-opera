@@ -244,6 +244,18 @@ func consensusCallbackBeginBlockFn(
 					sfcapi.OnNewLog(store.sfcapi, l)
 				}
 
+				// skip LLR block/epoch if not activated
+				if !es.Rules.Upgrades.Llr {
+					llrs := store.GetLlrState()
+					llrs.LowestBlockToDecide++
+					llrs.LowestBlockToFill++
+					if sealing {
+						llrs.LowestEpochToDecide++
+						llrs.LowestEpochToFill++
+					}
+					store.SetLlrState(llrs)
+				}
+
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
 				substart := time.Now()
 
