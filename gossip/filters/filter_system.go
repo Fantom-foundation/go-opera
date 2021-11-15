@@ -26,7 +26,6 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -97,7 +96,7 @@ type EventSystem struct {
 	// Channels
 	install   chan *subscription           // install filter for event notification
 	uninstall chan *subscription           // remove filter for event notification
-	txsCh     chan core.NewTxsEvent        // Channel to receive new transactions notify
+	txsCh     chan evmcore.NewTxsNotify    // Channel to receive new transactions notify
 	logsCh    chan []*types.Log            // Channel to receive new log notify
 	blocksCh  chan evmcore.ChainHeadNotify // Channel to receive new chain notify
 }
@@ -113,14 +112,14 @@ func NewEventSystem(backend Backend) *EventSystem {
 		install:   make(chan *subscription),
 		uninstall: make(chan *subscription),
 		blocksCh:  make(chan evmcore.ChainHeadNotify, blocksChanSize),
-		txsCh:     make(chan core.NewTxsEvent, txChanSize),
+		txsCh:     make(chan evmcore.NewTxsNotify, txChanSize),
 		logsCh:    make(chan []*types.Log, logsChanSize),
 	}
 
 	// Subscribe events
-	m.blocksSub = m.backend.SubscribeNewBlockEvent(m.blocksCh)
-	m.txsSub = m.backend.SubscribeNewTxsEvent(m.txsCh)
-	m.logsSub = m.backend.SubscribeLogsEvent(m.logsCh)
+	m.blocksSub = m.backend.SubscribeNewBlockNotify(m.blocksCh)
+	m.txsSub = m.backend.SubscribeNewTxsNotify(m.txsCh)
+	m.logsSub = m.backend.SubscribeLogsNotify(m.logsCh)
 
 	// Make sure none of the subscriptions are empty
 	if m.txsSub == nil || m.logsSub == nil || m.blocksSub == nil {
@@ -315,7 +314,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 				}
 			}
 		}
-	case core.NewTxsEvent:
+	case evmcore.NewTxsNotify:
 		hashes := make([]common.Hash, 0, len(e.Txs))
 		for _, tx := range e.Txs {
 			hashes = append(hashes, tx.Hash())

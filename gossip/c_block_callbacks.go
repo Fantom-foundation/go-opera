@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -13,7 +14,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
@@ -26,6 +26,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/txtrace"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 type ExtendedTxPosition struct {
@@ -211,8 +212,8 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					externalReceipts := evmProcessor.Execute(txs, false, evmCfg)
-					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 
+					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs
 					block.Root = hash.Hash(evmBlock.Root)
 					block.GasUsed = evmBlock.GasUsed
@@ -280,10 +281,9 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlockEpochState(bs, es)
 					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
 
-					// Notify about new block and txs
+					// Notify about new block
 					if feed != nil {
 						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-						feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 						var logs []*types.Log
 						for _, r := range allReceipts {
 							for _, l := range r.Logs {
@@ -299,8 +299,10 @@ func consensusCallbackBeginBlockFn(
 
 					store.commitEVM()
 
+					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",
-						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", common.PrettyDuration(time.Since(start)))
+						evmBlock.GasUsed, "txs", fmt.Sprintf("%d/%d", len(evmBlock.Transactions), len(block.SkippedTxs)),
+						"age", utils.PrettyDuration(now.Sub(block.Time.Time())), "t", utils.PrettyDuration(now.Sub(start)))
 				}
 				if confirmedEvents.Len() != 0 {
 					atomic.StoreUint32(blockBusyFlag, 1)

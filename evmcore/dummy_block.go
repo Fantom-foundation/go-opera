@@ -98,7 +98,7 @@ func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 // EthHeader returns header in ETH format
 func (h *EvmHeader) EthHeader() *types.Header {
 	// NOTE: incomplete conversion
-	return &types.Header{
+	ethHeader := &types.Header{
 		Number:     h.Number,
 		Coinbase:   h.Coinbase,
 		GasLimit:   0xffffffffffff, // don't use h.GasLimit (too much bits) here to avoid parsing issues
@@ -111,6 +111,8 @@ func (h *EvmHeader) EthHeader() *types.Header {
 
 		Difficulty: new(big.Int),
 	}
+	ethHeader.SetHashCache(h.Hash)
+	return ethHeader
 }
 
 // Header is a copy of EvmBlock.EvmHeader.

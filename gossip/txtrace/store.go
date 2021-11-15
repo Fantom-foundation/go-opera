@@ -1,9 +1,10 @@
 package txtrace
 
 import (
-	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/Fantom-foundation/go-opera/logger"
 )
 
 // Store is a transaction traces persistent storage working over physical key-value database.
@@ -16,9 +17,8 @@ type Store struct {
 func NewStore(mainDB kvdb.Store) *Store {
 	s := &Store{
 		mainDB:   mainDB,
-		Instance: logger.MakeInstance(),
+		Instance: logger.New("TxTrace Store"),
 	}
-	s.SetName("TxTrace Store")
 	return s
 }
 
@@ -27,7 +27,7 @@ func (s *Store) Close() {
 	_ = s.mainDB.Close()
 }
 
-// SetTx stores []byte representation of transaction traces.
+// SetTxTrace stores []byte representation of transaction traces.
 func (s *Store) SetTxTrace(txID common.Hash, txTraces []byte) error {
 	return s.mainDB.Put(txID.Bytes(), txTraces)
 }

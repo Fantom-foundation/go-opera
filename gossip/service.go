@@ -12,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -56,7 +55,6 @@ type ServiceFeed struct {
 	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
-	newTxs          notify.Feed
 	newLogs         notify.Feed
 }
 
@@ -70,10 +68,6 @@ func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.EventPayload) notify.
 
 func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
 	return f.scope.Track(f.newBlock.Subscribe(ch))
-}
-
-func (f *ServiceFeed) SubscribeNewTxs(ch chan<- core.NewTxsEvent) notify.Subscription {
-	return f.scope.Track(f.newTxs.Subscribe(ch))
 }
 
 func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscription {
@@ -153,6 +147,7 @@ type Service struct {
 	stopped bool
 
 	logger.Instance
+	eventsLogger *EventsLogger
 }
 
 func NewService(stack *node.Node, config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
@@ -189,7 +184,8 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 		dagIndexer:         dagIndexer,
 		engineMu:           new(sync.RWMutex),
 		uniqueEventIDs:     uniqueID{new(big.Int)},
-		Instance:           logger.MakeInstance(),
+		Instance:           logger.New("gossip-service"),
+		eventsLogger:       NewEventsLogger(),
 	}
 
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
@@ -223,7 +219,18 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.dialCandidates, err = dnsclient.NewIterator()
 
 	// create protocol manager
-	svc.pm, err = newHandler(handlerConfig{config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent})
+	svc.pm, err = newHandler(handlerConfig{
+		config:   config,
+		notifier: &svc.feed,
+		txpool:   svc.txpool,
+		engineMu: svc.engineMu,
+		checkers: svc.checkers,
+		s:        store,
+		processEvent: func(e *inter.EventPayload) error {
+			done := svc.eventsLogger.EventConnectionStarted(e, false)
+			defer done()
+			return svc.processEvent(e)
+		}})
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +278,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `opera`.
-func MakeProtocols(svc *Service, backend *ProtocolManager, network uint64, disc enode.Iterator) []p2p.Protocol {
+func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
 		version := version // Closure
@@ -311,7 +318,7 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, network uint64, disc 
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	return MakeProtocols(s, s.pm, s.store.GetRules().NetworkID, s.dialCandidates)
+	return MakeProtocols(s, s.pm, s.dialCandidates)
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
