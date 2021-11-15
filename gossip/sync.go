@@ -97,16 +97,3 @@ func (h *handler) txsyncLoop() {
 		}
 	}
 }
-
-// syncer is responsible for periodically synchronising with the network, both
-// downloading hashes and events as well as handling the announcement handler.
-func (h *handler) syncer() {
-	// Start and ensure cleanup of sync mechanisms
-	for {
-		select {
-		case <-h.newPeerCh:
-		case <-h.noMorePeers:
-			return
-		}
-	}
-}

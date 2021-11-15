@@ -114,10 +114,8 @@ type handler struct {
 	quitProgressBradcast chan struct{}
 
 	// channels for syncer, txsyncLoop
-	newPeerCh   chan *peer
-	txsyncCh    chan *txsync
-	quitSync    chan struct{}
-	noMorePeers chan struct{}
+	txsyncCh chan *txsync
+	quitSync chan struct{}
 
 	// geth fields
 	chain            *ethBlockChain
@@ -157,8 +155,6 @@ func newHandler(
 		checkers:             c.checkers,
 		peers:                newPeerSet(),
 		engineMu:             c.engineMu,
-		newPeerCh:            make(chan *peer),
-		noMorePeers:          make(chan struct{}),
 		txsyncCh:             make(chan *txsync),
 		quitSync:             make(chan struct{}),
 		quitProgressBradcast: make(chan struct{}),
@@ -480,7 +476,6 @@ func (h *handler) Start(maxPeers int) {
 	}
 
 	// start sync handlers
-	go h.syncer()
 	go h.txsyncLoop()
 	h.dagFetcher.Start()
 	h.txFetcher.Start()
@@ -513,7 +508,6 @@ func (h *handler) Stop() {
 	h.msgSemaphore.Terminate()
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
-	h.noMorePeers <- struct{}{}
 	close(h.quitSync)
 
 	// Disconnect existing sessions.
