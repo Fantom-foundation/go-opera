@@ -80,26 +80,6 @@ func updateLowestBlockToFill(block idx.Block, store *Store) {
 	store.SetLlrState(llrs)
 }
 
-type LlrState struct {
-	LowestEpochToDecide idx.Epoch
-	LowestEpochToFill   idx.Epoch
-
-	LowestBlockToDecide idx.Block
-	LowestBlockToFill   idx.Block
-}
-
-func (s *Store) SetLlrState(llrs LlrState) {
-	s.rlp.Set(s.table.LlrState, []byte{}, &llrs)
-}
-
-func (s *Store) GetLlrState() LlrState {
-	w, _ := s.rlp.Get(s.table.LlrState, []byte{}, &LlrState{}).(*LlrState)
-	if w == nil {
-		return LlrState{}
-	}
-	return *w
-}
-
 func (s *Store) GetFullBlockRecord(n idx.Block) *ibr.LlrFullBlockRecord {
 	block := s.GetBlock(n)
 	if block == nil {

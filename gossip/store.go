@@ -74,6 +74,7 @@ type Store struct {
 		HighestLamport  atomic.Value // store by value
 		LastBVs         atomic.Value
 		LastEV          atomic.Value
+		LlrState        atomic.Value
 	}
 
 	rlp rlpstore.Helper
@@ -204,6 +205,7 @@ func (s *Store) Commit() error {
 	s.FlushHighestLamport()
 	s.FlushLastBVs()
 	s.FlushLastEV()
+	s.FlushLlrState()
 	es := s.getAnyEpochStore()
 	if es != nil {
 		es.FlushHeads()

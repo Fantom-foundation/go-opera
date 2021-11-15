@@ -203,6 +203,7 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.store.GetHighestLamport()
 	svc.store.GetLastBVs()
 	svc.store.GetLastEVs()
+	svc.store.GetLlrState()
 
 	// create GPO
 	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
