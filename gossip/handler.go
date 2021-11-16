@@ -21,18 +21,16 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentlesscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/downloader"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
@@ -71,7 +69,6 @@ type dagNotifier interface {
 type handlerConfig struct {
 	config       Config
 	notifier     dagNotifier
-	EventMux     *event.TypeMux
 	txpool       txPool
 	engineMu     sync.Locker
 	checkers     *eventcheck.Checkers
@@ -118,13 +115,8 @@ type handler struct {
 	quitSync chan struct{}
 
 	// geth fields
-	chain            *ethBlockChain
-	fastSync         uint32      // Flag whether fast sync is enabled (gets disabled if we already have blocks)
-	snapSync         uint32      // Flag whether fast sync should operate on top of the snap protocol
-	checkpointNumber uint64      // Block number for the sync progress validator to cross reference
-	checkpointHash   common.Hash // Block hash for the sync progress validator to cross reference
-	downloader       *downloader.Downloader
-	stateBloom       *trie.SyncBloom
+	chain      *ethBlockChain
+	downloader *downloader.Downloader
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -164,9 +156,7 @@ func newHandler(
 
 	// TODO: configure it
 	var (
-		configSync                                 = downloader.FullSync
-		configCheckpoint *params.TrustedCheckpoint = nil
-		configBloomCache uint64                    = 0 // Megabytes to alloc for fast sync bloom
+		configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
 	)
 
 	var err error
@@ -175,52 +165,19 @@ func newHandler(
 		return nil, err
 	}
 
-	if configSync == downloader.FullSync {
-		// The database seems empty as the current block is the genesis. Yet the fast
-		// block is ahead, so fast sync was enabled for this node at a certain point.
-		// The scenarios where this can happen is
-		// * if the user manually (or via a bad block) rolled back a fast sync node
-		//   below the sync point.
-		// * the last fast sync is not finished while user specifies a full sync this
-		//   time. But we don't have any recent state for full sync.
-		// In these cases however it's safe to reenable fast sync.
-		fullBlock, fastBlock := h.chain.CurrentBlock(), h.chain.CurrentFastBlock()
-		if fullBlock.NumberU64() == 0 && fastBlock.NumberU64() > 0 {
-			h.fastSync = uint32(1)
-			log.Warn("Switch sync mode from full sync to fast sync")
-		}
-	} else {
-		if h.chain.CurrentBlock().NumberU64() > 0 {
-			// Print warning log if database is not empty to run fast sync.
-			log.Warn("Switch sync mode from fast sync to full sync")
-		} else {
-			// If fast sync was requested and our database is empty, grant it
-			h.fastSync = uint32(1)
-			if configSync == downloader.SnapSync {
-				h.snapSync = uint32(1)
-			}
-		}
-	}
-	// If we have trusted checkpoints, enforce them on the chain
-	if configCheckpoint != nil {
-		h.checkpointNumber = (configCheckpoint.SectionIndex+1)*params.CHTFrequency - 1
-		h.checkpointHash = configCheckpoint.SectionHead
-	}
-	if c.EventMux == nil {
-		c.EventMux = new(event.TypeMux) // Nicety initialization for tests.
-	}
-	// Construct the downloader (long sync) and its backing state bloom if fast
-	// sync is requested. The downloader is responsible for deallocating the state
-	// bloom when it's done.
-	// Note: we don't enable it if snap-sync is performed, since it's very heavy
-	// and the heal-portion of the snap sync is much lighter than fast. What we particularly
-	// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
-	// indexing the entire trie
 	stateDb := h.store.EvmStore().EvmTable()
-	if atomic.LoadUint32(&h.fastSync) == 1 && atomic.LoadUint32(&h.snapSync) == 0 {
-		h.stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
+	var stateBloom *trie.SyncBloom
+	if false {
+		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
+		// sync is requested. The downloader is responsible for deallocating the state
+		// bloom when it's done.
+		// Note: we don't enable it if snap-sync is performed, since it's very heavy
+		// and the heal-portion of the snap sync is much lighter than fast. What we particularly
+		// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
+		// indexing the entire trie
+		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
 	}
-	h.downloader = downloader.New(h.checkpointNumber, stateDb, h.stateBloom, c.EventMux, h.chain, nil, h.removePeer)
+	h.downloader = downloader.New(stateDb, stateBloom, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {

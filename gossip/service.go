@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -39,6 +38,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
+	"github.com/Fantom-foundation/go-opera/gossip/downloader"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -235,7 +235,6 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	svc.handler, err = newHandler(handlerConfig{
 		config:   config,
 		notifier: &svc.feed,
-		EventMux: svc.eventMux,
 		txpool:   svc.txpool,
 		engineMu: svc.engineMu,
 		checkers: svc.checkers,
