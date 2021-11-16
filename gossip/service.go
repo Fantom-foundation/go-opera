@@ -210,10 +210,11 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 
 	// create checkers
 	net := store.GetRules()
+	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
 	svc.heavyCheckReader.Store = store
 	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from disk
 	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
+	svc.checkers = makeCheckers(config.HeavyCheck, txSigner, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
@@ -249,9 +250,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, config.AllowUnprotectedTxs}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.emitter = svc.makeEmitter(signer)
+	svc.emitter = svc.makeEmitter(signer, txSigner)
 
 	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
 
@@ -259,9 +260,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 }
 
 // makeCheckers builds event checkers
-func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
+func makeCheckers(heavyCheckCfg heavycheck.Config, txSigner types.Signer, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, gsignercache.Wrap(types.NewLondonSigner(chainID)))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, txSigner)
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -275,9 +276,7 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 	}
 }
 
-func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := gsignercache.Wrap(types.NewLondonSigner(s.store.GetRules().EvmChainConfig().ChainID))
-
+func (s *Service) makeEmitter(signer valkeystore.SignerI, txSigner types.Signer) *emitter.Emitter {
 	return emitter.NewEmitter(s.config.Emitter, emitter.World{
 		External: &emitterWorld{
 			s:       s,

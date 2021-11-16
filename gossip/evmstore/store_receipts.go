@@ -6,6 +6,7 @@ package evmstore
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -62,8 +63,17 @@ func (s *Store) GetRawReceipts(n idx.Block) ([]*types.ReceiptForStorage, int) {
 	return receiptsStorage, len(buf)
 }
 
+func UnwrapStorageReceipts(receiptsStorage []*types.ReceiptForStorage, n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) (types.Receipts, error) {
+	receipts := make(types.Receipts, len(receiptsStorage))
+	for i, r := range receiptsStorage {
+		receipts[i] = (*types.Receipt)(r)
+	}
+	err := receipts.DeriveFields(signer, hash, uint64(n), txs)
+	return receipts, err
+}
+
 // GetReceipts returns stored transaction receipts.
-func (s *Store) GetReceipts(n idx.Block) types.Receipts {
+func (s *Store) GetReceipts(n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) types.Receipts {
 	// Get data from LRU cache first.
 	if s.cache.Receipts != nil {
 		if c, ok := s.cache.Receipts.Get(n); ok {
@@ -73,14 +83,9 @@ func (s *Store) GetReceipts(n idx.Block) types.Receipts {
 
 	receiptsStorage, size := s.GetRawReceipts(n)
 
-	receipts := make(types.Receipts, len(receiptsStorage))
-	for i, r := range receiptsStorage {
-		receipts[i] = (*types.Receipt)(r)
-		var prev uint64
-		if i != 0 {
-			prev = receipts[i-1].CumulativeGasUsed
-		}
-		receipts[i].GasUsed = receipts[i].CumulativeGasUsed - prev
+	receipts, err := UnwrapStorageReceipts(receiptsStorage, n, signer, hash, txs)
+	if err != nil {
+		s.Log.Crit("Failed to derive receipts", "err", err)
 	}
 
 	// Add to LRU cache.

@@ -105,7 +105,8 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	}
 
 	if len(br.Receipts) != 0 {
-		s.store.EvmStore().SetRawReceipts(br.Idx, br.Receipts)
+		// Note: it's possible for receipts to get indexed twice by BR and block processing
+		indexRawReceipts(s.store, br.Receipts, br.Txs, br.Idx, br.Atropos)
 	}
 	for _, tx := range br.Txs {
 		s.store.EvmStore().SetTx(tx.Hash(), tx)
@@ -123,6 +124,14 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	s.store.SetBlockIndex(br.Atropos, br.Idx)
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+	if s.verWatcher != nil {
+		// Note: it's possible for logs to get indexed twice by BR and block processing
+		for _, r := range br.Receipts {
+			for _, l := range r.Logs {
+				s.verWatcher.OnNewLog(l)
+			}
+		}
+	}
 	updateLowestBlockToFill(br.Idx, s.store)
 
 	return nil

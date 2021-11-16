@@ -238,6 +238,7 @@ func consensusCallbackBeginBlockFn(
 				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
 				onNewLogAll := func(l *types.Log) {
 					txListener.OnNewLog(l)
+					// Note: it's possible for logs to get indexed twice by BR and block processing
 					if verWatcher != nil {
 						verWatcher.OnNewLog(l)
 					}
@@ -361,6 +362,7 @@ func consensusCallbackBeginBlockFn(
 						}
 
 						// Index receipts
+						// Note: it's possible for receipts to get indexed twice by BR and block processing
 						if allReceipts.Len() != 0 {
 							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
 							for _, r := range allReceipts {

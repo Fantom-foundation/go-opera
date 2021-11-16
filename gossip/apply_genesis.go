@@ -22,7 +22,7 @@ import (
 
 // ApplyGenesis writes initial state.
 func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash hash.Hash, err error) {
-	// if we'here, then it's first time genesis is applied
+	// if we're here, then it's first time genesis is applied
 	err = s.applyEpoch1Genesis(blockProc, g)
 	if err != nil {
 		return genesisHash, err
@@ -31,6 +31,14 @@ func (s *Store) ApplyGenesis(blockProc BlockProc, g opera.Genesis) (genesisHash 
 	s.SetGenesisHash(genesisHash)
 
 	return genesisHash, err
+}
+
+func indexRawReceipts(s *Store, receiptsForStorage []*types.ReceiptForStorage, txs types.Transactions, blockIdx idx.Block, atropos hash.Event) {
+	s.evm.SetRawReceipts(blockIdx, receiptsForStorage)
+	receipts, _ := evmstore.UnwrapStorageReceipts(receiptsForStorage, blockIdx, nil, common.Hash(atropos), txs)
+	for _, r := range receipts {
+		s.evm.IndexLogs(r.Logs...)
+	}
 }
 
 func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock, err error) {
@@ -57,22 +65,12 @@ func (s *Store) applyEpoch0Genesis(g opera.Genesis) (evmBlock *evmcore.EvmBlock,
 		if len(block.Receipts) != 0 {
 			gasUsed = block.Receipts[len(block.Receipts)-1].CumulativeGasUsed
 			s.evm.SetRawReceipts(blockIdx, block.Receipts)
+
 			allTxs := block.Txs
 			if block.InternalTxs.Len() > 0 {
 				allTxs = append(block.InternalTxs, block.Txs...)
 			}
-			logIdx := uint(0)
-			for i, r := range block.Receipts {
-				for _, l := range r.Logs {
-					l.BlockNumber = uint64(blockIdx)
-					l.TxHash = allTxs[i].Hash()
-					l.Index = logIdx
-					l.TxIndex = uint(i)
-					l.BlockHash = common.Hash(block.Atropos)
-					logIdx++
-				}
-				s.evm.IndexLogs(r.Logs...)
-			}
+			indexRawReceipts(s, block.Receipts, allTxs, blockIdx, block.Atropos)
 		}
 
 		s.SetBlock(blockIdx, &inter.Block{

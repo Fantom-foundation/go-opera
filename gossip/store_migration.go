@@ -59,7 +59,7 @@ func (s *Store) recoverUsedGas() error {
 		}
 
 		var (
-			rr                 = s.EvmStore().GetReceipts(n)
+			rr, _              = s.EvmStore().GetRawReceipts(n)
 			cumulativeGasWrong uint64
 			cumulativeGasRight uint64
 			fixed              bool
@@ -83,12 +83,11 @@ func (s *Store) recoverUsedGas() error {
 			// fix
 			if r.CumulativeGasUsed != cumulativeGasRight {
 				r.CumulativeGasUsed = cumulativeGasRight
-				r.GasUsed = gasUsed
 				fixed = true
 			}
 		}
 		if fixed {
-			s.EvmStore().SetReceipts(n, rr)
+			s.EvmStore().SetRawReceipts(n, rr)
 		}
 	}
 
