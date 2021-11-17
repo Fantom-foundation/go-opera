@@ -79,6 +79,11 @@ type (
 
 		FilterAPI filters.Config
 
+		// This can be set to list of enrtree:// URLs which will be queried for
+		// for nodes to connect to.
+		OperaDiscoveryURLs []string
+		SnapDiscoveryURLs  []string
+
 		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
 		// Protocol options
@@ -104,6 +109,8 @@ type (
 		ExtRPCEnabled bool
 
 		RPCLogsBloom bool
+
+		SnapshotCache int
 	}
 
 	StoreCacheConfig struct {

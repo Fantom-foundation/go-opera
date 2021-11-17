@@ -214,5 +214,5 @@ func (u *uniqueID) sample() [24]byte {
 }
 
 func (s *Service) DagProcessor() *dagprocessor.Processor {
-	return s.pm.dagProcessor
+	return s.handler.dagProcessor
 }

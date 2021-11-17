@@ -55,11 +55,11 @@ func (ew *emitterWorld) IsBusy() bool {
 }
 
 func (ew *emitterWorld) IsSynced() bool {
-	return atomic.LoadUint32(&ew.s.pm.synced) != 0
+	return atomic.LoadUint32(&ew.s.handler.synced) != 0
 }
 
 func (ew *emitterWorld) PeersNum() int {
-	return ew.s.pm.peers.Len()
+	return ew.s.handler.peers.Len()
 }
 
 func (ew *emitterWorld) GetHeads(epoch idx.Epoch) hash.Events {

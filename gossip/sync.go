@@ -13,13 +13,13 @@ type txsync struct {
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
-func (pm *ProtocolManager) syncTransactions(p *peer, txids []common.Hash) {
+func (h *handler) syncTransactions(p *peer, txids []common.Hash) {
 	if len(txids) == 0 {
 		return
 	}
 	select {
-	case pm.txsyncCh <- &txsync{p, txids}:
-	case <-pm.quitSync:
+	case h.txsyncCh <- &txsync{p, txids}:
+	case <-h.quitSync:
 	}
 }
 
@@ -27,7 +27,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer, txids []common.Hash) {
 // connection. When a new peer appears, we relay all currently pending
 // transactions. In order to minimise egress bandwidth usage, we send
 // the transactions in small packs to one peer at a time.
-func (pm *ProtocolManager) txsyncLoop() {
+func (h *handler) txsyncLoop() {
 	var (
 		pending = make(map[enode.ID]*txsync)
 		sending = false               // whether a send is active
@@ -76,7 +76,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 
 	for {
 		select {
-		case s := <-pm.txsyncCh:
+		case s := <-h.txsyncCh:
 			pending[s.p.ID()] = s
 			if !sending {
 				send(s)
@@ -92,20 +92,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 			if s := pick(); s != nil {
 				send(s)
 			}
-		case <-pm.quitSync:
-			return
-		}
-	}
-}
-
-// syncer is responsible for periodically synchronising with the network, both
-// downloading hashes and events as well as handling the announcement handler.
-func (pm *ProtocolManager) syncer() {
-	// Start and ensure cleanup of sync mechanisms
-	for {
-		select {
-		case <-pm.newPeerCh:
-		case <-pm.noMorePeers:
+		case <-h.quitSync:
 			return
 		}
 	}

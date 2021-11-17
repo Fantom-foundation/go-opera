@@ -13,6 +13,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -36,6 +38,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
+	"github.com/Fantom-foundation/go-opera/gossip/downloader"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -133,14 +136,16 @@ type Service struct {
 	blockBusyFlag uint32
 	eventBusyFlag uint32
 
-	feed ServiceFeed
+	feed     ServiceFeed
+	eventMux *event.TypeMux
 
 	gpo *gasprice.Oracle
 
 	// application protocol
-	pm *ProtocolManager
+	handler *handler
 
-	dialCandidates enode.Iterator
+	operaDialCandidates enode.Iterator
+	snapDialCandidates  enode.Iterator
 
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
@@ -168,6 +173,7 @@ func NewService(stack *node.Node, config Config, store *Store, signer valkeystor
 
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
+	svc.eventMux = stack.EventMux()
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 
@@ -223,10 +229,17 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// init dialCandidates
 	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
 	var err error
-	svc.dialCandidates, err = dnsclient.NewIterator()
+	svc.operaDialCandidates, err = dnsclient.NewIterator(config.OperaDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
+	svc.snapDialCandidates, err = dnsclient.NewIterator(config.SnapDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
 
 	// create protocol manager
-	svc.pm, err = newHandler(handlerConfig{
+	svc.handler, err = newHandler(handlerConfig{
 		config:   config,
 		notifier: &svc.feed,
 		txpool:   svc.txpool,
@@ -290,7 +303,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI, txSigner types.Signer)
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `opera`.
-func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) []p2p.Protocol {
+func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
 		version := version // Closure
@@ -303,13 +316,13 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) 
 				peer := NewPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
 
 				select {
-				case backend.newPeerCh <- peer:
+				case <-backend.quitSync:
+					return p2p.DiscQuitting
+				default:
 					backend.wg.Add(1)
 					defer backend.wg.Done()
 					err := backend.handle(peer)
 					return err
-				case <-backend.quitSync:
-					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
@@ -330,7 +343,11 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) 
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	return MakeProtocols(s, s.pm, s.dialCandidates)
+	protos := MakeProtocols(s, s.handler, s.operaDialCandidates)
+	if s.config.SnapshotCache > 0 {
+		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
+	}
+	return protos
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
@@ -347,6 +364,11 @@ func (s *Service) APIs() []rpc.API {
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   filters.NewPublicFilterAPI(s.EthAPI, s.config.FilterAPI),
+			Public:    true,
+		}, {
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   downloader.NewPublicDownloaderAPI(s.handler.downloader, s.eventMux),
 			Public:    true,
 		}, {
 			Namespace: "net",
@@ -370,7 +392,7 @@ func (s *Service) Start() error {
 
 	s.blockProcTasks.Start(1)
 
-	s.pm.Start(s.p2pServer.MaxPeers)
+	s.handler.Start(s.p2pServer.MaxPeers)
 
 	s.emitter.Start()
 
@@ -386,13 +408,20 @@ func (s *Service) WaitBlockEnd() {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+
 	defer log.Info("Fantom service stopped")
 	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
-	s.pm.Stop()
+
+	// Stop all the peer-related stuff first.
+	s.operaDialCandidates.Close()
+	s.snapDialCandidates.Close()
+
+	s.handler.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
+	s.eventMux.Stop()
 
 	// flush the state at exit, after all the routines stopped
 	s.engineMu.Lock()
