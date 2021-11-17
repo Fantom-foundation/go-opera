@@ -245,14 +245,14 @@ func consensusCallbackBeginBlockFn(
 					sfcapi.OnNewLog(store.sfcapi, l)
 				}
 
-				// skip LLR block/epoch if not activated
+				// skip LLR block/epoch deciding if not activated
 				if !es.Rules.Upgrades.Llr {
 					llrs := store.GetLlrState()
-					llrs.LowestBlockToDecide++
-					llrs.LowestBlockToFill++
-					if sealing {
+					if llrs.LowestBlockToDecide == blockCtx.Idx {
+						llrs.LowestBlockToDecide++
+					}
+					if sealing && es.Epoch+1 == llrs.LowestEpochToDecide {
 						llrs.LowestEpochToDecide++
-						llrs.LowestEpochToFill++
 					}
 					store.SetLlrState(llrs)
 				}
