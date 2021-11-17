@@ -39,59 +39,15 @@ func (s *Store) migrateData() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("used gas recovery", s.recoverUsedGas).
+		Next("used gas recovery", unsupportedMigration).
 		Next("tx hashes recovery", s.recoverTxHashes).
 		Next("DAG heads recovery", s.recoverHeadsStorage).
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState)
 }
 
-func (s *Store) recoverUsedGas() error {
-	start := s.GetGenesisBlockIndex()
-	if start == nil {
-		return fmt.Errorf("genesis block index is not set")
-	}
-
-	for n := *start; true; n++ {
-		b := s.GetBlock(n)
-		if b == nil {
-			break
-		}
-
-		var (
-			rr, _              = s.EvmStore().GetRawReceipts(n)
-			cumulativeGasWrong uint64
-			cumulativeGasRight uint64
-			fixed              bool
-		)
-		for i, r := range rr {
-			// simulate the bug
-			switch {
-			case n == *start: // genesis block
-				if i == len(b.InternalTxs)-2 || i == len(b.InternalTxs)-1 {
-					cumulativeGasWrong = 0
-				}
-			default: // other blocks
-				if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
-					cumulativeGasWrong = 0
-				}
-			}
-			// recalc
-			gasUsed := r.CumulativeGasUsed - cumulativeGasWrong
-			cumulativeGasWrong += gasUsed
-			cumulativeGasRight += gasUsed
-			// fix
-			if r.CumulativeGasUsed != cumulativeGasRight {
-				r.CumulativeGasUsed = cumulativeGasRight
-				fixed = true
-			}
-		}
-		if fixed {
-			s.EvmStore().SetRawReceipts(n, rr)
-		}
-	}
-
-	return nil
+func unsupportedMigration() error {
+	return fmt.Errorf("DB version isn't supported, please restart from scratch")
 }
 
 var (
