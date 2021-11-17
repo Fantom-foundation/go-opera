@@ -171,7 +171,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "abft",
 			Version:   "1.0",
 			Service:   NewPublicAbftAPI(apiBackend),
-			Public:    false,
+			Public:    true,
 		},
 	}
 

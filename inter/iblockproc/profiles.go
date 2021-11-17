@@ -1,4 +1,4 @@
-package blockproc
+package iblockproc
 
 import (
 	"io"

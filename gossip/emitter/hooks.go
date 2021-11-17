@@ -81,7 +81,7 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	} else {
 		em.pendingGas = 0
 	}
-	if !he.NoTxs() {
+	if he.AnyTxs() {
 		e := em.world.GetEventPayload(he.ID())
 		for _, tx := range e.Txs() {
 			addr, _ := types.Sender(em.world.TxSigner, tx)

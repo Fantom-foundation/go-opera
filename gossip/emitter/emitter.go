@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -78,6 +77,8 @@ type Emitter struct {
 	}
 
 	emittedEventFile *os.File
+	emittedBvsFile   *os.File
+	emittedEvFile    *os.File
 	busyRate         *rate.Gauge
 
 	logger.Periodic
@@ -113,7 +114,13 @@ func (em *Emitter) init() {
 	em.OnNewEpoch(validators, epoch)
 
 	if len(em.config.PrevEmittedEventFile.Path) != 0 {
-		em.emittedEventFile = openEventFile(em.config.PrevEmittedEventFile.Path, em.config.PrevEmittedEventFile.SyncMode)
+		em.emittedEventFile = openPrevActionFile(em.config.PrevEmittedEventFile.Path, em.config.PrevEmittedEventFile.SyncMode)
+	}
+	if len(em.config.PrevBlockVotesFile.Path) != 0 {
+		em.emittedBvsFile = openPrevActionFile(em.config.PrevBlockVotesFile.Path, em.config.PrevBlockVotesFile.SyncMode)
+	}
+	if len(em.config.PrevEpochVoteFile.Path) != 0 {
+		em.emittedEvFile = openPrevActionFile(em.config.PrevEpochVoteFile.Path, em.config.PrevEpochVoteFile.SyncMode)
 	}
 	em.busyRate = rate.NewGauge()
 }
@@ -247,6 +254,12 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	}
 	// write event ID to avoid doublesigning in future after a crash
 	em.writeLastEmittedEventID(e.ID())
+	if e.EpochVote().Epoch != 0 {
+		em.writeLastEmittedEpochVote(e.EpochVote().Epoch)
+	}
+	if len(e.BlockVotes().Votes) != 0 {
+		em.writeLastEmittedBlockVotes(e.BlockVotes().LastBlock())
+	}
 	// broadcast the event
 	em.world.Broadcast(e)
 
@@ -309,7 +322,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 		}
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator() == em.config.Validator.ID && i != 0 {
-			// there're 2 heads from me, i.e. due to a fork, chooseParents could have found multiple self-parents
+			// there are 2 heads from me, i.e. due to a fork, chooseParents could have found multiple self-parents
 			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.config.Validator.ID)
 			return nil
 		}
@@ -325,7 +338,13 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 		selfParentTime = selfParentHeader.CreationTime()
 	}
 
+	version := uint8(0)
+	if em.world.GetRules().Upgrades.Llr {
+		version = 1
+	}
+
 	mutEvent := &inter.MutableEventPayload{}
+	mutEvent.SetVersion(version)
 	mutEvent.SetEpoch(em.epoch)
 	mutEvent.SetSeq(selfParentSeq + 1)
 	mutEvent.SetCreator(em.config.Validator.ID)
@@ -333,6 +352,10 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	mutEvent.SetParents(parents)
 	mutEvent.SetLamport(maxLamport + 1)
 	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1))
+
+	// add LLR votes
+	em.addLlrEpochVote(mutEvent)
+	em.addLlrBlockVotes(mutEvent)
 
 	// set consensus fields
 	var metric ancestor.Metric
@@ -368,8 +391,8 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 		}
 	}
 
-	// calc Merkle root
-	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs(), new(trie.Trie))))
+	// calc Payload hash
+	mutEvent.SetPayloadHash(inter.CalcPayloadHash(mutEvent))
 
 	// sign
 	bSig, err := em.world.Signer.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())
@@ -401,7 +424,7 @@ func (em *Emitter) idle() bool {
 }
 
 func (em *Emitter) isValidator() bool {
-	return em.config.Validator.ID != 0 && em.validators.Get(em.config.Validator.ID) != 0
+	return em.config.Validator.ID != 0 && em.validators.Exists(em.config.Validator.ID)
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.EventPayload) {

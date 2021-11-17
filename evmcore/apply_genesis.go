@@ -22,9 +22,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
@@ -90,7 +90,7 @@ func genesisBlock(g opera.Genesis, root common.Hash) *EvmBlock {
 			Time:     g.Time,
 			GasLimit: math.MaxUint64,
 			Root:     root,
-			TxHash:   common.Hash(inter.EmptyTxHash),
+			TxHash:   types.EmptyRootHash,
 			BaseFee:  g.Rules.Economy.MinGasPrice,
 		},
 	}

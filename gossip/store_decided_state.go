@@ -5,25 +5,35 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 const sKey = "s"
 
 type BlockEpochState struct {
-	BlockState *blockproc.BlockState
-	EpochState *blockproc.EpochState
+	BlockState *iblockproc.BlockState
+	EpochState *iblockproc.EpochState
 }
 
-func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs blockproc.BlockState, es blockproc.EpochState) {
+func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockState, es iblockproc.EpochState) {
 	s.rlp.Set(s.table.BlockEpochStateHistory, epoch.Bytes(), BlockEpochState{
 		BlockState: &bs,
 		EpochState: &es,
 	})
 }
 
-func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*blockproc.BlockState, *blockproc.EpochState) {
+func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockState, *iblockproc.EpochState) {
+	// check current BlockEpochState as a cache
+	if v := s.cache.BlockEpochState.Load(); v != nil {
+		bes := v.(*BlockEpochState)
+		if bes.EpochState.Epoch == epoch {
+			bs := *bes.BlockState
+			es := *bes.EpochState
+			return &bs, &es
+		}
+	}
+	// read from disk
 	v, ok := s.rlp.Get(s.table.BlockEpochStateHistory, epoch.Bytes(), &BlockEpochState{}).(*BlockEpochState)
 	if !ok {
 		return nil, nil
@@ -31,8 +41,13 @@ func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*blockproc.BlockStat
 	return v.BlockState, v.EpochState
 }
 
+func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {
+	has, _ := s.table.BlockEpochStateHistory.Has(epoch.Bytes())
+	return has
+}
+
 // SetBlockEpochState stores the latest block and epoch state in memory
-func (s *Store) SetBlockEpochState(bs blockproc.BlockState, es blockproc.EpochState) {
+func (s *Store) SetBlockEpochState(bs iblockproc.BlockState, es iblockproc.EpochState) {
 	bs, es = bs.Copy(), es.Copy()
 	s.cache.BlockEpochState.Store(&BlockEpochState{&bs, &es})
 }
@@ -55,16 +70,16 @@ func (s *Store) FlushBlockEpochState() {
 }
 
 // GetBlockState retrieves the latest block state
-func (s *Store) GetBlockState() blockproc.BlockState {
+func (s *Store) GetBlockState() iblockproc.BlockState {
 	return *s.getBlockEpochState().BlockState
 }
 
 // GetEpochState retrieves the latest epoch state
-func (s *Store) GetEpochState() blockproc.EpochState {
+func (s *Store) GetEpochState() iblockproc.EpochState {
 	return *s.getBlockEpochState().EpochState
 }
 
-func (s *Store) GetBlockEpochState() (blockproc.BlockState, blockproc.EpochState) {
+func (s *Store) GetBlockEpochState() (iblockproc.BlockState, iblockproc.EpochState) {
 	bes := s.getBlockEpochState()
 	return *bes.BlockState, *bes.EpochState
 }

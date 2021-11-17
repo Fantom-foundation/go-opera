@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
-	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamleecher"
-	"github.com/Fantom-foundation/lachesis-base/gossip/dagstream/streamseeder"
 	"github.com/Fantom-foundation/lachesis-base/gossip/itemsfetcher"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -21,6 +19,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brprocessor"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream/brstreamleecher"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream/brstreamseeder"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvprocessor"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream/bvstreamleecher"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream/bvstreamseeder"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/dag/dagstream/dagstreamleecher"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/dag/dagstream/dagstreamseeder"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epprocessor"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream/epstreamleecher"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream/epstreamseeder"
 )
 
 const nominalSize uint = 1
@@ -34,17 +43,27 @@ type (
 		ThroughputImportance int
 
 		EventsSemaphoreLimit dag.Metric
+		BVsSemaphoreLimit    dag.Metric
 		MsgsSemaphoreLimit   dag.Metric
 		MsgsSemaphoreTimeout time.Duration
 
 		ProgressBroadcastPeriod time.Duration
 
-		Processor dagprocessor.Config
+		DagProcessor dagprocessor.Config
+		BvProcessor  bvprocessor.Config
+		BrProcessor  brprocessor.Config
+		EpProcessor  epprocessor.Config
 
-		DagFetcher    itemsfetcher.Config
-		TxFetcher     itemsfetcher.Config
-		StreamLeecher streamleecher.Config
-		StreamSeeder  streamseeder.Config
+		DagFetcher       itemsfetcher.Config
+		TxFetcher        itemsfetcher.Config
+		DagStreamLeecher dagstreamleecher.Config
+		DagStreamSeeder  dagstreamseeder.Config
+		BvStreamLeecher  bvstreamleecher.Config
+		BvStreamSeeder   bvstreamseeder.Config
+		BrStreamLeecher  brstreamleecher.Config
+		BrStreamSeeder   brstreamseeder.Config
+		EpStreamLeecher  epstreamleecher.Config
+		EpStreamSeeder   epstreamseeder.Config
 
 		MaxInitialTxHashesSend   int
 		MaxRandomTxHashesSend    int
@@ -139,10 +158,17 @@ func DefaultConfig(scale cachescale.Func) Config {
 				Num:  scale.Events(10000),
 				Size: scale.U64(30 * opt.MiB),
 			},
+			BVsSemaphoreLimit: dag.Metric{
+				Num:  scale.Events(5000),
+				Size: scale.U64(15 * opt.MiB),
+			},
 			MsgsSemaphoreTimeout:    10 * time.Second,
 			ProgressBroadcastPeriod: 10 * time.Second,
 
-			Processor: dagprocessor.DefaultConfig(scale),
+			DagProcessor: dagprocessor.DefaultConfig(scale),
+			BvProcessor:  bvprocessor.DefaultConfig(scale),
+			BrProcessor:  brprocessor.DefaultConfig(scale),
+			EpProcessor:  epprocessor.DefaultConfig(scale),
 			DagFetcher: itemsfetcher.Config{
 				ForgetTimeout:       1 * time.Minute,
 				ArriveTimeout:       1000 * time.Millisecond,
@@ -161,8 +187,14 @@ func DefaultConfig(scale cachescale.Func) Config {
 				MaxQueuedBatches:    scale.I(32),
 				MaxParallelRequests: 64,
 			},
-			StreamLeecher:            streamleecher.DefaultConfig(),
-			StreamSeeder:             streamseeder.DefaultConfig(scale),
+			DagStreamLeecher:         dagstreamleecher.DefaultConfig(),
+			DagStreamSeeder:          dagstreamseeder.DefaultConfig(scale),
+			BvStreamLeecher:          bvstreamleecher.DefaultConfig(),
+			BvStreamSeeder:           bvstreamseeder.DefaultConfig(scale),
+			BrStreamLeecher:          brstreamleecher.DefaultConfig(),
+			BrStreamSeeder:           brstreamseeder.DefaultConfig(scale),
+			EpStreamLeecher:          epstreamleecher.DefaultConfig(),
+			EpStreamSeeder:           epstreamseeder.DefaultConfig(scale),
 			MaxInitialTxHashesSend:   20000,
 			MaxRandomTxHashesSend:    128,
 			RandomTxHashesSendPeriod: 20 * time.Second,
@@ -186,9 +218,11 @@ func DefaultConfig(scale cachescale.Func) Config {
 		RPCGasCap:   50000000,
 		RPCTxFeeCap: 100, // 100 FTM
 	}
-	cfg.Protocol.Processor.EventsBufferLimit.Num = idx.Event(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Num + softLimitItems
-	cfg.Protocol.Processor.EventsBufferLimit.Size = uint64(cfg.Protocol.StreamLeecher.Session.ParallelChunksDownload)*cfg.Protocol.StreamLeecher.Session.DefaultChunkSize.Size + 8*opt.MiB
-	cfg.Protocol.StreamLeecher.MaxSessionRestart = 4 * time.Minute
+	sessionCfg := cfg.Protocol.DagStreamLeecher.Session
+	cfg.Protocol.DagProcessor.EventsBufferLimit.Num = idx.Event(sessionCfg.ParallelChunksDownload)*
+		idx.Event(sessionCfg.DefaultChunkItemsNum) + softLimitItems
+	cfg.Protocol.DagProcessor.EventsBufferLimit.Size = uint64(sessionCfg.ParallelChunksDownload)*sessionCfg.DefaultChunkItemsSize + 8*opt.MiB
+	cfg.Protocol.DagStreamLeecher.MaxSessionRestart = 4 * time.Minute
 	cfg.Protocol.DagFetcher.ArriveTimeout = 4 * time.Second
 	cfg.Protocol.DagFetcher.HashLimit = 10000
 	cfg.Protocol.TxFetcher.HashLimit = 10000
@@ -197,27 +231,29 @@ func DefaultConfig(scale cachescale.Func) Config {
 }
 
 func (c *Config) Validate() error {
-	if c.Protocol.StreamLeecher.Session.DefaultChunkSize.Num > hardLimitItems-1 {
+	p := c.Protocol
+	defaultChunkSize := dag.Metric{idx.Event(p.DagStreamLeecher.Session.DefaultChunkItemsNum), p.DagStreamLeecher.Session.DefaultChunkItemsSize}
+	if defaultChunkSize.Num > hardLimitItems-1 {
 		return fmt.Errorf("DefaultChunkSize.Num has to be at not greater than %d", hardLimitItems-1)
 	}
-	if c.Protocol.StreamLeecher.Session.DefaultChunkSize.Size > protocolMaxMsgSize/2 {
+	if defaultChunkSize.Size > protocolMaxMsgSize/2 {
 		return fmt.Errorf("DefaultChunkSize.Num has to be at not greater than %d", protocolMaxMsgSize/2)
 	}
-	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.StreamLeecher.Session.DefaultChunkSize.Num ||
-		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.StreamLeecher.Session.DefaultChunkSize.Size {
-		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (DefaultChunkSize)", c.Protocol.StreamLeecher.Session.DefaultChunkSize.String())
+	if p.EventsSemaphoreLimit.Num < 2*defaultChunkSize.Num ||
+		p.EventsSemaphoreLimit.Size < 2*defaultChunkSize.Size {
+		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (DefaultChunkSize)", defaultChunkSize.String())
 	}
-	if c.Protocol.EventsSemaphoreLimit.Num < 2*c.Protocol.Processor.EventsBufferLimit.Num ||
-		c.Protocol.EventsSemaphoreLimit.Size < 2*c.Protocol.Processor.EventsBufferLimit.Size {
-		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (EventsBufferLimit)", c.Protocol.Processor.EventsBufferLimit.String())
+	if p.EventsSemaphoreLimit.Num < 2*p.DagProcessor.EventsBufferLimit.Num ||
+		p.EventsSemaphoreLimit.Size < 2*p.DagProcessor.EventsBufferLimit.Size {
+		return fmt.Errorf("EventsSemaphoreLimit has to be at least 2 times greater than %s (EventsBufferLimit)", p.DagProcessor.EventsBufferLimit.String())
 	}
-	if c.Protocol.EventsSemaphoreLimit.Size < 2*protocolMaxMsgSize {
+	if p.EventsSemaphoreLimit.Size < 2*protocolMaxMsgSize {
 		return fmt.Errorf("EventsSemaphoreLimit.Size has to be at least %d", 2*protocolMaxMsgSize)
 	}
-	if c.Protocol.MsgsSemaphoreLimit.Size < protocolMaxMsgSize {
+	if p.MsgsSemaphoreLimit.Size < protocolMaxMsgSize {
 		return fmt.Errorf("MsgsSemaphoreLimit.Size has to be at least %d", protocolMaxMsgSize)
 	}
-	if c.Protocol.Processor.EventsBufferLimit.Size < protocolMaxMsgSize {
+	if p.DagProcessor.EventsBufferLimit.Size < protocolMaxMsgSize {
 		return fmt.Errorf("EventsBufferLimit.Size has to be at least %d", protocolMaxMsgSize)
 	}
 

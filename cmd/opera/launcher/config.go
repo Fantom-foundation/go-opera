@@ -400,8 +400,8 @@ func defaultNodeConfig() node.Config {
 	cfg := NodeDefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "dag", "sfc", "abft", "web3")
-	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "sfc", "abft", "web3")
+	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "dag", "abft", "web3")
+	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "abft", "web3")
 	cfg.IPCPath = "opera.ipc"
 	cfg.DataDir = DefaultDataDir()
 	return cfg

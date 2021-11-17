@@ -36,7 +36,7 @@ func (v *Checkers) Validate(e inter.EventPayloadI, parents inter.EventIs) error 
 	if err := v.Gaspowercheck.Validate(e, selfParent); err != nil {
 		return err
 	}
-	if err := v.Heavycheck.Validate(e); err != nil {
+	if err := v.Heavycheck.ValidateEvent(e); err != nil {
 		return err
 	}
 	return nil

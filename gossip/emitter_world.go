@@ -32,7 +32,7 @@ func (ew *emitterWorld) Check(emitted *inter.EventPayload, parents inter.Events)
 }
 
 func (ew *emitterWorld) Process(emitted *inter.EventPayload) error {
-	done := ew.s.eventsLogger.EventConnectionStarted(emitted, true)
+	done := ew.s.procLogger.EventConnectionStarted(emitted, true)
 	defer done()
 	return ew.s.processEvent(emitted)
 }
@@ -71,4 +71,34 @@ func (ew *emitterWorld) GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *has
 }
 func (ew *emitterWorld) GetRecommendedGasPrice() *big.Int {
 	return ew.s.GetEvmStateReader().RecommendedGasTip()
+}
+
+func (ew *emitterWorld) GetLowestBlockToDecide() idx.Block {
+	return ew.Store.GetLlrState().LowestBlockToDecide
+}
+
+func (ew *emitterWorld) GetBlockRecordHash(n idx.Block) *hash.Hash {
+	record := ew.s.store.GetFullBlockRecord(n)
+	if record == nil {
+		return nil
+	}
+	h := record.Hash()
+	return &h
+}
+
+func (ew *emitterWorld) GetBlockEpoch(block idx.Block) idx.Epoch {
+	return ew.s.store.FindBlockEpoch(block)
+}
+
+func (ew *emitterWorld) GetLowestEpochToDecide() idx.Epoch {
+	return ew.Store.GetLlrState().LowestEpochToDecide
+}
+
+func (ew *emitterWorld) GetEpochRecordHash(epoch idx.Epoch) *hash.Hash {
+	record := ew.s.store.GetFullEpochRecord(epoch)
+	if record == nil {
+		return nil
+	}
+	h := record.Hash()
+	return &h
 }

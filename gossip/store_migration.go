@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 	"github.com/Fantom-foundation/go-opera/utils/migration"
@@ -39,60 +39,15 @@ func (s *Store) migrateData() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("opera-gossip-store").
-		Next("used gas recovery", s.recoverUsedGas).
+		Next("used gas recovery", unsupportedMigration).
 		Next("tx hashes recovery", s.recoverTxHashes).
 		Next("DAG heads recovery", s.recoverHeadsStorage).
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState)
 }
 
-func (s *Store) recoverUsedGas() error {
-	start := s.GetGenesisBlockIndex()
-	if start == nil {
-		return fmt.Errorf("genesis block index is not set")
-	}
-
-	for n := *start; true; n++ {
-		b := s.GetBlock(n)
-		if b == nil {
-			break
-		}
-
-		var (
-			rr                 = s.EvmStore().GetReceipts(n)
-			cumulativeGasWrong uint64
-			cumulativeGasRight uint64
-			fixed              bool
-		)
-		for i, r := range rr {
-			// simulate the bug
-			switch {
-			case n == *start: // genesis block
-				if i == len(b.InternalTxs)-2 || i == len(b.InternalTxs)-1 {
-					cumulativeGasWrong = 0
-				}
-			default: // other blocks
-				if i == len(b.InternalTxs)-1 || i == len(b.InternalTxs) {
-					cumulativeGasWrong = 0
-				}
-			}
-			// recalc
-			gasUsed := r.CumulativeGasUsed - cumulativeGasWrong
-			cumulativeGasWrong += gasUsed
-			cumulativeGasRight += gasUsed
-			// fix
-			if r.CumulativeGasUsed != cumulativeGasRight {
-				r.CumulativeGasUsed = cumulativeGasRight
-				r.GasUsed = gasUsed
-				fixed = true
-			}
-		}
-		if fixed {
-			s.EvmStore().SetReceipts(n, rr)
-		}
-	}
-
-	return nil
+func unsupportedMigration() error {
+	return fmt.Errorf("DB version isn't supported, please restart from scratch")
 }
 
 var (
@@ -270,14 +225,14 @@ type ValidatorBlockStateV0 struct {
 }
 
 type BlockStateV0 struct {
-	LastBlock          blockproc.BlockCtx
+	LastBlock          iblockproc.BlockCtx
 	FinalizedStateRoot hash.Hash
 
 	EpochGas      uint64
 	EpochCheaters lachesis.Cheaters
 
 	ValidatorStates       []ValidatorBlockStateV0
-	NextValidatorProfiles blockproc.ValidatorProfiles
+	NextValidatorProfiles iblockproc.ValidatorProfiles
 
 	DirtyRules opera.Rules
 
@@ -286,17 +241,17 @@ type BlockStateV0 struct {
 
 type BlockEpochStateV0 struct {
 	BlockState *BlockStateV0
-	EpochState *blockproc.EpochState
+	EpochState *iblockproc.EpochState
 }
 
 func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 	oldES := oldEBS.EpochState
 	oldBS := oldEBS.BlockState
 
-	newValidatorState := make([]blockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
+	newValidatorState := make([]iblockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
 	cheatersWritten := 0
 	for i, vs := range oldBS.ValidatorStates {
-		newValidatorState[i] = blockproc.ValidatorBlockState{
+		newValidatorState[i] = iblockproc.ValidatorBlockState{
 			LastEvent:        vs.LastEvent,
 			Uptime:           vs.Uptime,
 			LastOnlineTime:   vs.LastOnlineTime,
@@ -310,7 +265,7 @@ func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 		}
 	}
 
-	newBS := &blockproc.BlockState{
+	newBS := &iblockproc.BlockState{
 		LastBlock:             oldBS.LastBlock,
 		FinalizedStateRoot:    oldBS.FinalizedStateRoot,
 		EpochGas:              oldBS.EpochGas,

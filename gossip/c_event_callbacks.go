@@ -12,9 +12,9 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/utils/concurrent"
 )
 
@@ -73,7 +73,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 }
 
 // processSavedEvent performs processing which depends on event being saved in DB
-func (s *Service) processSavedEvent(e *inter.EventPayload, es *blockproc.EpochState) error {
+func (s *Service) processSavedEvent(e *inter.EventPayload, es *iblockproc.EpochState) error {
 	err := s.dagIndexer.Add(e)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (s *Service) processSavedEvent(e *inter.EventPayload, es *blockproc.EpochSt
 }
 
 // saveAndProcessEvent deletes event in a case if it fails validation during event processing
-func (s *Service) saveAndProcessEvent(e *inter.EventPayload, es *blockproc.EpochState) error {
+func (s *Service) saveAndProcessEvent(e *inter.EventPayload, es *iblockproc.EpochState) error {
 	fixEventTxHashes(e)
 	// indexing event
 	s.store.SetEvent(e)
@@ -151,7 +151,17 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		}
 	}
 
-	err := s.saveAndProcessEvent(e, &es)
+	// Process LLR votes
+	err := s.ProcessBlockVotes(inter.AsSignedBlockVotes(e))
+	if err != nil && err != eventcheck.ErrAlreadyProcessedBVs {
+		return err
+	}
+	err = s.ProcessEpochVote(inter.AsSignedEpochVote(e))
+	if err != nil && err != eventcheck.ErrAlreadyProcessedEV {
+		return err
+	}
+
+	err = s.saveAndProcessEvent(e, &es)
 	if err != nil {
 		return err
 	}
@@ -179,7 +189,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		})
 		// notify event checkers about new validation data
 		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, s.store.GetRules().Economy)) // read gaspower check data from disk
-		s.heavyCheckReader.Addrs.Store(NewEpochPubKeys(s.store, newEpoch))
+		s.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(s.store, newEpoch))
 		// notify about new epoch
 		s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
@@ -204,5 +214,5 @@ func (u *uniqueID) sample() [24]byte {
 }
 
 func (s *Service) DagProcessor() *dagprocessor.Processor {
-	return s.pm.processor
+	return s.pm.dagProcessor
 }

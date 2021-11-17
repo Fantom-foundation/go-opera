@@ -56,6 +56,11 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	return block
 }
 
+func (s *Store) HasBlock(n idx.Block) bool {
+	has, _ := s.table.Blocks.Has(n.Bytes())
+	return has
+}
+
 func (s *Store) ForEachBlock(fn func(index idx.Block, block *inter.Block)) {
 	it := s.table.Blocks.NewIterator(nil, nil)
 	defer it.Release()

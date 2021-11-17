@@ -76,20 +76,33 @@ type ValidatorsPubKeys struct {
 
 // HeavyCheckReader is a helper to run heavy power checks
 type HeavyCheckReader struct {
-	Addrs atomic.Value
+	Pubkeys atomic.Value
+	Store   *Store
 }
 
 // GetEpochPubKeys is safe for concurrent use
 func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch) {
-	auth := r.Addrs.Load().(*ValidatorsPubKeys)
+	auth := r.Pubkeys.Load().(*ValidatorsPubKeys)
 
 	return auth.PubKeys, auth.Epoch
 }
 
-// NewEpochPubKeys is the same as GetEpochValidators, but returns only addresses
-func NewEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
-	es := s.GetEpochState()
-	pubkeys := make(map[idx.ValidatorID]validatorpk.PubKey, len(es.ValidatorProfiles))
+// GetEpochPubKeysOf is safe for concurrent use
+func (r *HeavyCheckReader) GetEpochPubKeysOf(epoch idx.Epoch) map[idx.ValidatorID]validatorpk.PubKey {
+	auth := readEpochPubKeys(r.Store, epoch)
+	if auth == nil {
+		return nil
+	}
+	return auth.PubKeys
+}
+
+// readEpochPubKeys reads epoch pubkeys
+func readEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
+	_, es := s.GetHistoryBlockEpochState(epoch)
+	if es == nil {
+		return nil
+	}
+	var pubkeys = make(map[idx.ValidatorID]validatorpk.PubKey, len(es.ValidatorProfiles))
 	for id, profile := range es.ValidatorProfiles {
 		pubkeys[id] = profile.PubKey
 	}

@@ -1,4 +1,4 @@
-package blockproc
+package iblockproc
 
 import (
 	"crypto/sha256"
@@ -46,7 +46,7 @@ type BlockState struct {
 	ValidatorStates       []ValidatorBlockState
 	NextValidatorProfiles ValidatorProfiles
 
-	DirtyRules *opera.Rules `rlp:"nil"` // nil means that's no changes compared to epoch rules
+	DirtyRules *opera.Rules `rlp:"nil"` // nil means that there's no changes compared to epoch rules
 
 	AdvanceEpochs idx.Epoch
 }
@@ -71,6 +71,15 @@ func (bs BlockState) Copy() BlockState {
 func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorBlockState {
 	validatorIdx := validators.GetIdx(id)
 	return &bs.ValidatorStates[validatorIdx]
+}
+
+func (bs BlockState) Hash() hash.Hash {
+	hasher := sha256.New()
+	err := rlp.Encode(hasher, &bs)
+	if err != nil {
+		panic("can't hash: " + err.Error())
+	}
+	return hash.BytesToHash(hasher.Sum(nil))
 }
 
 type EpochState struct {

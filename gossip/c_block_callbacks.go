@@ -19,12 +19,12 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -117,12 +117,22 @@ func consensusCallbackBeginBlockFn(
 		if err != nil {
 			log.Crit("Failed to open StateDB", "err", err)
 		}
+		evmStateReader := &EvmStateReader{
+			ServiceFeed: feed,
+			store:       store,
+		}
 
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
 		atroposTime := bs.LastBlock.Time + 1
 		atroposDegenerate := true
+		// events with txs
 		confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
+
+		mpsCheatersMap := make(map[idx.ValidatorID]struct{})
+		reportCheater := func(reporter, cheater idx.ValidatorID) {
+			mpsCheatersMap[cheater] = struct{}{}
+		}
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
@@ -131,9 +141,51 @@ func consensusCallbackBeginBlockFn(
 					atroposTime = e.MedianTime()
 					atroposDegenerate = false
 				}
-				if !e.NoTxs() {
-					// non-empty events only
+				if e.AnyTxs() {
 					confirmedEvents = append(confirmedEvents, e.ID())
+				}
+				if e.AnyMisbehaviourProofs() {
+					mps := store.GetEventPayload(e.ID()).MisbehaviourProofs()
+					for _, mp := range mps {
+						// self-contained parts of proofs are already checked by the checkers
+						if proof := mp.BlockVoteDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
+						}
+						if proof := mp.EpochVoteDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
+						}
+						if proof := mp.EventsDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Locator.Creator)
+						}
+						if proof := mp.WrongBlockVote; proof != nil {
+							// all other votes are the same, see MinAccomplicesForProof
+							vote := proof.Pals[0]
+							firstBlockEpoch := store.FindBlockEpoch(vote.Val.Start)
+							lastBlockEpoch := store.FindBlockEpoch(vote.Val.LastBlock())
+							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != vote.Val.Epoch {
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
+								continue
+							}
+							actualRecord := store.GetFullBlockRecord(proof.Block)
+							if actualRecord == nil {
+								continue
+							}
+							if proof.GetVote(0) != actualRecord.Hash() {
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
+							}
+						}
+						if proof := mp.WrongEpochVote; proof != nil {
+							// all other votes are the same, see MinAccomplicesForProof
+							vote := proof.Pals[0]
+							actualRecord := store.GetFullEpochRecord(vote.Val.Epoch)
+							if actualRecord == nil {
+								continue
+							}
+							if vote.Val.Vote != actualRecord.Hash() {
+								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
+							}
+						}
+					}
 				}
 				eventProcessor.ProcessConfirmedEvent(e)
 				if emitter != nil {
@@ -144,7 +196,7 @@ func consensusCallbackBeginBlockFn(
 				if atroposTime <= bs.LastBlock.Time {
 					atroposTime = bs.LastBlock.Time + 1
 				}
-				blockCtx := blockproc.BlockCtx{
+				blockCtx := iblockproc.BlockCtx{
 					Idx:     bs.LastBlock.Idx + 1,
 					Time:    atroposTime,
 					Atropos: cBlock.Atropos,
@@ -163,6 +215,17 @@ func consensusCallbackBeginBlockFn(
 				skipBlock = skipBlock || (emptyBlock && blockCtx.Time < bs.LastBlock.Time+es.Rules.Blocks.MaxEmptyBlockSkipPeriod)
 				// Finalize the progress of eventProcessor
 				bs = eventProcessor.Finalize(blockCtx, skipBlock) // TODO: refactor to not mutate the bs, it is unclear
+				{                                                 // sort and merge MPs cheaters
+					mpsCheaters := make(lachesis.Cheaters, 0, len(mpsCheatersMap))
+					for vid := range mpsCheatersMap {
+						mpsCheaters = append(mpsCheaters, vid)
+					}
+					sort.Slice(mpsCheaters, func(i, j int) bool {
+						a, b := mpsCheaters[i], mpsCheaters[j]
+						return a < b
+					})
+					bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, mpsCheaters)
+				}
 				if skipBlock {
 					// save the latest block state even if block is skipped
 					store.SetBlockEpochState(bs, es)
@@ -173,16 +236,25 @@ func consensusCallbackBeginBlockFn(
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
 				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
-				evmStateReader := &EvmStateReader{
-					ServiceFeed: feed,
-					store:       store,
-				}
 				onNewLogAll := func(l *types.Log) {
 					txListener.OnNewLog(l)
+					// Note: it's possible for logs to get indexed twice by BR and block processing
 					if verWatcher != nil {
 						verWatcher.OnNewLog(l)
 					}
 					sfcapi.OnNewLog(store.sfcapi, l)
+				}
+
+				// skip LLR block/epoch deciding if not activated
+				if !es.Rules.Upgrades.Llr {
+					llrs := store.GetLlrState()
+					if llrs.LowestBlockToDecide == blockCtx.Idx {
+						llrs.LowestBlockToDecide++
+					}
+					if sealing && es.Epoch+1 == llrs.LowestEpochToDecide {
+						llrs.LowestEpochToDecide++
+					}
+					store.SetLlrState(llrs)
 				}
 
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
@@ -290,6 +362,7 @@ func consensusCallbackBeginBlockFn(
 						}
 
 						// Index receipts
+						// Note: it's possible for receipts to get indexed twice by BR and block processing
 						if allReceipts.Len() != 0 {
 							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
 							for _, r := range allReceipts {
@@ -311,6 +384,8 @@ func consensusCallbackBeginBlockFn(
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
 					store.SetBlockEpochState(bs, es)
 					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
+					updateLowestBlockToFill(blockCtx.Idx, store)
+					updateLowestEpochToFill(es.Epoch, store)
 
 					// Update the metrics touched during block processing
 					accountReadTimer.Update(statedb.AccountReads)

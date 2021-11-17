@@ -39,6 +39,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/gossip/proclogger"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -144,10 +145,11 @@ type Service struct {
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
 
+	procLogger *proclogger.Logger
+
 	stopped bool
 
 	logger.Instance
-	eventsLogger *EventsLogger
 }
 
 func NewService(stack *node.Node, config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
@@ -184,8 +186,8 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 		dagIndexer:         dagIndexer,
 		engineMu:           new(sync.RWMutex),
 		uniqueEventIDs:     uniqueID{new(big.Int)},
+		procLogger:         proclogger.NewLogger(),
 		Instance:           logger.New("gossip-service"),
-		eventsLogger:       NewEventsLogger(),
 	}
 
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
@@ -199,15 +201,20 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// load caches for mutable values to avoid race condition
 	svc.store.GetBlockEpochState()
 	svc.store.GetHighestLamport()
+	svc.store.GetLastBVs()
+	svc.store.GetLastEVs()
+	svc.store.GetLlrState()
 
 	// create GPO
 	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
-	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                             // read pub keys of current epoch from disk
+	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
+	svc.heavyCheckReader.Store = store
+	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from disk
 	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(config.HeavyCheck, net.EvmChainConfig().ChainID, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
+	svc.checkers = makeCheckers(config.HeavyCheck, txSigner, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
@@ -226,19 +233,26 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 		engineMu: svc.engineMu,
 		checkers: svc.checkers,
 		s:        store,
-		processEvent: func(e *inter.EventPayload) error {
-			done := svc.eventsLogger.EventConnectionStarted(e, false)
-			defer done()
-			return svc.processEvent(e)
-		}})
+		process: processCallback{
+			Event: func(event *inter.EventPayload) error {
+				done := svc.procLogger.EventConnectionStarted(event, false)
+				defer done()
+				return svc.processEvent(event)
+			},
+			BVs: svc.ProcessBlockVotes,
+			BR:  svc.ProcessFullBlockRecord,
+			EV:  svc.ProcessEpochVote,
+			ER:  svc.ProcessFullEpochRecord,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, config.AllowUnprotectedTxs}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.emitter = svc.makeEmitter(signer)
+	svc.emitter = svc.makeEmitter(signer, txSigner)
 
 	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
 
@@ -246,9 +260,9 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 }
 
 // makeCheckers builds event checkers
-func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
+func makeCheckers(heavyCheckCfg heavycheck.Config, txSigner types.Signer, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, gsignercache.Wrap(types.NewLondonSigner(chainID)))
+	heavyCheck := heavycheck.New(heavyCheckCfg, heavyCheckReader, txSigner)
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
@@ -262,9 +276,7 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, chainID *big.Int, heavyCheckR
 	}
 }
 
-func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
-	txSigner := gsignercache.Wrap(types.NewLondonSigner(s.store.GetRules().EvmChainConfig().ChainID))
-
+func (s *Service) makeEmitter(signer valkeystore.SignerI, txSigner types.Signer) *emitter.Emitter {
 	return emitter.NewEmitter(s.config.Emitter, emitter.World{
 		External: &emitterWorld{
 			s:       s,

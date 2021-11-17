@@ -143,6 +143,7 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (
 	env.lastBlockTime = env.lastBlockTime.Add(spent)
 
 	eBuilder := inter.MutableEventPayload{}
+	eBuilder.SetVersion(1)
 	eBuilder.SetMedianTime(inter.Timestamp(env.lastBlockTime.UnixNano()))
 	eBuilder.SetTxs(txs)
 	event := eBuilder.Build()
