@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -108,8 +109,12 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 		// Note: it's possible for receipts to get indexed twice by BR and block processing
 		indexRawReceipts(s.store, br.Receipts, br.Txs, br.Idx, br.Atropos)
 	}
-	for _, tx := range br.Txs {
+	for i, tx := range br.Txs {
 		s.store.EvmStore().SetTx(tx.Hash(), tx)
+		s.store.EvmStore().SetTxPosition(tx.Hash(), evmstore.TxPosition{
+			Block:       br.Idx,
+			BlockOffset: uint32(i),
+		})
 	}
 	s.store.SetBlock(br.Idx, &inter.Block{
 		Time:        br.Time,
