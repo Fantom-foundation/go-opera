@@ -130,11 +130,17 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 				return ErrMPTooLate
 			}
 			// see MinAccomplicesForProof
-			if i > 0 && proof.GetVote(i-1) != proof.GetVote(i) {
-				return ErrWrongMP
+			if proof.WrongEpoch {
+				if i > 0 && pal.Val.Epoch != proof.Pals[i-1].Val.Epoch {
+					return ErrWrongMP
+				}
+			} else {
+				if i > 0 && proof.GetVote(i-1) != proof.GetVote(i) {
+					return ErrWrongMP
+				}
 			}
 			for _, prev := range proof.Pals[:i] {
-				if prev.Signed.Locator == pal.Signed.Locator {
+				if prev.Signed.Locator.Creator == pal.Signed.Locator.Creator {
 					return ErrWrongMP
 				}
 			}
@@ -172,7 +178,7 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 				return ErrWrongMP
 			}
 			for _, prev := range proof.Pals[:i] {
-				if prev.Signed.Locator == pal.Signed.Locator {
+				if prev.Signed.Locator.Creator == pal.Signed.Locator.Creator {
 					return ErrWrongMP
 				}
 			}
