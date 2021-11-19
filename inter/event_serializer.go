@@ -30,6 +30,9 @@ func (e *Event) MarshalCSER(w *cser.Writer) error {
 		}
 	}
 	// base fields
+	if e.Version() > 0 {
+		w.U16(e.NetForkID())
+	}
 	w.U32(uint32(e.Epoch()))
 	w.U32(uint32(e.Lamport()))
 	w.U32(uint32(e.Creator()))
@@ -87,6 +90,10 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	}
 
 	// base fields
+	var netForkID uint16
+	if version > 0 {
+		netForkID = r.U16()
+	}
 	epoch := r.U32()
 	lamport := r.U32()
 	creator := r.U32()
@@ -141,6 +148,7 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	}
 
 	e.SetVersion(version)
+	e.SetNetForkID(netForkID)
 	e.SetEpoch(idx.Epoch(epoch))
 	e.SetLamport(idx.Lamport(lamport))
 	e.SetCreator(idx.ValidatorID(creator))
@@ -377,19 +385,20 @@ func (e *MutableEventPayload) DecodeRLP(src *rlp.Stream) error {
 // RPCMarshalEvent converts the given event to the RPC output .
 func RPCMarshalEvent(e EventI) map[string]interface{} {
 	return map[string]interface{}{
-		"version":       hexutil.Uint64(e.Version()),
-		"epoch":         hexutil.Uint64(e.Epoch()),
-		"seq":           hexutil.Uint64(e.Seq()),
-		"id":            hexutil.Bytes(e.ID().Bytes()),
-		"frame":         hexutil.Uint64(e.Frame()),
-		"creator":       hexutil.Uint64(e.Creator()),
-		"prevEpochHash": e.PrevEpochHash(),
-		"parents":       EventIDsToHex(e.Parents()),
-		"lamport":       hexutil.Uint64(e.Lamport()),
-		"creationTime":  hexutil.Uint64(e.CreationTime()),
-		"medianTime":    hexutil.Uint64(e.MedianTime()),
-		"extraData":     hexutil.Bytes(e.Extra()),
-		"payloadHash":   hexutil.Bytes(e.PayloadHash().Bytes()),
+		"version":        hexutil.Uint64(e.Version()),
+		"networkVersion": hexutil.Uint64(e.NetForkID()),
+		"epoch":          hexutil.Uint64(e.Epoch()),
+		"seq":            hexutil.Uint64(e.Seq()),
+		"id":             hexutil.Bytes(e.ID().Bytes()),
+		"frame":          hexutil.Uint64(e.Frame()),
+		"creator":        hexutil.Uint64(e.Creator()),
+		"prevEpochHash":  e.PrevEpochHash(),
+		"parents":        EventIDsToHex(e.Parents()),
+		"lamport":        hexutil.Uint64(e.Lamport()),
+		"creationTime":   hexutil.Uint64(e.CreationTime()),
+		"medianTime":     hexutil.Uint64(e.MedianTime()),
+		"extraData":      hexutil.Bytes(e.Extra()),
+		"payloadHash":    hexutil.Bytes(e.PayloadHash().Bytes()),
 		"gasPowerLeft": map[string]interface{}{
 			"shortTerm": hexutil.Uint64(e.GasPowerLeft().Gas[ShortTermGas]),
 			"longTerm":  hexutil.Uint64(e.GasPowerLeft().Gas[LongTermGas]),
@@ -434,6 +443,7 @@ func RPCUnmarshalEvent(fields map[string]interface{}) EventI {
 	e := MutableEventPayload{}
 
 	e.SetVersion(uint8(mustBeUint64("version")))
+	e.SetNetForkID(uint16(mustBeUint64("networkVersion")))
 	e.SetEpoch(idx.Epoch(mustBeUint64("epoch")))
 	e.SetSeq(idx.Event(mustBeUint64("seq")))
 	e.SetID(mustBeID("id"))

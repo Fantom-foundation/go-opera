@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	ErrZeroTime      = errors.New("event has zero timestamp")
-	ErrNegativeValue = errors.New("negative value")
-	ErrIntrinsicGas  = errors.New("intrinsic gas too low")
+	ErrWrongNetForkID = errors.New("wrong network fork ID")
+	ErrZeroTime       = errors.New("event has zero timestamp")
+	ErrNegativeValue  = errors.New("negative value")
+	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
 	// ErrTipAboveFeeCap is a sanity error to ensure no one is able to specify a
 	// transaction with a tip higher than the total fee cap.
 	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
@@ -201,6 +202,9 @@ func (v *Checker) checkTxs(e inter.EventPayloadI) error {
 
 // Validate event
 func (v *Checker) Validate(e inter.EventPayloadI) error {
+	if e.NetForkID() != 0 {
+		return ErrWrongNetForkID
+	}
 	if err := v.base.Validate(e); err != nil {
 		return err
 	}
@@ -229,6 +233,9 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 }
 
 func (v *Checker) validateEventLocator(e inter.EventLocator) error {
+	if e.NetForkID != 0 {
+		return ErrWrongNetForkID
+	}
 	if e.Seq >= math.MaxInt32-1 || e.Epoch >= math.MaxInt32-1 ||
 		e.Lamport >= math.MaxInt32-1 {
 		return base.ErrHugeValue
@@ -278,9 +285,15 @@ func (v *Checker) validateEV(eventEpoch idx.Epoch, ev inter.LlrEpochVote, greedy
 }
 
 func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
+	if err := v.validateEventLocator(bvs.Signed.Locator); err != nil {
+		return err
+	}
 	return v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
 }
 
 func (v *Checker) ValidateEV(ev inter.LlrSignedEpochVote) error {
+	if err := v.validateEventLocator(ev.Signed.Locator); err != nil {
+		return err
+	}
 	return v.validateEV(ev.Signed.Locator.Epoch, ev.Val, true)
 }
