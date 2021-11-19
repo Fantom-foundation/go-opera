@@ -34,7 +34,7 @@ var (
 
 const (
 	MaxBlockVotesPerEvent = 64
-	MaxLiableEpochs       = 16384
+	MaxLiableEpochs       = 32768
 )
 
 type Checker struct {

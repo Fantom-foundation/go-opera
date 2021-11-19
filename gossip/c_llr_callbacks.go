@@ -54,7 +54,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	vid := bvs.Signed.Locator.Creator
 	// get the validators group
 	epoch := bvs.Signed.Locator.Epoch
-	_, es := s.store.GetHistoryBlockEpochState(epoch)
+	es := s.store.GetHistoryEpochState(epoch)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
 	}
@@ -170,7 +170,7 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	defer done()
 	vid := ev.Signed.Locator.Creator
 	// get the validators group
-	_, es := s.store.GetHistoryBlockEpochState(ev.Val.Epoch - 1)
+	es := s.store.GetHistoryEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}

@@ -24,21 +24,25 @@ func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockSt
 }
 
 func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockState, *iblockproc.EpochState) {
-	// check current BlockEpochState as a cache
-	if v := s.cache.BlockEpochState.Load(); v != nil {
-		bes := v.(*BlockEpochState)
-		if bes.EpochState.Epoch == epoch {
-			bs := *bes.BlockState
-			es := *bes.EpochState
-			return &bs, &es
-		}
-	}
 	// read from disk
 	v, ok := s.rlp.Get(s.table.BlockEpochStateHistory, epoch.Bytes(), &BlockEpochState{}).(*BlockEpochState)
 	if !ok {
 		return nil, nil
 	}
 	return v.BlockState, v.EpochState
+}
+
+func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
+	// check current BlockEpochState as a cache
+	if v := s.cache.BlockEpochState.Load(); v != nil {
+		bes := v.(*BlockEpochState)
+		if bes.EpochState.Epoch == epoch {
+			es := *bes.EpochState
+			return &es
+		}
+	}
+	_, es := s.GetHistoryBlockEpochState(epoch)
+	return es
 }
 
 func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {
