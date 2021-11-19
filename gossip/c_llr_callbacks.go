@@ -25,7 +25,7 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 	return current
 }
 
-func (s *Service) ProcessBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
 	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
 	if newWeight >= vals.TotalWeight()/3+1 {
 		wonBr := s.store.GetLlrBlockResult(block)
@@ -62,7 +62,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	llrs := s.store.GetLlrState()
 	b := bvs.Val.Start
 	for _, bv := range bvs.Val.Votes {
-		s.ProcessBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs)
+		s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs)
 		b++
 	}
 	s.store.SetLlrState(llrs)
@@ -75,6 +75,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	}
 	lBVs.Unlock()
 
+	s.mayCommit(false)
 	return nil
 }
 
@@ -139,6 +140,7 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	}
 	updateLowestBlockToFill(br.Idx, s.store)
 
+	s.mayCommit(false)
 	return nil
 }
 
@@ -187,6 +189,7 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	}
 	lEVs.Unlock()
 
+	s.mayCommit(false)
 	return nil
 }
 
@@ -212,6 +215,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)
 
+	s.mayCommit(false)
 	return nil
 }
 

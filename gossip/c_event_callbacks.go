@@ -219,17 +219,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		s.switchEpochTo(newEpoch)
 	}
 
-	if newEpoch != oldEpoch || s.store.IsCommitNeeded(false) {
-		s.blockProcWg.Wait()
-		// TODO: prune old MPTs in beginnings of committed sections
-		if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
-			s.store.commitEVM(true)
-		}
-		_ = s.store.Commit()
-	}
-	if newEpoch != oldEpoch {
-		s.store.CaptureEvmKvdbSnapshot()
-	}
+	s.mayCommit(newEpoch != oldEpoch)
 	return nil
 }
 
@@ -246,4 +236,19 @@ func (u *uniqueID) sample() [24]byte {
 
 func (s *Service) DagProcessor() *dagprocessor.Processor {
 	return s.handler.dagProcessor
+}
+
+func (s *Service) mayCommit(epochSealing bool) {
+	// s.engineMu is locked here
+	if epochSealing || s.store.IsCommitNeeded(false) {
+		s.blockProcWg.Wait()
+		// TODO: prune old MPTs in beginnings of committed sections
+		if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
+			s.store.commitEVM(true)
+		}
+		_ = s.store.Commit()
+	}
+	if epochSealing {
+		s.store.CaptureEvmKvdbSnapshot()
+	}
 }
