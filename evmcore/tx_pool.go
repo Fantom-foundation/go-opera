@@ -95,28 +95,28 @@ var (
 
 var (
 	// Metrics for the pending pool
-	pendingDiscardMeter   = metrics.NewRegisteredMeter("txpool/pending/discard", nil)
-	pendingReplaceMeter   = metrics.NewRegisteredMeter("txpool/pending/replace", nil)
-	pendingRateLimitMeter = metrics.NewRegisteredMeter("txpool/pending/ratelimit", nil) // Dropped due to rate limiting
-	pendingNofundsMeter   = metrics.NewRegisteredMeter("txpool/pending/nofunds", nil)   // Dropped due to out-of-funds
+	pendingDiscardMeter   = metrics.GetOrRegisterMeter("txpool/pending/discard", nil)
+	pendingReplaceMeter   = metrics.GetOrRegisterMeter("txpool/pending/replace", nil)
+	pendingRateLimitMeter = metrics.GetOrRegisterMeter("txpool/pending/ratelimit", nil) // Dropped due to rate limiting
+	pendingNofundsMeter   = metrics.GetOrRegisterMeter("txpool/pending/nofunds", nil)   // Dropped due to out-of-funds
 
 	// Metrics for the queued pool
-	queuedDiscardMeter   = metrics.NewRegisteredMeter("txpool/queued/discard", nil)
-	queuedReplaceMeter   = metrics.NewRegisteredMeter("txpool/queued/replace", nil)
-	queuedRateLimitMeter = metrics.NewRegisteredMeter("txpool/queued/ratelimit", nil) // Dropped due to rate limiting
-	queuedNofundsMeter   = metrics.NewRegisteredMeter("txpool/queued/nofunds", nil)   // Dropped due to out-of-funds
-	queuedEvictionMeter  = metrics.NewRegisteredMeter("txpool/queued/eviction", nil)  // Dropped due to lifetime
+	queuedDiscardMeter   = metrics.GetOrRegisterMeter("txpool/queued/discard", nil)
+	queuedReplaceMeter   = metrics.GetOrRegisterMeter("txpool/queued/replace", nil)
+	queuedRateLimitMeter = metrics.GetOrRegisterMeter("txpool/queued/ratelimit", nil) // Dropped due to rate limiting
+	queuedNofundsMeter   = metrics.GetOrRegisterMeter("txpool/queued/nofunds", nil)   // Dropped due to out-of-funds
+	queuedEvictionMeter  = metrics.GetOrRegisterMeter("txpool/queued/eviction", nil)  // Dropped due to lifetime
 
 	// General tx metrics
-	validTxMeter       = metrics.NewRegisteredMeter("txpool/valid", nil)
-	invalidTxMeter     = metrics.NewRegisteredMeter("txpool/invalid", nil)
-	underpricedTxMeter = metrics.NewRegisteredMeter("txpool/underpriced", nil)
-	overflowedTxMeter  = metrics.NewRegisteredMeter("txpool/overflowed", nil)
+	validTxMeter       = metrics.GetOrRegisterMeter("txpool/valid", nil)
+	invalidTxMeter     = metrics.GetOrRegisterMeter("txpool/invalid", nil)
+	underpricedTxMeter = metrics.GetOrRegisterMeter("txpool/underpriced", nil)
+	overflowedTxMeter  = metrics.GetOrRegisterMeter("txpool/overflowed", nil)
 
-	pendingGauge = metrics.NewRegisteredGauge("txpool/pending", nil)
-	queuedGauge  = metrics.NewRegisteredGauge("txpool/queued", nil)
-	localGauge   = metrics.NewRegisteredGauge("txpool/local", nil)
-	slotsGauge   = metrics.NewRegisteredGauge("txpool/slots", nil)
+	pendingGauge = metrics.GetOrRegisterGauge("txpool/pending", nil)
+	queuedGauge  = metrics.GetOrRegisterGauge("txpool/queued", nil)
+	localGauge   = metrics.GetOrRegisterGauge("txpool/local", nil)
+	slotsGauge   = metrics.GetOrRegisterGauge("txpool/slots", nil)
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
