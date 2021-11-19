@@ -5,12 +5,14 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
+	"github.com/Fantom-foundation/go-opera/utils/bitmap"
 )
 
 func (s *Store) SetBlockVotes(bvs inter.LlrSignedBlockVotes) {
@@ -32,25 +34,39 @@ func (s *Store) IterateOverlappingBlockVotesRLP(start []byte, f func(key []byte,
 	}
 }
 
-func (s *Store) GetLlrBlockVoteWeight(block idx.Block, bv hash.Hash) pos.Weight {
-	weightB, err := s.table.LlrBlockVotesIndex.Get(append(block.Bytes(), bv[:]...))
+func (s *Store) getLlrVoteWeight(reader kvdb.Reader, key []byte) (pos.Weight, bitmap.Set) {
+	weightB, err := reader.Get(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if weightB == nil {
-		return 0
+		return 0, nil
 	}
-	return pos.Weight(bigendian.BytesToUint32(weightB))
+	return pos.Weight(bigendian.BytesToUint32(weightB[:4])), weightB[4:]
 }
 
-func (s *Store) AddLlrBlockVoteWeight(block idx.Block, bv hash.Hash, diff pos.Weight) pos.Weight {
-	weight := s.GetLlrBlockVoteWeight(block, bv)
+func (s *Store) addLlrVoteWeight(table kvdb.Store, key []byte, val idx.Validator, vals idx.Validator, diff pos.Weight) pos.Weight {
+	weight, set := s.getLlrVoteWeight(table, key)
+	if set != nil && set.Has(int(val)) {
+		// don't count the vote if validator already voted
+		return weight
+	}
+	if set == nil {
+		set = bitmap.New(int(vals))
+	}
+	set.Put(int(val))
 	weight += diff
-	err := s.table.LlrBlockVotesIndex.Put(append(block.Bytes(), bv[:]...), bigendian.Uint32ToBytes(uint32(weight)))
+	// save to the DB
+	err := table.Put(key, append(bigendian.Uint32ToBytes(uint32(weight)), set...))
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 	return weight
+}
+
+func (s *Store) AddLlrBlockVoteWeight(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals idx.Validator, diff pos.Weight) pos.Weight {
+	key := append(block.Bytes(), append(epoch.Bytes(), bv[:]...)...)
+	return s.addLlrVoteWeight(s.table.LlrBlockVotesIndex, key, val, vals, diff)
 }
 
 func (s *Store) SetLlrBlockResult(block idx.Block, bv hash.Hash) {
