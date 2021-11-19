@@ -282,8 +282,10 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 			return err
 		}
 		// ensure that validator's pubkey is the same in both current and vote epochs
-		if err := v.matchPubkey(e.Creator(), e.BlockVotes().Epoch, pubkey.Bytes(), ErrUnknownEpochBVs); err != nil {
-			return err
+		if e.BlockVotes().Epoch != e.Epoch() {
+			if err := v.matchPubkey(e.Creator(), e.BlockVotes().Epoch, pubkey.Bytes(), ErrUnknownEpochBVs); err != nil {
+				return err
+			}
 		}
 	}
 
