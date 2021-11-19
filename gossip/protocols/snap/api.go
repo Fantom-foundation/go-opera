@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package downloader
+package snap
 
 import (
 	"context"
@@ -23,12 +23,14 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/snap/snapstream/snapleecher"
 )
 
 // PublicDownloaderAPI provides an API which gives information about the current synchronisation status.
 // It offers only methods that operates on data that can be available to anyone without security risks.
 type PublicDownloaderAPI struct {
-	d                         *Downloader
+	l                         *snapleecher.Leecher
 	mux                       *event.TypeMux
 	installSyncSubscription   chan chan interface{}
 	uninstallSyncSubscription chan *uninstallSyncSubscriptionRequest
@@ -38,9 +40,9 @@ type PublicDownloaderAPI struct {
 // listens for events from the downloader through the global event mux. In case it receives one of
 // these events it broadcasts it to all syncing subscriptions that are installed through the
 // installSyncSubscription channel.
-func NewPublicDownloaderAPI(d *Downloader, m *event.TypeMux) *PublicDownloaderAPI {
+func NewPublicDownloaderAPI(l *snapleecher.Leecher, m *event.TypeMux) *PublicDownloaderAPI {
 	api := &PublicDownloaderAPI{
-		d:                         d,
+		l:                         l,
 		mux:                       m,
 		installSyncSubscription:   make(chan chan interface{}),
 		uninstallSyncSubscription: make(chan *uninstallSyncSubscriptionRequest),
@@ -76,7 +78,7 @@ func (api *PublicDownloaderAPI) eventLoop() {
 			case StartEvent:
 				notification = &SyncingResult{
 					Syncing: true,
-					Status:  api.d.Progress(),
+					Status:  api.l.Progress(),
 				}
 			case DoneEvent, FailedEvent:
 				notification = false

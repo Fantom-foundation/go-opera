@@ -47,7 +47,7 @@ func (h *snapHandler) PeerInfo(id enode.ID) interface{} {
 // Handle is invoked from a peer's message handler when it receives a new remote
 // message that the handler couldn't consume and serve itself.
 func (h *snapHandler) Handle(peer *snap.Peer, packet snap.Packet) error {
-	return h.downloader.DeliverSnapPacket(peer, packet)
+	return h.snapLeecher.DeliverSnapPacket(peer, packet)
 }
 
 // runSnapExtension registers a `snap` peer into the joint eth/snap peerset and

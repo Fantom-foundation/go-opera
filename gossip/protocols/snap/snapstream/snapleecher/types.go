@@ -14,12 +14,28 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package downloader
+package snapleecher
 
-import "github.com/ethereum/go-ethereum/core/types"
+import (
+	"fmt"
+)
 
-type DoneEvent struct {
-	Latest *types.Header
+// peerDropFn is a callback type for dropping a peer detected as malicious.
+type peerDropFn func(id string)
+
+// dataPack is a data message returned by a peer for some query.
+type dataPack interface {
+	PeerId() string
+	Items() int
+	Stats() string
 }
-type StartEvent struct{}
-type FailedEvent struct{ Err error }
+
+// statePack is a batch of states returned by a peer.
+type statePack struct {
+	peerID string
+	states [][]byte
+}
+
+func (p *statePack) PeerId() string { return p.peerID }
+func (p *statePack) Items() int     { return len(p.states) }
+func (p *statePack) Stats() string  { return fmt.Sprintf("%d", len(p.states)) }

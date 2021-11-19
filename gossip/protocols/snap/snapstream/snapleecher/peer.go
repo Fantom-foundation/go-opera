@@ -17,7 +17,7 @@
 // Contains the active peer-set of the downloader, maintaining both failures
 // as well as reputation metrics to prioritize the block retrievals.
 
-package downloader
+package snapleecher
 
 import (
 	"errors"

@@ -30,7 +30,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentlesscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/downloader"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brprocessor"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream/brstreamleecher"
@@ -46,6 +45,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream/epstreamleecher"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream/epstreamseeder"
+	"github.com/Fantom-foundation/go-opera/gossip/protocols/snap/snapstream/snapleecher"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -155,8 +155,8 @@ type handler struct {
 	quitSync chan struct{}
 
 	// geth fields
-	chain      *ethBlockChain
-	downloader *downloader.Downloader
+	chain       *ethBlockChain
+	snapLeecher *snapleecher.Leecher
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -217,7 +217,7 @@ func newHandler(
 		// indexing the entire trie
 		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
 	}
-	h.downloader = downloader.New(stateDb, stateBloom, h.removePeer)
+	h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {

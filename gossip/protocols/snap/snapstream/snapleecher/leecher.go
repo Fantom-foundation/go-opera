@@ -1,4 +1,4 @@
-package downloader
+package snapleecher
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ var (
 	errCanceled         = errors.New("syncing canceled (requested)")
 )
 
-type Downloader struct {
+type Leecher struct {
 	peers *peerSet // Set of active peers from which download can proceed
 	// Callbacks
 	dropPeer peerDropFn // Drops a peer for misbehaving
@@ -49,8 +49,8 @@ type Downloader struct {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
-func New(stateDb ethdb.Database, stateBloom *trie.SyncBloom, dropPeer peerDropFn) *Downloader {
-	d := &Downloader{
+func New(stateDb ethdb.Database, stateBloom *trie.SyncBloom, dropPeer peerDropFn) *Leecher {
+	d := &Leecher{
 		stateDB:        stateDb,
 		stateBloom:     stateBloom,
 		dropPeer:       dropPeer,
@@ -71,7 +71,7 @@ func New(stateDb ethdb.Database, stateBloom *trie.SyncBloom, dropPeer peerDropFn
 // cancel aborts all of the operations and resets the queue. However, cancel does
 // not wait for the running download goroutines to finish. This method should be
 // used when cancelling the downloads from inside the downloader.
-func (d *Downloader) cancel() {
+func (d *Leecher) cancel() {
 	// Close the current cancel channel
 	d.cancelLock.Lock()
 	defer d.cancelLock.Unlock()
@@ -88,7 +88,7 @@ func (d *Downloader) cancel() {
 
 // DeliverSnapPacket is invoked from a peer's message handler when it transmits a
 // data packet for the local node to consume.
-func (d *Downloader) DeliverSnapPacket(peer *snap.Peer, packet snap.Packet) error {
+func (d *Leecher) DeliverSnapPacket(peer *snap.Peer, packet snap.Packet) error {
 	switch packet := packet.(type) {
 	case *snap.AccountRangePacket:
 		hashes, accounts, err := packet.Unpack()
@@ -119,7 +119,7 @@ func (d *Downloader) DeliverSnapPacket(peer *snap.Peer, packet snap.Packet) erro
 // In addition, during the state download phase of fast synchronisation the number
 // of processed and the total number of known states are also returned. Otherwise
 // these are zero.
-func (d *Downloader) Progress() ethereum.SyncProgress {
+func (d *Leecher) Progress() ethereum.SyncProgress {
 	// Lock the current stats and return the progress
 	d.syncStatsLock.RLock()
 	defer d.syncStatsLock.RUnlock()

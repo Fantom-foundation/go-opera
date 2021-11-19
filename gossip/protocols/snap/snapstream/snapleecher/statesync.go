@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package downloader
+package snapleecher
 
 import (
 	"fmt"
@@ -60,7 +60,7 @@ type stateSyncStats struct {
 }
 
 // SyncState starts downloading state with the given root hash.
-func (d *Downloader) SyncState(root common.Hash) *stateSync {
+func (d *Leecher) SyncState(root common.Hash) *stateSync {
 	// Create the state sync
 	s := newStateSync(d, root)
 	select {
@@ -78,7 +78,7 @@ func (d *Downloader) SyncState(root common.Hash) *stateSync {
 
 // stateFetcher manages the active state sync and accepts requests
 // on its behalf.
-func (d *Downloader) stateFetcher() {
+func (d *Leecher) stateFetcher() {
 	for {
 		select {
 		case s := <-d.stateSyncStart:
@@ -95,7 +95,7 @@ func (d *Downloader) stateFetcher() {
 
 // runStateSync runs a state synchronisation until it completes or another root
 // hash is requested to be switched over to.
-func (d *Downloader) runStateSync(s *stateSync) *stateSync {
+func (d *Leecher) runStateSync(s *stateSync) *stateSync {
 	var (
 		active   = make(map[string]*stateReq) // Currently in-flight requests
 		finished []*stateReq                  // Completed or failed requests
@@ -219,7 +219,7 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 // spindownStateSync 'drains' the outstanding requests; some will be delivered and other
 // will time out. This is to ensure that when the next stateSync starts working, all peers
 // are marked as idle and de facto _are_ idle.
-func (d *Downloader) spindownStateSync(active map[string]*stateReq, finished []*stateReq, timeout chan *stateReq, peerDrop chan *peerConnection) {
+func (d *Leecher) spindownStateSync(active map[string]*stateReq, finished []*stateReq, timeout chan *stateReq, peerDrop chan *peerConnection) {
 	log.Trace("State sync spinning down", "active", len(active), "finished", len(finished))
 	for len(active) > 0 {
 		var (
@@ -258,7 +258,7 @@ func (d *Downloader) spindownStateSync(active map[string]*stateReq, finished []*
 // stateSync schedules requests for downloading a particular state trie defined
 // by a given state root.
 type stateSync struct {
-	d *Downloader // Downloader instance to access and manage current peerset
+	d *Leecher // Downloader instance to access and manage current peerset
 
 	root   common.Hash        // State root currently being synced
 	sched  *trie.Sync         // State trie sync scheduler defining the tasks
@@ -294,7 +294,7 @@ type codeTask struct {
 
 // newStateSync creates a new state trie download scheduler. This method does not
 // yet start the sync. The user needs to call run to initiate.
-func newStateSync(d *Downloader, root common.Hash) *stateSync {
+func newStateSync(d *Leecher, root common.Hash) *stateSync {
 	return &stateSync{
 		d:         d,
 		root:      root,
