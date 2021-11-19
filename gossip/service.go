@@ -313,7 +313,8 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := NewPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
+				peer := newPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
+				defer peer.Close()
 
 				select {
 				case <-backend.quitSync:

@@ -98,8 +98,8 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	return a.LastBlockIdx < b.LastBlockIdx
 }
 
-func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
-	return &peer{
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
+	peer := &peer{
 		cfg:                 cfg,
 		Peer:                p,
 		rw:                  rw,
@@ -111,6 +111,10 @@ func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
 	}
+
+	go peer.broadcast(peer.queue)
+
+	return peer
 }
 
 // broadcast is a write loop that multiplexes event propagations, announcements
@@ -129,8 +133,8 @@ func (p *peer) broadcast(queue chan broadcastItem) {
 	}
 }
 
-// close signals the broadcast goroutine to terminate.
-func (p *peer) close() {
+// Close signals the broadcast goroutine to terminate.
+func (p *peer) Close() {
 	p.queuedDataSemaphore.Terminate()
 	close(p.term)
 }
