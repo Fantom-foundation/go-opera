@@ -70,17 +70,18 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events          *wlru.Cache  `cache:"-"` // store by pointer
-		EventsHeaders   *wlru.Cache  `cache:"-"` // store by pointer
-		Blocks          *wlru.Cache  `cache:"-"` // store by pointer
-		BlockHashes     *wlru.Cache  `cache:"-"` // store by pointer
-		EvmBlocks       *wlru.Cache  `cache:"-"` // store by pointer
-		BlockEpochState atomic.Value // store by value
-		HighestLamport  atomic.Value // store by value
-		LastBVs         atomic.Value
-		LastEV          atomic.Value
-		LlrState        atomic.Value
-		KvdbEvmSnap     atomic.Value
+		Events                 *wlru.Cache  `cache:"-"` // store by pointer
+		EventsHeaders          *wlru.Cache  `cache:"-"` // store by pointer
+		Blocks                 *wlru.Cache  `cache:"-"` // store by pointer
+		BlockHashes            *wlru.Cache  `cache:"-"` // store by pointer
+		EvmBlocks              *wlru.Cache  `cache:"-"` // store by pointer
+		BlockEpochStateHistory *wlru.Cache  `cache:"-"` // store by pointer
+		BlockEpochState        atomic.Value // store by value
+		HighestLamport         atomic.Value // store by value
+		LastBVs                atomic.Value
+		LastEV                 atomic.Value
+		LlrState               atomic.Value
+		KvdbEvmSnap            atomic.Value
 	}
 
 	rlp rlpstore.Helper
@@ -141,6 +142,10 @@ func (s *Store) initCache() {
 	eventsHeadersNum := s.cfg.Cache.EventsNum
 	eventsHeadersCacheSize := nominalSize * uint(eventsHeadersNum)
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
+
+	blockEpochStatesNum := s.cfg.Cache.BlockEpochStateNum
+	blockEpochStatesSize := nominalSize * uint(blockEpochStatesNum)
+	s.cache.BlockEpochStateHistory = s.makeCache(blockEpochStatesSize, blockEpochStatesNum)
 }
 
 // Close closes underlying database.

@@ -120,6 +120,8 @@ type (
 		// Cache size for full blocks.
 		BlocksNum  int
 		BlocksSize uint
+		// Cache size for history block/epoch states.
+		BlockEpochStateNum int
 	}
 
 	// StoreConfig is a config for store db.
@@ -278,10 +280,11 @@ func FakeConfig(num int, scale cachescale.Func) Config {
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:  scale.I(5000),
-			EventsSize: scale.U(6 * opt.MiB),
-			BlocksNum:  scale.I(5000),
-			BlocksSize: scale.U(512 * opt.KiB),
+			EventsNum:          scale.I(5000),
+			EventsSize:         scale.U(6 * opt.MiB),
+			BlocksNum:          scale.I(5000),
+			BlocksSize:         scale.U(512 * opt.KiB),
+			BlockEpochStateNum: scale.I(8),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),
 		MaxNonFlushedSize:   17*opt.MiB + scale.I(5*opt.MiB),
@@ -293,10 +296,11 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:  500,
-			EventsSize: 512 * opt.KiB,
-			BlocksNum:  100,
-			BlocksSize: 50 * opt.KiB,
+			EventsNum:          500,
+			EventsSize:         512 * opt.KiB,
+			BlocksNum:          100,
+			BlocksSize:         50 * opt.KiB,
+			BlockEpochStateNum: 1,
 		},
 		EVM:                 evmstore.LiteStoreConfig(),
 		MaxNonFlushedSize:   800 * opt.KiB,
