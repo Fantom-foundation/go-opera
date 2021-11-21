@@ -78,20 +78,24 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 
 func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types.Receipts {
 	evmProcessor := evmcore.NewStateProcessor(p.net.EvmChainConfig(), p.reader)
+	txsOffset := uint(len(p.incomingTxs))
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
 	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, internal, func(log *types.Log, _ *state.StateDB) {
+		log.TxIndex += txsOffset
 		p.onNewLog(log)
 	})
 	if err != nil {
 		log.Crit("EVM internal error", "err", err)
 	}
 
-	offset := uint32(len(p.incomingTxs))
-	if offset > 0 {
+	if txsOffset > 0 {
 		for i, n := range skipped {
-			skipped[i] = n + offset
+			skipped[i] = n + uint32(txsOffset)
+		}
+		for _, r := range receipts {
+			r.TransactionIndex += txsOffset
 		}
 	}
 
