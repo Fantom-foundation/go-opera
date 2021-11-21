@@ -28,9 +28,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
 
@@ -40,6 +42,7 @@ type Backend interface {
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
+	GetTxPosition(txid common.Hash) *evmstore.TxPosition
 
 	SubscribeNewBlockNotify(ch chan<- evmcore.ChainHeadNotify) notify.Subscription
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
@@ -152,8 +155,20 @@ func (f *Filter) indexedLogs(ctx context.Context, begin, end idx.Block) ([]*type
 	pattern = append(pattern, f.topics...)
 
 	logs, err := f.backend.EvmLogIndex().FindInBlocks(ctx, begin, end, pattern)
+	if err != nil {
+		return nil, err
+	}
 
-	return logs, err
+	for _, l := range logs {
+		pos := f.backend.GetTxPosition(l.TxHash)
+		if pos != nil {
+			l.TxIndex = uint(pos.BlockOffset)
+		} else {
+			log.Warn("tx index empty", "hash", l.TxHash)
+		}
+	}
+
+	return logs, nil
 }
 
 // indexedLogs returns the logs matching the filter criteria based on raw block

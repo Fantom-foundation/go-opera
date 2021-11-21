@@ -35,6 +35,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
@@ -132,6 +133,10 @@ func (b *testBackend) SubscribeNewBlockNotify(ch chan<- evmcore.ChainHeadNotify)
 
 func (b *testBackend) EvmLogIndex() *topicsdb.Index {
 	return b.logIndex
+}
+
+func (b *testBackend) GetTxPosition(txid common.Hash) *evmstore.TxPosition {
+	return nil
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain notify.
