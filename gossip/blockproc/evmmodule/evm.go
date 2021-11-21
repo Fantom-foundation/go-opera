@@ -82,9 +82,10 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
-	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, internal, func(log *types.Log, _ *state.StateDB) {
-		log.TxIndex += txsOffset
-		p.onNewLog(log)
+	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, internal, func(l *types.Log, _ *state.StateDB) {
+		log.Warn(">>>>>>>>> ", "TXindex", l.TxIndex, "LOGindex", l.Index, "offset", txsOffset)
+		l.TxIndex += txsOffset
+		p.onNewLog(l)
 	})
 	if err != nil {
 		log.Crit("EVM internal error", "err", err)
@@ -111,6 +112,8 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 		// Filter skipped transactions. Receipts are filtered already
 		inter.FilterSkippedTxs(p.incomingTxs, p.skippedTxs),
 	)
+	skippedTxs = p.skippedTxs
+	receipts = p.receipts
 
 	// Get state root
 	newStateHash, err := p.statedb.Commit(true)
@@ -119,5 +122,28 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 	}
 	evmBlock.Root = newStateHash
 
-	return evmBlock, p.skippedTxs, p.receipts
+	prevTxN := uint(0)
+	prevLogN := uint(0)
+	for _, r := range receipts {
+		if prevTxN <= r.TransactionIndex {
+			prevTxN = r.TransactionIndex + 1
+		} else {
+			panic("not monotonic receipt.TransactionIndex")
+		}
+
+		for _, l := range r.Logs {
+			if l.TxIndex != r.TransactionIndex {
+				panic("log.TxIndex != receipt.TransactionIndex")
+			}
+
+			if prevLogN <= l.Index {
+				//log.Warn(">>>>>>>>> ", "TXindex", l.TxIndex, "LOGindex", l.Index)
+				prevLogN = l.Index + 1
+			} else {
+				panic("not monotonic log.Index")
+			}
+		}
+	}
+
+	return
 }
