@@ -309,13 +309,7 @@ func consensusCallbackBeginBlockFn(
 						txs = append(txs, e.Txs()...)
 					}
 
-					txs1 := txs[:len(txs)/2]
-					txs2 := txs[len(txs)/2:]
-					externalReceipts1 := evmProcessor.Execute(txs1, false)
-					log.Warn("x--------- ", "splitby", len(txs)/2)
-					externalReceipts2 := evmProcessor.Execute(txs2, false)
-					externalReceipts := append(externalReceipts1, externalReceipts2...)
-					// externalReceipts := evmProcessor.Execute(txs, false)
+					externalReceipts := evmProcessor.Execute(txs, false)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs

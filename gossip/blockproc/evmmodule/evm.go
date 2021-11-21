@@ -83,7 +83,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
 	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, internal, func(l *types.Log, _ *state.StateDB) {
-		log.Warn(">>>>>>>>> ", "TXindex", l.TxIndex, "LOGindex", l.Index, "offset", txsOffset)
+		// Note: l.Index is properly set before
 		l.TxIndex += txsOffset
 		p.onNewLog(l)
 	})
@@ -121,29 +121,6 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 		log.Crit("Failed to commit state", "err", err)
 	}
 	evmBlock.Root = newStateHash
-
-	prevTxN := uint(0)
-	prevLogN := uint(0)
-	for _, r := range receipts {
-		if prevTxN <= r.TransactionIndex {
-			prevTxN = r.TransactionIndex + 1
-		} else {
-			panic("not monotonic receipt.TransactionIndex")
-		}
-
-		for _, l := range r.Logs {
-			if l.TxIndex != r.TransactionIndex {
-				panic("log.TxIndex != receipt.TransactionIndex")
-			}
-
-			if prevLogN <= l.Index {
-				//log.Warn(">>>>>>>>> ", "TXindex", l.TxIndex, "LOGindex", l.Index)
-				prevLogN = l.Index + 1
-			} else {
-				panic("not monotonic log.Index")
-			}
-		}
-	}
 
 	return
 }
