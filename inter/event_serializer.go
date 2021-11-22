@@ -240,9 +240,18 @@ func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
 	}
 	w.FixedBytes(e.sig.Bytes())
 	if e.AnyTxs() {
-		err = MarshalTxsCSER(e.txs, w)
-		if err != nil {
-			return err
+		if e.Version() == 0 {
+			// Txs are serialized with CSER for legacy events
+			err = MarshalTxsCSER(e.txs, w)
+			if err != nil {
+				return err
+			}
+		} else {
+			b, err := rlp.EncodeToBytes(e.txs)
+			if err != nil {
+				return err
+			}
+			w.SliceBytes(b)
 		}
 	}
 	if e.AnyMisbehaviourProofs() {
@@ -276,17 +285,25 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 	// txs
 	txs := make(types.Transactions, 0, 4)
 	if e.AnyTxs() {
-		// txs size
-		size := r.U56()
-		if size == 0 {
-			return cser.ErrNonCanonicalEncoding
-		}
-		for i := uint64(0); i < size; i++ {
-			tx, err := TransactionUnmarshalCSER(r)
+		if e.version == 0 {
+			// txs size
+			size := r.U56()
+			if size == 0 {
+				return cser.ErrNonCanonicalEncoding
+			}
+			for i := uint64(0); i < size; i++ {
+				tx, err := TransactionUnmarshalCSER(r)
+				if err != nil {
+					return err
+				}
+				txs = append(txs, tx)
+			}
+		} else {
+			b := r.SliceBytes()
+			err := rlp.DecodeBytes(b, &txs)
 			if err != nil {
 				return err
 			}
-			txs = append(txs, tx)
 		}
 	}
 	e.txs = txs
