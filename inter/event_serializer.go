@@ -17,7 +17,10 @@ import (
 var (
 	ErrSerMalformedEvent = errors.New("serialization of malformed event")
 	ErrTooLowEpoch       = errors.New("serialization of events with epoch<256 and version=0 is unsupported")
+	ErrUnknownVersion    = errors.New("unknown serialization version")
 )
+
+const MaxSerializationVersion = 1
 
 func (e *Event) MarshalCSER(w *cser.Writer) error {
 	// version
@@ -87,6 +90,9 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	if r.BitsR.View(2) == 0 {
 		r.BitsR.Read(2)
 		version = r.U8()
+	}
+	if version > MaxSerializationVersion {
+		return ErrUnknownVersion
 	}
 
 	// base fields
