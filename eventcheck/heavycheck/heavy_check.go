@@ -59,7 +59,7 @@ type Checker struct {
 type taskData struct {
 	event inter.EventPayloadI
 	bvs   *inter.LlrSignedBlockVotes
-	ers   *inter.LlrSignedEpochVote
+	ev    *inter.LlrSignedEpochVote
 
 	onValidated func(error)
 }
@@ -126,9 +126,9 @@ func (v *Checker) EnqueueBVs(bvs inter.LlrSignedBlockVotes, onValidated func(err
 	}
 }
 
-func (v *Checker) EnqueueEV(ers inter.LlrSignedEpochVote, onValidated func(error)) error {
+func (v *Checker) EnqueueEV(ev inter.LlrSignedEpochVote, onValidated func(error)) error {
 	op := &taskData{
-		ers:         &ers,
+		ev:          &ev,
 		onValidated: onValidated,
 	}
 	select {
@@ -198,11 +198,11 @@ func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
 	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs)
 }
 
-func (v *Checker) ValidateEV(ers inter.LlrSignedEpochVote) error {
-	if ers.CalcPayloadHash() != ers.Signed.Locator.PayloadHash {
+func (v *Checker) ValidateEV(ev inter.LlrSignedEpochVote) error {
+	if ev.CalcPayloadHash() != ev.Signed.Locator.PayloadHash {
 		return ErrWrongPayloadHash
 	}
-	return v.ValidateEventLocator(ers.Signed, ers.Val.Epoch-1, ErrUnknownEpochEV)
+	return v.ValidateEventLocator(ev.Signed, ev.Val.Epoch-1, ErrUnknownEpochEV)
 }
 
 // ValidateEvent runs heavy checks for event
@@ -302,7 +302,7 @@ func (v *Checker) loop() {
 			} else if op.bvs != nil {
 				op.onValidated(v.ValidateBVs(*op.bvs))
 			} else {
-				op.onValidated(v.ValidateEV(*op.ers))
+				op.onValidated(v.ValidateEV(*op.ev))
 			}
 
 		case <-v.quit:

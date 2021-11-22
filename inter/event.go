@@ -110,7 +110,7 @@ type payloadData struct {
 	txs                types.Transactions
 	misbehaviourProofs []MisbehaviourProof
 
-	epochVotes LlrEpochVote
+	epochVote  LlrEpochVote
 	blockVotes LlrBlockVotes
 }
 
@@ -201,7 +201,7 @@ func (e *payloadData) MisbehaviourProofs() []MisbehaviourProof { return e.misbeh
 
 func (e *payloadData) BlockVotes() LlrBlockVotes { return e.blockVotes }
 
-func (e *payloadData) EpochVote() LlrEpochVote { return e.epochVotes }
+func (e *payloadData) EpochVote() LlrEpochVote { return e.epochVote }
 
 func CalcTxHash(txs types.Transactions) hash.Hash {
 	return hash.Hash(types.DeriveSha(txs, new(trie.Trie)))
@@ -262,7 +262,7 @@ func (e *MutableEventPayload) SetBlockVotes(v LlrBlockVotes) {
 }
 
 func (e *MutableEventPayload) SetEpochVote(v LlrEpochVote) {
-	e.epochVotes = v
+	e.epochVote = v
 	e.anyEpochVote = v.Epoch != 0 && v.Vote != hash.Zero
 }
 

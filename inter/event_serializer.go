@@ -228,7 +228,7 @@ func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
 	if e.AnyMisbehaviourProofs() != (len(e.misbehaviourProofs) != 0) {
 		return ErrSerMalformedEvent
 	}
-	if e.AnyEpochVote() != (e.epochVotes.Epoch != 0) {
+	if e.AnyEpochVote() != (e.epochVote.Epoch != 0) {
 		return ErrSerMalformedEvent
 	}
 	if e.AnyBlockVotes() != (len(e.blockVotes.Votes) != 0) {
@@ -300,18 +300,18 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 		}
 	}
 	e.misbehaviourProofs = mps
-	// ers
-	ers := LlrEpochVote{}
+	// ev
+	ev := LlrEpochVote{}
 	if e.AnyEpochVote() {
-		err := ers.UnmarshalCSER(r)
+		err := ev.UnmarshalCSER(r)
 		if err != nil {
 			return err
 		}
-		if ers.Epoch == 0 {
+		if ev.Epoch == 0 {
 			return cser.ErrNonCanonicalEncoding
 		}
 	}
-	e.epochVotes = ers
+	e.epochVote = ev
 	// bvs
 	bvs := LlrBlockVotes{Votes: make([]hash.Hash, 0, 2)}
 	if e.AnyBlockVotes() {
