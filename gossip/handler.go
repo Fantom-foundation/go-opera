@@ -666,9 +666,9 @@ func (h *handler) Stop() {
 	h.dagSeeder.Stop()
 	h.dagProcessor.Stop()
 
-	h.epLeecher.Start()
-	h.epSeeder.Start()
-	h.epProcessor.Start()
+	h.epLeecher.Stop()
+	h.epSeeder.Stop()
+	h.epProcessor.Stop()
 
 	h.checkers.Heavycheck.Stop()
 	h.txFetcher.Stop()
