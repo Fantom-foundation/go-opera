@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
@@ -105,7 +104,7 @@ type handler struct {
 	NetworkID uint64
 	config    Config
 
-	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
+	syncStatus syncStatus
 
 	txpool   txPool
 	maxPeers int
@@ -431,11 +430,9 @@ func (h *handler) makeDagProcessor(checkers *eventcheck.Checkers) *dagprocessor.
 					return err
 				}
 
-				// event is connected, announce it if synced up
-				if atomic.LoadUint32(&h.synced) != 0 {
-					passedSinceEvent := preStart.Sub(e.CreationTime().Time())
-					h.BroadcastEvent(e, passedSinceEvent)
-				}
+				// event is connected, announce it
+				passedSinceEvent := preStart.Sub(e.CreationTime().Time())
+				h.BroadcastEvent(e, passedSinceEvent)
 
 				return nil
 			},
@@ -943,12 +940,12 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 		p.SetProgress(progress)
 		if progress.Epoch == myEpoch {
-			atomic.StoreUint32(&h.synced, 1) // Mark initial sync done on any peer which has the same epoch
+			h.syncStatus.MarkMaybeSynced()
 		}
 
 	case msg.Code == EvmTxsMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
-		if atomic.LoadUint32(&h.synced) == 0 {
+		if !h.syncStatus.AcceptTxs() {
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -968,7 +965,7 @@ func (h *handler) handleMsg(p *peer) error {
 
 	case msg.Code == NewEvmTxHashesMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
-		if atomic.LoadUint32(&h.synced) == 0 {
+		if !h.syncStatus.AcceptTxs() {
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -982,7 +979,6 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxHashes(p, txHashes)
 
 	case msg.Code == GetEvmTxsMsg:
-		// Transactions can be processed, parse all of them and deliver to the pool
 		var requests []common.Hash
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
@@ -1004,6 +1000,10 @@ func (h *handler) handleMsg(p *peer) error {
 		})
 
 	case msg.Code == EventsMsg:
+		if !h.syncStatus.AcceptEvents() {
+			break
+		}
+
 		var events inter.EventPayloads
 		if err := msg.Decode(&events); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1016,7 +1016,7 @@ func (h *handler) handleMsg(p *peer) error {
 
 	case msg.Code == NewEventIDsMsg:
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
-		if atomic.LoadUint32(&h.synced) == 0 {
+		if !h.syncStatus.AcceptEvents() {
 			break
 		}
 		var announces hash.Events
@@ -1081,6 +1081,10 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == EventsStreamResponse:
+		if !h.syncStatus.AcceptEvents() {
+			break
+		}
+
 		var chunk dagChunk
 		if err := msg.Decode(&chunk); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1380,16 +1384,12 @@ func (h *handler) onNewEpochLoop() {
 		select {
 		case myEpoch := <-h.newEpochsCh:
 			h.dagProcessor.Clear()
-			if atomic.LoadUint32(&h.synced) == 0 {
-				synced := false
+			if !h.syncStatus.MaybeSynced() {
+				// Mark initial sync done on any peer which has the same epoch
 				for _, peer := range h.peers.List() {
 					if peer.progress.Epoch == myEpoch {
-						synced = true
+						h.syncStatus.MarkMaybeSynced()
 					}
-				}
-				// Mark initial sync done on any peer which has the same epoch
-				if synced {
-					atomic.StoreUint32(&h.synced, 1)
 				}
 			}
 			h.dagLeecher.OnNewEpoch(myEpoch)
@@ -1414,8 +1414,8 @@ func (h *handler) txBroadcastLoop() {
 			return
 
 		case <-ticker.C:
-			if atomic.LoadUint32(&h.synced) == 0 {
-				continue
+			if !h.syncStatus.AcceptTxs() {
+				break
 			}
 			peers := h.peers.List()
 			if len(peers) == 0 {

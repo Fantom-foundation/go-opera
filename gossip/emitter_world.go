@@ -55,7 +55,7 @@ func (ew *emitterWorld) IsBusy() bool {
 }
 
 func (ew *emitterWorld) IsSynced() bool {
-	return atomic.LoadUint32(&ew.s.handler.synced) != 0
+	return ew.s.handler.syncStatus.AcceptEvents()
 }
 
 func (ew *emitterWorld) PeersNum() int {

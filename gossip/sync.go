@@ -2,10 +2,54 @@ package gossip
 
 import (
 	"math/rand"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
+
+type syncStage uint32
+
+type syncStatus struct {
+	stage       uint32
+	maybeSynced uint32
+}
+
+const (
+	ssUnknown syncStage = iota
+	ssSnaps
+	ssEvents
+)
+
+func (ss *syncStatus) Is(s ...syncStage) bool {
+	self := &ss.stage
+	for _, v := range s {
+		if atomic.LoadUint32(self) == uint32(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ss *syncStatus) Set(s syncStage) {
+	atomic.StoreUint32(&ss.stage, uint32(s))
+}
+
+func (ss *syncStatus) MaybeSynced() bool {
+	return atomic.LoadUint32(&ss.maybeSynced) != 0
+}
+
+func (ss *syncStatus) MarkMaybeSynced() {
+	atomic.StoreUint32(&ss.maybeSynced, uint32(1))
+}
+
+func (ss *syncStatus) AcceptEvents() bool {
+	return ss.Is(ssEvents)
+}
+
+func (ss *syncStatus) AcceptTxs() bool {
+	return ss.MaybeSynced() && ss.Is(ssEvents)
+}
 
 type txsync struct {
 	p     *peer
