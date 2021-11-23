@@ -31,6 +31,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -52,7 +53,7 @@ func TestSFC(t *testing.T) {
 	logger.SetTestMode(t)
 	logger.SetLevel("debug")
 
-	env := newTestEnv()
+	env := newTestEnv(3)
 	defer env.Close()
 
 	var (
@@ -65,11 +66,10 @@ func TestSFC(t *testing.T) {
 	rootDriver10, err := driver100.NewContract(driver.ContractAddress, env)
 	require.NoError(t, err)
 
-	admin := 1
+	admin := idx.ValidatorID(1)
 	adminAddr := env.Address(admin)
 
 	_ = true &&
-
 		t.Run("Genesis SFC", func(t *testing.T) {
 			require := require.New(t)
 
@@ -79,7 +79,6 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis SFC contract")
 			require.Equal(exp, hexutil.MustDecode(sfc100.ContractBinRuntime), "genesis SFC contract version")
 		}) &&
-
 		t.Run("Genesis Driver", func(t *testing.T) {
 			require := require.New(t)
 
@@ -89,7 +88,6 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis Driver contract")
 			require.Equal(exp, hexutil.MustDecode(driver100.ContractBinRuntime), "genesis Driver contract version")
 		}) &&
-
 		t.Run("Genesis DriverAuth", func(t *testing.T) {
 			require := require.New(t)
 
@@ -99,7 +97,6 @@ func TestSFC(t *testing.T) {
 			require.Equal(exp, got, "genesis DriverAuth contract")
 			require.Equal(exp, hexutil.MustDecode(driverauth100.ContractBinRuntime), "genesis DriverAuth contract version")
 		}) &&
-
 		t.Run("Network initializer", func(t *testing.T) {
 			require := require.New(t)
 
@@ -110,7 +107,6 @@ func TestSFC(t *testing.T) {
 			require.Empty(got, "genesis NetworkInitializer should be destructed")
 			require.Equal(exp, hexutil.MustDecode(netinit100.ContractBinRuntime), "genesis NetworkInitializer contract version")
 		}) &&
-
 		t.Run("Builtin EvmWriter", func(t *testing.T) {
 			require := require.New(t)
 
@@ -119,11 +115,9 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			require.Equal(exp, got, "builtin EvmWriter contract")
 		}) &&
-
 		t.Run("Some transfers I", func(t *testing.T) {
-			cicleTransfers(t, env, 1)
+			circleTransfers(t, env, 1)
 		}) &&
-
 		t.Run("Check owners", func(t *testing.T) {
 			require := require.New(t)
 
@@ -134,12 +128,11 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			require.True(isOwn)
 		}) &&
-
 		t.Run("SFC upgrade", func(t *testing.T) {
 			require := require.New(t)
 
 			// create new
-			rr := env.ApplyBlock(nextEpoch,
+			rr := env.ApplyTxs(nextEpoch,
 				env.Contract(admin, utils.ToFtm(0), sfc100.ContractBin),
 			)
 			require.Equal(1, rr.Len())
@@ -150,10 +143,9 @@ func TestSFC(t *testing.T) {
 			require.NoError(err)
 			require.Equal(hexutil.MustDecode(sfc100.ContractBinRuntime), newSfcContractBinRuntime)
 
-			tx, err := authDriver10.CopyCode(env.Payer(admin), sfc.ContractAddress, newImpl)
+			tx, err := authDriver10.CopyCode(env.Pay(admin), sfc.ContractAddress, newImpl)
 			require.NoError(err)
-			env.incNonce(adminAddr)
-			rr = env.ApplyBlock(sameEpoch, tx)
+			rr = env.ApplyTxs(sameEpoch, tx)
 			require.Equal(1, rr.Len())
 			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
@@ -171,31 +163,30 @@ func TestSFC(t *testing.T) {
 
 		// create new
 		anyContractBin := driver100.ContractBin
-		rr := env.ApplyBlock(nextEpoch,
+		rr := env.ApplyTxs(nextEpoch,
 			env.Contract(admin, utils.ToFtm(0), anyContractBin),
 		)
 		require.Equal(1, rr.Len())
 		require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 		newImpl := rr[0].ContractAddress
 
-		tx, err := rootDriver10.CopyCode(env.Payer(admin), sfc.ContractAddress, newImpl)
+		tx, err := rootDriver10.CopyCode(env.Pay(admin), sfc.ContractAddress, newImpl)
 		require.NoError(err)
-		env.incNonce(adminAddr)
-		rr = env.ApplyBlock(sameEpoch, tx)
+		rr = env.ApplyTxs(sameEpoch, tx)
 		require.Equal(1, rr.Len())
 		require.NotEqual(types.ReceiptStatusSuccessful, rr[0].Status)
 	})
 
 }
 
-func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
+func circleTransfers(t *testing.T, env *testEnv, count uint64) {
 	require := require.New(t)
-	accounts := len(env.validators)
+	accounts := int(env.store.GetValidators().Len())
 
 	// save start balances
 	balances := make([]*big.Int, accounts)
 	for i := range balances {
-		balances[i] = env.State().GetBalance(env.Address(i + 1))
+		balances[i] = env.State().GetBalance(env.Address(idx.ValidatorID(i + 1)))
 	}
 
 	for i := uint64(0); i < count; i++ {
@@ -204,10 +195,10 @@ func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
 		for i := range txs {
 			from := (i)%accounts + 1
 			to := (i+1)%accounts + 1
-			txs[i] = env.Transfer(from, to, utils.ToFtm(100))
+			txs[i] = env.Transfer(idx.ValidatorID(from), idx.ValidatorID(to), utils.ToFtm(100))
 		}
 
-		rr := env.ApplyBlock(sameEpoch, txs...)
+		rr := env.ApplyTxs(sameEpoch, txs...)
 		for i, r := range rr {
 			fee := big.NewInt(0).Mul(new(big.Int).SetUint64(r.GasUsed), txs[i].GasPrice())
 			balances[i] = big.NewInt(0).Sub(balances[i], fee)
@@ -218,7 +209,7 @@ func cicleTransfers(t *testing.T, env *testEnv, count uint64) {
 	for i := range balances {
 		require.Equal(
 			balances[i],
-			env.State().GetBalance(env.Address(i+1)),
+			env.State().GetBalance(env.Address(idx.ValidatorID(i+1))),
 			fmt.Sprintf("account%d", i),
 		)
 	}

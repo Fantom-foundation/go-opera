@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
@@ -23,72 +24,75 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 	logger.SetTestMode(b)
 	require := require.New(b)
 
-	env := newTestEnv()
+	env := newTestEnv(3)
 	defer env.Close()
 
-	proposals := [][32]byte{
-		ballotOption("Option 1"),
-		ballotOption("Option 2"),
-		ballotOption("Option 3"),
-	}
+	for i := 0; i < b.N; i++ {
+		count := 10
 
-	// contract deploy
-	addr, tx, cBallot, err := ballot.DeployContract(env.Payer(1), env, proposals)
-	require.NoError(err)
-	require.NotNil(cBallot)
-	r := env.ApplyBlock(nextEpoch, tx)
-
-	require.Equal(addr, r[0].ContractAddress)
-
-	admin, err := cBallot.Chairperson(env.ReadOnly())
-	require.NoError(err)
-	require.Equal(env.Address(1), admin)
-
-	count := b.N
-
-	txs := make([]*types.Transaction, 0, count-1)
-	flushTxs := func() {
-		env.ApplyBlock(nextEpoch, txs...)
-		txs = txs[:0]
-	}
-
-	// Init accounts
-	for i := 2; i <= count; i++ {
-		tx := env.Transfer(1, i, utils.ToFtm(10))
-		require.NoError(err)
-		txs = append(txs, tx)
-		if len(txs) > 2 {
-			flushTxs()
+		proposals := [][32]byte{
+			ballotOption("Option 1"),
+			ballotOption("Option 2"),
+			ballotOption("Option 3"),
 		}
-	}
-	flushTxs()
 
-	// GiveRightToVote
-	for i := 1; i <= count; i++ {
-		tx, err := cBallot.GiveRightToVote(env.Payer(1), env.Address(i))
+		// contract deploy
+		addr, tx, cBallot, err := ballot.DeployContract(env.Pay(1), env, proposals)
 		require.NoError(err)
-		txs = append(txs, tx)
-		if len(txs) > 2 {
-			flushTxs()
-		}
-	}
-	flushTxs()
+		require.NotNil(cBallot)
+		r := env.ApplyTxs(nextEpoch, tx)
 
-	// Vote
-	for i := 1; i <= count; i++ {
-		proposal := big.NewInt(int64(i % len(proposals)))
-		tx, err := cBallot.Vote(env.Payer(i), proposal)
+		require.Equal(addr, r[0].ContractAddress)
+
+		admin, err := cBallot.Chairperson(env.ReadOnly())
 		require.NoError(err)
-		txs = append(txs, tx)
-		if len(txs) > 2 {
-			flushTxs()
-		}
-	}
-	flushTxs()
+		require.Equal(env.Address(1), admin)
 
-	// Winer
-	_, err = cBallot.WinnerName(env.ReadOnly())
-	require.NoError(err)
+		txs := make([]*types.Transaction, 0, count-1)
+		flushTxs := func() {
+			if len(txs) != 0 {
+				env.ApplyTxs(nextEpoch, txs...)
+			}
+			txs = txs[:0]
+		}
+
+		// Init accounts
+		for i := 2; i <= count; i++ {
+			tx := env.Transfer(1, idx.ValidatorID(i), utils.ToFtm(10))
+			txs = append(txs, tx)
+			if len(txs) > 2 {
+				flushTxs()
+			}
+		}
+		flushTxs()
+
+		// GiveRightToVote
+		for i := 1; i <= count; i++ {
+			tx, err := cBallot.GiveRightToVote(env.Pay(1), env.Address(idx.ValidatorID(i)))
+			require.NoError(err)
+			txs = append(txs, tx)
+			if len(txs) > 2 {
+				flushTxs()
+			}
+		}
+		flushTxs()
+
+		// Vote
+		for i := 1; i <= count; i++ {
+			proposal := big.NewInt(int64(i % len(proposals)))
+			tx, err := cBallot.Vote(env.Pay(idx.ValidatorID(i)), proposal)
+			require.NoError(err)
+			txs = append(txs, tx)
+			if len(txs) > 2 {
+				flushTxs()
+			}
+		}
+		flushTxs()
+
+		// Winner
+		_, err = cBallot.WinnerName(env.ReadOnly())
+		require.NoError(err)
+	}
 }
 
 func ballotOption(str string) (res [32]byte) {

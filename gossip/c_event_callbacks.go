@@ -31,14 +31,6 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 	// set some unique ID
 	e.SetID(s.uniqueEventIDs.sample())
 
-	// node version
-	if e.Seq() <= 1 && len(s.config.Emitter.VersionToPublish) > 0 {
-		version := []byte("v-" + s.config.Emitter.VersionToPublish)
-		if uint32(len(version)) <= s.store.GetRules().Dag.MaxExtraData {
-			e.SetExtra(version)
-		}
-	}
-
 	// set PrevEpochHash
 	if e.Lamport() <= 1 {
 		prevEpochHash := s.store.GetEpochState().Hash()
@@ -138,7 +130,9 @@ func (s *Service) switchEpochTo(newEpoch idx.Epoch) {
 	s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, s.store.GetRules().Economy)) // read gaspower check data from disk
 	s.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(s.store, newEpoch))
 	// notify about new epoch
-	s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)
+	for _, em := range s.emitters {
+		em.OnNewEpoch(s.store.GetValidators(), newEpoch)
+	}
 	s.feed.newEpoch.Send(newEpoch)
 }
 
@@ -213,7 +207,9 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		s.store.SetHighestLamport(e.Lamport())
 	}
 
-	s.emitter.OnEventConnected(e)
+	for _, em := range s.emitters {
+		em.OnEventConnected(e)
+	}
 
 	if newEpoch != oldEpoch {
 		s.switchEpochTo(newEpoch)

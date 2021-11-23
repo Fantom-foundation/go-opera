@@ -141,6 +141,9 @@ func (em *Emitter) Start() {
 	em.world.TxPool.SubscribeNewTxsNotify(newTxsCh)
 
 	done := em.done
+	if em.config.EmitIntervals.Min == 0 {
+		return
+	}
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
@@ -356,6 +359,14 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	// add LLR votes
 	em.addLlrEpochVote(mutEvent)
 	em.addLlrBlockVotes(mutEvent)
+
+	// node version
+	if mutEvent.Seq() <= 1 && len(em.config.VersionToPublish) > 0 {
+		version := []byte("v-" + em.config.VersionToPublish)
+		if uint32(len(version)) <= em.world.GetRules().Dag.MaxExtraData {
+			mutEvent.SetExtra(version)
+		}
+	}
 
 	// set consensus fields
 	var metric ancestor.Metric

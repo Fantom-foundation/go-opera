@@ -4,15 +4,17 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/lachesis"
-	"github.com/Fantom-foundation/lachesis-base/utils/workers"
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,19 +23,23 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 const (
 	gasLimit       = uint64(21000)
-	genesisStakers = 3
+	maxGasLimit    = uint64(6000000)
 	genesisBalance = 1e18
 	genesisStake   = 2 * 4e6
 
@@ -43,31 +49,54 @@ const (
 )
 
 type testEnv struct {
-	store *Store
-
-	blockProcWg      sync.WaitGroup
-	blockProcTasks   *workers.Workers
-	blockProcModules BlockProc
-
-	signer types.Signer
-
-	lastBlock     idx.Block
-	lastBlockTime time.Time
-	lastState     hash.Hash
-	validators    gpos.Validators
-	stateReader   *EvmStateReader
-
+	t      time.Time
 	nonces map[common.Address]uint64
-
-	epoch    idx.Epoch
-	eventSeq idx.Event
-
-	wg   sync.WaitGroup
-	done chan struct{}
+	*Service
 }
 
-func newTestEnv() *testEnv {
-	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+func panics(name string) func(error) {
+	return func(err error) {
+		log.Crit(fmt.Sprintf("%s error", name), "err", err)
+	}
+}
+
+type testGossipStoreAdapter struct {
+	*Store
+}
+
+func (g *testGossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
+	e := g.Store.GetEvent(id)
+	if e == nil {
+		return nil
+	}
+	return e
+}
+
+func makeTestEngine(gdb *Store) (*abft.Lachesis, *vecmt.Index) {
+	cdb := abft.NewMemStore()
+	_ = cdb.ApplyGenesis(&abft.Genesis{
+		Epoch:      gdb.GetEpoch(),
+		Validators: gdb.GetValidators(),
+	})
+	vecClock := vecmt.NewIndex(panics("Vector clock"), vecmt.LiteConfig())
+	engine := abft.NewLachesis(cdb, &testGossipStoreAdapter{gdb}, vecmt2dagidx.Wrap(vecClock), panics("Lachesis"), abft.LiteConfig())
+	return engine, vecClock
+}
+
+type testEmitterWorldExternal struct {
+	emitter.External
+	env *testEnv
+}
+
+func (em testEmitterWorldExternal) Build(e *inter.MutableEventPayload, onIndexed func()) error {
+	e.SetCreationTime(inter.Timestamp(em.env.t.UnixNano()))
+	return em.External.Build(e, onIndexed)
+}
+
+func (em testEmitterWorldExternal) Broadcast(*inter.EventPayload) {}
+
+func newTestEnv(validatorsNum idx.Validator) *testEnv {
+	genStore := makegenesis.FakeGenesisStore(validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
 
 	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
@@ -80,26 +109,53 @@ func newTestEnv() *testEnv {
 		panic(err)
 	}
 
-	env := &testEnv{
-		blockProcModules: blockProc,
-		store:            store,
-		signer:           gsignercache.Wrap(types.NewLondonSigner(big.NewInt(int64(genesis.Rules.NetworkID)))),
+	engine, vecClock := makeTestEngine(store)
 
-		lastBlock:     1,
-		lastState:     store.GetBlockState().FinalizedStateRoot,
-		lastBlockTime: genesis.Time.Time(),
-		validators:    genesis.Validators,
-		stateReader: &EvmStateReader{
-			store: store,
-		},
-
-		nonces: make(map[common.Address]uint64),
-
-		done: make(chan struct{}),
+	// create the service
+	txPool := &dummyTxPool{}
+	svc, err := newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
+		return txPool
+	})
+	if err != nil {
+		panic(err)
+	}
+	txPool.signer = svc.EthAPI.signer
+	err = engine.Bootstrap(svc.GetConsensusCallbacks())
+	if err != nil {
+		panic(err)
 	}
 
-	env.blockProcTasks = workers.New(&env.wg, env.done, 1)
+	env := &testEnv{
+		store.GetGenesisTime().Time(),
+		make(map[common.Address]uint64),
+		svc,
+	}
+
+	valKeystore := valkeystore.NewDefaultMemKeystore()
+	signer := valkeystore.NewSigner(valKeystore)
+
+	// register emitters
+	for i := idx.Validator(0); i < validatorsNum; i++ {
+		cfg := emitter.DefaultConfig()
+		cfg.Validator = emitter.ValidatorConfig{
+			ID:     genesis.Validators[i].ID,
+			PubKey: genesis.Validators[i].PubKey,
+		}
+		cfg.EmitIntervals = emitter.EmitIntervals{}
+		cfg.MaxParents = idx.Event(validatorsNum/2 + 1)
+		cfg.MaxTxsPerAddress = 10000000
+		_ = valKeystore.Add(genesis.Validators[i].PubKey, crypto.FromECDSA(makegenesis.FakeKey(genesis.Validators[i].ID)), validatorpk.FakePassword)
+		_ = valKeystore.Unlock(genesis.Validators[i].PubKey, validatorpk.FakePassword)
+		world := env.EmitterWorld(signer)
+		world.External = testEmitterWorldExternal{world.External, env}
+		em := emitter.NewEmitter(cfg, world)
+		svc.RegisterEmitter(em)
+		em.Start()
+	}
+
+	_ = env.store.EvmSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot))
 	env.blockProcTasks.Start(1)
+	env.verWatcher.Start()
 
 	return env
 }
@@ -116,60 +172,63 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-// consensusCallbackBeginBlockFn returns single (for testEnv) callback instance.
-// Note that onBlockEnd overwrites previous.
-// Note that onBlockEnd would be run async.
-func (env *testEnv) consensusCallbackBeginBlockFn(
-	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
-) lachesis.BeginBlockFn {
-	const txIndex = true
-	callback := consensusCallbackBeginBlockFn(
-		env.blockProcTasks,
-		&env.blockProcWg,
-		new(uint32),
-		env.store,
-		env.blockProcModules,
-		txIndex,
-		nil,
-		nil,
-		nil,
-		onBlockEnd,
-	)
-	return callback
-}
+func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) types.Receipts {
+	env.t = env.t.Add(spent)
 
-func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (receipts types.Receipts) {
-	env.lastBlock++
-	env.lastBlockTime = env.lastBlockTime.Add(spent)
+	externalReceipts := make(types.Receipts, 0, len(txs))
 
-	eBuilder := inter.MutableEventPayload{}
-	eBuilder.SetVersion(1)
-	eBuilder.SetMedianTime(inter.Timestamp(env.lastBlockTime.UnixNano()))
-	eBuilder.SetTxs(txs)
-	event := eBuilder.Build()
-	env.store.SetEvent(event)
-
-	var waitForBlockEnd sync.WaitGroup
-	waitForBlockEnd.Add(1)
-	onBlockEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
-		receipts = externalReceipts
-		env.lastState = block.Root
-		waitForBlockEnd.Done()
-	}
-
-	beginBlock := env.consensusCallbackBeginBlockFn(onBlockEnd)
-	process := beginBlock(&lachesis.Block{
-		Atropos: event.ID(),
+	env.txpool.AddRemotes(txs)
+	newBlocks := make(chan evmcore.ChainHeadNotify)
+	chainHeadSub := env.feed.SubscribeNewBlock(newBlocks)
+	mu := &sync.Mutex{}
+	go func() {
+		for b := range newBlocks {
+			if len(b.Block.Transactions) == 0 {
+				continue
+			}
+			receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
+			for i, tx := range b.Block.Transactions {
+				if r, _, _ := tx.RawSignatureValues(); r.Sign() != 0 {
+					mu.Lock()
+					externalReceipts = append(externalReceipts, receipts[i])
+					mu.Unlock()
+					env.txpool.(*dummyTxPool).Delete(tx.Hash())
+				}
+			}
+			if externalReceipts.Len() == len(txs) {
+				chainHeadSub.Unsubscribe()
+				close(newBlocks)
+				break
+			}
+		}
+	}()
+	env.EmitUntil(func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return externalReceipts.Len() == len(txs)
 	})
 
-	process.ApplyEvent(event)
-	_ = process.EndBlock()
-	waitForBlockEnd.Wait()
+	env.txpool.(*dummyTxPool).Clear()
 
-	return
+	return externalReceipts
 }
 
-func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transaction {
+func (env *testEnv) EmitUntil(stop func() bool) {
+	t := time.Now()
+
+	for !stop() {
+		for _, em := range env.emitters {
+			em.EmitEvent()
+		}
+		env.WaitBlockEnd()
+		env.t = env.t.Add(time.Second)
+		if time.Since(t) > 30*time.Second {
+			panic("block doesn't get processed")
+		}
+	}
+}
+
+func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.Transaction {
 	sender := env.Address(from)
 	nonce, _ := env.PendingNonceAt(nil, sender)
 	env.incNonce(sender)
@@ -177,7 +236,7 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transacti
 	receiver := env.Address(to)
 	gp := env.store.GetRules().Economy.MinGasPrice
 	tx := types.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
-	tx, err := types.SignTx(tx, env.signer, key)
+	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -185,15 +244,15 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transacti
 	return tx
 }
 
-func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Transaction {
+func (env *testEnv) Contract(from idx.ValidatorID, amount *big.Int, hex string) *types.Transaction {
 	sender := env.Address(from)
 	nonce, _ := env.PendingNonceAt(nil, sender)
 	env.incNonce(sender)
 	key := env.privateKey(from)
 	gp := env.store.GetRules().Economy.MinGasPrice
 	data := hexutil.MustDecode(hex)
-	tx := types.NewContractCreation(nonce, amount, gasLimit*100000, gp, data)
-	tx, err := types.SignTx(tx, env.signer, key)
+	tx := types.NewContractCreation(nonce, amount, maxGasLimit, gp, data)
+	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -201,28 +260,35 @@ func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Trans
 	return tx
 }
 
-func (env *testEnv) privateKey(n int) *ecdsa.PrivateKey {
+func (env *testEnv) privateKey(n idx.ValidatorID) *ecdsa.PrivateKey {
 	key := makegenesis.FakeKey(n)
 	return key
 }
 
-func (env *testEnv) Address(n int) common.Address {
+func (env *testEnv) Address(n idx.ValidatorID) common.Address {
 	key := makegenesis.FakeKey(n)
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return addr
 }
 
-func (env *testEnv) Payer(n int, amounts ...*big.Int) *bind.TransactOpts {
+func (env *testEnv) Payer(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
 	key := env.privateKey(n)
-	t := bind.NewKeyedTransactor(key)
+	t, _ := bind.NewKeyedTransactorWithChainID(key, new(big.Int).SetUint64(env.store.GetRules().NetworkID))
 	nonce, _ := env.PendingNonceAt(nil, env.Address(n))
 	t.Nonce = big.NewInt(int64(nonce))
 	t.Value = big.NewInt(0)
 	for _, amount := range amounts {
 		t.Value.Add(t.Value, amount)
 	}
-	t.GasLimit = env.stateReader.MaxGasLimit()
-	t.GasPrice = env.stateReader.MinGasPrice()
+	t.GasLimit = env.GetEvmStateReader().MaxGasLimit()
+	t.GasPrice = env.GetEvmStateReader().MinGasPrice()
+
+	return t
+}
+
+func (env *testEnv) Pay(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
+	t := env.Payer(n, amounts...)
+	env.incNonce(t.From)
 
 	return t
 }
@@ -232,7 +298,7 @@ func (env *testEnv) ReadOnly() *bind.CallOpts {
 }
 
 func (env *testEnv) State() *state.StateDB {
-	statedb, _ := env.store.evm.StateDB(env.lastState)
+	statedb, _ := env.store.evm.StateDB(env.store.GetBlockState().FinalizedStateRoot)
 	return statedb
 }
 
@@ -251,7 +317,7 @@ var (
 // CodeAt returns the code of the given account. This is needed to differentiate
 // between contract internal errors and the local chain being out of sync.
 func (env *testEnv) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
-	if blockNumber != nil && idx.Block(blockNumber.Uint64()) != env.lastBlock {
+	if blockNumber != nil && idx.Block(blockNumber.Uint64()) != env.store.GetLatestBlockIndex() {
 		return nil, errBlockNumberUnsupported
 	}
 
@@ -262,11 +328,11 @@ func (env *testEnv) CodeAt(ctx context.Context, contract common.Address, blockNu
 // ContractCall executes an Ethereum contract call with the specified data as the
 // input.
 func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	if blockNumber != nil && idx.Block(blockNumber.Uint64()) != env.lastBlock {
+	if blockNumber != nil && idx.Block(blockNumber.Uint64()) != env.store.GetLatestBlockIndex() {
 		return nil, errBlockNumberUnsupported
 	}
 
-	h := env.GetEvmStateReader().GetHeader(common.Hash{}, uint64(env.lastBlock))
+	h := env.GetEvmStateReader().GetHeader(common.Hash{}, uint64(env.store.GetLatestBlockIndex()))
 	block := &evmcore.EvmBlock{
 		EvmHeader: *h,
 	}
@@ -278,7 +344,7 @@ func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blo
 func (env *testEnv) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	var num64 uint64
 	if number == nil {
-		num64 = uint64(env.lastBlock)
+		num64 = uint64(env.store.GetLatestBlockIndex())
 	} else {
 		num64 = number.Uint64()
 	}

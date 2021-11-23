@@ -8,6 +8,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/iep"
@@ -101,9 +102,12 @@ var errorToString = map[int]string{
 	ErrEmptyMessage:            "Empty message",
 }
 
-type txPool interface {
+type TxPool interface {
+	emitter.TxPool
 	// AddRemotes should add the given transactions to the pool.
 	AddRemotes([]*types.Transaction) []error
+	AddLocals(txs []*types.Transaction) []error
+	AddLocal(tx *types.Transaction) error
 
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
@@ -113,6 +117,11 @@ type txPool interface {
 
 	OnlyNotExisting(hashes []common.Hash) []common.Hash
 	SampleHashes(max int) []common.Hash
+
+	Nonce(addr common.Address) uint64
+	Stats() (int, int)
+	Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	ContentFrom(addr common.Address) (types.Transactions, types.Transactions)
 }
 
 // handshakeData is the network packet for the initial handshake message

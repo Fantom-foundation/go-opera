@@ -19,19 +19,19 @@ var FakeNetFlag = cli.StringFlag{
 }
 
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
-	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	id, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
 		return nil
 	}
 
-	if num == 0 {
+	if id == 0 {
 		return nil
 	}
 
-	return makegenesis.FakeKey(int(num))
+	return makegenesis.FakeKey(id)
 }
 
-func parseFakeGen(s string) (id idx.ValidatorID, num int, err error) {
+func parseFakeGen(s string) (id idx.ValidatorID, num idx.Validator, err error) {
 	parts := strings.SplitN(s, "/", 2)
 	if len(parts) != 2 {
 		err = fmt.Errorf("use %%d/%%d format")
@@ -46,8 +46,8 @@ func parseFakeGen(s string) (id idx.ValidatorID, num int, err error) {
 	id = idx.ValidatorID(u32)
 
 	u32, err = strconv.ParseUint(parts[1], 10, 32)
-	num = int(u32)
-	if num < 0 || int(id) > num {
+	num = idx.Validator(u32)
+	if num < 0 || idx.Validator(id) > num {
 		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
 		return
 	}

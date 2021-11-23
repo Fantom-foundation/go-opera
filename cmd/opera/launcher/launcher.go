@@ -24,8 +24,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
 	"github.com/Fantom-foundation/go-opera/debug"
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/flags"
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
@@ -278,8 +280,8 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
-	valPubkey := cfg.Opera.Emitter.Validator.PubKey
-	if key := getFakeValidatorKey(ctx); key != nil && cfg.Opera.Emitter.Validator.ID != 0 {
+	valPubkey := cfg.Emitter.Validator.PubKey
+	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
 		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
@@ -295,10 +297,18 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	signer := valkeystore.NewSigner(valKeystore)
 
 	// Create and register a gossip network service.
-
-	svc, err := gossip.NewService(stack, cfg.Opera, gdb, signer, blockProc, engine, dagIndex)
+	newTxPool := func(reader evmcore.StateReader) gossip.TxPool {
+		if cfg.TxPool.Journal != "" {
+			cfg.TxPool.Journal = stack.ResolvePath(cfg.TxPool.Journal)
+		}
+		return evmcore.NewTxPool(cfg.TxPool, reader.Config(), reader)
+	}
+	svc, err := gossip.NewService(stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
+	}
+	if cfg.Emitter.Validator.ID != 0 {
+		svc.RegisterEmitter(emitter.NewEmitter(cfg.Emitter, svc.EmitterWorld(signer)))
 	}
 	err = engine.Bootstrap(svc.GetConsensusCallbacks())
 	if err != nil {

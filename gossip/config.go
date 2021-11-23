@@ -13,9 +13,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
-	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -74,9 +72,6 @@ type (
 
 	// Config for the gossip service.
 	Config struct {
-		Emitter emitter.Config
-		TxPool  evmcore.TxPoolConfig
-
 		FilterAPI filters.Config
 
 		// This can be set to list of enrtree:// URLs which will be queried for
@@ -147,9 +142,6 @@ type PeerCacheConfig struct {
 // DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig(scale cachescale.Func) Config {
 	cfg := Config{
-		Emitter: emitter.DefaultConfig(),
-		TxPool:  evmcore.DefaultTxPoolConfig,
-
 		FilterAPI: filters.DefaultConfig(),
 
 		TxIndex: true,
@@ -269,13 +261,6 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// FakeConfig returns the default configurations for the gossip service in fakenet.
-func FakeConfig(num int, scale cachescale.Func) Config {
-	cfg := DefaultConfig(scale)
-	cfg.Emitter = emitter.FakeConfig(num)
-	return cfg
-}
-
 // DefaultStoreConfig for product.
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
@@ -294,18 +279,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
-	return StoreConfig{
-		Cache: StoreCacheConfig{
-			EventsNum:          500,
-			EventsSize:         512 * opt.KiB,
-			BlocksNum:          100,
-			BlocksSize:         50 * opt.KiB,
-			BlockEpochStateNum: 1,
-		},
-		EVM:                 evmstore.LiteStoreConfig(),
-		MaxNonFlushedSize:   800 * opt.KiB,
-		MaxNonFlushedPeriod: 30 * time.Minute,
-	}
+	return DefaultStoreConfig(cachescale.Ratio{Base: 10, Target: 1})
 }
 
 func DefaultPeerCacheConfig(scale cachescale.Func) PeerCacheConfig {

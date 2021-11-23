@@ -132,9 +132,9 @@ const (
 	TxStatusIncluded
 )
 
-// stateReader provides the state of blockchain and current gas limit to do
+// StateReader provides the state of blockchain and current gas limit to do
 // some pre checks in tx pool and event subscribers.
-type stateReader interface {
+type StateReader interface {
 	CurrentBlock() *EvmBlock
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
@@ -229,7 +229,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 type TxPool struct {
 	config      TxPoolConfig
 	chainconfig *params.ChainConfig
-	chain       stateReader
+	chain       StateReader
 	gasPrice    *big.Int
 	txFeed      notify.Feed
 	scope       notify.SubscriptionScope
@@ -269,7 +269,7 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain stateReader) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain StateReader) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
