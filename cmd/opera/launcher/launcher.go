@@ -74,7 +74,6 @@ func initFlags() {
 	performanceFlags = []cli.Flag{
 		CacheFlag,
 		utils.GCModeFlag,
-		utils.SnapshotFlag,
 	}
 	networkingFlags = []cli.Flag{
 		utils.BootnodesFlag,

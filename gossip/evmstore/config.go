@@ -31,8 +31,7 @@ type (
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
-		Cache           StoreCacheConfig
-		EnableSnapshots bool
+		Cache StoreCacheConfig
 		// Enables tracking of SHA3 preimages in the VM
 		EnablePreimageRecording bool
 	}
@@ -51,7 +50,6 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmBlocksSize:  scale.U(6 * opt.MiB),
 			TrieDirtyLimit: scale.U(400 * opt.MiB),
 		},
-		EnableSnapshots:         true,
 		EnablePreimageRecording: true,
 	}
 }
@@ -60,13 +58,13 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			ReceiptsSize:   3 * 1024,
+			ReceiptsSize:   3 * opt.MiB,
 			ReceiptsBlocks: 100,
 			TxPositions:    500,
+			EvmSnap:        16 * opt.MiB,
 			EvmBlocksNum:   100,
-			EvmBlocksSize:  3 * 1024,
+			EvmBlocksSize:  3 * opt.MiB,
 		},
-		EnableSnapshots:         true,
 		EnablePreimageRecording: true,
 	}
 }

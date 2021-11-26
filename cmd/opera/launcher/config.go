@@ -320,9 +320,6 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 	if ctx.GlobalIsSet(utils.GCModeFlag.Name) {
 		cfg.EVM.Cache.TrieDirtyDisabled = ctx.GlobalString(utils.GCModeFlag.Name) == "archive"
 	}
-	if !ctx.GlobalBool(utils.SnapshotFlag.Name) {
-		cfg.EVM.EnableSnapshots = false
-	}
 	return cfg, nil
 }
 
