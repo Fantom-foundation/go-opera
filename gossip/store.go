@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
 
@@ -173,15 +174,21 @@ func (s *Store) commitEVM(genesis bool) {
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
-func (s *Store) Init() error {
-	if !s.cfg.EVM.EnableSnapshots {
-		return nil
-	}
-	// DB is being flushed in a middle of this call to limit memory usage of initial snapshot building
+func (s *Store) EvmSnapshotAt(root common.Hash) (err error) {
+	start := time.Now()
+	defer func() {
+		now := time.Now()
+		if err != nil {
+			s.Log.Error("EVM snapshot", "at", root, "err", err, "t", utils.PrettyDuration(now.Sub(start)))
+		} else {
+			s.Log.Info("EVM snapshot", "at", root, "t", utils.PrettyDuration(now.Sub(start)))
+		}
+	}()
+
+	// DB is being flushed in a middle of this call to limit memory usage of snapshot building
 	res := make(chan error)
 	go func() {
-		root := common.Hash(s.GetBlockState().FinalizedStateRoot)
-		res <- s.EvmStore().InitEvmSnapshot(root)
+		res <- s.EvmStore().CreateEvmSnapshot(root)
 	}()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
@@ -191,9 +198,9 @@ func (s *Store) Init() error {
 			if s.IsCommitNeeded(false) {
 				_ = s.Commit()
 			}
-		case err := <-res:
+		case err = <-res:
 			_ = s.Commit()
-			return err
+			return
 		}
 	}
 }

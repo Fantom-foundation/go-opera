@@ -100,7 +100,7 @@ func (s *Store) initCache() {
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
 }
 
-func (s *Store) InitEvmSnapshot(root common.Hash) (err error) {
+func (s *Store) CreateEvmSnapshot(root common.Hash) (err error) {
 	s.snaps, err = snapshot.New(
 		s.EvmTable(),
 		s.table.EvmState.TrieDB(),
