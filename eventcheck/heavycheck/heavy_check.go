@@ -20,7 +20,7 @@ import (
 var (
 	ErrWrongEventSig            = errors.New("event has wrong signature")
 	ErrMalformedTxSig           = errors.New("tx has wrong signature")
-	ErrWrongPayloadHash         = errors.New("event has wrong txs payload hash")
+	ErrWrongPayloadHash         = errors.New("event has wrong payload hash")
 	ErrPubkeyChanged            = errors.New("validator pubkey has changed, cannot create BVs/EV for older epochs")
 	ErrUnknownEpochEventLocator = errors.New("event locator has unknown epoch")
 	ErrImpossibleBVsEpoch       = errors.New("BVs have an impossible epoch")
@@ -147,7 +147,7 @@ func verifySignature(signedHash hash.Hash, sig inter.Signature, pubkey validator
 	return crypto.VerifySignature(pubkey.Raw, signedHash.Bytes(), sig.Bytes())
 }
 
-func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx.Epoch, authErr error) error {
+func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx.Epoch, authErr error, checkPayload func() bool) error {
 	pubkeys := v.reader.GetEpochPubKeysOf(authEpoch)
 	if len(pubkeys) == 0 {
 		return authErr
@@ -155,6 +155,9 @@ func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx
 	pubkey, ok := pubkeys[e.Locator.Creator]
 	if !ok {
 		return epochcheck.ErrAuth
+	}
+	if checkPayload != nil && !checkPayload() {
+		return ErrWrongPayloadHash
 	}
 	if !verifySignature(e.Locator.HashToSign(), e.Sig, pubkey) {
 		return ErrWrongEventSig
@@ -182,27 +185,25 @@ func (v *Checker) validateBVsEpoch(bvs inter.LlrBlockVotes) error {
 	if actualEpochStart == 0 {
 		return ErrUnknownEpochBVs
 	}
-	if bvs.Start < actualEpochStart || bvs.LastBlock() > actualEpochStart+MaxBlocksPerEpoch {
+	if bvs.Start < actualEpochStart || bvs.LastBlock() >= actualEpochStart+MaxBlocksPerEpoch {
 		return ErrImpossibleBVsEpoch
 	}
 	return nil
 }
 
 func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
-	if bvs.CalcPayloadHash() != bvs.Signed.Locator.PayloadHash {
-		return ErrWrongPayloadHash
-	}
 	if err := v.validateBVsEpoch(bvs.Val); err != nil {
 		return err
 	}
-	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs)
+	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs, func() bool {
+		return bvs.CalcPayloadHash() == bvs.Signed.Locator.PayloadHash
+	})
 }
 
 func (v *Checker) ValidateEV(ev inter.LlrSignedEpochVote) error {
-	if ev.CalcPayloadHash() != ev.Signed.Locator.PayloadHash {
-		return ErrWrongPayloadHash
-	}
-	return v.ValidateEventLocator(ev.Signed, ev.Val.Epoch-1, ErrUnknownEpochEV)
+	return v.ValidateEventLocator(ev.Signed, ev.Val.Epoch-1, ErrUnknownEpochEV, func() bool {
+		return ev.CalcPayloadHash() == ev.Signed.Locator.PayloadHash
+	})
 }
 
 // ValidateEvent runs heavy checks for event
@@ -224,7 +225,7 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 	for _, mp := range e.MisbehaviourProofs() {
 		if proof := mp.EventsDoublesign; proof != nil {
 			for _, vote := range proof.Pair {
-				if err := v.ValidateEventLocator(vote, vote.Locator.Epoch, ErrUnknownEpochEventLocator); err != nil {
+				if err := v.ValidateEventLocator(vote, vote.Locator.Epoch, ErrUnknownEpochEventLocator, nil); err != nil {
 					return err
 				}
 			}
