@@ -22,6 +22,8 @@ var (
 	// transaction with a tip higher than the total fee cap.
 	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
 	ErrWrongMP        = errors.New("inconsistent misbehaviour proof")
+	ErrNoCrimeInMP    = errors.New("action in misbehaviour proof isn't a criminal offence")
+	ErrWrongCreatorMP = errors.New("wrong creator in misbehaviour proof")
 	ErrMPTooLate      = errors.New("too old misbehaviour proof")
 	ErrMalformedMP    = errors.New("malformed MP union struct")
 	FutureBVsEpoch    = errors.New("future block votes epoch")
@@ -76,22 +78,22 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	if proof := mp.EventsDoublesign; proof != nil {
 		count++
 		if err := v.validateEventLocator(proof.Pair[0].Locator); err != nil {
-			return ErrWrongMP
+			return err
 		}
 		if err := v.validateEventLocator(proof.Pair[1].Locator); err != nil {
-			return ErrWrongMP
+			return err
 		}
 		if proof.Pair[0].Locator.Creator != proof.Pair[1].Locator.Creator {
-			return ErrWrongMP
+			return ErrWrongCreatorMP
 		}
 		if proof.Pair[0].Locator.Epoch != proof.Pair[1].Locator.Epoch {
-			return ErrWrongMP
+			return ErrNoCrimeInMP
 		}
 		if proof.Pair[0].Locator.Seq != proof.Pair[1].Locator.Seq {
-			return ErrWrongMP
+			return ErrNoCrimeInMP
 		}
 		if proof.Pair[0].Locator == proof.Pair[1].Locator {
-			return ErrWrongMP
+			return ErrNoCrimeInMP
 		}
 		if msgEpoch > proof.Pair[0].Locator.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
@@ -100,10 +102,13 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	if proof := mp.BlockVoteDoublesign; proof != nil {
 		count++
 		if err := v.ValidateBVs(proof.Pair[0]); err != nil {
-			return ErrWrongMP
+			return err
 		}
 		if err := v.ValidateBVs(proof.Pair[1]); err != nil {
-			return ErrWrongMP
+			return err
+		}
+		if proof.Pair[0].Signed.Locator.Creator != proof.Pair[1].Signed.Locator.Creator {
+			return ErrWrongCreatorMP
 		}
 		if proof.Block < proof.Pair[0].Val.Start || proof.Block >= proof.Pair[0].Val.Start+idx.Block(len(proof.Pair[0].Val.Votes)) {
 			return ErrWrongMP
@@ -111,8 +116,8 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		if proof.Block < proof.Pair[1].Val.Start || proof.Block >= proof.Pair[1].Val.Start+idx.Block(len(proof.Pair[1].Val.Votes)) {
 			return ErrWrongMP
 		}
-		if proof.GetVote(0) == proof.GetVote(1) {
-			return ErrWrongMP
+		if proof.GetVote(0) == proof.GetVote(1) && proof.Pair[0].Val.Epoch == proof.Pair[1].Val.Epoch {
+			return ErrNoCrimeInMP
 		}
 		if msgEpoch > proof.Pair[0].Val.Epoch+MaxLiableEpochs || msgEpoch > proof.Pair[1].Val.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
@@ -122,7 +127,7 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		count++
 		for i, pal := range proof.Pals {
 			if err := v.ValidateBVs(pal); err != nil {
-				return ErrWrongMP
+				return err
 			}
 			if proof.Block < pal.Val.Start || proof.Block >= pal.Val.Start+idx.Block(len(pal.Val.Votes)) {
 				return ErrWrongMP
@@ -133,16 +138,16 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 			// see MinAccomplicesForProof
 			if proof.WrongEpoch {
 				if i > 0 && pal.Val.Epoch != proof.Pals[i-1].Val.Epoch {
-					return ErrWrongMP
+					return ErrNoCrimeInMP
 				}
 			} else {
 				if i > 0 && proof.GetVote(i-1) != proof.GetVote(i) {
-					return ErrWrongMP
+					return ErrNoCrimeInMP
 				}
 			}
 			for _, prev := range proof.Pals[:i] {
 				if prev.Signed.Locator.Creator == pal.Signed.Locator.Creator {
-					return ErrWrongMP
+					return ErrWrongCreatorMP
 				}
 			}
 		}
@@ -150,16 +155,19 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 	if proof := mp.EpochVoteDoublesign; proof != nil {
 		count++
 		if err := v.ValidateEV(proof.Pair[0]); err != nil {
-			return ErrWrongMP
+			return err
 		}
 		if err := v.ValidateEV(proof.Pair[1]); err != nil {
-			return ErrWrongMP
+			return err
+		}
+		if proof.Pair[0].Signed.Locator.Creator != proof.Pair[1].Signed.Locator.Creator {
+			return ErrWrongCreatorMP
 		}
 		if proof.Pair[0].Val.Epoch != proof.Pair[1].Val.Epoch {
-			return ErrWrongMP
+			return ErrNoCrimeInMP
 		}
 		if proof.Pair[0].Val.Vote == proof.Pair[1].Val.Vote {
-			return ErrWrongMP
+			return ErrNoCrimeInMP
 		}
 		if msgEpoch > proof.Pair[0].Val.Epoch+MaxLiableEpochs {
 			return ErrMPTooLate
@@ -169,18 +177,18 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 		count++
 		for i, pal := range proof.Pals {
 			if err := v.ValidateEV(pal); err != nil {
-				return ErrWrongMP
+				return err
 			}
 			if msgEpoch > pal.Val.Epoch+MaxLiableEpochs {
 				return ErrMPTooLate
 			}
 			// see MinAccomplicesForProof
 			if i > 0 && proof.Pals[i-1].Val != proof.Pals[i].Val {
-				return ErrWrongMP
+				return ErrNoCrimeInMP
 			}
 			for _, prev := range proof.Pals[:i] {
 				if prev.Signed.Locator.Creator == pal.Signed.Locator.Creator {
-					return ErrWrongMP
+					return ErrWrongCreatorMP
 				}
 			}
 		}
