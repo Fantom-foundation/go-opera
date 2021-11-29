@@ -21,7 +21,7 @@ func TestConsensusCallback(t *testing.T) {
 
 	const validatorsNum = 3
 
-	env := newTestEnv(validatorsNum)
+	env := newTestEnv(2, validatorsNum)
 	defer env.Close()
 
 	accounts := validatorsNum
@@ -44,7 +44,8 @@ func TestConsensusCallback(t *testing.T) {
 		if n%10 == 0 {
 			tm = nextEpoch
 		}
-		rr := env.ApplyTxs(tm, txs...)
+		rr, err := env.ApplyTxs(tm, txs...)
+		require.NoError(err)
 		// subtract fees
 		for i, r := range rr {
 			fee := big.NewInt(0).Mul(new(big.Int).SetUint64(r.GasUsed), txs[i].GasPrice())

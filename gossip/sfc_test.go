@@ -53,7 +53,7 @@ func TestSFC(t *testing.T) {
 	logger.SetTestMode(t)
 	logger.SetLevel("debug")
 
-	env := newTestEnv(3)
+	env := newTestEnv(2, 3)
 	defer env.Close()
 
 	var (
@@ -132,9 +132,10 @@ func TestSFC(t *testing.T) {
 			require := require.New(t)
 
 			// create new
-			rr := env.ApplyTxs(nextEpoch,
+			rr, err := env.ApplyTxs(nextEpoch,
 				env.Contract(admin, utils.ToFtm(0), sfc100.ContractBin),
 			)
+			require.NoError(err)
 			require.Equal(1, rr.Len())
 			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			newImpl := rr[0].ContractAddress
@@ -145,7 +146,8 @@ func TestSFC(t *testing.T) {
 
 			tx, err := authDriver10.CopyCode(env.Pay(admin), sfc.ContractAddress, newImpl)
 			require.NoError(err)
-			rr = env.ApplyTxs(sameEpoch, tx)
+			rr, err = env.ApplyTxs(sameEpoch, tx)
+			require.NoError(err)
 			require.Equal(1, rr.Len())
 			require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 			got, err := env.CodeAt(nil, sfc.ContractAddress, nil)
@@ -163,16 +165,18 @@ func TestSFC(t *testing.T) {
 
 		// create new
 		anyContractBin := driver100.ContractBin
-		rr := env.ApplyTxs(nextEpoch,
+		rr, err := env.ApplyTxs(nextEpoch,
 			env.Contract(admin, utils.ToFtm(0), anyContractBin),
 		)
+		require.NoError(err)
 		require.Equal(1, rr.Len())
 		require.Equal(types.ReceiptStatusSuccessful, rr[0].Status)
 		newImpl := rr[0].ContractAddress
 
 		tx, err := rootDriver10.CopyCode(env.Pay(admin), sfc.ContractAddress, newImpl)
 		require.NoError(err)
-		rr = env.ApplyTxs(sameEpoch, tx)
+		rr, err = env.ApplyTxs(sameEpoch, tx)
+		require.NoError(err)
 		require.Equal(1, rr.Len())
 		require.NotEqual(types.ReceiptStatusSuccessful, rr[0].Status)
 	})
@@ -198,7 +202,8 @@ func circleTransfers(t *testing.T, env *testEnv, count uint64) {
 			txs[i] = env.Transfer(idx.ValidatorID(from), idx.ValidatorID(to), utils.ToFtm(100))
 		}
 
-		rr := env.ApplyTxs(sameEpoch, txs...)
+		rr, err := env.ApplyTxs(sameEpoch, txs...)
+		require.NoError(err)
 		for i, r := range rr {
 			fee := big.NewInt(0).Mul(new(big.Int).SetUint64(r.GasUsed), txs[i].GasPrice())
 			balances[i] = big.NewInt(0).Sub(balances[i], fee)

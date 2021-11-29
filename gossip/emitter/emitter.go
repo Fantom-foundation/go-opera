@@ -198,7 +198,7 @@ func (em *Emitter) tick() {
 	em.recheckChallenges()
 	em.recheckIdleTime()
 	if time.Since(em.prevEmittedAtTime) >= em.intervals.Min {
-		_ = em.EmitEvent()
+		_, _ = em.EmitEvent()
 	}
 }
 
@@ -231,29 +231,29 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 	return sortedTxs.Copy()
 }
 
-func (em *Emitter) EmitEvent() *inter.EventPayload {
+func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
-		return nil
+		return nil, nil
 	}
 	sortedTxs := em.getSortedTxs()
 
 	if em.world.IsBusy() {
-		return nil
+		return nil, nil
 	}
 	em.world.Lock()
 	defer em.world.Unlock()
 
-	e := em.createEvent(sortedTxs)
-	if e == nil {
-		return nil
+	e, err := em.createEvent(sortedTxs)
+	if e == nil || err != nil {
+		return nil, err
 	}
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
-	err := em.world.Process(e)
+	err = em.world.Process(e)
 	if err != nil {
 		em.Log.Error("Self-event connection failed", "err", err.Error())
-		return nil
+		return nil, err
 	}
 	// write event ID to avoid doublesigning in future after a crash
 	em.writeLastEmittedEventID(e.ID())
@@ -277,7 +277,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 		}
 	}
 
-	return e
+	return e, nil
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
@@ -293,14 +293,14 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 }
 
 // createEvent is not safe for concurrent use.
-func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *inter.EventPayload {
+func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*inter.EventPayload, error) {
 	if !em.isValidator() {
-		return nil
+		return nil, nil
 	}
 
 	if synced := em.logSyncStatus(em.isSyncedToEmit()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
-		return nil
+		return nil, nil
 	}
 
 	var (
@@ -313,7 +313,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	// Find parents
 	selfParent, parents, ok := em.chooseParents(em.epoch, em.config.Validator.ID)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	// Set parent-dependent fields
@@ -327,7 +327,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 		if parentHeaders[i].Creator() == em.config.Validator.ID && i != 0 {
 			// there are 2 heads from me, i.e. due to a fork, chooseParents could have found multiple self-parents
 			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.config.Validator.ID)
-			return nil
+			return nil, nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport())
 	}
@@ -382,13 +382,13 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 		} else {
 			em.Log.Warn("Dropped event while emitting", "err", err)
 		}
-		return nil
+		return nil, nil
 	}
 
 	// Pre-check if event should be emitted
 	// It is checked in advance to avoid adding transactions just to immediately drop the event later
 	if !em.isAllowedToEmit(mutEvent, true, metric, selfParentHeader) {
-		return nil
+		return nil, nil
 	}
 
 	// Add txs
@@ -398,7 +398,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	// Check only if no txs were added, since check in a case with added txs was performed above
 	if mutEvent.Txs().Len() == 0 {
 		if !em.isAllowedToEmit(mutEvent, mutEvent.Txs().Len() != 0, metric, selfParentHeader) {
-			return nil
+			return nil, nil
 		}
 	}
 
@@ -409,7 +409,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	bSig, err := em.world.Signer.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())
 	if err != nil {
 		em.Periodic.Error(time.Second, "Failed to sign event", "err", err)
-		return nil
+		return nil, err
 	}
 	var sig inter.Signature
 	copy(sig[:], bSig)
@@ -421,13 +421,13 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) *in
 	// check
 	if err := em.world.Check(event, parentHeaders); err != nil {
 		em.Periodic.Error(time.Second, "Emitted incorrect event", "err", err)
-		return nil
+		return nil, err
 	}
 
 	// set mutEvent name for debug
 	em.nameEventForDebug(event)
 
-	return event
+	return event, nil
 }
 
 func (em *Emitter) idle() bool {

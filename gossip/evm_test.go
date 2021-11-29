@@ -24,7 +24,7 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 	logger.SetTestMode(b)
 	require := require.New(b)
 
-	env := newTestEnv(3)
+	env := newTestEnv(2, 3)
 	defer env.Close()
 
 	for i := 0; i < b.N; i++ {
@@ -40,7 +40,8 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 		addr, tx, cBallot, err := ballot.DeployContract(env.Pay(1), env, proposals)
 		require.NoError(err)
 		require.NotNil(cBallot)
-		r := env.ApplyTxs(nextEpoch, tx)
+		r, err := env.ApplyTxs(nextEpoch, tx)
+		require.NoError(err)
 
 		require.Equal(addr, r[0].ContractAddress)
 

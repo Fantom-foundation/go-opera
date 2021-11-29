@@ -26,7 +26,7 @@ import (
 func BenchmarkFlushDBs(b *testing.B) {
 	rawProducer, dir := dbProducer("flush_bench")
 	defer os.RemoveAll(dir)
-	genStore := makegenesis.FakeGenesisStore(1, utils.ToFtm(1), utils.ToFtm(1))
+	genStore := makegenesis.FakeGenesisStore(2, 1, utils.ToFtm(1), utils.ToFtm(1))
 	_, _, store, s2, s3, _ := MakeEngine(rawProducer, InputGenesis{
 		Hash: genStore.Hash(),
 		Read: func(store *genesisstore.Store) error {

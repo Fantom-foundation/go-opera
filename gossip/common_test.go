@@ -26,9 +26,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
@@ -48,10 +50,18 @@ const (
 	nextEpoch        = maxEpochDuration
 )
 
+type callbacks struct {
+	buildEvent       func(e *inter.MutableEventPayload)
+	onEventConfirmed func(e inter.EventI)
+}
+
 type testEnv struct {
-	t      time.Time
-	nonces map[common.Address]uint64
+	t        time.Time
+	nonces   map[common.Address]uint64
+	callback callbacks
 	*Service
+	signer  valkeystore.SignerI
+	pubkeys []validatorpk.PubKey
 }
 
 func panics(name string) func(error) {
@@ -90,13 +100,38 @@ type testEmitterWorldExternal struct {
 
 func (em testEmitterWorldExternal) Build(e *inter.MutableEventPayload, onIndexed func()) error {
 	e.SetCreationTime(inter.Timestamp(em.env.t.UnixNano()))
+	if em.env.callback.buildEvent != nil {
+		em.env.callback.buildEvent(e)
+	}
 	return em.External.Build(e, onIndexed)
 }
 
 func (em testEmitterWorldExternal) Broadcast(*inter.EventPayload) {}
 
-func newTestEnv(validatorsNum idx.Validator) *testEnv {
-	genStore := makegenesis.FakeGenesisStore(validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+type testConfirmedEventsProcessor struct {
+	blockproc.ConfirmedEventsProcessor
+	env *testEnv
+}
+
+func (p testConfirmedEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
+	if p.env.callback.onEventConfirmed != nil {
+		p.env.callback.onEventConfirmed(e)
+	}
+	p.ConfirmedEventsProcessor.ProcessConfirmedEvent(e)
+}
+
+type testConfirmedEventsModule struct {
+	blockproc.ConfirmedEventsModule
+	env *testEnv
+}
+
+func (m testConfirmedEventsModule) Start(bs iblockproc.BlockState, es iblockproc.EpochState) blockproc.ConfirmedEventsProcessor {
+	p := m.ConfirmedEventsModule.Start(bs, es)
+	return testConfirmedEventsProcessor{p, m.env}
+}
+
+func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
+	genStore := makegenesis.FakeGenesisStore(firstEpoch, validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
 
 	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
@@ -109,30 +144,31 @@ func newTestEnv(validatorsNum idx.Validator) *testEnv {
 		panic(err)
 	}
 
+	// install blockProc callbacks
+	env := &testEnv{
+		t:      store.GetGenesisTime().Time(),
+		nonces: make(map[common.Address]uint64),
+	}
+	blockProc.EventsModule = testConfirmedEventsModule{blockProc.EventsModule, env}
+
 	engine, vecClock := makeTestEngine(store)
 
 	// create the service
 	txPool := &dummyTxPool{}
-	svc, err := newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
+	env.Service, err = newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
 		return txPool
 	})
 	if err != nil {
 		panic(err)
 	}
-	txPool.signer = svc.EthAPI.signer
-	err = engine.Bootstrap(svc.GetConsensusCallbacks())
+	txPool.signer = env.EthAPI.signer
+	err = engine.Bootstrap(env.GetConsensusCallbacks())
 	if err != nil {
 		panic(err)
 	}
 
-	env := &testEnv{
-		store.GetGenesisTime().Time(),
-		make(map[common.Address]uint64),
-		svc,
-	}
-
 	valKeystore := valkeystore.NewDefaultMemKeystore()
-	signer := valkeystore.NewSigner(valKeystore)
+	env.signer = valkeystore.NewSigner(valKeystore)
 
 	// register emitters
 	for i := idx.Validator(0); i < validatorsNum; i++ {
@@ -146,10 +182,11 @@ func newTestEnv(validatorsNum idx.Validator) *testEnv {
 		cfg.MaxTxsPerAddress = 10000000
 		_ = valKeystore.Add(genesis.Validators[i].PubKey, crypto.FromECDSA(makegenesis.FakeKey(genesis.Validators[i].ID)), validatorpk.FakePassword)
 		_ = valKeystore.Unlock(genesis.Validators[i].PubKey, validatorpk.FakePassword)
-		world := env.EmitterWorld(signer)
+		world := env.EmitterWorld(env.signer)
 		world.External = testEmitterWorldExternal{world.External, env}
 		em := emitter.NewEmitter(cfg, world)
-		svc.RegisterEmitter(em)
+		env.RegisterEmitter(em)
+		env.pubkeys = append(env.pubkeys, genesis.Validators[i].PubKey)
 		em.Start()
 	}
 
@@ -172,12 +209,13 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) types.Receipts {
+func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
 	env.t = env.t.Add(spent)
 
 	externalReceipts := make(types.Receipts, 0, len(txs))
 
 	env.txpool.AddRemotes(txs)
+	defer env.txpool.(*dummyTxPool).Clear()
 	newBlocks := make(chan evmcore.ChainHeadNotify)
 	chainHeadSub := env.feed.SubscribeNewBlock(newBlocks)
 	mu := &sync.Mutex{}
@@ -202,23 +240,57 @@ func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) typ
 			}
 		}
 	}()
-	env.EmitUntil(func() bool {
+	err := env.EmitUntil(func() bool {
 		mu.Lock()
 		defer mu.Unlock()
 		return externalReceipts.Len() == len(txs)
 	})
 
-	env.txpool.(*dummyTxPool).Clear()
-
-	return externalReceipts
+	return externalReceipts, err
 }
 
-func (env *testEnv) EmitUntil(stop func() bool) {
+func (env *testEnv) ApplyMPs(spent time.Duration, mps ...inter.MisbehaviourProof) error {
+	env.t = env.t.Add(spent)
+
+	// all callbacks are non-async
+	lastEpoch := idx.Epoch(0)
+	env.callback.buildEvent = func(e *inter.MutableEventPayload) {
+		if e.Epoch() > lastEpoch {
+			e.SetMisbehaviourProofs(mps)
+			lastEpoch = e.Epoch()
+		}
+	}
+	confirmed := false
+	env.callback.onEventConfirmed = func(_e inter.EventI) {
+		// ensure that not only MPs were confirmed, but also no new MPs will be confirmed in future
+		if _e.AnyMisbehaviourProofs() && _e.Epoch() == lastEpoch {
+			confirmed = true
+			// sanity check for gas used
+			e := env.store.GetEventPayload(_e.ID())
+			rule := env.store.GetRules().Economy.Gas
+			if e.GasPowerUsed() < rule.EventGas+uint64(len(e.MisbehaviourProofs()))*rule.MisbehaviourProofGas {
+				panic("GasPowerUsed calculation doesn't include MisbehaviourProofGas")
+			}
+		}
+	}
+	defer func() {
+		env.callback.buildEvent = nil
+	}()
+
+	return env.EmitUntil(func() bool {
+		return confirmed
+	})
+}
+
+func (env *testEnv) EmitUntil(stop func() bool) error {
 	t := time.Now()
 
 	for !stop() {
 		for _, em := range env.emitters {
-			em.EmitEvent()
+			_, err := em.EmitEvent()
+			if err != nil {
+				return err
+			}
 		}
 		env.WaitBlockEnd()
 		env.t = env.t.Add(time.Second)
@@ -226,6 +298,7 @@ func (env *testEnv) EmitUntil(stop func() bool) {
 			panic("block doesn't get processed")
 		}
 	}
+	return nil
 }
 
 func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.Transaction {

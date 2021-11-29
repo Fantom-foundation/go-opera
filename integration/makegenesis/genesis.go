@@ -41,7 +41,7 @@ func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
 	return key
 }
 
-func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
+func FakeGenesisStore(firstEpoch idx.Epoch, num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
 	genStore := genesisstore.NewMemStore()
 	genStore.SetRules(opera.FakeNetRules())
 
@@ -73,7 +73,7 @@ func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.
 
 	genStore.SetMetadata(genesisstore.Metadata{
 		Validators:    validators,
-		FirstEpoch:    2,
+		FirstEpoch:    firstEpoch,
 		Time:          FakeGenesisTime,
 		PrevEpochTime: FakeGenesisTime - inter.Timestamp(time.Hour),
 		ExtraData:     []byte("fake"),
