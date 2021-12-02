@@ -88,6 +88,12 @@ var (
 		Value: gossip.DefaultConfig(cachescale.Identity).RPCTxFeeCap,
 	}
 
+	SyncModeFlag = cli.StringFlag{
+		Name:  "syncmode",
+		Usage: `Blockchain sync mode ("full" or "snap")`,
+		Value: "full",
+	}
+
 	AllowedOperaGenesisHashes = map[uint64]hash.Hash{
 		opera.MainNetworkID: hash.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),
 		opera.TestNetworkID: hash.HexToHash("0xc4a5fc96e575a16a9a0c7349d44dc4d0f602a54e0a8543360c2fee4c3937b49e"),
@@ -290,6 +296,9 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 	}
 	if ctx.GlobalIsSet(RPCGlobalTxFeeCapFlag.Name) {
 		cfg.RPCTxFeeCap = ctx.GlobalFloat64(RPCGlobalTxFeeCapFlag.Name)
+	}
+	if ctx.GlobalIsSet(SyncModeFlag.Name) {
+		cfg.AllowSnapsync = ctx.GlobalString(SyncModeFlag.Name) == "snap"
 	}
 
 	err := setValidator(ctx, &cfg.Emitter)

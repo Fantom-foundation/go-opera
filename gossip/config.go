@@ -84,6 +84,8 @@ type (
 		OperaDiscoveryURLs []string
 		SnapDiscoveryURLs  []string
 
+		AllowSnapsync bool
+
 		TxIndex bool // Whether to enable indexing transactions and receipts or not
 
 		// Protocol options
