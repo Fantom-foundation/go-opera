@@ -19,6 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
+
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
 	"github.com/Fantom-foundation/go-opera/debug"
@@ -28,7 +30,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
-	evmetrics "github.com/ethereum/go-ethereum/metrics"
 )
 
 const (
@@ -114,6 +115,7 @@ func initFlags() {
 		validatorIDFlag,
 		validatorPubkeyFlag,
 		validatorPasswordFlag,
+		SyncModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,
