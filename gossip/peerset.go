@@ -39,9 +39,9 @@ var (
 	// a peer set, but no peer with the given id exists.
 	errPeerNotRegistered = errors.New("peer not registered")
 
-	// errSnapWithoutEth is returned if a peer attempts to connect only on the
-	// snap protocol without advertizing the eth main protocol.
-	errSnapWithoutEth = errors.New("peer connected on snap without compatible protocol support")
+	// errSnapWithoutOpera is returned if a peer attempts to connect only on the
+	// snap protocol without advertizing the opera main protocol.
+	errSnapWithoutOpera = errors.New("peer connected on snap without compatible opera support")
 )
 
 // peerSet represents the collection of active peers currently participating in
@@ -72,8 +72,8 @@ func newPeerSet() *peerSet {
 func (ps *peerSet) RegisterSnapExtension(peer *snap.Peer) error {
 	// Reject the peer if it advertises `snap` without `eth` as `snap` is only a
 	// satellite protocol meaningful with the chain selection of `eth`
-	if !peer.RunningCap(ProtocolName, ProtocolVersions) {
-		return errSnapWithoutEth
+	if !peer.RunningCap(ProtocolName, []uint{FTM63}) {
+		return errSnapWithoutOpera
 	}
 	// Ensure nobody can double connect
 	ps.lock.Lock()
