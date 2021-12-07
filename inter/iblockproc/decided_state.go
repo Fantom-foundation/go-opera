@@ -15,7 +15,7 @@ import (
 )
 
 type ValidatorBlockState struct {
-	LastEvent        hash.Event
+	LastEvent        EventInfo
 	Uptime           inter.Timestamp
 	LastOnlineTime   inter.Timestamp
 	LastGasPowerLeft inter.GasPowerLeft
@@ -24,9 +24,15 @@ type ValidatorBlockState struct {
 	Originated       *big.Int
 }
 
+type EventInfo struct {
+	ID           hash.Event
+	GasPowerLeft inter.GasPowerLeft
+	Time         inter.Timestamp
+}
+
 type ValidatorEpochState struct {
 	GasRefund      uint64
-	PrevEpochEvent hash.Event
+	PrevEpochEvent EventInfo
 }
 
 type BlockCtx struct {
@@ -82,7 +88,7 @@ func (bs BlockState) Hash() hash.Hash {
 	return hash.BytesToHash(hasher.Sum(nil))
 }
 
-type EpochState struct {
+type EpochStateV1 struct {
 	Epoch          idx.Epoch
 	EpochStart     inter.Timestamp
 	PrevEpochStart inter.Timestamp
@@ -96,6 +102,8 @@ type EpochState struct {
 	Rules opera.Rules
 }
 
+type EpochState EpochStateV1
+
 func (es *EpochState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorEpochState {
 	validatorIdx := validators.GetIdx(id)
 	return &es.ValidatorStates[validatorIdx]
@@ -106,8 +114,28 @@ func (es EpochState) Duration() inter.Timestamp {
 }
 
 func (es EpochState) Hash() hash.Hash {
+	var hashed interface{}
+	if es.Rules.Upgrades.London {
+		hashed = &es
+	} else {
+		es0 := EpochStateV0{
+			Epoch:             es.Epoch,
+			EpochStart:        es.EpochStart,
+			PrevEpochStart:    es.PrevEpochStart,
+			EpochStateRoot:    es.EpochStateRoot,
+			Validators:        es.Validators,
+			ValidatorStates:   make([]ValidatorEpochStateV0, len(es.ValidatorStates)),
+			ValidatorProfiles: es.ValidatorProfiles,
+			Rules:             es.Rules,
+		}
+		for i, v := range es.ValidatorStates {
+			es0.ValidatorStates[i].GasRefund = v.GasRefund
+			es0.ValidatorStates[i].PrevEpochEvent = v.PrevEpochEvent.ID
+		}
+		hashed = &es0
+	}
 	hasher := sha256.New()
-	err := rlp.Encode(hasher, &es)
+	err := rlp.Encode(hasher, hashed)
 	if err != nil {
 		panic("can't hash: " + err.Error())
 	}

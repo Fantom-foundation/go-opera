@@ -3,7 +3,6 @@ package gossip
 import (
 	"sync/atomic"
 
-	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
@@ -51,9 +50,7 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 	es := s.GetEpochState()
 	for i, val := range es.ValidatorStates {
 		validatorStates[i].GasRefund = val.GasRefund
-		if val.PrevEpochEvent != hash.ZeroEvent {
-			validatorStates[i].PrevEpochEvent = s.GetEvent(val.PrevEpochEvent)
-		}
+		validatorStates[i].PrevEpochEvent = val.PrevEpochEvent
 	}
 
 	return &gaspowercheck.ValidationContext{
