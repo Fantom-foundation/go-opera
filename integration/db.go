@@ -2,13 +2,13 @@ package integration
 
 import (
 	"errors"
+	"io/ioutil"
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -17,7 +17,7 @@ import (
 
 func DBProducer(chaindataDir string, scale cachescale.Func) kvdb.IterableDBProducer {
 	if chaindataDir == "inmemory" || chaindataDir == "" {
-		return memorydb.NewProducer("")
+		chaindataDir, _ = ioutil.TempDir("", "opera-integration")
 	}
 
 	return leveldb.NewProducer(chaindataDir, func(name string) int {

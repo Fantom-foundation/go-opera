@@ -81,11 +81,12 @@ type dagNotifier interface {
 }
 
 type processCallback struct {
-	Event func(*inter.EventPayload) error
-	BVs   func(inter.LlrSignedBlockVotes) error
-	BR    func(ibr.LlrIdxFullBlockRecord) error
-	EV    func(inter.LlrSignedEpochVote) error
-	ER    func(ier.LlrIdxFullEpochRecord) error
+	Event         func(*inter.EventPayload) error
+	SwitchEpochTo func(idx.Epoch) error
+	BVs           func(inter.LlrSignedBlockVotes) error
+	BR            func(ibr.LlrIdxFullBlockRecord) error
+	EV            func(inter.LlrSignedEpochVote) error
+	ER            func(ier.LlrIdxFullEpochRecord) error
 }
 
 // handlerConfig is the collection of initialization parameters to create a full
@@ -98,6 +99,18 @@ type handlerConfig struct {
 	checkers *eventcheck.Checkers
 	s        *Store
 	process  processCallback
+}
+
+type snapsyncStateUpd struct {
+	epoch idx.Epoch
+	root  common.Hash
+}
+
+type snapsyncState struct {
+	epoch     idx.Epoch
+	cancel    func() error
+	updatesCh chan snapsyncStateUpd
+	quit      chan struct{}
 }
 
 type handler struct {
@@ -153,9 +166,10 @@ type handler struct {
 	txsyncCh chan *txsync
 	quitSync chan struct{}
 
-	// geth fields
+	// snapsync fields
 	chain       *ethBlockChain
 	snapLeecher *snapleecher.Leecher
+	snapState   snapsyncState
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -189,6 +203,11 @@ func newHandler(
 		txsyncCh:             make(chan *txsync),
 		quitSync:             make(chan struct{}),
 		quitProgressBradcast: make(chan struct{}),
+
+		snapState: snapsyncState{
+			updatesCh: make(chan snapsyncStateUpd, 128),
+			quit:      make(chan struct{}),
+		},
 
 		Instance: logger.New("PM"),
 	}
@@ -599,12 +618,18 @@ func (h *handler) unregisterPeer(id string) {
 	_ = h.brSeeder.UnregisterPeer(id)
 	_ = h.bvLeecher.UnregisterPeer(id)
 	_ = h.bvSeeder.UnregisterPeer(id)
+	// Remove the `snap` extension if it exists
+	if peer.snapExt != nil {
+		_ = h.snapLeecher.SnapSyncer.Unregister(id)
+	}
 	if err := h.peers.UnregisterPeer(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
 	}
 }
 
 func (h *handler) Start(maxPeers int) {
+	h.snapsyncStageTick()
+
 	h.maxPeers = maxPeers
 
 	// broadcast transactions
@@ -630,6 +655,9 @@ func (h *handler) Start(maxPeers int) {
 
 	// start sync handlers
 	go h.txsyncLoop()
+	h.loopsWg.Add(2)
+	go h.snapsyncStateLoop()
+	go h.snapsyncStageLoop()
 	h.dagFetcher.Start()
 	h.txFetcher.Start()
 	h.checkers.Heavycheck.Start()
@@ -675,6 +703,7 @@ func (h *handler) Stop() {
 	h.dagFetcher.Stop()
 
 	close(h.quitProgressBradcast)
+	close(h.snapState.quit)
 	h.txsSub.Unsubscribe() // quits txBroadcastLoop
 	if h.notifier != nil {
 		h.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
@@ -773,6 +802,12 @@ func (h *handler) handle(p *peer) error {
 		}
 		if err := h.brLeecher.RegisterPeer(p.id); err != nil {
 			p.Log().Warn("Leecher peer registration failed", "err", err)
+			return err
+		}
+	}
+	if snap != nil {
+		if err := h.snapLeecher.SnapSyncer.Register(snap); err != nil {
+			p.Log().Error("Failed to register peer in snap syncer", "err", err)
 			return err
 		}
 	}

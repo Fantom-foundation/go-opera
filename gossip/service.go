@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/event"
@@ -252,10 +253,11 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 				defer done()
 				return svc.processEvent(event)
 			},
-			BVs: svc.ProcessBlockVotes,
-			BR:  svc.ProcessFullBlockRecord,
-			EV:  svc.ProcessEpochVote,
-			ER:  svc.ProcessFullEpochRecord,
+			SwitchEpochTo: svc.SwitchEpochTo,
+			BVs:           svc.ProcessBlockVotes,
+			BR:            svc.ProcessFullBlockRecord,
+			EV:            svc.ProcessEpochVote,
+			ER:            svc.ProcessFullEpochRecord,
 		},
 	})
 	if err != nil {
@@ -313,7 +315,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := newPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
+				peer := newPeer(version, p, rw, backend.config.Protocol.PeerCache)
 				defer peer.Close()
 
 				select {
@@ -330,7 +332,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 				return backend.NodeInfo()
 			},
 			PeerInfo: func(id enode.ID) interface{} {
-				if p := backend.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
+				if p := backend.peers.Peer(id.String()); p != nil {
 					return p.Info()
 				}
 				return nil
@@ -345,9 +347,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
 	protos := MakeProtocols(s, s.handler, s.operaDialCandidates)
-	if s.config.SnapshotCache > 0 {
-		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
-	}
+	protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	return protos
 }
 
@@ -384,6 +384,10 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
+	root := s.store.GetBlockState().FinalizedStateRoot
+	if s.store.evm.HasStateDB(root) {
+		_ = s.store.EvmSnapshotAt(common.Hash(root))
+	}
 	StartENRUpdater(s, s.p2pServer.LocalNode())
 
 	s.blockProcTasks.Start(1)

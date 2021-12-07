@@ -29,7 +29,7 @@ type Leecher struct {
 
 	stateDB    ethdb.Database  // Database to state sync into (and deduplicate via)
 	stateBloom *trie.SyncBloom // Bloom filter for fast trie node and contract code existence checks
-	snapSyncer *snap.Syncer    // TODO(karalabe): make private! hack for now
+	SnapSyncer *snap.Syncer    // TODO(karalabe): make private! hack for now
 
 	stateSyncStart chan *stateSync
 	trackStateReq  chan *stateReq
@@ -57,7 +57,7 @@ func New(stateDb ethdb.Database, stateBloom *trie.SyncBloom, dropPeer peerDropFn
 		peers:          newPeerSet(),
 		quitCh:         make(chan struct{}),
 		stateCh:        make(chan dataPack),
-		snapSyncer:     snap.NewSyncer(stateDb),
+		SnapSyncer:     snap.NewSyncer(stateDb),
 		stateSyncStart: make(chan *stateSync),
 		syncStatsState: stateSyncStats{
 			processed: rawdb.ReadFastTrieProgress(stateDb),
@@ -95,17 +95,17 @@ func (d *Leecher) DeliverSnapPacket(peer *snap.Peer, packet snap.Packet) error {
 		if err != nil {
 			return err
 		}
-		return d.snapSyncer.OnAccounts(peer, packet.ID, hashes, accounts, packet.Proof)
+		return d.SnapSyncer.OnAccounts(peer, packet.ID, hashes, accounts, packet.Proof)
 
 	case *snap.StorageRangesPacket:
 		hashset, slotset := packet.Unpack()
-		return d.snapSyncer.OnStorage(peer, packet.ID, hashset, slotset, packet.Proof)
+		return d.SnapSyncer.OnStorage(peer, packet.ID, hashset, slotset, packet.Proof)
 
 	case *snap.ByteCodesPacket:
-		return d.snapSyncer.OnByteCodes(peer, packet.ID, packet.Codes)
+		return d.SnapSyncer.OnByteCodes(peer, packet.ID, packet.Codes)
 
 	case *snap.TrieNodesPacket:
-		return d.snapSyncer.OnTrieNodes(peer, packet.ID, packet.Nodes)
+		return d.SnapSyncer.OnTrieNodes(peer, packet.ID, packet.Nodes)
 
 	default:
 		return fmt.Errorf("unexpected snap packet type: %T", packet)

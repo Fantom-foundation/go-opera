@@ -37,7 +37,7 @@ const (
 // PeerInfo represents a short summary of the sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version     int       `json:"version"` // protocol version negotiated
+	Version     uint      `json:"version"` // protocol version negotiated
 	Epoch       idx.Epoch `json:"epoch"`
 	NumOfBlocks idx.Block `json:"blocks"`
 }
@@ -55,7 +55,7 @@ type peer struct {
 	*p2p.Peer
 	rw p2p.MsgReadWriter
 
-	version int // Protocol version negotiated
+	version uint // Protocol version negotiated
 
 	knownTxs            mapset.Set         // Set of transaction hashes known to be known by this peer
 	knownEvents         mapset.Set         // Set of event hashes known to be known by this peer
@@ -98,13 +98,13 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	return a.LastBlockIdx < b.LastBlockIdx
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
+func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
 	peer := &peer{
 		cfg:                 cfg,
 		Peer:                p,
 		rw:                  rw,
 		version:             version,
-		id:                  fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		id:                  p.ID().String(),
 		knownTxs:            mapset.NewSet(),
 		knownEvents:         mapset.NewSet(),
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
@@ -543,7 +543,7 @@ func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis comm
 	if handshake.NetworkID != network {
 		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", handshake.NetworkID, network)
 	}
-	if int(handshake.ProtocolVersion) != p.version {
+	if uint(handshake.ProtocolVersion) != p.version {
 		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", handshake.ProtocolVersion, p.version)
 	}
 	return nil

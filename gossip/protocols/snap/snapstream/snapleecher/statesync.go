@@ -17,15 +17,12 @@
 package snapleecher
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
@@ -314,7 +311,7 @@ func newStateSync(d *Leecher, root common.Hash) *stateSync {
 // finish.
 func (s *stateSync) run() {
 	close(s.started)
-	s.err = s.d.snapSyncer.Sync(s.root, s.cancel)
+	s.err = s.d.SnapSyncer.Sync(s.root, s.cancel)
 	close(s.done)
 }
 
