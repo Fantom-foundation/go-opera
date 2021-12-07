@@ -17,7 +17,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
+	"github.com/Fantom-foundation/go-opera/utils/switchable"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -27,10 +29,11 @@ type Store struct {
 
 	async *asyncStore
 
-	mainDB kvdb.Store
-	evm    *evmstore.Store
-	sfcapi *sfcapi.Store
-	table  struct {
+	mainDB       kvdb.Store
+	snapshotedDB *switchable.Snapshot
+	evm          *evmstore.Store
+	sfcapi       *sfcapi.Store
+	table        struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
@@ -77,6 +80,7 @@ type Store struct {
 		LastBVs         atomic.Value
 		LastEV          atomic.Value
 		LlrState        atomic.Value
+		KvdbEvmSnap     atomic.Value
 	}
 
 	rlp rlpstore.Helper
@@ -166,8 +170,8 @@ func (s *Store) IsCommitNeeded(epochSealing bool) bool {
 }
 
 // commitEVM commits EVM storage
-func (s *Store) commitEVM(genesis bool) {
-	err := s.evm.Commit(s.GetBlockState(), genesis)
+func (s *Store) commitEVM(flush bool) {
+	err := s.evm.Commit(s.GetBlockState(), flush)
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
@@ -184,11 +188,14 @@ func (s *Store) EvmSnapshotAt(root common.Hash) (err error) {
 			s.Log.Info("EVM snapshot", "at", root, "t", utils.PrettyDuration(now.Sub(start)))
 		}
 	}()
+	return s.evmSnapshotAt(s.evm, root)
+}
 
+func (s *Store) evmSnapshotAt(evmStore *evmstore.Store, root common.Hash) (err error) {
 	// DB is being flushed in a middle of this call to limit memory usage of snapshot building
 	res := make(chan error)
 	go func() {
-		res <- s.EvmStore().CreateEvmSnapshot(root)
+		res <- evmStore.CreateEvmSnapshot(root)
 	}()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
@@ -224,6 +231,37 @@ func (s *Store) Commit() error {
 }
 
 func (s *Store) EvmStore() *evmstore.Store {
+	return s.evm
+}
+
+func (s *Store) CaptureEvmKvdbSnapshot() {
+	newKvdbSnap, err := s.mainDB.GetSnapshot()
+	if err != nil {
+		s.Log.Error("Failed to initialize frozen KVDB", "err", err)
+		return
+	}
+	if s.snapshotedDB == nil {
+		s.snapshotedDB = switchable.Wrap(newKvdbSnap)
+	} else {
+		old := s.snapshotedDB.SwitchTo(newKvdbSnap)
+		// release only after DB is atomically switched
+		if old != nil {
+			old.Release()
+		}
+	}
+	newStore := evmstore.NewStore(snap2kvdb.Wrap(s.snapshotedDB), evmstore.LiteStoreConfig())
+	err = s.evmSnapshotAt(newStore, common.Hash(s.GetBlockState().FinalizedStateRoot))
+	if err != nil {
+		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
+		return
+	}
+	s.cache.KvdbEvmSnap.Store(newStore)
+}
+
+func (s *Store) LastKvdbEvmSnapshot() *evmstore.Store {
+	if v := s.cache.KvdbEvmSnap.Load(); v != nil {
+		return v.(*evmstore.Store)
+	}
 	return s.evm
 }
 

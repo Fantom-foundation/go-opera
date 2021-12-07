@@ -111,8 +111,6 @@ type (
 		ExtRPCEnabled bool
 
 		RPCLogsBloom bool
-
-		SnapshotCache int
 	}
 
 	StoreCacheConfig struct {

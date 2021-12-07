@@ -22,7 +22,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
 )
@@ -42,7 +41,7 @@ var (
 
 	// errSnapWithoutEth is returned if a peer attempts to connect only on the
 	// snap protocol without advertizing the eth main protocol.
-	errSnapWithoutEth = errors.New("peer connected on snap without compatible eth support")
+	errSnapWithoutEth = errors.New("peer connected on snap without compatible protocol support")
 )
 
 // peerSet represents the collection of active peers currently participating in
@@ -73,7 +72,7 @@ func newPeerSet() *peerSet {
 func (ps *peerSet) RegisterSnapExtension(peer *snap.Peer) error {
 	// Reject the peer if it advertises `snap` without `eth` as `snap` is only a
 	// satellite protocol meaningful with the chain selection of `eth`
-	if !peer.RunningCap(eth.ProtocolName, eth.ProtocolVersions) {
+	if !peer.RunningCap(ProtocolName, ProtocolVersions) {
 		return errSnapWithoutEth
 	}
 	// Ensure nobody can double connect
@@ -97,7 +96,7 @@ func (ps *peerSet) RegisterSnapExtension(peer *snap.Peer) error {
 	return nil
 }
 
-// WaitExtensions blocks until all satellite protocols are connected and tracked
+// WaitSnapExtension blocks until all satellite protocols are connected and tracked
 // by the peerset.
 func (ps *peerSet) WaitSnapExtension(p *peer) (*snap.Peer, error) {
 	// If the peer does not support a compatible `snap`, don't wait

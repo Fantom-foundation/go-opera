@@ -125,11 +125,11 @@ func (s *Store) NewPruner(genesisRoot, root common.Hash, datadir string, bloomSi
 }
 
 // Commit changes.
-func (s *Store) Commit(block iblockproc.BlockState, genesis bool) error {
+func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.table.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
 	// If we're applying genesis or running an archive node, always flush
-	if genesis || s.cfg.Cache.TrieDirtyDisabled {
+	if flush || s.cfg.Cache.TrieDirtyDisabled {
 		err := triedb.Commit(stateRoot, false, nil)
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
@@ -225,6 +225,12 @@ func (s *Store) Cap(max, min int) {
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
 	return state.NewWithSnapLayers(common.Hash(from), s.table.EvmState, s.snaps, 0)
+}
+
+// HasStateDB returns if state database exists
+func (s *Store) HasStateDB(from hash.Hash) bool {
+	_, err := s.StateDB(from)
+	return err == nil
 }
 
 // IndexLogs indexes EVM logs

@@ -28,6 +28,7 @@ type Leecher struct {
 
 	emptyState   bool
 	forceSyncing bool
+	paused       bool
 }
 
 // New creates an events downloader to request events based on lexicographic event streams
@@ -71,7 +72,7 @@ type sessionState struct {
 }
 
 func (d *Leecher) shouldTerminateSession() bool {
-	if d.session.agent.Stopped() {
+	if d.paused || d.session.agent.Stopped() {
 		return true
 	}
 
@@ -89,7 +90,23 @@ func (d *Leecher) terminateSession() {
 	}
 }
 
+func (d *Leecher) Pause() {
+	d.Mu.Lock()
+	defer d.Mu.Unlock()
+	d.paused = true
+	d.terminateSession()
+}
+
+func (d *Leecher) Resume() {
+	d.Mu.Lock()
+	defer d.Mu.Unlock()
+	d.paused = false
+}
+
 func (d *Leecher) selectSessionPeerCandidates() []string {
+	if d.paused {
+		return nil
+	}
 	var selected []string
 	currentEpochPeers := make([]string, 0, len(d.Peers))
 	futureEpochPeers := make([]string, 0, len(d.Peers))

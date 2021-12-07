@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
@@ -19,9 +20,11 @@ import (
 )
 
 var (
-	errStopped         = errors.New("service is stopped")
-	errWrongMedianTime = errors.New("wrong event median time")
-	errWrongEpochHash  = errors.New("wrong event epoch hash")
+	errStopped          = errors.New("service is stopped")
+	errWrongMedianTime  = errors.New("wrong event median time")
+	errWrongEpochHash   = errors.New("wrong event epoch hash")
+	errNonExistingEpoch = errors.New("epoch doesn't exist")
+	errSameEpoch        = errors.New("epoch hasn't changed")
 )
 
 func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) error {
@@ -123,6 +126,38 @@ func processLastEvent(lasts *concurrent.ValidatorEventsSet, e *inter.EventPayloa
 	return lasts
 }
 
+func (s *Service) switchEpochTo(newEpoch idx.Epoch) {
+	s.store.SetHighestLamport(0)
+	// reset dag indexer
+	s.store.resetEpochStore(newEpoch)
+	es := s.store.getEpochStore(newEpoch)
+	s.dagIndexer.Reset(s.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
+		return s.store.GetEvent(id)
+	})
+	// notify event checkers about new validation data
+	s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, s.store.GetRules().Economy)) // read gaspower check data from disk
+	s.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(s.store, newEpoch))
+	// notify about new epoch
+	s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)
+	s.feed.newEpoch.Send(newEpoch)
+}
+
+func (s *Service) SwitchEpochTo(newEpoch idx.Epoch) error {
+	bs, es := s.store.GetHistoryBlockEpochState(newEpoch)
+	if bs == nil {
+		return errNonExistingEpoch
+	}
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	if newEpoch == s.store.GetEpoch() {
+		return errSameEpoch
+	}
+	s.store.SetBlockEpochState(*bs, *es)
+	s.switchEpochTo(newEpoch)
+	_ = s.store.EvmSnapshotAt(common.Hash(bs.FinalizedStateRoot))
+	return nil
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
@@ -181,23 +216,17 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	s.emitter.OnEventConnected(e)
 
 	if newEpoch != oldEpoch {
-		// reset dag indexer
-		s.store.resetEpochStore(newEpoch)
-		es := s.store.getEpochStore(newEpoch)
-		s.dagIndexer.Reset(s.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
-			return s.store.GetEvent(id)
-		})
-		// notify event checkers about new validation data
-		s.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(s.store, s.store.GetValidators(), newEpoch, s.store.GetRules().Economy)) // read gaspower check data from disk
-		s.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(s.store, newEpoch))
-		// notify about new epoch
-		s.emitter.OnNewEpoch(s.store.GetValidators(), newEpoch)
-		s.feed.newEpoch.Send(newEpoch)
+		s.switchEpochTo(newEpoch)
 	}
 
-	if s.store.IsCommitNeeded(newEpoch != oldEpoch) {
+	if newEpoch != oldEpoch || s.store.IsCommitNeeded(false) {
 		s.blockProcWg.Wait()
-		return s.store.Commit()
+		// TODO: prune old MPTs in beginnings of committed sections
+		s.store.commitEVM(true)
+		_ = s.store.Commit()
+	}
+	if newEpoch != oldEpoch {
+		s.store.CaptureEvmKvdbSnapshot()
 	}
 	return nil
 }

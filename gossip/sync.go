@@ -3,7 +3,9 @@ package gossip
 import (
 	"math/rand"
 	"sync/atomic"
+	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
@@ -19,6 +21,11 @@ const (
 	ssUnknown syncStage = iota
 	ssSnaps
 	ssEvents
+)
+
+const (
+	snapsyncMinEndAge   = 14 * 24 * time.Hour
+	snapsyncMaxStartAge = 6 * time.Hour
 )
 
 func (ss *syncStatus) Is(s ...syncStage) bool {
@@ -137,6 +144,104 @@ func (h *handler) txsyncLoop() {
 				send(s)
 			}
 		case <-h.quitSync:
+			return
+		}
+	}
+}
+
+func (h *handler) updateSnapsyncStage() {
+	if h.config.AllowSnapsync && time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge {
+		h.syncStatus.Set(ssSnaps)
+	} else {
+		h.syncStatus.Set(ssEvents)
+	}
+}
+
+func (h *handler) snapsyncStageTick() {
+	// check if existing snapsync process can be resulted
+	h.updateSnapsyncStage()
+	llrs := h.store.GetLlrState()
+	if h.syncStatus.Is(ssSnaps) {
+		for i := 0; i < 3; i++ {
+			epoch := llrs.LowestEpochToFill - 1 - idx.Epoch(i)
+			if epoch <= h.store.GetEpoch() {
+				continue
+			}
+			bs, _ := h.store.GetHistoryBlockEpochState(epoch)
+			if bs == nil {
+				continue
+			}
+			if !h.store.evm.HasStateDB(bs.FinalizedStateRoot) {
+				continue
+			}
+			if llrs.LowestBlockToFill <= bs.LastBlock.Idx {
+				continue
+			}
+			if time.Since(bs.LastBlock.Time.Time()) > snapsyncMinEndAge {
+				continue
+			}
+			err := h.process.SwitchEpochTo(epoch)
+			if err == nil {
+				h.Log.Info("Epoch is switched by snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
+			} else {
+				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
+			}
+		}
+	}
+	// push new data into an existing snapsync process
+	h.updateSnapsyncStage()
+	if h.syncStatus.Is(ssSnaps) {
+		lastEpoch := llrs.LowestEpochToFill - 1
+		lastBs, _ := h.store.GetHistoryBlockEpochState(lastEpoch)
+		if lastBs != nil && time.Since(lastBs.LastBlock.Time.Time()) < snapsyncMaxStartAge {
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				epoch: lastEpoch,
+				root:  common.Hash(lastBs.FinalizedStateRoot),
+			}
+		}
+	}
+	// resume events downloading if events sync is enabled
+	if h.syncStatus.Is(ssEvents) {
+		h.dagLeecher.Resume()
+	} else {
+		h.dagLeecher.Pause()
+	}
+}
+
+func (h *handler) snapsyncStageLoop() {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	defer h.loopsWg.Done()
+	for {
+		select {
+		case <-ticker.C:
+			h.snapsyncStageTick()
+		case <-h.snapState.quit:
+			return
+		}
+	}
+}
+
+func (h *handler) snapsyncStateLoop() {
+	defer h.loopsWg.Done()
+	for {
+		select {
+		case upd := <-h.snapState.updatesCh:
+			// check if epoch has advanced
+			if h.snapState.epoch >= upd.epoch {
+				continue
+			}
+			h.snapState.epoch = upd.epoch
+			// cancel existing snapsync state
+			if h.snapState.cancel != nil {
+				_ = h.snapState.cancel()
+				h.snapState.cancel = nil
+			}
+			// start new snapsync state
+			h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
+			ss := h.snapLeecher.SyncState(upd.root)
+			h.snapState.cancel = ss.Cancel
+		case <-h.snapState.quit:
 			return
 		}
 	}
