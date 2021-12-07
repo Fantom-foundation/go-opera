@@ -241,18 +241,23 @@ type BlockStateV0 struct {
 
 type BlockEpochStateV0 struct {
 	BlockState *BlockStateV0
-	EpochState *iblockproc.EpochState
+	EpochState *iblockproc.EpochStateV0
 }
 
-func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
+func (s *Store) convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 	oldES := oldEBS.EpochState
 	oldBS := oldEBS.BlockState
 
 	newValidatorState := make([]iblockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
 	cheatersWritten := 0
 	for i, vs := range oldBS.ValidatorStates {
+		lastEvent := s.GetEvent(vs.LastEvent)
 		newValidatorState[i] = iblockproc.ValidatorBlockState{
-			LastEvent:        vs.LastEvent,
+			LastEvent: iblockproc.EventInfo{
+				ID:           vs.LastEvent,
+				GasPowerLeft: lastEvent.GasPowerLeft(),
+				Time:         lastEvent.MedianTime(),
+			},
 			Uptime:           vs.Uptime,
 			LastOnlineTime:   vs.LastOnlineTime,
 			LastGasPowerLeft: vs.LastGasPowerLeft,
@@ -280,9 +285,27 @@ func convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochState {
 		newBS.DirtyRules = nil
 	}
 
+	newEs := &iblockproc.EpochState{
+		Epoch:             oldES.Epoch,
+		EpochStart:        oldES.EpochStart,
+		PrevEpochStart:    oldES.PrevEpochStart,
+		EpochStateRoot:    oldES.EpochStateRoot,
+		Validators:        oldES.Validators,
+		ValidatorStates:   make([]iblockproc.ValidatorEpochState, len(oldES.ValidatorStates)),
+		ValidatorProfiles: oldES.ValidatorProfiles,
+		Rules:             oldES.Rules,
+	}
+	for i, v := range oldES.ValidatorStates {
+		newEs.ValidatorStates[i].GasRefund = v.GasRefund
+		newEs.ValidatorStates[i].PrevEpochEvent.ID = v.PrevEpochEvent
+		lastEvent := s.GetEvent(v.PrevEpochEvent)
+		newEs.ValidatorStates[i].PrevEpochEvent.Time = lastEvent.MedianTime()
+		newEs.ValidatorStates[i].PrevEpochEvent.GasPowerLeft = lastEvent.GasPowerLeft()
+	}
+
 	return BlockEpochState{
 		BlockState: newBS,
-		EpochState: oldES,
+		EpochState: newEs,
 	}
 }
 
@@ -292,7 +315,7 @@ func (s *Store) recoverBlockState() error {
 	if !ok {
 		return errors.New("epoch state reading failed: genesis not applied")
 	}
-	v1 := convertBlockEpochStateV0(v0)
+	v1 := s.convertBlockEpochStateV0(v0)
 	s.SetBlockEpochState(*v1.BlockState, *v1.EpochState)
 	s.FlushBlockEpochState()
 
@@ -302,7 +325,7 @@ func (s *Store) recoverBlockState() error {
 		if !ok {
 			continue
 		}
-		v1 = convertBlockEpochStateV0(v)
+		v1 = s.convertBlockEpochStateV0(v)
 		s.SetHistoryBlockEpochState(epoch, *v1.BlockState, *v1.EpochState)
 	}
 

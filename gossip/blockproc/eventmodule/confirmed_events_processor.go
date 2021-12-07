@@ -57,7 +57,11 @@ func (p *ValidatorEventsProcessor) Finalize(block iblockproc.BlockCtx, _ bool) i
 		info.LastGasPowerLeft = e.GasPowerLeft()
 		info.LastOnlineTime = e.MedianTime()
 		info.LastBlock = block.Idx
-		info.LastEvent = e.ID()
+		info.LastEvent = iblockproc.EventInfo{
+			ID:           e.ID(),
+			GasPowerLeft: e.GasPowerLeft(),
+			Time:         e.MedianTime(),
+		}
 		p.bs.ValidatorStates[creatorIdx] = info
 	}
 	return p.bs
