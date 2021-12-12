@@ -19,22 +19,22 @@ var (
 		Usage: "Enable traces collection and reporting",
 	}
 
+	EnableDevFlag = cli.BoolFlag{
+		Name:  "tracing.dev",
+		Usage: "Enable traces collection and reporting in development mode",
+	}
+
 	AgentEndpointFlag = cli.StringFlag{
 		Name:  "tracing.agent",
 		Usage: "Jaeger agent endpoint. Default is localhost:6831",
 		Value: "localhost:6831",
 	}
 
-	DevelopmentFlag = cli.BoolFlag{
-		Name:  "tracing.dev",
-		Usage: "Use development Jaeger configuration",
-	}
-
 	ErrInvalidEndpoint = errors.New("invalid agent endpoint")
 )
 
 func Start(ctx *cli.Context) (func(), error) {
-	if !ctx.Bool(EnableFlag.Name) {
+	if !ctx.Bool(EnableFlag.Name) && !ctx.Bool(EnableDevFlag.Name) {
 		return func() {}, nil
 	}
 
@@ -51,7 +51,7 @@ func Start(ctx *cli.Context) (func(), error) {
 		},
 	}
 
-	if ctx.Bool(DevelopmentFlag.Name) {
+	if ctx.Bool(EnableDevFlag.Name) {
 		// Makes sampler collect and report all traces
 		cfg.Sampler = &jaegercfg.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,

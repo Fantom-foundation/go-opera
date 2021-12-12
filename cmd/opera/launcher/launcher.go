@@ -158,13 +158,12 @@ func initFlags() {
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
-		tracing.EnableFlag,
 	}
 
 	tracingFlags = []cli.Flag{
 		tracing.EnableFlag,
 		tracing.AgentEndpointFlag,
-		tracing.DevelopmentFlag,
+		tracing.EnableDevFlag,
 	}
 
 	nodeFlags = []cli.Flag{}
