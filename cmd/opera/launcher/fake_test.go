@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
@@ -112,7 +112,7 @@ func readFakeValidator(fakenet string) *validatorpk.PubKey {
 	}
 
 	return &validatorpk.PubKey{
-		Raw:  crypto.FromECDSAPub(&makegenesis.FakeKey(n).PublicKey),
+		Raw:  crypto.FromECDSAPub(&makefakegenesis.FakeKey(n).PublicKey),
 		Type: validatorpk.Types.Secp256k1,
 	}
 }

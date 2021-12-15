@@ -155,7 +155,24 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 }
 
 func (s *Store) ImportEvm(r io.Reader) error {
-	return iodb.Read(r, &restrictedEvmBatch{s.table.Evm.NewBatch()})
+	it := iodb.NewIterator(r)
+	defer it.Release()
+	batch := &restrictedEvmBatch{s.table.Evm.NewBatch()}
+	defer batch.Reset()
+	for it.Next() {
+		err := batch.Put(it.Key(), it.Value())
+		if err != nil {
+			return err
+		}
+		if batch.ValueSize() > kvdb.IdealBatchSize {
+			err := batch.Write()
+			if err != nil {
+				return err
+			}
+			batch.Reset()
+		}
+	}
+	return batch.Write()
 }
 
 type restrictedEvmBatch struct {

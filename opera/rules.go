@@ -11,7 +11,7 @@ import (
 	ethparams "github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/evmwriter"
 )
 
 const (

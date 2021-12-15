@@ -1,56 +1,41 @@
 package genesisstore
 
 import (
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	"io"
 
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
-// Store is a node persistent storage working over physical key-value database.
+const (
+	BlocksSection = "brs"
+	EpochsSection = "ers"
+	EvmSection    = "evm"
+)
+
+type FilesMap func(string) (io.ReadCloser, error)
+
+// Store is a node persistent storage working over a physical zip archive.
 type Store struct {
-	db kvdb.Store
+	fMap  FilesMap
+	head  genesis.Header
+	close func() error
 
-	table struct {
-		Rules kvdb.Store `table:"c"`
-
-		Blocks kvdb.Store `table:"b"`
-
-		EvmAccounts kvdb.Store `table:"a"`
-		EvmStorage  kvdb.Store `table:"s"`
-		RawEvmItems kvdb.Store `table:"M"`
-
-		Delegations kvdb.Store `table:"d"`
-		Metadata    kvdb.Store `table:"m"`
-	}
-
-	rlp rlpstore.Helper
 	logger.Instance
 }
 
-// NewMemStore creates store over memory map.
-func NewMemStore() *Store {
-	return NewStore(memorydb.New())
-}
-
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Store) *Store {
-	s := &Store{
-		db:       db,
+func NewStore(fMap FilesMap, head genesis.Header, close func() error) *Store {
+	return &Store{
+		fMap:     fMap,
+		head:     head,
+		close:    close,
 		Instance: logger.New("genesis-store"),
-		rlp:      rlpstore.Helper{logger.New("rlp")},
 	}
-
-	table.MigrateTables(&s.table, s.db)
-
-	return s
 }
 
 // Close leaves underlying database.
-func (s *Store) Close() {
-	table.MigrateTables(&s.table, nil)
-
-	_ = s.db.Close()
+func (s *Store) Close() error {
+	s.fMap = nil
+	return s.close()
 }

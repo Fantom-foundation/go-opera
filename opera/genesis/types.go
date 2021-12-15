@@ -59,6 +59,10 @@ func (h Hashes) Includes(h2 Hashes) bool {
 	return true
 }
 
+func (h Hashes) Equal(h2 Hashes) bool {
+	return h.Includes(h2) && h2.Includes(h)
+}
+
 func add(base, hh hash.Hashes) hash.Hashes {
 	baseSet := base.Set()
 	for _, h := range hh {

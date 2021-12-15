@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -16,9 +15,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -26,21 +24,8 @@ import (
 func BenchmarkFlushDBs(b *testing.B) {
 	rawProducer, dir := dbProducer("flush_bench")
 	defer os.RemoveAll(dir)
-	genStore := makegenesis.FakeGenesisStore(2, 1, utils.ToFtm(1), utils.ToFtm(1))
-	_, _, store, s2, s3, _ := MakeEngine(rawProducer, InputGenesis{
-		Hash: genStore.Hash(),
-		Read: func(store *genesisstore.Store) error {
-			buf := bytes.NewBuffer(nil)
-			err := genStore.Export(buf)
-			if err != nil {
-				return err
-			}
-			return store.Import(buf)
-		},
-		Close: func() error {
-			return nil
-		},
-	}, Configs{
+	genStore := makefakegenesis.FakeGenesisStore(1, utils.ToFtm(1), utils.ToFtm(1))
+	_, _, store, s2, _ := MakeEngine(rawProducer, genStore.Genesis(), Configs{
 		Opera:         gossip.DefaultConfig(cachescale.Identity),
 		OperaStore:    gossip.DefaultStoreConfig(cachescale.Identity),
 		Lachesis:      abft.DefaultConfig(),
@@ -49,7 +34,6 @@ func BenchmarkFlushDBs(b *testing.B) {
 	})
 	defer store.Close()
 	defer s2.Close()
-	defer s3.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		n := idx.Block(0)

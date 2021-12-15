@@ -152,7 +152,7 @@ func pruneState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
+	if gdb.GetGenesisID() == nil {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}
@@ -195,7 +195,7 @@ func verifyState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	genesis := gdb.GetGenesisHash()
+	genesis := gdb.GetGenesisID()
 	if genesis == nil {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
@@ -240,7 +240,7 @@ func traverseState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
+	if gdb.GetGenesisID() == nil {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}
@@ -333,7 +333,7 @@ func traverseRawState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
+	if gdb.GetGenesisID() == nil {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}

@@ -144,9 +144,6 @@ func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) 
 		return hash.Event{}, err
 	}
 
-	b.svc.engineMu.RLock() // lock because of iteration
-	defer b.svc.engineMu.RUnlock()
-
 	options := b.svc.store.FindEventHashes(epoch, lamport, prefix)
 	if len(options) == 0 {
 		return hash.Event{}, errors.New("event not found by short ID")
@@ -393,9 +390,7 @@ func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, 
 func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	p2pProgress := b.svc.handler.myProgress()
 	highestP2pProgress := b.svc.handler.highestPeerProgress()
-	b.svc.engineMu.RLock()
 	lastBlock := b.svc.store.GetBlock(p2pProgress.LastBlockIdx)
-	b.svc.engineMu.RUnlock()
 
 	return ethapi.PeerProgress{
 		CurrentEpoch:     p2pProgress.Epoch,

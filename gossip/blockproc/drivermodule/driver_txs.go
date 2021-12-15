@@ -17,15 +17,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driver/drivercall"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driver/driverpos"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
-	netinitcall "github.com/Fantom-foundation/go-opera/opera/genesis/netinit/netinitcalls"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/driver/drivercall"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/driver/driverpos"
 )
 
 const (
@@ -58,10 +52,6 @@ type DriverTxTransactor struct{}
 
 type DriverTxPreTransactor struct{}
 
-type DriverTxGenesisTransactor struct {
-	g opera.Genesis
-}
-
 func NewDriverTxTransactor() *DriverTxTransactor {
 	return &DriverTxTransactor{}
 }
@@ -70,13 +60,7 @@ func NewDriverTxPreTransactor() *DriverTxPreTransactor {
 	return &DriverTxPreTransactor{}
 }
 
-func NewDriverTxGenesisTransactor(g opera.Genesis) *DriverTxGenesisTransactor {
-	return &DriverTxGenesisTransactor{
-		g: g,
-	}
-}
-
-func internalTxBuilder(statedb *state.StateDB) func(calldata []byte, addr common.Address) *types.Transaction {
+func InternalTxBuilder(statedb *state.StateDB) func(calldata []byte, addr common.Address) *types.Transaction {
 	nonce := uint64(math.MaxUint64)
 	return func(calldata []byte, addr common.Address) *types.Transaction {
 		if nonce == math.MaxUint64 {
@@ -88,28 +72,6 @@ func internalTxBuilder(statedb *state.StateDB) func(calldata []byte, addr common
 	}
 }
 
-func (p *DriverTxGenesisTransactor) PopInternalTxs(_ iblockproc.BlockCtx, _ iblockproc.BlockState, es iblockproc.EpochState, _ bool, statedb *state.StateDB) types.Transactions {
-	buildTx := internalTxBuilder(statedb)
-	internalTxs := make(types.Transactions, 0, 15)
-	// initialization
-	calldata := netinitcall.InitializeAll(es.Epoch-1, p.g.TotalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, evmwriter.ContractAddress, p.g.DriverOwner)
-	internalTxs = append(internalTxs, buildTx(calldata, netinit.ContractAddress))
-	// push genesis validators
-	for _, v := range p.g.Validators {
-		calldata := drivercall.SetGenesisValidator(v)
-		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
-	}
-	// push genesis delegations
-	p.g.Delegations.ForEach(func(addr common.Address, toValidatorID idx.ValidatorID, delegation genesis.Delegation) {
-		if delegation.Stake.Sign() == 0 {
-			panic(addr.String())
-		}
-		calldata := drivercall.SetGenesisDelegation(addr, toValidatorID, delegation)
-		internalTxs = append(internalTxs, buildTx(calldata, driver.ContractAddress))
-	})
-	return internalTxs
-}
-
 func maxBlockIdx(a, b idx.Block) idx.Block {
 	if a > b {
 		return a
@@ -118,7 +80,7 @@ func maxBlockIdx(a, b idx.Block) idx.Block {
 }
 
 func (p *DriverTxPreTransactor) PopInternalTxs(block iblockproc.BlockCtx, bs iblockproc.BlockState, es iblockproc.EpochState, sealing bool, statedb *state.StateDB) types.Transactions {
-	buildTx := internalTxBuilder(statedb)
+	buildTx := InternalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 8)
 
 	// write cheaters
@@ -156,7 +118,7 @@ func (p *DriverTxPreTransactor) PopInternalTxs(block iblockproc.BlockCtx, bs ibl
 }
 
 func (p *DriverTxTransactor) PopInternalTxs(_ iblockproc.BlockCtx, _ iblockproc.BlockState, es iblockproc.EpochState, sealing bool, statedb *state.StateDB) types.Transactions {
-	buildTx := internalTxBuilder(statedb)
+	buildTx := InternalTxBuilder(statedb)
 	internalTxs := make(types.Transactions, 0, 1)
 	// push data into Driver after epoch sealing
 	if sealing {
