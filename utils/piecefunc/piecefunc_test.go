@@ -24,12 +24,12 @@ func TestConstFunc(t *testing.T) {
 			Y: 1.0 * DecimalUnit,
 		},
 		{
-			X: math.MaxUint32 * DecimalUnit,
+			X: 0xFFFFFF * DecimalUnit,
 			Y: 1.0 * DecimalUnit,
 		},
 	})
 
-	for i, x := range []uint64{0, 1, 5, 10, 20, 0xFFFF, math.MaxUint32} {
+	for i, x := range []uint64{0, 1, 5, 10, 20, 0xFFFF, 0xFFFFFF} {
 		X := x * DecimalUnit
 		Y := constF(X)
 		require.Equal(uint64(DecimalUnit), Y, i)
@@ -53,7 +53,7 @@ func TestUp45Func(t *testing.T) {
 			Y: 20.0 * DecimalUnit,
 		},
 		{
-			X: math.MaxUint32 * DecimalUnit,
+			X: 0xFFFFFF * DecimalUnit,
 			Y: 21.0 * DecimalUnit,
 		},
 	})
@@ -64,7 +64,7 @@ func TestUp45Func(t *testing.T) {
 		require.Equal(X, Y, i)
 	}
 
-	for i, x := range []uint64{21, 0xFFFF, math.MaxUint32} {
+	for i, x := range []uint64{21, 0xFFFF, 0xFFFFFF} {
 		X := x * DecimalUnit
 		Y := up45F(X)
 		require.True(20.0*DecimalUnit <= Y && Y <= 21.0*DecimalUnit, i)
