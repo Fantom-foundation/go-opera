@@ -74,6 +74,23 @@ last epoch to write. If the file ends with .gz, the output will
 be gzipped
 `,
 			},
+			{
+				Name:      "genesis",
+				Usage:     "Export current state into a genesis file",
+				ArgsUsage: "<filename> [<epochFrom> <epochTo>]",
+				Action:    utils.MigrateFlags(exportGenesis),
+				Flags: []cli.Flag{
+					utils.DataDirFlag,
+				},
+				Description: `
+    opera export genesis
+
+Export current state into a genesis file.
+Requires a first argument of the file to write to.
+Optional second and third arguments control the first and
+last epoch to write.
+`,
+			},
 		},
 	}
 	checkCommand = cli.Command{
