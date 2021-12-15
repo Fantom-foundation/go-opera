@@ -49,7 +49,6 @@ import (
 	snapsync "github.com/Fantom-foundation/go-opera/gossip/protocols/snap"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
@@ -83,24 +82,22 @@ func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscripti
 }
 
 type BlockProc struct {
-	SealerModule        blockproc.SealerModule
-	TxListenerModule    blockproc.TxListenerModule
-	GenesisTxTransactor blockproc.TxTransactor
-	PreTxTransactor     blockproc.TxTransactor
-	PostTxTransactor    blockproc.TxTransactor
-	EventsModule        blockproc.ConfirmedEventsModule
-	EVMModule           blockproc.EVM
+	SealerModule     blockproc.SealerModule
+	TxListenerModule blockproc.TxListenerModule
+	PreTxTransactor  blockproc.TxTransactor
+	PostTxTransactor blockproc.TxTransactor
+	EventsModule     blockproc.ConfirmedEventsModule
+	EVMModule        blockproc.EVM
 }
 
-func DefaultBlockProc(g opera.Genesis) BlockProc {
+func DefaultBlockProc() BlockProc {
 	return BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(g),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
+		SealerModule:     sealmodule.New(),
+		TxListenerModule: drivermodule.NewDriverTxListenerModule(),
+		PreTxTransactor:  drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor: drivermodule.NewDriverTxTransactor(),
+		EventsModule:     eventmodule.New(),
+		EVMModule:        evmmodule.New(),
 	}
 }
 
@@ -359,8 +356,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 				default:
 					backend.wg.Add(1)
 					defer backend.wg.Done()
-					err := backend.handle(peer)
-					return err
+					return backend.handle(peer)
 				}
 			},
 			NodeInfo: func() interface{} {

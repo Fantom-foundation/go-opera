@@ -196,6 +196,9 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
 			if number := uint64(block.LastBlock.Idx); number > offset {
 				recent := getBlock(idx.Block(number - offset))
+				if recent == nil || recent.Root == hash.Zero {
+					break
+				}
 				s.Log.Info("Writing cached state to disk", "block", number-offset, "root", recent.Root)
 				if err := triedb.Commit(common.Hash(recent.Root), true, nil); err != nil {
 					s.Log.Error("Failed to commit recent state trie", "err", err)

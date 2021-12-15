@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -88,6 +89,50 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	return err
 }
 
+func indexRawReceipts(s *Store, receiptsForStorage []*types.ReceiptForStorage, txs types.Transactions, blockIdx idx.Block, atropos hash.Event) {
+	s.evm.SetRawReceipts(blockIdx, receiptsForStorage)
+	receipts, _ := evmstore.UnwrapStorageReceipts(receiptsForStorage, blockIdx, nil, common.Hash(atropos), txs)
+	for _, r := range receipts {
+		s.evm.IndexLogs(r.Logs...)
+	}
+}
+
+func (s *Store) WriteFullBlockRecord(br ibr.LlrIdxFullBlockRecord) {
+	txHashes := make([]common.Hash, 0, len(br.Txs))
+	internalTxHashes := make([]common.Hash, 0, 2)
+	for _, tx := range br.Txs {
+		if tx.GasPrice().Sign() == 0 {
+			internalTxHashes = append(internalTxHashes, tx.Hash())
+		} else {
+			txHashes = append(txHashes, tx.Hash())
+		}
+		s.EvmStore().SetTx(tx.Hash(), tx)
+	}
+
+	if len(br.Receipts) != 0 {
+		// Note: it's possible for receipts to get indexed twice by BR and block processing
+		indexRawReceipts(s, br.Receipts, br.Txs, br.Idx, br.Atropos)
+	}
+	for i, tx := range br.Txs {
+		s.EvmStore().SetTx(tx.Hash(), tx)
+		s.EvmStore().SetTxPosition(tx.Hash(), evmstore.TxPosition{
+			Block:       br.Idx,
+			BlockOffset: uint32(i),
+		})
+	}
+	s.SetBlock(br.Idx, &inter.Block{
+		Time:        br.Time,
+		Atropos:     br.Atropos,
+		Events:      hash.Events{},
+		Txs:         txHashes,
+		InternalTxs: internalTxHashes,
+		SkippedTxs:  []uint32{},
+		GasUsed:     br.GasUsed,
+		Root:        br.Root,
+	})
+	s.SetBlockIndex(br.Atropos, br.Idx)
+}
+
 func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	// engineMu should NOT be locked here
 	if s.store.HasBlock(br.Idx) {
@@ -104,39 +149,7 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 		return errors.New("block record hash mismatch")
 	}
 
-	txHashes := make([]common.Hash, 0, len(br.Txs))
-	internalTxHashes := make([]common.Hash, 0, 2)
-	for _, tx := range br.Txs {
-		if tx.GasPrice().Sign() == 0 {
-			internalTxHashes = append(internalTxHashes, tx.Hash())
-		} else {
-			txHashes = append(txHashes, tx.Hash())
-		}
-		s.store.EvmStore().SetTx(tx.Hash(), tx)
-	}
-
-	if len(br.Receipts) != 0 {
-		// Note: it's possible for receipts to get indexed twice by BR and block processing
-		indexRawReceipts(s.store, br.Receipts, br.Txs, br.Idx, br.Atropos)
-	}
-	for i, tx := range br.Txs {
-		s.store.EvmStore().SetTx(tx.Hash(), tx)
-		s.store.EvmStore().SetTxPosition(tx.Hash(), evmstore.TxPosition{
-			Block:       br.Idx,
-			BlockOffset: uint32(i),
-		})
-	}
-	s.store.SetBlock(br.Idx, &inter.Block{
-		Time:        br.Time,
-		Atropos:     br.Atropos,
-		Events:      hash.Events{},
-		Txs:         txHashes,
-		InternalTxs: internalTxHashes,
-		SkippedTxs:  []uint32{},
-		GasUsed:     br.GasUsed,
-		Root:        br.Root,
-	})
-	s.store.SetBlockIndex(br.Atropos, br.Idx)
+	s.store.WriteFullBlockRecord(br)
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	if s.verWatcher != nil {
@@ -211,6 +224,11 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	return err
 }
 
+func (s *Store) WriteFullEpochRecord(er ier.LlrIdxFullEpochRecord) {
+	s.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
+	s.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
+}
+
 func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	// engineMu should NOT be locked here
 	if s.store.HasHistoryBlockEpochState(er.Idx) {
@@ -227,8 +245,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 		return errors.New("epoch record hash mismatch")
 	}
 
-	s.store.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
-	s.store.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
+	s.store.WriteFullEpochRecord(er)
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)

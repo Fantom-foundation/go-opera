@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
@@ -44,7 +44,7 @@ func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 		}
 
 		cfg.Validator.ID = id
-		validators := makegenesis.GetFakeValidators(num)
+		validators := makefakegenesis.GetFakeValidators(num)
 		cfg.Validator.PubKey = validators.Map()[cfg.Validator.ID].PubKey
 	}
 

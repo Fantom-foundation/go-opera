@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
-
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 )
 
 const (
@@ -143,5 +143,5 @@ func trulyRandInt(lo, hi int) int {
 }
 
 func genesisStart() string {
-	return time.Unix(int64(makegenesis.FakeGenesisTime.Unix()), 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+	return time.Unix(int64(makefakegenesis.FakeGenesisTime.Unix()), 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 }

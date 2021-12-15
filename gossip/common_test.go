@@ -28,7 +28,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
@@ -131,15 +131,15 @@ func (m testConfirmedEventsModule) Start(bs iblockproc.BlockState, es iblockproc
 }
 
 func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
-	genStore := makegenesis.FakeGenesisStore(firstEpoch, validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
-	genesis := genStore.GetGenesis()
+	rules := opera.FakeNetRules()
+	rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
+	rules.Blocks.MaxEmptyBlockSkipPeriod = 0
 
-	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
-	genesis.Rules.Blocks.MaxEmptyBlockSkipPeriod = 0
+	genStore := makefakegenesis.FakeGenesisStoreWithRulesAndStart(validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake), rules, firstEpoch, 2)
+	genesis := genStore.Genesis()
 
 	store := NewMemStore()
-	blockProc := DefaultBlockProc(genesis)
-	_, err := store.ApplyGenesis(blockProc, genesis)
+	_, err := store.ApplyGenesis(genesis)
 	if err != nil {
 		panic(err)
 	}
@@ -149,6 +149,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 		t:      store.GetGenesisTime().Time(),
 		nonces: make(map[common.Address]uint64),
 	}
+	blockProc := DefaultBlockProc()
 	blockProc.EventsModule = testConfirmedEventsModule{blockProc.EventsModule, env}
 
 	engine, vecClock := makeTestEngine(store)
@@ -173,20 +174,22 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	// register emitters
 	for i := idx.Validator(0); i < validatorsNum; i++ {
 		cfg := emitter.DefaultConfig()
+		vid := store.GetValidators().GetID(i)
+		pubkey := store.GetEpochState().ValidatorProfiles[vid].PubKey
 		cfg.Validator = emitter.ValidatorConfig{
-			ID:     genesis.Validators[i].ID,
-			PubKey: genesis.Validators[i].PubKey,
+			ID:     vid,
+			PubKey: pubkey,
 		}
 		cfg.EmitIntervals = emitter.EmitIntervals{}
 		cfg.MaxParents = idx.Event(validatorsNum/2 + 1)
 		cfg.MaxTxsPerAddress = 10000000
-		_ = valKeystore.Add(genesis.Validators[i].PubKey, crypto.FromECDSA(makegenesis.FakeKey(genesis.Validators[i].ID)), validatorpk.FakePassword)
-		_ = valKeystore.Unlock(genesis.Validators[i].PubKey, validatorpk.FakePassword)
+		_ = valKeystore.Add(pubkey, crypto.FromECDSA(makefakegenesis.FakeKey(vid)), validatorpk.FakePassword)
+		_ = valKeystore.Unlock(pubkey, validatorpk.FakePassword)
 		world := env.EmitterWorld(env.signer)
 		world.External = testEmitterWorldExternal{world.External, env}
 		em := emitter.NewEmitter(cfg, world)
 		env.RegisterEmitter(em)
-		env.pubkeys = append(env.pubkeys, genesis.Validators[i].PubKey)
+		env.pubkeys = append(env.pubkeys, pubkey)
 		em.Start()
 	}
 
@@ -333,12 +336,12 @@ func (env *testEnv) Contract(from idx.ValidatorID, amount *big.Int, hex string) 
 }
 
 func (env *testEnv) privateKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	key := makegenesis.FakeKey(n)
+	key := makefakegenesis.FakeKey(n)
 	return key
 }
 
 func (env *testEnv) Address(n idx.ValidatorID) common.Address {
-	key := makegenesis.FakeKey(n)
+	key := makefakegenesis.FakeKey(n)
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return addr
 }

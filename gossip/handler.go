@@ -777,7 +777,7 @@ func (h *handler) handle(p *peer) error {
 
 	// Execute the handshake
 	var (
-		genesis    = *h.store.GetGenesisHash()
+		genesis    = *h.store.GetGenesisID()
 		myProgress = h.myProgress()
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
@@ -1490,7 +1490,7 @@ func (h *handler) NodeInfo() *NodeInfo {
 	numOfBlocks := h.store.GetLatestBlockIndex()
 	return &NodeInfo{
 		Network:     h.NetworkID,
-		Genesis:     common.Hash(*h.store.GetGenesisHash()),
+		Genesis:     common.Hash(*h.store.GetGenesisID()),
 		Epoch:       h.store.GetEpoch(),
 		NumOfBlocks: numOfBlocks,
 	}

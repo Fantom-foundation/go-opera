@@ -41,11 +41,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/contract/netinit100"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/driverauth"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/evmwriter"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/netinit"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/sfc"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
 
@@ -156,8 +156,9 @@ func TestSFC(t *testing.T) {
 
 			sfc10, err = sfc100.NewContract(sfc.ContractAddress, env)
 			require.NoError(err)
-			epoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
-			require.Equal(0, epoch.Cmp(big.NewInt(3)), "current epoch %s", epoch.String())
+			sfcEpoch, err := sfc10.ContractCaller.CurrentEpoch(env.ReadOnly())
+			require.NoError(err)
+			require.Equal(0, sfcEpoch.Cmp(big.NewInt(3)), "current SFC epoch %s", sfcEpoch.String())
 		})
 
 	t.Run("Direct driver", func(t *testing.T) {

@@ -1,149 +1,255 @@
 package makegenesis
 
 import (
-	"crypto/ecdsa"
+	"bytes"
+	"errors"
+	"io"
 	"math/big"
-	"math/rand"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
-	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
+	"github.com/Fantom-foundation/go-opera/inter/ibr"
+	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/evmwriter"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/netinit"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	"github.com/Fantom-foundation/go-opera/utils/iodb"
 )
 
-var (
-	FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
-)
+type GenesisBuilder struct {
+	tmpDB kvdb.Store
 
-// FakeKey gets n-th fake private key.
-func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	reader := rand.New(rand.NewSource(int64(n)))
+	tmpEvmStore *evmstore.Store
+	tmpStateDB  *state.StateDB
 
-	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
-	if err != nil {
-		panic(err)
-	}
+	totalSupply *big.Int
 
-	return key
+	blocks       []ibr.LlrIdxFullBlockRecord
+	epochs       []ier.LlrIdxFullEpochRecord
+	currentEpoch ier.LlrIdxFullEpochRecord
 }
 
-func FakeGenesisStore(firstEpoch idx.Epoch, num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
-	genStore := genesisstore.NewMemStore()
-	genStore.SetRules(opera.FakeNetRules())
-
-	validators := GetFakeValidators(num)
-
-	totalSupply := new(big.Int)
-	for _, val := range validators {
-		genStore.SetEvmAccount(val.Address, genesis.Account{
-			Code:    []byte{},
-			Balance: balance,
-			Nonce:   0,
-		})
-		genStore.SetDelegation(val.Address, val.ID, genesis.Delegation{
-			Stake:              stake,
-			Rewards:            new(big.Int),
-			LockedStake:        new(big.Int),
-			LockupFromEpoch:    0,
-			LockupEndTime:      0,
-			LockupDuration:     0,
-			EarlyUnlockPenalty: new(big.Int),
-		})
-		totalSupply.Add(totalSupply, balance)
-	}
-
-	var owner common.Address
-	if num != 0 {
-		owner = validators[0].Address
-	}
-
-	genStore.SetMetadata(genesisstore.Metadata{
-		Validators:    validators,
-		FirstEpoch:    firstEpoch,
-		Time:          FakeGenesisTime,
-		PrevEpochTime: FakeGenesisTime - inter.Timestamp(time.Hour),
-		ExtraData:     []byte("fake"),
-		DriverOwner:   owner,
-		TotalSupply:   totalSupply,
-	})
-	genStore.SetBlock(0, genesis.Block{
-		Time:        FakeGenesisTime - inter.Timestamp(time.Minute),
-		Atropos:     hash.Event{},
-		Txs:         types.Transactions{},
-		InternalTxs: types.Transactions{},
-		Root:        hash.Hash{},
-		Receipts:    []*types.ReceiptForStorage{},
-	})
-	// pre deploy NetworkInitializer
-	genStore.SetEvmAccount(netinit.ContractAddress, genesis.Account{
-		Code:    netinit.GetContractBin(),
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	// pre deploy NodeDriver
-	genStore.SetEvmAccount(driver.ContractAddress, genesis.Account{
-		Code:    driver.GetContractBin(),
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	// pre deploy NodeDriverAuth
-	genStore.SetEvmAccount(driverauth.ContractAddress, genesis.Account{
-		Code:    driverauth.GetContractBin(),
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	// pre deploy SFC
-	genStore.SetEvmAccount(sfc.ContractAddress, genesis.Account{
-		Code:    sfc.GetContractBin(),
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-	// set non-zero code for pre-compiled contracts
-	genStore.SetEvmAccount(evmwriter.ContractAddress, genesis.Account{
-		Code:    []byte{0},
-		Balance: new(big.Int),
-		Nonce:   0,
-	})
-
-	return genStore
+type BlockProc struct {
+	SealerModule     blockproc.SealerModule
+	TxListenerModule blockproc.TxListenerModule
+	PreTxTransactor  blockproc.TxTransactor
+	PostTxTransactor blockproc.TxTransactor
+	EventsModule     blockproc.ConfirmedEventsModule
+	EVMModule        blockproc.EVM
 }
 
-func GetFakeValidators(num idx.Validator) gpos.Validators {
-	validators := make(gpos.Validators, 0, num)
+func DefaultBlockProc() BlockProc {
+	return BlockProc{
+		SealerModule:     sealmodule.New(),
+		TxListenerModule: drivermodule.NewDriverTxListenerModule(),
+		PreTxTransactor:  drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor: drivermodule.NewDriverTxTransactor(),
+		EventsModule:     eventmodule.New(),
+		EVMModule:        evmmodule.New(),
+	}
+}
 
-	for i := idx.ValidatorID(1); i <= idx.ValidatorID(num); i++ {
-		key := FakeKey(i)
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		pubkeyraw := crypto.FromECDSAPub(&key.PublicKey)
-		validatorID := idx.ValidatorID(i)
-		validators = append(validators, gpos.Validator{
-			ID:      validatorID,
-			Address: addr,
-			PubKey: validatorpk.PubKey{
-				Raw:  pubkeyraw,
-				Type: validatorpk.Types.Secp256k1,
-			},
-			CreationTime:     FakeGenesisTime,
-			CreationEpoch:    0,
-			DeactivatedTime:  0,
-			DeactivatedEpoch: 0,
-			Status:           0,
-		})
+func (b *GenesisBuilder) GetStateDB() *state.StateDB {
+	if b.tmpStateDB == nil {
+		tmpEvmStore := evmstore.NewStore(b.tmpDB, evmstore.LiteStoreConfig())
+		b.tmpStateDB, _ = tmpEvmStore.StateDB(hash.Zero)
+	}
+	return b.tmpStateDB
+}
+
+func (b *GenesisBuilder) AddBalance(acc common.Address, balance *big.Int) {
+	b.tmpStateDB.AddBalance(acc, balance)
+	b.totalSupply.Add(b.totalSupply, balance)
+}
+
+func (b *GenesisBuilder) SetCode(acc common.Address, code []byte) {
+	b.tmpStateDB.SetCode(acc, code)
+}
+
+func (b *GenesisBuilder) SetNonce(acc common.Address, nonce uint64) {
+	b.tmpStateDB.SetNonce(acc, nonce)
+}
+
+func (b *GenesisBuilder) SetStorage(acc common.Address, key, val common.Hash) {
+	b.tmpStateDB.SetState(acc, key, val)
+}
+
+func (b *GenesisBuilder) AddBlock(br ibr.LlrIdxFullBlockRecord) {
+	b.blocks = append(b.blocks, br)
+}
+
+func (b *GenesisBuilder) AddEpoch(er ier.LlrIdxFullEpochRecord) {
+	b.epochs = append(b.epochs, er)
+}
+
+func (b *GenesisBuilder) SetCurrentEpoch(er ier.LlrIdxFullEpochRecord) {
+	b.currentEpoch = er
+}
+
+func (b *GenesisBuilder) TotalSupply() *big.Int {
+	return b.totalSupply
+}
+
+func (b *GenesisBuilder) CurrentHash() hash.Hash {
+	er := b.epochs[len(b.epochs)-1]
+	return er.Hash()
+}
+
+func NewGenesisBuilder(tmpDb kvdb.Store) *GenesisBuilder {
+	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
+	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
+	return &GenesisBuilder{
+		tmpDB:       tmpDb,
+		tmpEvmStore: tmpEvmStore,
+		tmpStateDB:  statedb,
+		totalSupply: new(big.Int),
+	}
+}
+
+type dummyHeaderReturner struct {
+}
+
+func (d dummyHeaderReturner) GetHeader(common.Hash, uint64) *evmcore.EvmHeader {
+	return &evmcore.EvmHeader{}
+}
+
+func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types.Transactions) error {
+	bs, es := b.currentEpoch.BlockState.Copy(), b.currentEpoch.EpochState.Copy()
+
+	blockCtx := iblockproc.BlockCtx{
+		Idx:     bs.LastBlock.Idx + 1,
+		Time:    bs.LastBlock.Time + 1,
+		Atropos: hash.Event{},
 	}
 
-	return validators
+	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
+	sealing := true
+	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, b.tmpStateDB)
+	evmProcessor := blockProc.EVMModule.Start(blockCtx, b.tmpStateDB, dummyHeaderReturner{}, func(l *types.Log) {
+		txListener.OnNewLog(l)
+	}, es.Rules)
+
+	// Execute genesis transactions
+	evmProcessor.Execute(genesisTxs, true)
+	bs = txListener.Finalize()
+
+	// Execute pre-internal transactions
+	preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, b.tmpStateDB)
+	evmProcessor.Execute(preInternalTxs, true)
+	bs = txListener.Finalize()
+
+	// Seal epoch if requested
+	if sealing {
+		sealer.Update(bs, es)
+		bs, es = sealer.SealEpoch()
+		txListener.Update(bs, es)
+	}
+
+	// Execute post-internal transactions
+	internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, b.tmpStateDB)
+	evmProcessor.Execute(internalTxs, true)
+
+	evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
+	for _, r := range receipts {
+		if r.Status == 0 {
+			return errors.New("genesis transaction reverted")
+		}
+	}
+	if len(skippedTxs) != 0 {
+		return errors.New("genesis transaction is skipped")
+	}
+	bs = txListener.Finalize()
+	bs.FinalizedStateRoot = hash.Hash(evmBlock.Root)
+
+	bs.LastBlock = blockCtx
+
+	prettyHash := func(root hash.Hash) hash.Event {
+		e := inter.MutableEventPayload{}
+		// for nice-looking ID
+		e.SetEpoch(es.Epoch)
+		e.SetLamport(1)
+		// actual data hashed
+		e.SetExtra(root[:])
+
+		return e.Build().ID()
+	}
+	receiptsStorage := make([]*types.ReceiptForStorage, len(receipts))
+	for i, r := range receipts {
+		receiptsStorage[i] = (*types.ReceiptForStorage)(r)
+	}
+	// add block
+	b.blocks = append(b.blocks, ibr.LlrIdxFullBlockRecord{
+		LlrFullBlockRecord: ibr.LlrFullBlockRecord{
+			Atropos:  prettyHash(bs.FinalizedStateRoot),
+			Root:     bs.FinalizedStateRoot,
+			Txs:      evmBlock.Transactions,
+			Receipts: receiptsStorage,
+			Time:     blockCtx.Time,
+			GasUsed:  evmBlock.GasUsed,
+		},
+		Idx: blockCtx.Idx,
+	})
+	// add epoch
+	b.currentEpoch = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{
+			BlockState: bs,
+			EpochState: es,
+		},
+		Idx: es.Epoch,
+	}
+	b.epochs = append(b.epochs, b.currentEpoch)
+
+	return b.tmpEvmStore.Commit(bs, true)
+}
+
+type memFile struct {
+	*bytes.Buffer
+}
+
+func (f *memFile) Close() error {
+	*f = memFile{}
+	return nil
+}
+
+func (b *GenesisBuilder) Build(head genesis.Header) *genesisstore.Store {
+	return genesisstore.NewStore(func(name string) (io.ReadCloser, error) {
+		buf := &memFile{bytes.NewBuffer(nil)}
+		if name == genesisstore.BlocksSection {
+			for i := len(b.blocks) - 1; i >= 0; i-- {
+				_ = rlp.Encode(buf, b.blocks[i])
+			}
+			return buf, nil
+		}
+		if name == genesisstore.EpochsSection {
+			for i := len(b.epochs) - 1; i >= 0; i-- {
+				_ = rlp.Encode(buf, b.epochs[i])
+			}
+			return buf, nil
+		}
+		if name == genesisstore.EvmSection {
+			it := b.tmpEvmStore.EvmDb.NewIterator(nil, nil)
+			defer it.Release()
+			_ = iodb.Write(buf, it)
+		}
+		if buf.Len() == 0 {
+			return nil, errors.New("not found")
+		}
+		return buf, nil
+	}, head, func() error {
+		*b = GenesisBuilder{}
+		return nil
+	})
 }
