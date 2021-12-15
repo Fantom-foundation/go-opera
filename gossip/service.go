@@ -59,7 +59,6 @@ type ServiceFeed struct {
 	scope notify.SubscriptionScope
 
 	newEpoch        notify.Feed
-	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
 	newLogs         notify.Feed
