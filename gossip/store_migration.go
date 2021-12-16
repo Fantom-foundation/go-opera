@@ -43,7 +43,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("tx hashes recovery", s.recoverTxHashes).
 		Next("DAG heads recovery", s.recoverHeadsStorage).
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
-		Next("BlockState recovery", s.recoverBlockState)
+		Next("BlockState recovery", s.recoverBlockState).
+		Next("LlrState recovery", s.recoverLlrState)
 }
 
 func unsupportedMigration() error {
@@ -328,6 +329,26 @@ func (s *Store) recoverBlockState() error {
 		v1 = s.convertBlockEpochStateV0(v)
 		s.SetHistoryBlockEpochState(epoch, *v1.BlockState, *v1.EpochState)
 	}
+
+	return nil
+}
+
+func (s *Store) recoverLlrState() error {
+	v1, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochState{}).(*BlockEpochState)
+	if !ok {
+		return errors.New("epoch state reading failed: genesis not applied")
+	}
+
+	epoch := v1.EpochState.Epoch + 1
+	block := v1.BlockState.LastBlock.Idx + 1
+
+	s.SetLlrState(LlrState{
+		LowestEpochToDecide: epoch,
+		LowestEpochToFill:   epoch,
+		LowestBlockToDecide: block,
+		LowestBlockToFill:   block,
+	})
+	s.FlushLlrState()
 
 	return nil
 }
