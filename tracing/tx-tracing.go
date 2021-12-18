@@ -2,14 +2,21 @@ package tracing
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/opentracing/opentracing-go"
 )
 
+// txSpan wraps opentracing span and stores additional payload
+type txSpan struct {
+	opentracing.Span
+	begin time.Time
+}
+
 var (
 	enabled   bool
-	txSpans   = make(map[common.Hash]opentracing.Span)
+	txSpans   = make(map[common.Hash]txSpan)
 	txSpansMu sync.RWMutex
 
 	noopSpan = opentracing.NoopTracer{}.StartSpan("")
@@ -35,9 +42,13 @@ func StartTx(tx common.Hash, operation string) {
 		return
 	}
 
-	span := opentracing.StartSpan("lifecycle")
+	span := txSpan{
+		Span:  opentracing.StartSpan("lifecycle"),
+		begin: time.Now(),
+	}
 	span.SetTag("txhash", tx.String())
 	span.SetTag("enter", operation)
+
 	txSpans[tx] = span
 }
 
@@ -55,7 +66,9 @@ func FinishTx(tx common.Hash, operation string) {
 	}
 
 	span.SetTag("exit", operation)
+	span.SetTag("time.millis", time.Since(span.begin).Milliseconds())
 	span.Finish()
+
 	delete(txSpans, tx)
 }
 
