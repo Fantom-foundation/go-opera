@@ -70,9 +70,8 @@ func newPeerSet() *peerSet {
 // `snap` extension, or if no such peer exists, tracks the extension for the time
 // being until the `eth` main protocol starts looking for it.
 func (ps *peerSet) RegisterSnapExtension(peer *snap.Peer) error {
-	// Reject the peer if it advertises `snap` without `eth` as `snap` is only a
-	// satellite protocol meaningful with the chain selection of `eth`
-	if !peer.RunningCap(ProtocolName, []uint{FTM63}) {
+	// Reject the peer if it is not eligible for a snap protocol
+	if !eligibleForSnap(peer.Peer) {
 		return errSnapWithoutOpera
 	}
 	// Ensure nobody can double connect
@@ -99,8 +98,8 @@ func (ps *peerSet) RegisterSnapExtension(peer *snap.Peer) error {
 // WaitSnapExtension blocks until all satellite protocols are connected and tracked
 // by the peerset.
 func (ps *peerSet) WaitSnapExtension(p *peer) (*snap.Peer, error) {
-	// If the peer does not support a compatible `snap`, don't wait
-	if !p.RunningCap(snap.ProtocolName, snap.ProtocolVersions) {
+	// If the peer is not eligible for a snap protocol`, don't wait
+	if !eligibleForSnap(p.Peer) {
 		return nil, nil
 	}
 	// Ensure nobody can double connect
