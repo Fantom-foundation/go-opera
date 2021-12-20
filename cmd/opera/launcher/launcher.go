@@ -19,6 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
+
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
 	"github.com/Fantom-foundation/go-opera/debug"
@@ -28,7 +30,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
-	evmetrics "github.com/ethereum/go-ethereum/metrics"
 )
 
 const (
@@ -72,8 +73,6 @@ func initFlags() {
 	}
 	performanceFlags = []cli.Flag{
 		CacheFlag,
-		utils.GCModeFlag,
-		utils.SnapshotFlag,
 	}
 	networkingFlags = []cli.Flag{
 		utils.BootnodesFlag,
@@ -114,6 +113,7 @@ func initFlags() {
 		validatorIDFlag,
 		validatorPubkeyFlag,
 		validatorPasswordFlag,
+		SyncModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,
@@ -347,26 +347,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		utils.Fatalf("Failed to attach to self: %v", err)
 	}
 	ethClient := ethclient.NewClient(rpcClient)
-	/*
-		// Set contract backend for ethereum service if local node
-		// is serving LES requests.
-		if ctx.GlobalInt(utils.LightLegacyServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
-			var ethService *eth.Ethereum
-			if err := stack.Service(&ethService); err != nil {
-				utils.Fatalf("Failed to retrieve ethereum service: %v", err)
-			}
-			ethService.SetContractBackend(ethClient)
-		}
-		// Set contract backend for les service if local node is
-		// running as a light client.
-		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
-			var lesService *les.LightEthereum
-			if err := stack.Service(&lesService); err != nil {
-				utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
-			}
-			lesService.SetContractBackend(ethClient)
-		}
-	*/
 	go func() {
 		// Open any wallets already attached
 		for _, wallet := range stack.AccountManager().Wallets() {

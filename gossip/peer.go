@@ -13,6 +13,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -36,7 +37,7 @@ const (
 // PeerInfo represents a short summary of the sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version     int       `json:"version"` // protocol version negotiated
+	Version     uint      `json:"version"` // protocol version negotiated
 	Epoch       idx.Epoch `json:"epoch"`
 	NumOfBlocks idx.Block `json:"blocks"`
 }
@@ -54,7 +55,7 @@ type peer struct {
 	*p2p.Peer
 	rw p2p.MsgReadWriter
 
-	version int // Protocol version negotiated
+	version uint // Protocol version negotiated
 
 	knownTxs            mapset.Set         // Set of transaction hashes known to be known by this peer
 	knownEvents         mapset.Set         // Set of event hashes known to be known by this peer
@@ -63,6 +64,10 @@ type peer struct {
 	term                chan struct{} // Termination channel to stop the broadcaster
 
 	progress PeerProgress
+
+	snapExt  *snapPeer     // Satellite `snap` connection
+	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
+	snapWait chan struct{} // Notification channel for snap connections
 
 	sync.RWMutex
 }
@@ -93,19 +98,23 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	return a.LastBlockIdx < b.LastBlockIdx
 }
 
-func NewPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
-	return &peer{
+func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
+	peer := &peer{
 		cfg:                 cfg,
 		Peer:                p,
 		rw:                  rw,
 		version:             version,
-		id:                  fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		id:                  p.ID().String(),
 		knownTxs:            mapset.NewSet(),
 		knownEvents:         mapset.NewSet(),
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
 	}
+
+	go peer.broadcast(peer.queue)
+
+	return peer
 }
 
 // broadcast is a write loop that multiplexes event propagations, announcements
@@ -124,8 +133,8 @@ func (p *peer) broadcast(queue chan broadcastItem) {
 	}
 }
 
-// close signals the broadcast goroutine to terminate.
-func (p *peer) close() {
+// Close signals the broadcast goroutine to terminate.
+func (p *peer) Close() {
 	p.queuedDataSemaphore.Terminate()
 	close(p.term)
 }
@@ -534,7 +543,7 @@ func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis comm
 	if handshake.NetworkID != network {
 		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", handshake.NetworkID, network)
 	}
-	if int(handshake.ProtocolVersion) != p.version {
+	if uint(handshake.ProtocolVersion) != p.version {
 		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", handshake.ProtocolVersion, p.version)
 	}
 	return nil
@@ -547,138 +556,25 @@ func (p *peer) String() string {
 	)
 }
 
-// peerSet represents the collection of active peers currently participating in
-// the sub-protocol.
-type peerSet struct {
-	peers  map[string]*peer
-	lock   sync.RWMutex
-	closed bool
+// snapPeerInfo represents a short summary of the `snap` sub-protocol metadata known
+// about a connected peer.
+type snapPeerInfo struct {
+	Version uint `json:"version"` // Snapshot protocol version negotiated
 }
 
-// newPeerSet creates a new peer set to track the active participants.
-func newPeerSet() *peerSet {
-	return &peerSet{
-		peers: make(map[string]*peer),
+// snapPeer is a wrapper around snap.Peer to maintain a few extra metadata.
+type snapPeer struct {
+	*snap.Peer
+}
+
+// info gathers and returns some `snap` protocol metadata known about a peer.
+func (p *snapPeer) info() *snapPeerInfo {
+	return &snapPeerInfo{
+		Version: p.Version(),
 	}
 }
 
-// Register injects a new peer into the working set, or returns an error if the
-// peer is already known. If a new peer it registered, its broadcast loop is also
-// started.
-func (ps *peerSet) Register(p *peer) error {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	if ps.closed {
-		return errClosed
-	}
-	if _, ok := ps.peers[p.id]; ok {
-		return errAlreadyRegistered
-	}
-	ps.peers[p.id] = p
-	go p.broadcast(p.queue)
-
-	return nil
-}
-
-// Unregister removes a remote peer from the active set, disabling any further
-// actions to/from that particular entity.
-func (ps *peerSet) Unregister(id string) error {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	p, ok := ps.peers[id]
-	if !ok {
-		return errNotRegistered
-	}
-	delete(ps.peers, id)
-	p.close()
-
-	return nil
-}
-
-// Peer retrieves the registered peer with the given id.
-func (ps *peerSet) Peer(id string) *peer {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	return ps.peers[id]
-}
-
-// Len returns if the current number of peers in the set.
-func (ps *peerSet) Len() int {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	return len(ps.peers)
-}
-
-// PeersWithoutEvent retrieves a list of peers that do not have a given event in
-// their set of known hashes.
-func (ps *peerSet) PeersWithoutEvent(e hash.Event) []*peer {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	list := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
-		if p.InterestedIn(e) {
-			list = append(list, p)
-		}
-	}
-	return list
-}
-
-func (ps *peerSet) List() []*peer {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	list := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
-		list = append(list, p)
-	}
-	return list
-}
-
-// PeersWithoutTx retrieves a list of peers that do not have a given transaction
-// in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	list := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
-		if !p.knownTxs.Contains(hash) {
-			list = append(list, p)
-		}
-	}
-	return list
-}
-
-// BestPeer retrieves the known peer with the currently highest total difficulty.
-func (ps *peerSet) BestPeer() *peer {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	var (
-		bestPeer     *peer
-		bestProgress PeerProgress
-	)
-	for _, p := range ps.peers {
-		if bestProgress.Less(p.progress) {
-			bestPeer, bestProgress = p, p.progress
-		}
-	}
-	return bestPeer
-}
-
-// Close disconnects all peers.
-// No new peers can be registered after Close has returned.
-func (ps *peerSet) Close() {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	for _, p := range ps.peers {
-		p.Disconnect(p2p.DiscQuitting)
-	}
-	ps.closed = true
+// eligibleForSnap checks eligibility of a peer for a snap protocol. A peer is eligible for a snap if it advertises `snap` sattelite protocol along with `opera` protocol.
+func eligibleForSnap(p *p2p.Peer) bool {
+	return p.RunningCap(ProtocolName, []uint{FTM63}) && p.RunningCap(snap.ProtocolName, snap.ProtocolVersions)
 }

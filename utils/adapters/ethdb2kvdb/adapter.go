@@ -32,6 +32,11 @@ func (db *Adapter) NewBatch() kvdb.Batch {
 	return &batch{db.KeyValueStore.NewBatch()}
 }
 
+func (db *Adapter) GetSnapshot() (kvdb.Snapshot, error) {
+	panic("called GetSnapshot on ethdb")
+	return nil, nil
+}
+
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).

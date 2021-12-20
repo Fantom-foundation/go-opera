@@ -50,10 +50,7 @@ func (b *GPOBackend) TotalGasPowerLeft() uint64 {
 	for i := idx.Validator(0); i < es.Validators.Len(); i++ {
 		vid := es.Validators.GetID(i)
 		if !metValidators[vid] {
-			prevEvent := b.store.GetEvent(es.ValidatorStates[i].PrevEpochEvent)
-			if prevEvent != nil {
-				total += prevEvent.GasPowerLeft().Gas[inter.LongTermGas]
-			}
+			total += es.ValidatorStates[i].PrevEpochEvent.GasPowerLeft.Gas[inter.LongTermGas]
 		}
 	}
 

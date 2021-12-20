@@ -12,7 +12,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/event"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -40,6 +43,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/gossip/proclogger"
+	snapsync "github.com/Fantom-foundation/go-opera/gossip/protocols/snap"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -133,14 +137,16 @@ type Service struct {
 	blockBusyFlag uint32
 	eventBusyFlag uint32
 
-	feed ServiceFeed
+	feed     ServiceFeed
+	eventMux *event.TypeMux
 
 	gpo *gasprice.Oracle
 
 	// application protocol
-	pm *ProtocolManager
+	handler *handler
 
-	dialCandidates enode.Iterator
+	operaDialCandidates enode.Iterator
+	snapDialCandidates  enode.Iterator
 
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
@@ -168,6 +174,7 @@ func NewService(stack *node.Node, config Config, store *Store, signer valkeystor
 
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
+	svc.eventMux = stack.EventMux()
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 
@@ -223,10 +230,17 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// init dialCandidates
 	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
 	var err error
-	svc.dialCandidates, err = dnsclient.NewIterator()
+	svc.operaDialCandidates, err = dnsclient.NewIterator(config.OperaDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
+	svc.snapDialCandidates, err = dnsclient.NewIterator(config.SnapDiscoveryURLs...)
+	if err != nil {
+		return nil, err
+	}
 
 	// create protocol manager
-	svc.pm, err = newHandler(handlerConfig{
+	svc.handler, err = newHandler(handlerConfig{
 		config:   config,
 		notifier: &svc.feed,
 		txpool:   svc.txpool,
@@ -239,10 +253,11 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 				defer done()
 				return svc.processEvent(event)
 			},
-			BVs: svc.ProcessBlockVotes,
-			BR:  svc.ProcessFullBlockRecord,
-			EV:  svc.ProcessEpochVote,
-			ER:  svc.ProcessFullEpochRecord,
+			SwitchEpochTo: svc.SwitchEpochTo,
+			BVs:           svc.ProcessBlockVotes,
+			BR:            svc.ProcessFullBlockRecord,
+			EV:            svc.ProcessEpochVote,
+			ER:            svc.ProcessFullEpochRecord,
 		},
 	})
 	if err != nil {
@@ -290,7 +305,7 @@ func (s *Service) makeEmitter(signer valkeystore.SignerI, txSigner types.Signer)
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `opera`.
-func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) []p2p.Protocol {
+func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
 		version := version // Closure
@@ -300,23 +315,24 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) 
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := NewPeer(int(version), p, rw, backend.config.Protocol.PeerCache)
+				peer := newPeer(version, p, rw, backend.config.Protocol.PeerCache)
+				defer peer.Close()
 
 				select {
-				case backend.newPeerCh <- peer:
+				case <-backend.quitSync:
+					return p2p.DiscQuitting
+				default:
 					backend.wg.Add(1)
 					defer backend.wg.Done()
 					err := backend.handle(peer)
 					return err
-				case <-backend.quitSync:
-					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
 				return backend.NodeInfo()
 			},
 			PeerInfo: func(id enode.ID) interface{} {
-				if p := backend.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
+				if p := backend.peers.Peer(id.String()); p != nil {
 					return p.Info()
 				}
 				return nil
@@ -330,7 +346,10 @@ func MakeProtocols(svc *Service, backend *ProtocolManager, disc enode.Iterator) 
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-	return MakeProtocols(s, s.pm, s.dialCandidates)
+	protos := append(
+		MakeProtocols(s, s.handler, s.operaDialCandidates),
+		snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
+	return protos
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
@@ -349,6 +368,11 @@ func (s *Service) APIs() []rpc.API {
 			Service:   filters.NewPublicFilterAPI(s.EthAPI, s.config.FilterAPI),
 			Public:    true,
 		}, {
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   snapsync.NewPublicDownloaderAPI(s.handler.snapLeecher, s.eventMux),
+			Public:    true,
+		}, {
 			Namespace: "net",
 			Version:   "1.0",
 			Service:   s.netRPCService,
@@ -361,16 +385,15 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
-	err := s.store.Init()
-	if err != nil {
-		return err
+	root := s.store.GetBlockState().FinalizedStateRoot
+	if s.store.evm.HasStateDB(root) {
+		_ = s.store.EvmSnapshotAt(common.Hash(root))
 	}
-
 	StartENRUpdater(s, s.p2pServer.LocalNode())
 
 	s.blockProcTasks.Start(1)
 
-	s.pm.Start(s.p2pServer.MaxPeers)
+	s.handler.Start(s.p2pServer.MaxPeers)
 
 	s.emitter.Start()
 
@@ -386,13 +409,20 @@ func (s *Service) WaitBlockEnd() {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+
 	defer log.Info("Fantom service stopped")
 	s.verWatcher.Stop()
 	close(s.done)
 	s.emitter.Stop()
-	s.pm.Stop()
+
+	// Stop all the peer-related stuff first.
+	s.operaDialCandidates.Close()
+	s.snapDialCandidates.Close()
+
+	s.handler.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
+	s.eventMux.Stop()
 
 	// flush the state at exit, after all the routines stopped
 	s.engineMu.Lock()
