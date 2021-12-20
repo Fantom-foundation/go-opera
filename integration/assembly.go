@@ -169,7 +169,8 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
 	}
-	gdb, cdb, genesisStore := getStores(dbs, cfg)
+
+	gdb, cdb, genesisStore := getStores(WrapDatabase(dbs), cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()
