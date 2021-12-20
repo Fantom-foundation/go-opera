@@ -326,9 +326,6 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	utils.SetNodeConfig(ctx, &cfg)
 
-	if !ctx.GlobalIsSet(FakeNetFlag.Name) {
-		setBootnodes(ctx, Bootnodes, &cfg)
-	}
 	setDataDir(ctx, &cfg)
 	return cfg
 }
@@ -366,6 +363,8 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		cfg.Opera = gossip.FakeConfig(num, cacheRatio)
+	} else {
+		setBootnodes(ctx, Bootnodes, &cfg.Node)
 	}
 
 	// Load config file (medium priority)
