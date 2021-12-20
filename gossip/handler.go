@@ -176,6 +176,7 @@ type handler struct {
 	loopsWg sync.WaitGroup
 	wg      sync.WaitGroup
 	peerWG  sync.WaitGroup
+	started sync.WaitGroup
 
 	logger.Instance
 }
@@ -211,6 +212,7 @@ func newHandler(
 
 		Instance: logger.New("PM"),
 	}
+	h.started.Add(1)
 
 	// TODO: configure it
 	var (
@@ -677,6 +679,7 @@ func (h *handler) Start(maxPeers int) {
 	h.brProcessor.Start()
 	h.brSeeder.Start()
 	h.brLeecher.Start()
+	h.started.Done()
 }
 
 func (h *handler) Stop() {
