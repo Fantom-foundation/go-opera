@@ -27,21 +27,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 	"github.com/Fantom-foundation/go-opera/integration"
-)
-
-var (
-	// emptyRoot is the known root hash of an empty trie.
-	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-
-	// emptyCode is the known hash of the empty EVM bytecode.
-	emptyCode = crypto.Keccak256(nil)
 )
 
 var (
@@ -169,7 +163,7 @@ func pruneState(ctx *cli.Context) error {
 
 	genesisRoot := common.Hash(gdb.GetBlock(*gdb.GetGenesisBlockIndex()).Root)
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	pruner, err := gdb.EvmStore().NewPruner(genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
+	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -250,7 +244,7 @@ func traverseState(ctx *cli.Context) error {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}
-	chaindb := gdb.EvmStore().EvmTable()
+	chaindb := gdb.EvmStore().EvmDb
 
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
@@ -291,7 +285,7 @@ func traverseState(ctx *cli.Context) error {
 			log.Error("Invalid account encountered during traversal", "err", err)
 			return err
 		}
-		if acc.Root != emptyRoot {
+		if acc.Root != types.EmptyRootHash {
 			storageTrie, err := trie.NewSecure(acc.Root, triedb)
 			if err != nil {
 				log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
@@ -306,7 +300,7 @@ func traverseState(ctx *cli.Context) error {
 				return storageIter.Err
 			}
 		}
-		if !bytes.Equal(acc.CodeHash, emptyCode) {
+		if !bytes.Equal(acc.CodeHash, evmstore.EmptyCode) {
 			code := rawdb.ReadCode(chaindb, common.BytesToHash(acc.CodeHash))
 			if len(code) == 0 {
 				log.Error("Code is missing", "hash", common.BytesToHash(acc.CodeHash))
@@ -343,7 +337,7 @@ func traverseRawState(ctx *cli.Context) error {
 		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
 		return err
 	}
-	chaindb := gdb.EvmStore().EvmTable()
+	chaindb := gdb.EvmStore().EvmDb
 
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
@@ -400,7 +394,7 @@ func traverseRawState(ctx *cli.Context) error {
 				log.Error("Invalid account encountered during traversal", "err", err)
 				return errors.New("invalid account")
 			}
-			if acc.Root != emptyRoot {
+			if acc.Root != types.EmptyRootHash {
 				storageTrie, err := trie.NewSecure(acc.Root, triedb)
 				if err != nil {
 					log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
@@ -430,7 +424,7 @@ func traverseRawState(ctx *cli.Context) error {
 					return storageIter.Error()
 				}
 			}
-			if !bytes.Equal(acc.CodeHash, emptyCode) {
+			if !bytes.Equal(acc.CodeHash, evmstore.EmptyCode) {
 				code := rawdb.ReadCode(chaindb, common.BytesToHash(acc.CodeHash))
 				if len(code) == 0 {
 					log.Error("Code is missing", "account", common.BytesToHash(accIter.LeafKey()))
