@@ -1,8 +1,6 @@
 package emitter
 
 import (
-	"math"
-
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
@@ -60,7 +58,7 @@ var (
 			Y: 0.999 * piecefunc.DecimalUnit,
 		},
 		{
-			X: math.MaxUint32 * piecefunc.DecimalUnit,
+			X: 10000.0 * piecefunc.DecimalUnit,
 			Y: 0.9999 * piecefunc.DecimalUnit,
 		},
 	})
@@ -90,10 +88,6 @@ var (
 			X: 1.0 * piecefunc.DecimalUnit,
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
-		{ // event metric is never above 1.0
-			X: math.MaxUint32 * piecefunc.DecimalUnit,
-			Y: 1.0 * piecefunc.DecimalUnit,
-		},
 	})
 	validatorsToOverheadF = piecefunc.NewFunc([]piecefunc.Dot{
 		{
@@ -117,7 +111,7 @@ var (
 			Y: 0.9 * piecefunc.DecimalUnit,
 		},
 		{
-			X: math.MaxUint32,
+			X: 1000,
 			Y: 1.0 * piecefunc.DecimalUnit,
 		},
 	})
