@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -26,43 +27,87 @@ const (
 
 type DBProducerWithMetrics struct {
 	db kvdb.FlushableDBProducer
+}
+
+type DropableStoreWithMetrics struct {
+	ds kvdb.DropableStore
 
 	diskReadMeter  metrics.Meter // Meter for measuring the effective amount of data read
 	diskWriteMeter metrics.Meter // Meter for measuring the effective amount of data written
 
+	quitLock sync.Mutex      // Mutex protecting the quit channel access
 	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
 }
 
 func WrapDatabaseWithMetrics(db kvdb.FlushableDBProducer) kvdb.FlushableDBProducer {
-	wrapper := &DBProducerWithMetrics{
-		db:       db,
+	wrapper := &DBProducerWithMetrics{db}
+	return wrapper
+}
+
+func WrapStoreWithMetrics(ds kvdb.DropableStore) *DropableStoreWithMetrics {
+	wrapper := &DropableStoreWithMetrics{
+		ds:       ds,
 		quitChan: make(chan chan error),
 	}
 	return wrapper
 }
 
-func (db *DBProducerWithMetrics) Flush(id []byte) error {
-	return db.db.Flush(id)
-}
+func (ds *DropableStoreWithMetrics) Close() error {
+	ds.quitLock.Lock()
+	defer ds.quitLock.Unlock()
 
-func (db *DBProducerWithMetrics) NotFlushedSizeEst() int {
-	return db.db.NotFlushedSizeEst()
-}
-
-func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.DropableStore, error) {
-	ds, err := db.db.OpenDB(name)
-	if err != nil {
-		return nil, err
+	if ds.quitChan != nil {
+		errc := make(chan error)
+		ds.quitChan <- errc
+		if err := <-errc; err != nil {
+			log.Error("Metrics collection failed", "err", err)
+		}
+		ds.quitChan = nil
 	}
-	db.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/disk/read", nil)
-	db.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/disk/write", nil)
-
-	// Start up the metrics gathering and return
-	go db.meter(ds, metricsGatheringInterval)
-	return ds, nil
+	return ds.ds.Close()
 }
 
-func (db *DBProducerWithMetrics) meter(ds kvdb.DropableStore, refresh time.Duration) {
+func (ds *DropableStoreWithMetrics) Drop() {
+	ds.ds.Drop()
+}
+
+func (ds *DropableStoreWithMetrics) Compact(start []byte, limit []byte) error {
+	return ds.ds.Compact(start, limit)
+}
+
+func (ds *DropableStoreWithMetrics) Put(key []byte, value []byte) error {
+	return ds.ds.Put(key, value)
+}
+
+func (ds *DropableStoreWithMetrics) Delete(key []byte) error {
+	return ds.ds.Delete(key)
+}
+
+func (ds *DropableStoreWithMetrics) Has(key []byte) (bool, error) {
+	return ds.ds.Has(key)
+}
+
+func (ds *DropableStoreWithMetrics) Get(key []byte) ([]byte, error) {
+	return ds.ds.Get(key)
+}
+
+func (ds *DropableStoreWithMetrics) GetSnapshot() (kvdb.Snapshot, error) {
+	return ds.ds.GetSnapshot()
+}
+
+func (ds *DropableStoreWithMetrics) NewBatch() kvdb.Batch {
+	return ds.ds.NewBatch()
+}
+
+func (ds *DropableStoreWithMetrics) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
+	return ds.ds.NewIterator(prefix, start)
+}
+
+func (ds *DropableStoreWithMetrics) Stat(property string) (string, error) {
+	return ds.ds.Stat(property)
+}
+
+func (ds *DropableStoreWithMetrics) meter(refresh time.Duration) {
 	// Create storage for iostats.
 	var iostats [2]float64
 
@@ -99,17 +144,17 @@ func (db *DBProducerWithMetrics) meter(ds kvdb.DropableStore, refresh time.Durat
 			merr = err
 			continue
 		}
-		if db.diskReadMeter != nil {
-			db.diskReadMeter.Mark(int64((nRead - iostats[0]) * 1024 * 1024))
+		if ds.diskReadMeter != nil {
+			ds.diskReadMeter.Mark(int64((nRead - iostats[0]) * 1024 * 1024))
 		}
-		if db.diskWriteMeter != nil {
-			db.diskWriteMeter.Mark(int64((nWrite - iostats[1]) * 1024 * 1024))
+		if ds.diskWriteMeter != nil {
+			ds.diskWriteMeter.Mark(int64((nWrite - iostats[1]) * 1024 * 1024))
 		}
 		iostats[0], iostats[1] = nRead, nWrite
 
 		// Sleep a bit, then repeat the stats collection
 		select {
-		case errc = <-db.quitChan:
+		case errc = <-ds.quitChan:
 			// Quit requesting, stop hammering the database
 		case <-timer.C:
 			timer.Reset(refresh)
@@ -117,9 +162,34 @@ func (db *DBProducerWithMetrics) meter(ds kvdb.DropableStore, refresh time.Durat
 		}
 	}
 	if errc == nil {
-		errc = <-db.quitChan
+		errc = <-ds.quitChan
 	}
 	errc <- merr
+}
+
+func (db *DBProducerWithMetrics) Flush(id []byte) error {
+	return db.db.Flush(id)
+}
+
+func (db *DBProducerWithMetrics) NotFlushedSizeEst() int {
+	return db.db.NotFlushedSizeEst()
+}
+
+func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.DropableStore, error) {
+	ds, err := db.db.OpenDB(name)
+	if err != nil {
+		return nil, err
+	}
+	dm := WrapStoreWithMetrics(ds)
+	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
+		name = "epochs"
+	}
+	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
+	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
+
+	// Start up the metrics gathering and return
+	go dm.meter(metricsGatheringInterval)
+	return dm, nil
 }
 
 func DBProducer(chaindataDir string, scale cachescale.Func) kvdb.IterableDBProducer {
