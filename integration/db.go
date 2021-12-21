@@ -33,7 +33,7 @@ type DBProducerWithMetrics struct {
 	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
 }
 
-func WrapDatabase(db kvdb.FlushableDBProducer) kvdb.FlushableDBProducer {
+func WrapDatabaseWithMetrics(db kvdb.FlushableDBProducer) kvdb.FlushableDBProducer {
 	wrapper := &DBProducerWithMetrics{
 		db:       db,
 		quitChan: make(chan chan error),
