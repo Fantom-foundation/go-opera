@@ -37,6 +37,8 @@ type DropableStoreWithMetrics struct {
 
 	quitLock sync.Mutex      // Mutex protecting the quit channel access
 	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
+
+	log log.Logger // Contextual logger tracking the database path
 }
 
 func WrapDatabaseWithMetrics(db kvdb.FlushableDBProducer) kvdb.FlushableDBProducer {
@@ -60,7 +62,7 @@ func (ds *DropableStoreWithMetrics) Close() error {
 		errc := make(chan error)
 		ds.quitChan <- errc
 		if err := <-errc; err != nil {
-			log.Error("Metrics collection failed", "err", err)
+			ds.log.Error("Metrics collection failed", "err", err)
 		}
 		ds.quitChan = nil
 	}
@@ -83,19 +85,19 @@ func (ds *DropableStoreWithMetrics) meter(refresh time.Duration) {
 		// Retrieve the database iostats.
 		ioStats, err := ds.Stat("leveldb.iostats")
 		if err != nil {
-			log.Error("Failed to read database iostats", "err", err)
+			ds.log.Error("Failed to read database iostats", "err", err)
 			merr = err
 			continue
 		}
 		var nRead, nWrite float64
 		parts := strings.Split(ioStats, " ")
 		if len(parts) < 2 {
-			log.Error("Bad syntax of ioStats", "ioStats", ioStats)
+			ds.log.Error("Bad syntax of ioStats", "ioStats", ioStats)
 			merr = fmt.Errorf("bad syntax of ioStats %s", ioStats)
 			continue
 		}
 		if n, err := fmt.Sscanf(parts[0], "Read(MB):%f", &nRead); n != 1 || err != nil {
-			log.Error("Bad syntax of read entry", "entry", parts[0])
+			ds.log.Error("Bad syntax of read entry", "entry", parts[0])
 			merr = err
 			continue
 		}
@@ -136,6 +138,8 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.DropableStore, error)
 	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
 		name = "epochs"
 	}
+	logger := log.New("database", name)
+	dm.log = logger
 	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
 	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
 
