@@ -6,10 +6,8 @@ package gossip
 
 import (
 	"math/big"
-	"math/rand"
 	"testing"
 
-	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -27,8 +25,8 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 	env := newTestEnv(2, 3)
 	defer env.Close()
 
-	for i := 0; i < b.N; i++ {
-		count := 10
+	for bi := 0; bi < b.N; bi++ {
+		count := idx.ValidatorID(10)
 
 		proposals := [][32]byte{
 			ballotOption("Option 1"),
@@ -58,8 +56,8 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 		}
 
 		// Init accounts
-		for i := 2; i <= count; i++ {
-			tx := env.Transfer(1, idx.ValidatorID(i), utils.ToFtm(10))
+		for vid := idx.ValidatorID(2); vid <= count; vid++ {
+			tx := env.Transfer(1, vid, utils.ToFtm(10))
 			txs = append(txs, tx)
 			if len(txs) > 2 {
 				flushTxs()
@@ -68,8 +66,8 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 		flushTxs()
 
 		// GiveRightToVote
-		for i := 1; i <= count; i++ {
-			tx, err := cBallot.GiveRightToVote(env.Pay(1), env.Address(idx.ValidatorID(i)))
+		for vid := idx.ValidatorID(1); vid <= count; vid++ {
+			tx, err := cBallot.GiveRightToVote(env.Pay(1), env.Address(vid))
 			require.NoError(err)
 			txs = append(txs, tx)
 			if len(txs) > 2 {
@@ -79,9 +77,9 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 		flushTxs()
 
 		// Vote
-		for i := 1; i <= count; i++ {
-			proposal := big.NewInt(int64(i % len(proposals)))
-			tx, err := cBallot.Vote(env.Pay(idx.ValidatorID(i)), proposal)
+		for vid := idx.ValidatorID(1); vid <= count; vid++ {
+			proposal := big.NewInt(int64(vid) % int64(len(proposals)))
+			tx, err := cBallot.Vote(env.Pay(vid), proposal)
 			require.NoError(err)
 			txs = append(txs, tx)
 			if len(txs) > 2 {
@@ -103,8 +101,4 @@ func ballotOption(str string) (res [32]byte) {
 	}
 	copy(res[:], buf)
 	return
-}
-
-func uniqName() string {
-	return hash.FakeHash(rand.Int63()).Hex()
 }

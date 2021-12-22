@@ -185,21 +185,21 @@ func TestSFC(t *testing.T) {
 
 func circleTransfers(t *testing.T, env *testEnv, count uint64) {
 	require := require.New(t)
-	accounts := int(env.store.GetValidators().Len())
+	validatorsNum := env.store.GetValidators().Len()
 
 	// save start balances
-	balances := make([]*big.Int, accounts)
+	balances := make([]*big.Int, validatorsNum)
 	for i := range balances {
 		balances[i] = env.State().GetBalance(env.Address(idx.ValidatorID(i + 1)))
 	}
 
 	for i := uint64(0); i < count; i++ {
 		// transfers
-		txs := make([]*types.Transaction, accounts)
-		for i := range txs {
-			from := (i)%accounts + 1
-			to := (i+1)%accounts + 1
-			txs[i] = env.Transfer(idx.ValidatorID(from), idx.ValidatorID(to), utils.ToFtm(100))
+		txs := make([]*types.Transaction, validatorsNum)
+		for i := idx.Validator(0); i < validatorsNum; i++ {
+			from := (i) % validatorsNum
+			to := (i + 1) % validatorsNum
+			txs[i] = env.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
 		}
 
 		rr, err := env.ApplyTxs(sameEpoch, txs...)

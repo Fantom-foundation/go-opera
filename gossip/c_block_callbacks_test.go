@@ -24,21 +24,19 @@ func TestConsensusCallback(t *testing.T) {
 	env := newTestEnv(2, validatorsNum)
 	defer env.Close()
 
-	accounts := validatorsNum
-
 	// save start balances
-	balances := make([]*big.Int, accounts)
+	balances := make([]*big.Int, validatorsNum)
 	for i := range balances {
 		balances[i] = env.State().GetBalance(env.Address(idx.ValidatorID(i + 1)))
 	}
 
 	for n := uint64(0); n < rounds; n++ {
 		// transfers
-		txs := make([]*types.Transaction, accounts)
-		for i := range txs {
-			from := (i)%accounts + 1
-			to := 0 + 1
-			txs[i] = env.Transfer(idx.ValidatorID(from), idx.ValidatorID(to), utils.ToFtm(100))
+		txs := make([]*types.Transaction, validatorsNum)
+		for i := idx.Validator(0); i < validatorsNum; i++ {
+			from := i % validatorsNum
+			to := 0
+			txs[i] = env.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
 		}
 		tm := sameEpoch
 		if n%10 == 0 {
