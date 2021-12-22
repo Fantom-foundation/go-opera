@@ -26,11 +26,11 @@ const (
 )
 
 type DBProducerWithMetrics struct {
-	db kvdb.FlushableDBProducer
+	kvdb.FlushableDBProducer
 }
 
 type DropableStoreWithMetrics struct {
-	ds kvdb.DropableStore
+	kvdb.DropableStore
 
 	diskReadMeter  metrics.Meter // Meter for measuring the effective amount of data read
 	diskWriteMeter metrics.Meter // Meter for measuring the effective amount of data written
@@ -46,8 +46,8 @@ func WrapDatabaseWithMetrics(db kvdb.FlushableDBProducer) kvdb.FlushableDBProduc
 
 func WrapStoreWithMetrics(ds kvdb.DropableStore) *DropableStoreWithMetrics {
 	wrapper := &DropableStoreWithMetrics{
-		ds:       ds,
-		quitChan: make(chan chan error),
+		DropableStore: ds,
+		quitChan:      make(chan chan error),
 	}
 	return wrapper
 }
@@ -64,47 +64,7 @@ func (ds *DropableStoreWithMetrics) Close() error {
 		}
 		ds.quitChan = nil
 	}
-	return ds.ds.Close()
-}
-
-func (ds *DropableStoreWithMetrics) Drop() {
-	ds.ds.Drop()
-}
-
-func (ds *DropableStoreWithMetrics) Compact(start []byte, limit []byte) error {
-	return ds.ds.Compact(start, limit)
-}
-
-func (ds *DropableStoreWithMetrics) Put(key []byte, value []byte) error {
-	return ds.ds.Put(key, value)
-}
-
-func (ds *DropableStoreWithMetrics) Delete(key []byte) error {
-	return ds.ds.Delete(key)
-}
-
-func (ds *DropableStoreWithMetrics) Has(key []byte) (bool, error) {
-	return ds.ds.Has(key)
-}
-
-func (ds *DropableStoreWithMetrics) Get(key []byte) ([]byte, error) {
-	return ds.ds.Get(key)
-}
-
-func (ds *DropableStoreWithMetrics) GetSnapshot() (kvdb.Snapshot, error) {
-	return ds.ds.GetSnapshot()
-}
-
-func (ds *DropableStoreWithMetrics) NewBatch() kvdb.Batch {
-	return ds.ds.NewBatch()
-}
-
-func (ds *DropableStoreWithMetrics) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
-	return ds.ds.NewIterator(prefix, start)
-}
-
-func (ds *DropableStoreWithMetrics) Stat(property string) (string, error) {
-	return ds.ds.Stat(property)
+	return ds.DropableStore.Close()
 }
 
 func (ds *DropableStoreWithMetrics) meter(refresh time.Duration) {
@@ -167,16 +127,8 @@ func (ds *DropableStoreWithMetrics) meter(refresh time.Duration) {
 	errc <- merr
 }
 
-func (db *DBProducerWithMetrics) Flush(id []byte) error {
-	return db.db.Flush(id)
-}
-
-func (db *DBProducerWithMetrics) NotFlushedSizeEst() int {
-	return db.db.NotFlushedSizeEst()
-}
-
 func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.DropableStore, error) {
-	ds, err := db.db.OpenDB(name)
+	ds, err := db.FlushableDBProducer.OpenDB(name)
 	if err != nil {
 		return nil, err
 	}
