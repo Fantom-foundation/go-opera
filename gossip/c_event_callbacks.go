@@ -143,13 +143,21 @@ func (s *Service) SwitchEpochTo(newEpoch idx.Epoch) error {
 	}
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+	s.blockProcWg.Wait()
 	if newEpoch == s.store.GetEpoch() {
 		return errSameEpoch
 	}
 	s.store.SetBlockEpochState(*bs, *es)
 	s.switchEpochTo(newEpoch)
-	_ = s.store.EvmSnapshotAt(common.Hash(bs.FinalizedStateRoot))
-	return nil
+	err := s.engine.Reset(newEpoch, es.Validators)
+	if err != nil {
+		return err
+	}
+	err = s.store.EvmSnapshotAt(common.Hash(bs.FinalizedStateRoot))
+	if err != nil {
+		return err
+	}
+	return s.store.Commit()
 }
 
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
