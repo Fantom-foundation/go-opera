@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -174,7 +175,14 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
 	}
-	gdb, cdb, genesisStore := getStores(dbs, cfg)
+
+	var db kvdb.FlushableDBProducer
+	if metrics.Enabled {
+		db = WrapDatabaseWithMetrics(dbs)
+	} else {
+		db = dbs
+	}
+	gdb, cdb, genesisStore := getStores(db, cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()
