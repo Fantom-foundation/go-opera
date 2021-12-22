@@ -176,6 +176,7 @@ type handler struct {
 	loopsWg sync.WaitGroup
 	wg      sync.WaitGroup
 	peerWG  sync.WaitGroup
+	started sync.WaitGroup
 
 	logger.Instance
 }
@@ -211,6 +212,7 @@ func newHandler(
 
 		Instance: logger.New("PM"),
 	}
+	h.started.Add(1)
 
 	// TODO: configure it
 	var (
@@ -677,6 +679,7 @@ func (h *handler) Start(maxPeers int) {
 	h.brProcessor.Start()
 	h.brSeeder.Start()
 	h.brLeecher.Start()
+	h.started.Done()
 }
 
 func (h *handler) Stop() {
@@ -755,12 +758,6 @@ func (h *handler) highestPeerProgress() PeerProgress {
 // handle is the callback invoked to manage the life cycle of a peer. When
 // this function terminates, the peer is disconnected.
 func (h *handler) handle(p *peer) error {
-	// Ignore maxPeers if this is a trusted peer
-	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
-		return p2p.DiscTooManyPeers
-	}
-	p.Log().Debug("Peer connected", "name", p.Name())
-
 	// If the peer has a `snap` extension, wait for it to connect so we can have
 	// a uniform initialization/teardown mechanism
 	snap, err := h.peers.WaitSnapExtension(p)
@@ -781,6 +778,12 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
+
+	// Ignore maxPeers if this is a trusted peer
+	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
+		return p2p.DiscTooManyPeers
+	}
+	p.Log().Debug("Peer connected", "name", p.Name())
 
 	// Register the peer locally
 	if err := h.peers.RegisterPeer(p, snap); err != nil {
