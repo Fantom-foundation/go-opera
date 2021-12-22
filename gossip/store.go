@@ -229,7 +229,7 @@ func (s *Store) Commit() error {
 
 func (s *Store) flushDBs() error {
 	s.prevFlushTime = time.Now()
-	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
+	flushID := bigendian.Uint64ToBytes(uint64(s.prevFlushTime.UnixNano()))
 	return s.dbs.Flush(flushID)
 }
 
