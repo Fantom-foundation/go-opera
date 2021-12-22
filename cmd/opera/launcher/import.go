@@ -85,8 +85,8 @@ func importEvents(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
-	cfg.Opera.Emitter.Validator = emitter.ValidatorConfig{}
-	cfg.Opera.TxPool.Journal = ""
+	cfg.Emitter.Validator = emitter.ValidatorConfig{}
+	cfg.TxPool.Journal = ""
 	cfg.Node.IPCPath = ""
 	cfg.Node.HTTPHost = ""
 	cfg.Node.WSHost = ""

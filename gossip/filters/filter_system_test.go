@@ -151,7 +151,7 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend, testConfig())
 
-		net         = makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
+		net         = makegenesis.FakeGenesisStore(2, 5, big.NewInt(0), big.NewInt(1)).GetGenesis()
 		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
 		genesis     = evmcore.MustApplyGenesis(net, statedb, opt.MiB)
 		chain, _, _ = evmcore.GenerateChain(

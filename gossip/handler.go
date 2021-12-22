@@ -94,7 +94,7 @@ type processCallback struct {
 type handlerConfig struct {
 	config   Config
 	notifier dagNotifier
-	txpool   txPool
+	txpool   TxPool
 	engineMu sync.Locker
 	checkers *eventcheck.Checkers
 	s        *Store
@@ -119,7 +119,7 @@ type handler struct {
 
 	syncStatus syncStatus
 
-	txpool   txPool
+	txpool   TxPool
 	maxPeers int
 
 	peers *peerSet

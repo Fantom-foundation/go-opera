@@ -17,7 +17,10 @@ import (
 var (
 	ErrSerMalformedEvent = errors.New("serialization of malformed event")
 	ErrTooLowEpoch       = errors.New("serialization of events with epoch<256 and version=0 is unsupported")
+	ErrUnknownVersion    = errors.New("unknown serialization version")
 )
+
+const MaxSerializationVersion = 1
 
 func (e *Event) MarshalCSER(w *cser.Writer) error {
 	// version
@@ -30,6 +33,9 @@ func (e *Event) MarshalCSER(w *cser.Writer) error {
 		}
 	}
 	// base fields
+	if e.Version() > 0 {
+		w.U16(e.NetForkID())
+	}
 	w.U32(uint32(e.Epoch()))
 	w.U32(uint32(e.Lamport()))
 	w.U32(uint32(e.Creator()))
@@ -85,8 +91,15 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 		r.BitsR.Read(2)
 		version = r.U8()
 	}
+	if version > MaxSerializationVersion {
+		return ErrUnknownVersion
+	}
 
 	// base fields
+	var netForkID uint16
+	if version > 0 {
+		netForkID = r.U16()
+	}
 	epoch := r.U32()
 	lamport := r.U32()
 	creator := r.U32()
@@ -141,6 +154,7 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	}
 
 	e.SetVersion(version)
+	e.SetNetForkID(netForkID)
 	e.SetEpoch(idx.Epoch(epoch))
 	e.SetLamport(idx.Lamport(lamport))
 	e.SetCreator(idx.ValidatorID(creator))
@@ -220,7 +234,7 @@ func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
 	if e.AnyMisbehaviourProofs() != (len(e.misbehaviourProofs) != 0) {
 		return ErrSerMalformedEvent
 	}
-	if e.AnyEpochVote() != (e.epochVotes.Epoch != 0) {
+	if e.AnyEpochVote() != (e.epochVote.Epoch != 0) {
 		return ErrSerMalformedEvent
 	}
 	if e.AnyBlockVotes() != (len(e.blockVotes.Votes) != 0) {
@@ -232,9 +246,18 @@ func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
 	}
 	w.FixedBytes(e.sig.Bytes())
 	if e.AnyTxs() {
-		err = MarshalTxsCSER(e.txs, w)
-		if err != nil {
-			return err
+		if e.Version() == 0 {
+			// Txs are serialized with CSER for legacy events
+			err = MarshalTxsCSER(e.txs, w)
+			if err != nil {
+				return err
+			}
+		} else {
+			b, err := rlp.EncodeToBytes(e.txs)
+			if err != nil {
+				return err
+			}
+			w.SliceBytes(b)
 		}
 	}
 	if e.AnyMisbehaviourProofs() {
@@ -268,17 +291,25 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 	// txs
 	txs := make(types.Transactions, 0, 4)
 	if e.AnyTxs() {
-		// txs size
-		size := r.U56()
-		if size == 0 {
-			return cser.ErrNonCanonicalEncoding
-		}
-		for i := uint64(0); i < size; i++ {
-			tx, err := TransactionUnmarshalCSER(r)
+		if e.version == 0 {
+			// txs size
+			size := r.U56()
+			if size == 0 {
+				return cser.ErrNonCanonicalEncoding
+			}
+			for i := uint64(0); i < size; i++ {
+				tx, err := TransactionUnmarshalCSER(r)
+				if err != nil {
+					return err
+				}
+				txs = append(txs, tx)
+			}
+		} else {
+			b := r.SliceBytes()
+			err := rlp.DecodeBytes(b, &txs)
 			if err != nil {
 				return err
 			}
-			txs = append(txs, tx)
 		}
 	}
 	e.txs = txs
@@ -292,18 +323,18 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 		}
 	}
 	e.misbehaviourProofs = mps
-	// ers
-	ers := LlrEpochVote{}
+	// ev
+	ev := LlrEpochVote{}
 	if e.AnyEpochVote() {
-		err := ers.UnmarshalCSER(r)
+		err := ev.UnmarshalCSER(r)
 		if err != nil {
 			return err
 		}
-		if ers.Epoch == 0 {
+		if ev.Epoch == 0 {
 			return cser.ErrNonCanonicalEncoding
 		}
 	}
-	e.epochVotes = ers
+	e.epochVote = ev
 	// bvs
 	bvs := LlrBlockVotes{Votes: make([]hash.Hash, 0, 2)}
 	if e.AnyBlockVotes() {
@@ -377,19 +408,20 @@ func (e *MutableEventPayload) DecodeRLP(src *rlp.Stream) error {
 // RPCMarshalEvent converts the given event to the RPC output .
 func RPCMarshalEvent(e EventI) map[string]interface{} {
 	return map[string]interface{}{
-		"version":       hexutil.Uint64(e.Version()),
-		"epoch":         hexutil.Uint64(e.Epoch()),
-		"seq":           hexutil.Uint64(e.Seq()),
-		"id":            hexutil.Bytes(e.ID().Bytes()),
-		"frame":         hexutil.Uint64(e.Frame()),
-		"creator":       hexutil.Uint64(e.Creator()),
-		"prevEpochHash": e.PrevEpochHash(),
-		"parents":       EventIDsToHex(e.Parents()),
-		"lamport":       hexutil.Uint64(e.Lamport()),
-		"creationTime":  hexutil.Uint64(e.CreationTime()),
-		"medianTime":    hexutil.Uint64(e.MedianTime()),
-		"extraData":     hexutil.Bytes(e.Extra()),
-		"payloadHash":   hexutil.Bytes(e.PayloadHash().Bytes()),
+		"version":        hexutil.Uint64(e.Version()),
+		"networkVersion": hexutil.Uint64(e.NetForkID()),
+		"epoch":          hexutil.Uint64(e.Epoch()),
+		"seq":            hexutil.Uint64(e.Seq()),
+		"id":             hexutil.Bytes(e.ID().Bytes()),
+		"frame":          hexutil.Uint64(e.Frame()),
+		"creator":        hexutil.Uint64(e.Creator()),
+		"prevEpochHash":  e.PrevEpochHash(),
+		"parents":        EventIDsToHex(e.Parents()),
+		"lamport":        hexutil.Uint64(e.Lamport()),
+		"creationTime":   hexutil.Uint64(e.CreationTime()),
+		"medianTime":     hexutil.Uint64(e.MedianTime()),
+		"extraData":      hexutil.Bytes(e.Extra()),
+		"payloadHash":    hexutil.Bytes(e.PayloadHash().Bytes()),
 		"gasPowerLeft": map[string]interface{}{
 			"shortTerm": hexutil.Uint64(e.GasPowerLeft().Gas[ShortTermGas]),
 			"longTerm":  hexutil.Uint64(e.GasPowerLeft().Gas[LongTermGas]),
@@ -434,6 +466,7 @@ func RPCUnmarshalEvent(fields map[string]interface{}) EventI {
 	e := MutableEventPayload{}
 
 	e.SetVersion(uint8(mustBeUint64("version")))
+	e.SetNetForkID(uint16(mustBeUint64("networkVersion")))
 	e.SetEpoch(idx.Epoch(mustBeUint64("epoch")))
 	e.SetSeq(idx.Event(mustBeUint64("seq")))
 	e.SetID(mustBeID("id"))

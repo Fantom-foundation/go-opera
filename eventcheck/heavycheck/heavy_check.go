@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
@@ -19,19 +20,29 @@ import (
 var (
 	ErrWrongEventSig            = errors.New("event has wrong signature")
 	ErrMalformedTxSig           = errors.New("tx has wrong signature")
-	ErrWrongPayloadHash         = errors.New("event has wrong txs payload hash")
+	ErrWrongPayloadHash         = errors.New("event has wrong payload hash")
 	ErrPubkeyChanged            = errors.New("validator pubkey has changed, cannot create BVs/EV for older epochs")
 	ErrUnknownEpochEventLocator = errors.New("event locator has unknown epoch")
-	ErrUnknownEpochBVs          = errors.New("BVs is unprocessable yet")
+	ErrImpossibleBVsEpoch       = errors.New("BVs have an impossible epoch")
+	ErrUnknownEpochBVs          = errors.New("BVs are unprocessable yet")
 	ErrUnknownEpochEV           = errors.New("EV is unprocessable yet")
 
 	errTerminated = errors.New("terminated") // internal err
+)
+
+const (
+	// MaxBlocksPerEpoch is chosen so that even if validator chooses the latest non-liable epoch for BVs,
+	// he still cannot vote for latest blocks (latest = from last 128 epochs), as an epoch has at least one block
+	// The value is larger than a maximum possible number of blocks
+	// in an epoch where a single validator doesn't have 2/3W+1 weight
+	MaxBlocksPerEpoch = idx.Block(basiccheck.MaxLiableEpochs - 128)
 )
 
 // Reader is accessed by the validator to get the current state.
 type Reader interface {
 	GetEpochPubKeys() (map[idx.ValidatorID]validatorpk.PubKey, idx.Epoch)
 	GetEpochPubKeysOf(idx.Epoch) map[idx.ValidatorID]validatorpk.PubKey
+	GetEpochBlockStart(idx.Epoch) idx.Block
 }
 
 // Checker which requires only parents list + current epoch info
@@ -48,7 +59,7 @@ type Checker struct {
 type taskData struct {
 	event inter.EventPayloadI
 	bvs   *inter.LlrSignedBlockVotes
-	ers   *inter.LlrSignedEpochVote
+	ev    *inter.LlrSignedEpochVote
 
 	onValidated func(error)
 }
@@ -115,9 +126,9 @@ func (v *Checker) EnqueueBVs(bvs inter.LlrSignedBlockVotes, onValidated func(err
 	}
 }
 
-func (v *Checker) EnqueueEV(ers inter.LlrSignedEpochVote, onValidated func(error)) error {
+func (v *Checker) EnqueueEV(ev inter.LlrSignedEpochVote, onValidated func(error)) error {
 	op := &taskData{
-		ers:         &ers,
+		ev:          &ev,
 		onValidated: onValidated,
 	}
 	select {
@@ -136,7 +147,7 @@ func verifySignature(signedHash hash.Hash, sig inter.Signature, pubkey validator
 	return crypto.VerifySignature(pubkey.Raw, signedHash.Bytes(), sig.Bytes())
 }
 
-func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx.Epoch, authErr error) error {
+func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx.Epoch, authErr error, checkPayload func() bool) error {
 	pubkeys := v.reader.GetEpochPubKeysOf(authEpoch)
 	if len(pubkeys) == 0 {
 		return authErr
@@ -144,6 +155,9 @@ func (v *Checker) ValidateEventLocator(e inter.SignedEventLocator, authEpoch idx
 	pubkey, ok := pubkeys[e.Locator.Creator]
 	if !ok {
 		return epochcheck.ErrAuth
+	}
+	if checkPayload != nil && !checkPayload() {
+		return ErrWrongPayloadHash
 	}
 	if !verifySignature(e.Locator.HashToSign(), e.Sig, pubkey) {
 		return ErrWrongEventSig
@@ -166,18 +180,30 @@ func (v *Checker) matchPubkey(creator idx.ValidatorID, epoch idx.Epoch, want []b
 	return nil
 }
 
-func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
-	if bvs.CalcPayloadHash() != bvs.Signed.Locator.PayloadHash {
-		return ErrWrongPayloadHash
+func (v *Checker) validateBVsEpoch(bvs inter.LlrBlockVotes) error {
+	actualEpochStart := v.reader.GetEpochBlockStart(bvs.Epoch)
+	if actualEpochStart == 0 {
+		return ErrUnknownEpochBVs
 	}
-	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs)
+	if bvs.Start < actualEpochStart || bvs.LastBlock() >= actualEpochStart+MaxBlocksPerEpoch {
+		return ErrImpossibleBVsEpoch
+	}
+	return nil
 }
 
-func (v *Checker) ValidateEV(ers inter.LlrSignedEpochVote) error {
-	if ers.CalcPayloadHash() != ers.Signed.Locator.PayloadHash {
-		return ErrWrongPayloadHash
+func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
+	if err := v.validateBVsEpoch(bvs.Val); err != nil {
+		return err
 	}
-	return v.ValidateEventLocator(ers.Signed, ers.Val.Epoch-1, ErrUnknownEpochEV)
+	return v.ValidateEventLocator(bvs.Signed, bvs.Val.Epoch, ErrUnknownEpochBVs, func() bool {
+		return bvs.CalcPayloadHash() == bvs.Signed.Locator.PayloadHash
+	})
+}
+
+func (v *Checker) ValidateEV(ev inter.LlrSignedEpochVote) error {
+	return v.ValidateEventLocator(ev.Signed, ev.Val.Epoch-1, ErrUnknownEpochEV, func() bool {
+		return ev.CalcPayloadHash() == ev.Signed.Locator.PayloadHash
+	})
 }
 
 // ValidateEvent runs heavy checks for event
@@ -199,7 +225,7 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 	for _, mp := range e.MisbehaviourProofs() {
 		if proof := mp.EventsDoublesign; proof != nil {
 			for _, vote := range proof.Pair {
-				if err := v.ValidateEventLocator(vote, vote.Locator.Epoch, ErrUnknownEpochEventLocator); err != nil {
+				if err := v.ValidateEventLocator(vote, vote.Locator.Epoch, ErrUnknownEpochEventLocator, nil); err != nil {
 					return err
 				}
 			}
@@ -246,13 +272,21 @@ func (v *Checker) ValidateEvent(e inter.EventPayloadI) error {
 	}
 	// Epochs of BVs and EV
 	if e.EpochVote().Epoch != 0 {
+		// ensure that validator's pubkey is the same in both current and vote epochs
 		if err := v.matchPubkey(e.Creator(), e.EpochVote().Epoch-1, pubkey.Bytes(), ErrUnknownEpochEV); err != nil {
 			return err
 		}
 	}
 	if e.BlockVotes().Epoch != 0 {
-		if err := v.matchPubkey(e.Creator(), e.BlockVotes().Epoch, pubkey.Bytes(), ErrUnknownEpochBVs); err != nil {
+		// ensure that validator's BVs epoch passes the check
+		if err := v.validateBVsEpoch(e.BlockVotes()); err != nil {
 			return err
+		}
+		// ensure that validator's pubkey is the same in both current and vote epochs
+		if e.BlockVotes().Epoch != e.Epoch() {
+			if err := v.matchPubkey(e.Creator(), e.BlockVotes().Epoch, pubkey.Bytes(), ErrUnknownEpochBVs); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -269,7 +303,7 @@ func (v *Checker) loop() {
 			} else if op.bvs != nil {
 				op.onValidated(v.ValidateBVs(*op.bvs))
 			} else {
-				op.onValidated(v.ValidateEV(*op.ers))
+				op.onValidated(v.ValidateEV(*op.ev))
 			}
 
 		case <-v.quit:

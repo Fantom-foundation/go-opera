@@ -25,8 +25,9 @@ func (p BlockVoteDoublesign) GetVote(i int) hash.Hash {
 }
 
 type WrongBlockVote struct {
-	Block idx.Block
-	Pals  [MinAccomplicesForProof]LlrSignedBlockVotes
+	Block      idx.Block
+	Pals       [MinAccomplicesForProof]LlrSignedBlockVotes
+	WrongEpoch bool
 }
 
 func (p WrongBlockVote) GetVote(i int) hash.Hash {

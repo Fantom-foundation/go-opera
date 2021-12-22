@@ -17,28 +17,47 @@ type BlockEpochState struct {
 }
 
 func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockState, es iblockproc.EpochState) {
-	s.rlp.Set(s.table.BlockEpochStateHistory, epoch.Bytes(), BlockEpochState{
+	bes := &BlockEpochState{
 		BlockState: &bs,
 		EpochState: &es,
-	})
+	}
+	// Write to the DB
+	s.rlp.Set(s.table.BlockEpochStateHistory, epoch.Bytes(), bes)
+	// Save to the LRU cache
+	s.cache.BlockEpochStateHistory.Add(epoch, bes, nominalSize)
 }
 
 func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockState, *iblockproc.EpochState) {
-	// check current BlockEpochState as a cache
-	if v := s.cache.BlockEpochState.Load(); v != nil {
+	// Get HistoryBlockEpochState from LRU cache first.
+	if v, ok := s.cache.BlockEpochStateHistory.Get(epoch); ok {
 		bes := v.(*BlockEpochState)
 		if bes.EpochState.Epoch == epoch {
-			bs := *bes.BlockState
-			es := *bes.EpochState
+			bs := bes.BlockState.Copy()
+			es := bes.EpochState.Copy()
 			return &bs, &es
 		}
 	}
-	// read from disk
+	// read from DB
 	v, ok := s.rlp.Get(s.table.BlockEpochStateHistory, epoch.Bytes(), &BlockEpochState{}).(*BlockEpochState)
 	if !ok {
 		return nil, nil
 	}
+	// Save to the LRU cache
+	s.cache.BlockEpochStateHistory.Add(epoch, v, nominalSize)
 	return v.BlockState, v.EpochState
+}
+
+func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
+	// check current BlockEpochState as a cache
+	if v := s.cache.BlockEpochState.Load(); v != nil {
+		bes := v.(*BlockEpochState)
+		if bes.EpochState.Epoch == epoch {
+			es := bes.EpochState.Copy()
+			return &es
+		}
+	}
+	_, es := s.GetHistoryBlockEpochState(epoch)
+	return es
 }
 
 func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {

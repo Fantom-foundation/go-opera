@@ -93,9 +93,18 @@ func (r *HeavyCheckReader) GetEpochPubKeysOf(epoch idx.Epoch) map[idx.ValidatorI
 	return auth.PubKeys
 }
 
+// GetEpochBlockStart is safe for concurrent use
+func (r *HeavyCheckReader) GetEpochBlockStart(epoch idx.Epoch) idx.Block {
+	bs, _ := r.Store.GetHistoryBlockEpochState(epoch)
+	if bs == nil {
+		return 0
+	}
+	return bs.LastBlock.Idx
+}
+
 // readEpochPubKeys reads epoch pubkeys
 func readEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
-	_, es := s.GetHistoryBlockEpochState(epoch)
+	es := s.GetHistoryEpochState(epoch)
 	if es == nil {
 		return nil
 	}

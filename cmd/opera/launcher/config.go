@@ -25,6 +25,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -124,6 +125,8 @@ var tomlSettings = toml.Config{
 type config struct {
 	Node          node.Config
 	Opera         gossip.Config
+	Emitter       emitter.Config
+	TxPool        evmcore.TxPoolConfig
 	OperaStore    gossip.StoreConfig
 	Lachesis      abft.Config
 	LachesisStore abft.StoreConfig
@@ -170,7 +173,7 @@ func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		fakeGenesisStore := makegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		fakeGenesisStore := makegenesis.FakeGenesisStore(2, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 		genesis = integration.InputGenesis{
 			Hash: fakeGenesisStore.Hash(),
 			Read: func(store *genesisstore.Store) error {
@@ -289,7 +292,6 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 	cfg := src
 
 	setGPO(ctx, &cfg.GPO)
-	setTxPool(ctx, &cfg.TxPool)
 
 	if ctx.GlobalIsSet(RPCGlobalGasCapFlag.Name) {
 		cfg.RPCGasCap = ctx.GlobalUint64(RPCGlobalGasCapFlag.Name)
@@ -302,11 +304,6 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 			utils.Fatalf("--%s must be either 'full' or 'snap'", SyncModeFlag.Name)
 		}
 		cfg.AllowSnapsync = ctx.GlobalString(SyncModeFlag.Name) == "snap"
-	}
-
-	err := setValidator(ctx, &cfg.Emitter)
-	if err != nil {
-		return cfg, err
 	}
 
 	return cfg, nil
@@ -354,6 +351,8 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	cfg := config{
 		Node:          defaultNodeConfig(),
 		Opera:         gossip.DefaultConfig(cacheRatio),
+		Emitter:       emitter.DefaultConfig(),
+		TxPool:        evmcore.DefaultTxPoolConfig,
 		OperaStore:    gossip.DefaultStoreConfig(cacheRatio),
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
@@ -362,7 +361,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		cfg.Opera = gossip.FakeConfig(num, cacheRatio)
+		cfg.Emitter = emitter.FakeConfig(num)
 	} else {
 		setBootnodes(ctx, Bootnodes, &cfg.Node)
 	}
@@ -385,9 +384,15 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		return nil, err
 	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
-	if cfg.Opera.Emitter.Validator.ID != 0 && len(cfg.Opera.Emitter.PrevEmittedEventFile.Path) == 0 {
-		cfg.Opera.Emitter.PrevEmittedEventFile.Path = cfg.Node.ResolvePath(path.Join("emitter", fmt.Sprintf("last-%d", cfg.Opera.Emitter.Validator.ID)))
+
+	err = setValidator(ctx, &cfg.Emitter)
+	if err != nil {
+		return nil, err
 	}
+	if cfg.Emitter.Validator.ID != 0 && len(cfg.Emitter.PrevEmittedEventFile.Path) == 0 {
+		cfg.Emitter.PrevEmittedEventFile.Path = cfg.Node.ResolvePath(path.Join("emitter", fmt.Sprintf("last-%d", cfg.Emitter.Validator.ID)))
+	}
+	setTxPool(ctx, &cfg.TxPool)
 
 	if err := cfg.Opera.Validate(); err != nil {
 		return nil, err

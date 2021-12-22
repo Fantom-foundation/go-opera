@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
@@ -33,44 +32,28 @@ func (s *Store) iterateEpochVotesRLP(prefix []byte, f func(key []byte, ev rlp.Ra
 	}
 }
 
-func (s *Store) GetLlrEpochVoteWeight(epoch idx.Epoch, bv hash.Hash) pos.Weight {
-	weightB, err := s.table.LlrEpochVoteIndex.Get(append(epoch.Bytes(), bv[:]...))
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	if weightB == nil {
-		return 0
-	}
-	return pos.Weight(bigendian.BytesToUint32(weightB))
+func (s *Store) AddLlrEpochVoteWeight(epoch idx.Epoch, ev hash.Hash, val idx.Validator, vals idx.Validator, diff pos.Weight) pos.Weight {
+	key := append(epoch.Bytes(), ev[:]...)
+	return s.addLlrVoteWeight(s.table.LlrEpochVoteIndex, key, val, vals, diff)
 }
 
-func (s *Store) AddLlrEpochVoteWeight(epoch idx.Epoch, bv hash.Hash, diff pos.Weight) pos.Weight {
-	weight := s.GetLlrEpochVoteWeight(epoch, bv)
-	weight += diff
-	err := s.table.LlrEpochVoteIndex.Put(append(epoch.Bytes(), bv[:]...), bigendian.Uint32ToBytes(uint32(weight)))
-	if err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
-	return weight
-}
-
-func (s *Store) SetLlrEpochResult(epoch idx.Epoch, bv hash.Hash) {
-	err := s.table.LlrEpochResults.Put(epoch.Bytes(), bv.Bytes())
+func (s *Store) SetLlrEpochResult(epoch idx.Epoch, ev hash.Hash) {
+	err := s.table.LlrEpochResults.Put(epoch.Bytes(), ev.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
 func (s *Store) GetLlrEpochResult(epoch idx.Epoch) *hash.Hash {
-	bvB, err := s.table.LlrEpochResults.Get(epoch.Bytes())
+	evB, err := s.table.LlrEpochResults.Get(epoch.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
-	if bvB == nil {
+	if evB == nil {
 		return nil
 	}
-	bv := hash.BytesToHash(bvB)
-	return &bv
+	ev := hash.BytesToHash(evB)
+	return &ev
 }
 
 type LlrIdxFullEpochRecordRLP struct {

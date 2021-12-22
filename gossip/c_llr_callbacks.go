@@ -25,9 +25,9 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 	return current
 }
 
-func (s *Service) ProcessBlockVote(block idx.Block, weight pos.Weight, totalWeight pos.Weight, bv hash.Hash, llrs *LlrState) {
-	newWeight := s.store.AddLlrBlockVoteWeight(block, bv, weight)
-	if newWeight >= totalWeight/3+1 {
+func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
+	if newWeight >= vals.TotalWeight()/3+1 {
 		wonBr := s.store.GetLlrBlockResult(block)
 		if wonBr == nil {
 			s.store.SetLlrBlockResult(block, bv)
@@ -54,7 +54,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	vid := bvs.Signed.Locator.Creator
 	// get the validators group
 	epoch := bvs.Signed.Locator.Epoch
-	_, es := s.store.GetHistoryBlockEpochState(epoch)
+	es := s.store.GetHistoryEpochState(epoch)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
 	}
@@ -62,7 +62,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	llrs := s.store.GetLlrState()
 	b := bvs.Val.Start
 	for _, bv := range bvs.Val.Votes {
-		s.ProcessBlockVote(b, es.Validators.Get(vid), es.Validators.TotalWeight(), bv, &llrs)
+		s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs)
 		b++
 	}
 	s.store.SetLlrState(llrs)
@@ -75,6 +75,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	}
 	lBVs.Unlock()
 
+	s.mayCommit(false)
 	return nil
 }
 
@@ -139,19 +140,20 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	}
 	updateLowestBlockToFill(br.Idx, s.store)
 
+	s.mayCommit(false)
 	return nil
 }
 
-func (s *Service) processEpochVote(epoch idx.Epoch, weight pos.Weight, totalWeight pos.Weight, bv hash.Hash, llrs *LlrState) {
-	newWeight := s.store.AddLlrEpochVoteWeight(epoch, bv, weight)
-	if newWeight >= totalWeight/3+1 {
-		wonBr := s.store.GetLlrEpochResult(epoch)
-		if wonBr == nil {
-			s.store.SetLlrEpochResult(epoch, bv)
+func (s *Service) processEpochVote(epoch idx.Epoch, ev hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+	newWeight := s.store.AddLlrEpochVoteWeight(epoch, ev, val, vals.Len(), vals.GetWeightByIdx(val))
+	if newWeight >= vals.TotalWeight()/3+1 {
+		wonEr := s.store.GetLlrEpochResult(epoch)
+		if wonEr == nil {
+			s.store.SetLlrEpochResult(epoch, ev)
 			llrs.LowestEpochToDecide = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToDecide), uint64(epoch), func(u uint64) bool {
 				return s.store.GetLlrEpochResult(idx.Epoch(u)) != nil
 			}))
-		} else if *wonBr != bv {
+		} else if *wonEr != ev {
 			s.Log.Error("LLR voting doublesign is met", "epoch", epoch)
 		}
 	}
@@ -170,13 +172,13 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	defer done()
 	vid := ev.Signed.Locator.Creator
 	// get the validators group
-	_, es := s.store.GetHistoryBlockEpochState(ev.Val.Epoch - 1)
+	es := s.store.GetHistoryEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}
 
 	llrs := s.store.GetLlrState()
-	s.processEpochVote(ev.Val.Epoch, es.Validators.Get(vid), es.Validators.TotalWeight(), ev.Val.Vote, &llrs)
+	s.processEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, &llrs)
 	s.store.SetLlrState(llrs)
 	s.store.SetEpochVote(ev)
 	lEVs := s.store.GetLastEVs()
@@ -187,6 +189,7 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	}
 	lEVs.Unlock()
 
+	s.mayCommit(false)
 	return nil
 }
 
@@ -212,6 +215,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)
 
+	s.mayCommit(false)
 	return nil
 }
 

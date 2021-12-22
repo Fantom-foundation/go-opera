@@ -77,16 +77,14 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			s.blockProcModules,
 			s.config.TxIndex,
 			&s.feed,
-			s.emitter,
+			&s.emitters,
 			s.verWatcher,
-			nil,
 		),
 	}
 }
 
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and
 // makes lachesis.BeginBlockFn.
-// Note that onBlockEnd would be run async.
 func consensusCallbackBeginBlockFn(
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
@@ -95,9 +93,8 @@ func consensusCallbackBeginBlockFn(
 	blockProc BlockProc,
 	txIndex bool,
 	feed *ServiceFeed,
-	emitter *emitter.Emitter,
+	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
-	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		wg.Wait()
@@ -159,19 +156,20 @@ func consensusCallbackBeginBlockFn(
 						}
 						if proof := mp.WrongBlockVote; proof != nil {
 							// all other votes are the same, see MinAccomplicesForProof
-							vote := proof.Pals[0]
-							firstBlockEpoch := store.FindBlockEpoch(vote.Val.Start)
-							lastBlockEpoch := store.FindBlockEpoch(vote.Val.LastBlock())
-							if firstBlockEpoch != lastBlockEpoch || firstBlockEpoch != vote.Val.Epoch {
-								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
-								continue
-							}
-							actualRecord := store.GetFullBlockRecord(proof.Block)
-							if actualRecord == nil {
-								continue
-							}
-							if proof.GetVote(0) != actualRecord.Hash() {
-								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
+							if proof.WrongEpoch {
+								actualBlockEpoch := store.FindBlockEpoch(proof.Block)
+								if actualBlockEpoch != 0 && actualBlockEpoch != proof.Pals[0].Val.Epoch {
+									for _, pal := range proof.Pals {
+										reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+									}
+								}
+							} else {
+								actualRecord := store.GetFullBlockRecord(proof.Block)
+								if actualRecord != nil && proof.GetVote(0) != actualRecord.Hash() {
+									for _, pal := range proof.Pals {
+										reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+									}
+								}
 							}
 						}
 						if proof := mp.WrongEpochVote; proof != nil {
@@ -182,14 +180,16 @@ func consensusCallbackBeginBlockFn(
 								continue
 							}
 							if vote.Val.Vote != actualRecord.Hash() {
-								reportCheater(e.Creator(), vote.Signed.Locator.Creator)
+								for _, pal := range proof.Pals {
+									reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+								}
 							}
 						}
 					}
 				}
 				eventProcessor.ProcessConfirmedEvent(e)
-				if emitter != nil {
-					emitter.OnEventConfirmed(e)
+				for _, em := range *emitters {
+					em.OnEventConfirmed(e)
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
@@ -309,7 +309,7 @@ func consensusCallbackBeginBlockFn(
 						txs = append(txs, e.Txs()...)
 					}
 
-					externalReceipts := evmProcessor.Execute(txs, false)
+					_ = evmProcessor.Execute(txs, false)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs
@@ -417,10 +417,6 @@ func consensusCallbackBeginBlockFn(
 							}
 						}
 						feed.newLogs.Send(logs)
-					}
-
-					if onBlockEnd != nil {
-						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 					}
 
 					store.commitEVM(false)

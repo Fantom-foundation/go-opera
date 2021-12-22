@@ -3,6 +3,7 @@ package inter
 import (
 	"crypto/sha256"
 
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -14,6 +15,7 @@ import (
 type EventI interface {
 	dag.Event
 	Version() uint8
+	NetForkID() uint16
 	CreationTime() Timestamp
 	MedianTime() Timestamp
 	PrevEpochHash() *hash.Hash
@@ -35,6 +37,7 @@ type EventI interface {
 
 type EventLocator struct {
 	BaseHash    hash.Hash
+	NetForkID   uint16
 	Epoch       idx.Epoch
 	Seq         idx.Event
 	Lamport     idx.Lamport
@@ -84,6 +87,7 @@ type mutableBaseEvent struct {
 
 type extEventData struct {
 	version       uint8
+	netForkID     uint16
 	creationTime  Timestamp
 	medianTime    Timestamp
 	prevEpochHash *hash.Hash
@@ -106,7 +110,7 @@ type payloadData struct {
 	txs                types.Transactions
 	misbehaviourProofs []MisbehaviourProof
 
-	epochVotes LlrEpochVote
+	epochVote  LlrEpochVote
 	blockVotes LlrBlockVotes
 }
 
@@ -143,9 +147,10 @@ func (e *Event) HashToSign() hash.Hash {
 	return *e._locatorHash
 }
 
-func (e *Event) Locator() EventLocator {
+func asLocator(basehash hash.Hash, e EventI) EventLocator {
 	return EventLocator{
-		BaseHash:    *e._baseHash,
+		BaseHash:    basehash,
+		NetForkID:   e.NetForkID(),
 		Epoch:       e.Epoch(),
 		Seq:         e.Seq(),
 		Lamport:     e.Lamport(),
@@ -154,11 +159,17 @@ func (e *Event) Locator() EventLocator {
 	}
 }
 
+func (e *Event) Locator() EventLocator {
+	return asLocator(*e._baseHash, e)
+}
+
 func (e *EventPayload) Size() int {
 	return e._size
 }
 
 func (e *extEventData) Version() uint8 { return e.version }
+
+func (e *extEventData) NetForkID() uint16 { return e.netForkID }
 
 func (e *extEventData) CreationTime() Timestamp { return e.creationTime }
 
@@ -190,7 +201,7 @@ func (e *payloadData) MisbehaviourProofs() []MisbehaviourProof { return e.misbeh
 
 func (e *payloadData) BlockVotes() LlrBlockVotes { return e.blockVotes }
 
-func (e *payloadData) EpochVote() LlrEpochVote { return e.epochVotes }
+func (e *payloadData) EpochVote() LlrEpochVote { return e.epochVote }
 
 func CalcTxHash(txs types.Transactions) hash.Hash {
 	return hash.Hash(types.DeriveSha(txs, new(trie.Trie)))
@@ -216,6 +227,8 @@ func CalcPayloadHash(e EventPayloadI) hash.Hash {
 }
 
 func (e *MutableEventPayload) SetVersion(v uint8) { e.version = v }
+
+func (e *MutableEventPayload) SetNetForkID(v uint16) { e.netForkID = v }
 
 func (e *MutableEventPayload) SetCreationTime(v Timestamp) { e.creationTime = v }
 
@@ -249,7 +262,7 @@ func (e *MutableEventPayload) SetBlockVotes(v LlrBlockVotes) {
 }
 
 func (e *MutableEventPayload) SetEpochVote(v LlrEpochVote) {
-	e.epochVotes = v
+	e.epochVote = v
 	e.anyEpochVote = v.Epoch != 0 && v.Vote != hash.Zero
 }
 
@@ -263,8 +276,7 @@ func calcEventHashes(ser []byte, e EventI) (locator hash.Hash, base hash.Hash) {
 	if e.Version() < 1 {
 		return base, base
 	}
-	locator = hash.Of(base.Bytes(), e.Epoch().Bytes(), e.Seq().Bytes(), e.Lamport().Bytes(), e.Creator().Bytes(), e.PayloadHash().Bytes())
-	return locator, base
+	return asLocator(base, e).HashToSign(), base
 }
 
 func (e *MutableEventPayload) calcHashes() (locator hash.Hash, base hash.Hash) {
@@ -287,14 +299,7 @@ func (e *MutableEventPayload) HashToSign() hash.Hash {
 
 func (e *MutableEventPayload) Locator() EventLocator {
 	_, baseHash := e.calcHashes()
-	return EventLocator{
-		BaseHash:    baseHash,
-		Epoch:       e.Epoch(),
-		Seq:         e.Seq(),
-		Lamport:     e.Lamport(),
-		Creator:     e.Creator(),
-		PayloadHash: e.PayloadHash(),
-	}
+	return asLocator(baseHash, e)
 }
 
 func (e *MutableEventPayload) Size() int {
@@ -328,7 +333,7 @@ func (e *MutableEventPayload) Build() *EventPayload {
 }
 
 func (l EventLocator) HashToSign() hash.Hash {
-	return hash.Of(l.BaseHash.Bytes(), l.Epoch.Bytes(), l.Seq.Bytes(), l.Lamport.Bytes(), l.Creator.Bytes(), l.PayloadHash.Bytes())
+	return hash.Of(l.BaseHash.Bytes(), bigendian.Uint16ToBytes(l.NetForkID), l.Epoch.Bytes(), l.Seq.Bytes(), l.Lamport.Bytes(), l.Creator.Bytes(), l.PayloadHash.Bytes())
 }
 
 func (l EventLocator) ID() hash.Event {

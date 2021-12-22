@@ -119,8 +119,8 @@ type Service struct {
 	engine              lachesis.Consensus
 	dagIndexer          *vecmt.Index
 	engineMu            *sync.RWMutex
-	emitter             *emitter.Emitter
-	txpool              *evmcore.TxPool
+	emitters            []*emitter.Emitter
+	txpool              TxPool
 	heavyCheckReader    HeavyCheckReader
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
@@ -158,16 +158,12 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
-	if config.TxPool.Journal != "" {
-		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
-	}
-
-	svc, err := newService(config, store, signer, blockProc, engine, dagIndexer)
+	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +177,7 @@ func NewService(stack *node.Node, config Config, store *Store, signer valkeystor
 	return svc, nil
 }
 
-func newService(config Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		done:               make(chan struct{}),
@@ -219,13 +215,13 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	net := store.GetRules()
 	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
 	svc.heavyCheckReader.Store = store
-	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from disk
-	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from disk
+	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from DB
+	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from DB
 	svc.checkers = makeCheckers(config.HeavyCheck, txSigner, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
-	svc.txpool = evmcore.NewTxPool(config.TxPool, net.EvmChainConfig(), stateReader)
+	svc.txpool = newTxPool(stateReader)
 
 	// init dialCandidates
 	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
@@ -267,8 +263,6 @@ func newService(config Config, store *Store, signer valkeystore.SignerI, blockPr
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.emitter = svc.makeEmitter(signer, txSigner)
-
 	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
 
 	return svc, nil
@@ -291,17 +285,22 @@ func makeCheckers(heavyCheckCfg heavycheck.Config, txSigner types.Signer, heavyC
 	}
 }
 
-func (s *Service) makeEmitter(signer valkeystore.SignerI, txSigner types.Signer) *emitter.Emitter {
-	return emitter.NewEmitter(s.config.Emitter, emitter.World{
+func (s *Service) EmitterWorld(signer valkeystore.SignerI) emitter.World {
+	return emitter.World{
 		External: &emitterWorld{
-			s:       s,
-			Store:   s.store,
-			WgMutex: wgmutex.New(s.engineMu, &s.blockProcWg),
+			emitterWorldProc: emitterWorldProc{s},
+			emitterWorldRead: emitterWorldRead{s.store},
+			WgMutex:          wgmutex.New(s.engineMu, &s.blockProcWg),
 		},
 		TxPool:   s.txpool,
 		Signer:   signer,
-		TxSigner: txSigner,
-	})
+		TxSigner: s.EthAPI.signer,
+	}
+}
+
+// RegisterEmitter must be called before service is started
+func (s *Service) RegisterEmitter(em *emitter.Emitter) {
+	s.emitters = append(s.emitters, em)
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `opera`.
@@ -397,7 +396,9 @@ func (s *Service) Start() error {
 
 	s.handler.Start(s.p2pServer.MaxPeers)
 
-	s.emitter.Start()
+	for _, em := range s.emitters {
+		em.Start()
+	}
 
 	s.verWatcher.Start()
 
@@ -415,7 +416,9 @@ func (s *Service) Stop() error {
 	defer log.Info("Fantom service stopped")
 	s.verWatcher.Stop()
 	close(s.done)
-	s.emitter.Stop()
+	for _, em := range s.emitters {
+		em.Stop()
+	}
 
 	// Stop all the peer-related stuff first.
 	s.operaDialCandidates.Close()

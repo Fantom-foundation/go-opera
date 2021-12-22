@@ -150,7 +150,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	net := makegenesis.FakeGenesisStore(1, benchRootFunds, big.NewInt(1)).GetGenesis()
+	net := makegenesis.FakeGenesisStore(2, 1, benchRootFunds, big.NewInt(1)).GetGenesis()
 
 	// state
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)

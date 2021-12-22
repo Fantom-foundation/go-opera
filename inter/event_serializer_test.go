@@ -303,6 +303,7 @@ func FakeEvent(txsNum, mpsNum, bvsNum int, ersNum bool) *EventPayload {
 	r := rand.New(rand.NewSource(int64(0)))
 	random := &MutableEventPayload{}
 	random.SetVersion(1)
+	random.SetNetForkID(uint16(r.Uint32() >> 16))
 	random.SetLamport(1000)
 	random.SetExtra([]byte{byte(r.Uint32())})
 	random.SetSeq(idx.Event(r.Uint32() >> 8))

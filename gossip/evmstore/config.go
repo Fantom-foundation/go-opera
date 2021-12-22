@@ -56,15 +56,5 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
-	return StoreConfig{
-		Cache: StoreCacheConfig{
-			ReceiptsSize:   3 * opt.MiB,
-			ReceiptsBlocks: 100,
-			TxPositions:    500,
-			EvmSnap:        16 * opt.MiB,
-			EvmBlocksNum:   100,
-			EvmBlocksSize:  3 * opt.MiB,
-		},
-		EnablePreimageRecording: true,
-	}
+	return DefaultStoreConfig(cachescale.Ratio{Base: 10, Target: 1})
 }
