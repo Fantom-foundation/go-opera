@@ -20,14 +20,9 @@ var FakeNetFlag = cli.StringFlag{
 
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
 	id, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-	if err != nil {
+	if err != nil || id == 0 {
 		return nil
 	}
-
-	if id == 0 {
-		return nil
-	}
-
 	return makegenesis.FakeKey(id)
 }
 
