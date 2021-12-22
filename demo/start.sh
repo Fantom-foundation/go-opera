@@ -33,9 +33,9 @@ done
 echo -e "\nConnect nodes to ring:\n"
 for ((i=0;i<$N;i+=1))
 do
-    for n in 1 2
+    for ((n=0;n<$M;n+=1))
     do
-        j=$(((i+n) % N))
+        j=$(((i+n+1) % N))
 
 	enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
         echo "    p2p address = ${enode}"
