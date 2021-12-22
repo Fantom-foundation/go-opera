@@ -214,9 +214,6 @@ func (s *Store) evmSnapshotAt(evmStore *evmstore.Store, root common.Hash) (err e
 
 // Commit changes.
 func (s *Store) Commit() error {
-	s.prevFlushTime = time.Now()
-	flushID := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
-	// Flush the DBs
 	s.FlushBlockEpochState()
 	s.FlushHighestLamport()
 	s.FlushLastBVs()
@@ -227,6 +224,12 @@ func (s *Store) Commit() error {
 		es.FlushHeads()
 		es.FlushLastEvents()
 	}
+	return s.flushDBs()
+}
+
+func (s *Store) flushDBs() error {
+	s.prevFlushTime = time.Now()
+	flushID := bigendian.Uint64ToBytes(uint64(s.prevFlushTime.UnixNano()))
 	return s.dbs.Flush(flushID)
 }
 

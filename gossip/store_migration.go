@@ -32,7 +32,7 @@ func (s *Store) migrateData() error {
 		return nil
 	}
 
-	err := s.migrations().Exec(versions, s.Commit)
+	err := s.migrations().Exec(versions, s.flushDBs)
 	return err
 }
 
@@ -43,7 +43,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("tx hashes recovery", s.recoverTxHashes).
 		Next("DAG heads recovery", s.recoverHeadsStorage).
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
-		Next("BlockState recovery", s.recoverBlockState)
+		Next("BlockState recovery", s.recoverBlockState).
+		Next("LlrState recovery", s.recoverLlrState)
 }
 
 func unsupportedMigration() error {
@@ -251,7 +252,10 @@ func (s *Store) convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochSt
 	newValidatorState := make([]iblockproc.ValidatorBlockState, len(oldBS.ValidatorStates))
 	cheatersWritten := 0
 	for i, vs := range oldBS.ValidatorStates {
-		lastEvent := s.GetEvent(vs.LastEvent)
+		lastEvent := &inter.Event{}
+		if vs.LastEvent != hash.ZeroEvent {
+			lastEvent = s.GetEvent(vs.LastEvent)
+		}
 		newValidatorState[i] = iblockproc.ValidatorBlockState{
 			LastEvent: iblockproc.EventInfo{
 				ID:           vs.LastEvent,
@@ -298,7 +302,10 @@ func (s *Store) convertBlockEpochStateV0(oldEBS *BlockEpochStateV0) BlockEpochSt
 	for i, v := range oldES.ValidatorStates {
 		newEs.ValidatorStates[i].GasRefund = v.GasRefund
 		newEs.ValidatorStates[i].PrevEpochEvent.ID = v.PrevEpochEvent
-		lastEvent := s.GetEvent(v.PrevEpochEvent)
+		lastEvent := &inter.Event{}
+		if v.PrevEpochEvent != hash.ZeroEvent {
+			lastEvent = s.GetEvent(v.PrevEpochEvent)
+		}
 		newEs.ValidatorStates[i].PrevEpochEvent.Time = lastEvent.MedianTime()
 		newEs.ValidatorStates[i].PrevEpochEvent.GasPowerLeft = lastEvent.GasPowerLeft()
 	}
@@ -328,6 +335,26 @@ func (s *Store) recoverBlockState() error {
 		v1 = s.convertBlockEpochStateV0(v)
 		s.SetHistoryBlockEpochState(epoch, *v1.BlockState, *v1.EpochState)
 	}
+
+	return nil
+}
+
+func (s *Store) recoverLlrState() error {
+	v1, ok := s.rlp.Get(s.table.BlockEpochState, []byte(sKey), &BlockEpochState{}).(*BlockEpochState)
+	if !ok {
+		return errors.New("epoch state reading failed: genesis not applied")
+	}
+
+	epoch := v1.EpochState.Epoch + 1
+	block := v1.BlockState.LastBlock.Idx + 1
+
+	s.SetLlrState(LlrState{
+		LowestEpochToDecide: epoch,
+		LowestEpochToFill:   epoch,
+		LowestBlockToDecide: block,
+		LowestBlockToFill:   block,
+	})
+	s.FlushLlrState()
 
 	return nil
 }
