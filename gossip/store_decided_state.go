@@ -32,8 +32,8 @@ func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockSta
 	if v, ok := s.cache.BlockEpochStateHistory.Get(epoch); ok {
 		bes := v.(*BlockEpochState)
 		if bes.EpochState.Epoch == epoch {
-			bs := *bes.BlockState
-			es := *bes.EpochState
+			bs := bes.BlockState.Copy()
+			es := bes.EpochState.Copy()
 			return &bs, &es
 		}
 	}
@@ -52,7 +52,7 @@ func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
 	if v := s.cache.BlockEpochState.Load(); v != nil {
 		bes := v.(*BlockEpochState)
 		if bes.EpochState.Epoch == epoch {
-			es := *bes.EpochState
+			es := bes.EpochState.Copy()
 			return &es
 		}
 	}
