@@ -1,6 +1,7 @@
 package evmstore
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -103,7 +104,10 @@ func (s *Store) initCache() {
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
 }
 
-func (s *Store) CreateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
+func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
+	if s.Snaps != nil {
+		return errors.New("EVM snapshot is already opened")
+	}
 	s.Snaps, err = snapshot.New(
 		s.EvmDb,
 		s.EvmState.TrieDB(),
@@ -119,7 +123,6 @@ func (s *Store) RebuildEvmSnapshot(root common.Hash) {
 	if s.Snaps == nil {
 		return
 	}
-
 	s.Snaps.Rebuild(root)
 }
 

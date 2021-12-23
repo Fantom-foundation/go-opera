@@ -194,7 +194,7 @@ func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 }
 
 func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, rebuild, async bool) (err error) {
-	return evmStore.CreateEvmSnapshot(root, rebuild, async)
+	return evmStore.GenerateEvmSnapshot(root, rebuild, async)
 }
 
 // Commit changes.
