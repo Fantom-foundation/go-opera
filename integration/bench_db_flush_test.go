@@ -60,7 +60,7 @@ func BenchmarkFlushDBs(b *testing.B) {
 			}
 			return []uint32{uint32(n), uint32(n) + 1, uint32(n) + 2}
 		}
-		for !store.IsCommitNeeded(false) {
+		for !store.IsCommitNeeded() {
 			store.SetBlock(n, &inter.Block{
 				Time:        inter.Timestamp(n << 32),
 				Atropos:     hash.Event{},

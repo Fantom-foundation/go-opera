@@ -16,7 +16,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
@@ -163,13 +162,13 @@ func (s *Store) Close() {
 	_ = s.closeEpochStore()
 }
 
-func (s *Store) IsCommitNeeded(epochSealing bool) bool {
-	period := s.cfg.MaxNonFlushedPeriod
-	size := s.cfg.MaxNonFlushedSize / 2
-	if epochSealing {
-		period /= 2
-		size /= 2
-	}
+func (s *Store) IsCommitNeeded() bool {
+	return s.isCommitNeeded(100, 100)
+}
+
+func (s *Store) isCommitNeeded(sc, tc int) bool {
+	period := s.cfg.MaxNonFlushedPeriod * time.Duration(sc) / 100
+	size := (s.cfg.MaxNonFlushedSize / 2) * tc / 100
 	return time.Since(s.prevFlushTime) > period ||
 		s.dbs.NotFlushedSizeEst() > size
 }
@@ -183,38 +182,19 @@ func (s *Store) commitEVM(flush bool) {
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
-func (s *Store) EvmSnapshotAt(root common.Hash) (err error) {
-	start := time.Now()
-	defer func() {
-		now := time.Now()
-		if err != nil {
-			s.Log.Error("EVM snapshot", "at", root, "err", err, "t", utils.PrettyDuration(now.Sub(start)))
-		} else {
-			s.Log.Info("EVM snapshot", "at", root, "t", utils.PrettyDuration(now.Sub(start)))
-		}
-	}()
-	return s.evmSnapshotAt(s.evm, root)
+func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
+	err = s.generateSnapshotAt(s.evm, root, true, async)
+	if err != nil {
+		s.Log.Error("EVM snapshot", "at", root, "err", err)
+	} else {
+		gen, _ := s.evm.Snaps.Generating()
+		s.Log.Info("EVM snapshot", "at", root, "generating", gen)
+	}
+	return err
 }
 
-func (s *Store) evmSnapshotAt(evmStore *evmstore.Store, root common.Hash) (err error) {
-	// DB is being flushed in a middle of this call to limit memory usage of snapshot building
-	res := make(chan error)
-	go func() {
-		res <- evmStore.CreateEvmSnapshot(root)
-	}()
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if s.IsCommitNeeded(false) {
-				_ = s.Commit()
-			}
-		case err = <-res:
-			_ = s.Commit()
-			return
-		}
-	}
+func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, rebuild, async bool) (err error) {
+	return evmStore.CreateEvmSnapshot(root, rebuild, async)
 }
 
 // Commit changes.
@@ -243,6 +223,17 @@ func (s *Store) EvmStore() *evmstore.Store {
 }
 
 func (s *Store) CaptureEvmKvdbSnapshot() {
+	if s.evm.Snaps == nil {
+		return
+	}
+	gen, err := s.evm.Snaps.Generating()
+	if err != nil {
+		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
+		return
+	}
+	if gen {
+		return
+	}
 	newKvdbSnap, err := s.mainDB.GetSnapshot()
 	if err != nil {
 		s.Log.Error("Failed to initialize frozen KVDB", "err", err)
@@ -258,7 +249,8 @@ func (s *Store) CaptureEvmKvdbSnapshot() {
 		}
 	}
 	newStore := evmstore.NewStore(snap2kvdb.Wrap(s.snapshotedDB), evmstore.LiteStoreConfig())
-	err = s.evmSnapshotAt(newStore, common.Hash(s.GetBlockState().FinalizedStateRoot))
+	root := s.GetBlockState().FinalizedStateRoot
+	err = s.generateSnapshotAt(newStore, common.Hash(root), false, false)
 	if err != nil {
 		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
 		return

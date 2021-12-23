@@ -147,17 +147,18 @@ func (s *Service) SwitchEpochTo(newEpoch idx.Epoch) error {
 	if newEpoch == s.store.GetEpoch() {
 		return errSameEpoch
 	}
+	err := s.store.GenerateSnapshotAt(common.Hash(bs.FinalizedStateRoot), true)
+	if err != nil {
+		return err
+	}
+	err = s.engine.Reset(newEpoch, es.Validators)
+	if err != nil {
+		return err
+	}
 	s.store.SetBlockEpochState(*bs, *es)
 	s.switchEpochTo(newEpoch)
-	err := s.engine.Reset(newEpoch, es.Validators)
-	if err != nil {
-		return err
-	}
-	err = s.store.EvmSnapshotAt(common.Hash(bs.FinalizedStateRoot))
-	if err != nil {
-		return err
-	}
-	return s.store.Commit()
+	s.commit(true)
+	return nil
 }
 
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
@@ -244,14 +245,19 @@ func (s *Service) DagProcessor() *dagprocessor.Processor {
 
 func (s *Service) mayCommit(epochSealing bool) {
 	// s.engineMu is locked here
-	if epochSealing || s.store.IsCommitNeeded(false) {
-		s.blockProcWg.Wait()
-		// TODO: prune old MPTs in beginnings of committed sections
-		if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
-			s.store.commitEVM(true)
-		}
-		_ = s.store.Commit()
+	if epochSealing || s.store.IsCommitNeeded() {
+		s.commit(epochSealing)
 	}
+}
+
+func (s *Service) commit(epochSealing bool) {
+	// s.engineMu is locked here
+	s.blockProcWg.Wait()
+	// TODO: prune old MPTs in beginnings of committed sections
+	if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
+		s.store.commitEVM(true)
+	}
+	_ = s.store.Commit()
 	if epochSealing {
 		s.store.CaptureEvmKvdbSnapshot()
 	}
