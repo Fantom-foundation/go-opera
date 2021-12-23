@@ -196,12 +196,15 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	newEpoch := s.store.GetEpoch()
+	newEpochNotEqualOld := newEpoch != oldEpoch
 
 	// index DAG heads and last events
 	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
 	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
 	// update highest Lamport
-	if newEpoch != oldEpoch {
+	
+
+	if newEpochNotEqualOld {
 		s.store.SetHighestLamport(0)
 	} else if e.Lamport() > s.store.GetHighestLamport() {
 		s.store.SetHighestLamport(e.Lamport())
@@ -211,11 +214,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		em.OnEventConnected(e)
 	}
 
-	if newEpoch != oldEpoch {
+	if newEpochNotEqualOld {
 		s.switchEpochTo(newEpoch)
 	}
 
-	s.mayCommit(newEpoch != oldEpoch)
+	s.mayCommit(newEpochNotEqualOld)
 	return nil
 }
 

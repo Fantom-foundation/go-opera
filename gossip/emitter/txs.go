@@ -110,8 +110,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 	now := time.Now()
 	for _, tx := range txs {
-		_, ok := em.txTime.Get(tx.Hash())
-		if !ok {
+		if _, ok := em.txTime.Get(tx.Hash()); !ok { 
 			em.txTime.Add(tx.Hash(), now)
 		}
 	}
@@ -157,11 +156,10 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, sorted *types.Transactio
 	}
 
 	// sort transactions by price and nonce
-	rules := em.world.GetRules()
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		sender, _ := types.Sender(em.world.TxSigner, tx)
 		// check transaction epoch rules
-		if epochcheck.CheckTxs(types.Transactions{tx}, rules) != nil {
+		if epochcheck.CheckTxs(types.Transactions{tx}, em.world.GetRules()) != nil {
 			sorted.Pop()
 			continue
 		}

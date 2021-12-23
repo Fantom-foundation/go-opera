@@ -51,8 +51,7 @@ func (em *Emitter) currentSyncStatus() doublesign.SyncStatus {
 	if em.world.IsSynced() {
 		s.P2PSynced = em.syncStatus.p2pSynced
 	}
-	prevEmitted := em.readLastEmittedEventID()
-	if prevEmitted != nil && (em.world.GetEvent(*prevEmitted) == nil && em.epoch <= prevEmitted.Epoch()) {
+	if prevEmitted := em.readLastEmittedEventID(); prevEmitted != nil && (em.world.GetEvent(*prevEmitted) == nil && em.epoch <= prevEmitted.Epoch()) {
 		s.P2PSynced = time.Time{}
 	}
 	return s
@@ -66,14 +65,16 @@ func (em *Emitter) isSyncedToEmit() (time.Duration, error) {
 }
 
 func (em *Emitter) logSyncStatus(wait time.Duration, syncErr error) bool {
-	if syncErr == nil {
-		return true
+    // checking err case first
+	if syncErr != nil {
+		if wait == 0 {
+			em.Periodic.Info(7*time.Second, "Emitting is paused", "reason", syncErr)
+		} else {
+			em.Periodic.Info(7*time.Second, "Emitting is paused", "reason", syncErr, "wait", wait)
+		}
+
+		return false
 	}
 
-	if wait == 0 {
-		em.Periodic.Info(7*time.Second, "Emitting is paused", "reason", syncErr)
-	} else {
-		em.Periodic.Info(7*time.Second, "Emitting is paused", "reason", syncErr, "wait", wait)
-	}
-	return false
+	return true
 }

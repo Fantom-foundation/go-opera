@@ -107,9 +107,10 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
-	em.syncStatus.startup = time.Now()
-	em.syncStatus.lastConnected = time.Now()
-	em.syncStatus.p2pSynced = time.Now()
+	t := time.Now()
+	em.syncStatus.startup = t
+	em.syncStatus.lastConnected = t
+	em.syncStatus.p2pSynced = t
 	validators, epoch := em.world.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 
@@ -127,13 +128,11 @@ func (em *Emitter) init() {
 
 // Start starts event emission.
 func (em *Emitter) Start() {
-	if em.config.Validator.ID == 0 {
+	if em.config.Validator.ID == 0 || em.done != nil  {
 		// short circuit if not a validator
 		return
 	}
-	if em.done != nil {
-		return
-	}
+
 	em.init()
 	em.done = make(chan struct{})
 
@@ -191,6 +190,8 @@ func (em *Emitter) tick() {
 	} else {
 		em.busyRate.Mark(1)
 	}
+
+	// Question: should we move it into beginning of the function?
 	if em.world.IsBusy() {
 		return
 	}
@@ -232,15 +233,12 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 }
 
 func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
-	if em.config.Validator.ID == 0 {
+	if em.config.Validator.ID == 0 || em.world.IsBusy() {
 		// short circuit if not a validator
 		return nil, nil
 	}
 	sortedTxs := em.getSortedTxs()
 
-	if em.world.IsBusy() {
-		return nil, nil
-	}
 	em.world.Lock()
 	defer em.world.Unlock()
 
@@ -250,8 +248,7 @@ func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
 	}
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
-	err = em.world.Process(e)
-	if err != nil {
+	if err = em.world.Process(e); err != nil {
 		em.Log.Error("Self-event connection failed", "err", err.Error())
 		return nil, err
 	}
@@ -439,13 +436,14 @@ func (em *Emitter) isValidator() bool {
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.EventPayload) {
-	name := []rune(hash.GetNodeName(e.Creator()))
-	if len(name) < 1 {
+	name := hash.GetNodeName(e.Creator())
+	nameLen := len(name)
+	if nameLen < 1 {
 		return
 	}
 
-	name = name[len(name)-1:]
+	name = name[nameLen-1:]
 	hash.SetEventName(e.ID(), fmt.Sprintf("%s%03d",
-		strings.ToLower(string(name)),
+		strings.ToLower(name),
 		e.Seq()))
 }

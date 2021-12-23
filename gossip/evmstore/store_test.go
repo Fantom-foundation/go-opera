@@ -5,13 +5,9 @@ import (
 )
 
 func cachedStore() *Store {
-	cfg := LiteStoreConfig()
-
-	return NewStore(memorydb.New(), cfg)
+	return NewStore(memorydb.New(), LiteStoreConfig())
 }
 
 func nonCachedStore() *Store {
-	cfg := StoreConfig{}
-
-	return NewStore(memorydb.New(), cfg)
+	return NewStore(memorydb.New(), StoreConfig{})
 }
