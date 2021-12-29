@@ -116,6 +116,7 @@ func initFlags() {
 		validatorPubkeyFlag,
 		validatorPasswordFlag,
 		SyncModeFlag,
+		utils.GCModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,

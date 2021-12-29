@@ -127,6 +127,31 @@ func (s *Store) RebuildEvmSnapshot(root common.Hash) {
 }
 
 // Commit changes.
+func (s *Store) CleanCommit(block iblockproc.BlockState) error {
+	// Don't need to reference the current state root
+	// due to it already be referenced on `Commit()` function
+	triedb := s.EvmState.TrieDB()
+	stateRoot := common.Hash(block.FinalizedStateRoot)
+	current := uint64(block.LastBlock.Idx)
+	// Garbage collect all below the current block
+	for !s.triegc.Empty() {
+		root, number := s.triegc.Pop()
+		if uint64(-number) >= current {
+			s.triegc.Push(root, number)
+			break
+		}
+		s.Log.Debug("Clean up the state trie", "root", root.(common.Hash))
+		triedb.Dereference(root.(common.Hash))
+	}
+	// commit the state trie after clean up
+	err := triedb.Commit(stateRoot, false, nil)
+	if err != nil {
+		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
+	}
+	return err
+}
+
+// Commit changes.
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
