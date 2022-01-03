@@ -190,7 +190,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 		em.Start()
 	}
 
-	_ = env.store.EvmSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot))
+	_ = env.store.GenerateSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot), false)
 	env.blockProcTasks.Start(1)
 	env.verWatcher.Start()
 
@@ -198,9 +198,8 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 }
 
 func (env *testEnv) Close() {
-	close(env.done)
 	env.store.Close()
-	env.wg.Wait()
+	env.tflusher.Stop()
 }
 
 func (env *testEnv) GetEvmStateReader() *EvmStateReader {

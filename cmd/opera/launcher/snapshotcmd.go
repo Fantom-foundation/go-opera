@@ -204,7 +204,7 @@ func verifyState(ctx *cli.Context) error {
 	evmStore := gdb.EvmStore()
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
 
-	err = evmStore.CreateEvmSnapshot(root)
+	err = evmStore.GenerateEvmSnapshot(root, false, false)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
