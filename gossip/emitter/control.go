@@ -28,21 +28,8 @@ func updMetric(median, cur, upd idx.Event, validatorIdx idx.Validator, validator
 
 func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 	metric := ancestor.Metric(eventMetricF(uint64(orig)))
+	
 	// kick start metric in a beginning of epoch, when there's nothing to observe yet
-	/* Question: are 2 if conditions below mutual exclusive or not? if they are mutual exclusive, switch statement can be a good option
-	 switch {
-		 case
-		 case
-
-	 }
-
-	 return metrics
-
-	what if seq = 0, and metric = 0( i dont know if it possible) so this would satisfy both if conditions
-	and metric will be increased twice, is that expected behavior?
-
-	*/
-	// what will happen if e.g. seq = 1, metric = 0
 	if seq <= 2 && metric < 0.9*piecefunc.DecimalUnit {
 		metric += 0.1 * piecefunc.DecimalUnit
 	}
