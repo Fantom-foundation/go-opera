@@ -31,14 +31,14 @@ func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 	// kick start metric in a beginning of epoch, when there's nothing to observe yet
 	/* Question: are 2 if conditions below mutual exclusive or not? if they are mutual exclusive, switch statement can be a good option
 	 switch {
-		 case 
+		 case
 		 case
 
 	 }
 
 	 return metrics
 
-	what if seq = 0, and metric = 0( i dont know if it possible) so this would satisfy both if conditions 
+	what if seq = 0, and metric = 0( i dont know if it possible) so this would satisfy both if conditions
 	and metric will be increased twice, is that expected behavior?
 
 	*/
@@ -76,7 +76,6 @@ func (em *Emitter) isAllowedToEmit(e inter.EventI, eTxs bool, metric ancestor.Me
 	adjustedPassedIdleTime := time.Duration(ancestor.Metric(passedTimeIdle/piecefunc.DecimalUnit) * metric)
 	passedBlocks := em.world.GetLatestBlockIndex() - em.prevEmittedAtBlock
 	// Forbid emitting if not enough power and power is decreasing
-	// Question: what is the intetion to declare code blocks with {...threshold = } to keep variables only within code block?
 	{
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft().Min() <= threshold {

@@ -128,8 +128,8 @@ func (em *Emitter) init() {
 
 // Start starts event emission.
 func (em *Emitter) Start() {
-	if em.config.Validator.ID == 0 || em.done != nil  {
-		// short circuit if not a validator
+	if em.config.Validator.ID == 0 || em.done != nil {
+		// short circuit if not a validator or already started
 		return
 	}
 

@@ -77,11 +77,11 @@ func (em *Emitter) writeLastEmittedEpochVote(e idx.Epoch) {
 }
 
 func (em *Emitter) readLastEpochVote() *idx.Epoch {
-	buf := readFile(em.emittedEvFile, 4, "Failed to read EV file", em.config.PrevEpochVoteFile.Path, )
+	buf := readFile(em.emittedEvFile, 4, "Failed to read EV file", em.config.PrevEpochVoteFile.Path)
 	if buf == nil {
 		return nil
 	}
-	
+
 	v := idx.BytesToEpoch(buf)
 	return &v
 }
