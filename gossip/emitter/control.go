@@ -28,7 +28,6 @@ func updMetric(median, cur, upd idx.Event, validatorIdx idx.Validator, validator
 
 func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 	metric := ancestor.Metric(eventMetricF(uint64(orig)))
-	
 	// kick start metric in a beginning of epoch, when there's nothing to observe yet
 	if seq <= 2 && metric < 0.9*piecefunc.DecimalUnit {
 		metric += 0.1 * piecefunc.DecimalUnit

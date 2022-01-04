@@ -196,14 +196,13 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	newEpoch := s.store.GetEpoch()
+	// epochSealed means that it had ended and a next epoch has started
 	epochSealed := newEpoch != oldEpoch
 
 	// index DAG heads and last events
 	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
 	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
 	// update highest Lamport
-	
-
 	if epochSealed {
 		s.store.SetHighestLamport(0)
 	} else if e.Lamport() > s.store.GetHighestLamport() {
