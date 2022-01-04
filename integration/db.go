@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/integration/pebble"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -153,9 +153,20 @@ func DBProducer(chaindataDir string, scale cachescale.Func) kvdb.IterableDBProdu
 		chaindataDir, _ = ioutil.TempDir("", "opera-integration")
 	}
 
+	return pebble.NewProducer(chaindataDir)
+
+	/*
+	if strings.HasPrefix(chaindataDir, "pebble:") {
+		return pebble.NewProducer(chaindataDir[7:])
+	}
+
+	if strings.HasPrefix(chaindataDir, "leveldb:") {
+		chaindataDir = chaindataDir[8:]
+	}
 	return leveldb.NewProducer(chaindataDir, func(name string) int {
 		return dbCacheSize(name, scale.I)
 	})
+	 */
 }
 
 func CheckDBList(names []string) error {
