@@ -33,24 +33,31 @@ var validatorPasswordFlag = cli.StringFlag{
 // command line flags or from the keystore if CLI indexed.
 func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 	// Extract the current validator address, new flag overriding legacy one
-	var err error
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		var num idx.Validator
-		cfg.Validator.ID, num, err = parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		id, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			return err
 		}
+
+		if ctx.GlobalIsSet(validatorIDFlag.Name) && id != 0 {
+			return errors.New("specified validator ID with both --fakenet and --validator.id")
+		}
+
+		cfg.Validator.ID = id 
 		validators := makegenesis.GetFakeValidators(num)
 		cfg.Validator.PubKey = validators.Map()[cfg.Validator.ID].PubKey
-	}
+	} 
+
 	if ctx.GlobalIsSet(validatorIDFlag.Name) {
 		cfg.Validator.ID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))
 	}
+	
 	if ctx.GlobalIsSet(validatorPubkeyFlag.Name) {
-		cfg.Validator.PubKey, err = validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
+		pk, err := validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
 		if err != nil {
 			return err
 		}
+		cfg.Validator.PubKey = pk
 	}
 
 	if cfg.Validator.ID != 0 && cfg.Validator.PubKey.Empty() {
