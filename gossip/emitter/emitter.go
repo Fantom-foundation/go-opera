@@ -191,7 +191,6 @@ func (em *Emitter) tick() {
 		em.busyRate.Mark(1)
 	}
 
-	// Question: should we move it into beginning of the function?
 	if em.world.IsBusy() {
 		return
 	}
@@ -233,12 +232,15 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 }
 
 func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
-	if em.config.Validator.ID == 0 || em.world.IsBusy() {
+	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return nil, nil
 	}
 	sortedTxs := em.getSortedTxs()
 
+	if em.world.IsBusy() {
+		return nil, nil
+	}
 	em.world.Lock()
 	defer em.world.Unlock()
 
