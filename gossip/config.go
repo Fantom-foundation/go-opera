@@ -84,7 +84,7 @@ type (
 
 		ExtRPCEnabled bool
 
-		RPCLogsBloom bool
+		RPCBlockExt bool
 	}
 
 	StoreCacheConfig struct {
@@ -181,7 +181,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 			ShutDownIfNotUpgraded:     false,
 			WarningIfNotUpgradedEvery: 5 * time.Second,
 		},
-		RPCLogsBloom: true,
+		RPCBlockExt: true,
 
 		RPCGasCap:   25000000,
 		RPCTxFeeCap: 100, // 100 FTM

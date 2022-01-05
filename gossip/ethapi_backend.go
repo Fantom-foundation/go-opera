@@ -601,8 +601,8 @@ func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfcapi.DelegationI
 	return b.svc.store.sfcapi.GetSfcDelegation(id), nil
 }
 
-func (b *EthAPIBackend) CalcLogsBloom() bool {
-	return b.svc.config.RPCLogsBloom
+func (b *EthAPIBackend) CalcBlockExtApi() bool {
+	return b.svc.config.RPCBlockExt
 }
 
 func (b *EthAPIBackend) SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp) {
