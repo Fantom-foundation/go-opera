@@ -474,7 +474,7 @@ func (s *Service) Stop() error {
 
 	s.blockProcWg.Wait()
 	close(s.blockProcTasksDone)
-	s.store.evm.Flush(s.store.GetBlockState(), s.store.GetBlock)
+	s.store.evm.Flush(s.store.GetBlockState())
 	return s.store.Commit()
 }
 
