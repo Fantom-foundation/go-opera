@@ -63,7 +63,7 @@ func NewEvmBlock(h *EvmHeader, txs types.Transactions) *EvmBlock {
 	if len(txs) == 0 {
 		b.EvmHeader.TxHash = types.EmptyRootHash
 	} else {
-		b.EvmHeader.TxHash = types.DeriveSha(txs, new(trie.Trie))
+		b.EvmHeader.TxHash = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
 
 	return b
@@ -152,7 +152,7 @@ func (b *EvmBlock) EthBlock() *types.Block {
 	if b == nil {
 		return nil
 	}
-	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, new(trie.Trie))
+	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, trie.NewStackTrie(nil))
 }
 
 func (b *EvmBlock) EstimateSize() int {

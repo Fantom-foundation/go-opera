@@ -204,7 +204,7 @@ func (e *payloadData) BlockVotes() LlrBlockVotes { return e.blockVotes }
 func (e *payloadData) EpochVote() LlrEpochVote { return e.epochVote }
 
 func CalcTxHash(txs types.Transactions) hash.Hash {
-	return hash.Hash(types.DeriveSha(txs, new(trie.Trie)))
+	return hash.Hash(types.DeriveSha(txs, trie.NewStackTrie(nil)))
 }
 
 func CalcReceiptsHash(receipts []*types.ReceiptForStorage) hash.Hash {

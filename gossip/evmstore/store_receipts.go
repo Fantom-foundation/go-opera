@@ -13,7 +13,7 @@ import (
 
 // SetReceipts stores transaction receipts.
 func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
-	receiptsStorage := make([]*types.ReceiptForStorage, len(receipts))
+	receiptsStorage := make([]*types.ReceiptForStorage, receipts.Len())
 	for i, r := range receipts {
 		receiptsStorage[i] = (*types.ReceiptForStorage)(r)
 	}

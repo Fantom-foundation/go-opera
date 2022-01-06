@@ -43,15 +43,15 @@ func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 			return errors.New("specified validator ID with both --fakenet and --validator.id")
 		}
 
-		cfg.Validator.ID = id 
+		cfg.Validator.ID = id
 		validators := makegenesis.GetFakeValidators(num)
 		cfg.Validator.PubKey = validators.Map()[cfg.Validator.ID].PubKey
-	} 
+	}
 
 	if ctx.GlobalIsSet(validatorIDFlag.Name) {
 		cfg.Validator.ID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))
 	}
-	
+
 	if ctx.GlobalIsSet(validatorPubkeyFlag.Name) {
 		pk, err := validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
 		if err != nil {
