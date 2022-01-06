@@ -708,7 +708,7 @@ func (s *PublicBlockChainAPI) calculateExtBlockApi(ctx context.Context, blkNumbe
 			return ext
 		}
 		if receipts.Len() != 0 {
-			ext.receiptsRoot = types.DeriveSha(receipts, new(trie.Trie))
+			ext.receiptsRoot = types.DeriveSha(receipts, trie.NewStackTrie(nil))
 			ext.bloom = types.CreateBloom(receipts)
 		} else {
 			ext.receiptsRoot = types.EmptyRootHash
