@@ -284,7 +284,7 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, block common.Hash) ([][]*ty
 	if receipts == nil || err != nil {
 		return nil, err
 	}
-	logs := make([][]*types.Log, len(receipts))
+	logs := make([][]*types.Log, receipts.Len())
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
 	}

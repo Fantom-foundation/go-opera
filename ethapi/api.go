@@ -707,7 +707,7 @@ func (s *PublicBlockChainAPI) calculateExtBlockApi(ctx context.Context, blkNumbe
 		if err != nil {
 			return ext
 		}
-		if len(receipts) != 0 {
+		if receipts.Len() != 0 {
 			ext.receiptsRoot = types.DeriveSha(receipts, new(trie.Trie))
 			ext.bloom = types.CreateBloom(receipts)
 		} else {
@@ -1592,7 +1592,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if receipts == nil || err != nil {
 		return nil, err
 	}
-	if len(receipts) <= int(index) {
+	if receipts.Len() <= int(index) {
 		return nil, nil
 	}
 	receipt := receipts[index]
