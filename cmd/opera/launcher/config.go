@@ -104,9 +104,8 @@ var (
 const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
 	// Average memory consumption might be 3-5 times lower than the maximum
-	DefaultCacheSize   = 3200
-	DefaultGCCacheSize = 400
-	ConstantCacheSize  = 1024
+	DefaultCacheSize  = 3600
+	ConstantCacheSize = 1024
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -332,17 +331,14 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 	if !ctx.GlobalIsSet(CacheFlag.Name) {
 		return cachescale.Identity
 	}
-	totalCache := ctx.GlobalInt(CacheFlag.Name)
-	cacheSize := DefaultCacheSize
-	if ctx.GlobalString(utils.GCModeFlag.Name) == "full" {
-		cacheSize = DefaultCacheSize + DefaultGCCacheSize
-	}
-	if totalCache < cacheSize {
-		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", cacheSize))
+	targetCache := ctx.GlobalInt(CacheFlag.Name)
+	baseSize := DefaultCacheSize
+	if targetCache < baseSize {
+		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", baseSize))
 	}
 	return cachescale.Ratio{
-		Base:   uint64(cacheSize - ConstantCacheSize),
-		Target: uint64(totalCache - ConstantCacheSize),
+		Base:   uint64(baseSize - ConstantCacheSize),
+		Target: uint64(targetCache - ConstantCacheSize),
 	}
 }
 
