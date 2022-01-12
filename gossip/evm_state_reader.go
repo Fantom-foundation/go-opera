@@ -17,7 +17,7 @@ import (
 
 var (
 	big3 = big.NewInt(3)
-	big4 = big.NewInt(4)
+	big5 = big.NewInt(5)
 )
 
 type EvmStateReader struct {
@@ -42,12 +42,12 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 
 // RecommendedGasTip returns current soft lower bound for gas tip
 func (r *EvmStateReader) RecommendedGasTip() *big.Int {
-	// max((SuggestedGasTip+minGasPrice)*0.75-minGasPrice, 0)
+	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
 	min := r.MinGasPrice()
 	est := new(big.Int).Set(r.gpo.SuggestTipCap())
 	est.Add(est, min)
 	est.Mul(est, big3)
-	est.Div(est, big4)
+	est.Div(est, big5)
 	est.Sub(est, min)
 	if est.Sign() < 0 {
 		return new(big.Int)
