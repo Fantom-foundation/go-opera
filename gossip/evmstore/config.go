@@ -41,14 +41,15 @@ type (
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			ReceiptsSize:   scale.U(4 * opt.MiB),
-			ReceiptsBlocks: scale.I(4000),
-			TxPositions:    scale.I(20000),
-			EvmDatabase:    scale.I(32 * opt.MiB),
-			EvmSnap:        scale.I(32 * opt.MiB),
-			EvmBlocksNum:   scale.I(5000),
-			EvmBlocksSize:  scale.U(6 * opt.MiB),
-			TrieDirtyLimit: scale.U(400 * opt.MiB),
+			ReceiptsSize:      scale.U(4 * opt.MiB),
+			ReceiptsBlocks:    scale.I(4000),
+			TxPositions:       scale.I(20000),
+			EvmDatabase:       scale.I(32 * opt.MiB),
+			EvmSnap:           scale.I(32 * opt.MiB),
+			EvmBlocksNum:      scale.I(5000),
+			EvmBlocksSize:     scale.U(6 * opt.MiB),
+			TrieDirtyDisabled: true,
+			TrieDirtyLimit:    scale.U(400 * opt.MiB),
 		},
 		EnablePreimageRecording: true,
 	}
