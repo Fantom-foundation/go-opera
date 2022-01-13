@@ -150,9 +150,14 @@ func (h *handler) txsyncLoop() {
 }
 
 func (h *handler) updateSnapsyncStage() {
-	if h.config.AllowSnapsync && time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge {
+	fullsyncPossible := h.store.evm.HasStateDB(h.store.GetBlockState().FinalizedStateRoot)
+	// never allow to stop fullsync as it may lead to a race condition due to overwritten EVM snapshot by snapsync
+	snapsyncPossible := h.config.AllowSnapsync && !h.syncStatus.Is(ssEvents)
+	snapsyncNeeded := !fullsyncPossible || time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
+
+	if snapsyncPossible && snapsyncNeeded {
 		h.syncStatus.Set(ssSnaps)
-	} else {
+	} else if fullsyncPossible {
 		h.syncStatus.Set(ssEvents)
 	}
 }
@@ -193,10 +198,10 @@ func (h *handler) snapsyncStageTick() {
 			} else {
 				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
 			}
+			h.syncStatus.Set(ssEvents)
 		}
 	}
 	// push new data into an existing snapsync process
-	h.updateSnapsyncStage()
 	if h.syncStatus.Is(ssSnaps) {
 		lastEpoch := llrs.LowestEpochToFill - 1
 		lastBs, _ := h.store.GetHistoryBlockEpochState(lastEpoch)
