@@ -255,6 +255,7 @@ func (h *handler) snapsyncStateLoop() {
 				}
 				// start new snapsync state
 				h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
+				h.process.PauseEvmSnapshot()
 				ss := h.snapLeecher.SyncState(upd.root)
 				h.snapState.cancel = ss.Cancel
 			}
