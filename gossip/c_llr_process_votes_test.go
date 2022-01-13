@@ -85,10 +85,20 @@ func (s *LLRCallbacksTestSuite) Test_processBlockVotesErrAlreadyProcessedBVs() {
 	s.Require().EqualError(s.env.ProcessBlockVotes(s.bvs), eventcheck.ErrAlreadyProcessedBVs.Error())
 }
 
-// TODO fix that
+
 func (s *LLRCallbacksTestSuite) Test_processBlockVotesErrUnknownEpochBVs() {
-	s.bvs.Val.Epoch = 100
-	s.Require().EqualError(s.env.ProcessBlockVotes(s.bvs), eventcheck.ErrUnknownEpochBVs.Error())
+	bv := inter.LlrSignedBlockVotes{
+		Val: inter.LlrBlockVotes{
+				Start: s.env.store.GetLatestBlockIndex() - 1,
+				Epoch: 1,
+				Votes: []hash.Hash{
+					hash.Zero,
+					hash.HexToHash("0x01"),
+				},
+		},
+	}
+	
+	s.Require().EqualError(s.env.ProcessBlockVotes(bv), eventcheck.ErrUnknownEpochBVs.Error())
 }
 
 // test passes
