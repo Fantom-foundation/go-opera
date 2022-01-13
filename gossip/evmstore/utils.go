@@ -69,13 +69,21 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 
 	log.Info("Checking presence of every node")
 	var (
-		visitedHashes   = make([]common.Hash, 0, 100000)
-		checkedCache, _ = simplewlru.New(1000000, 1000000)
+		visitedHashes   = make([]common.Hash, 0, 1000000)
+		visitedI        = 0
+		checkedCache, _ = simplewlru.New(100000000, 100000000)
 		cached          = func(h common.Hash) bool {
 			_, ok := checkedCache.Get(h)
 			return ok
 		}
 	)
+	visited := func(h common.Hash, priority int) {
+		base := 100000 * priority
+		if visitedI%(1<<(len(visitedHashes)/base)) == 0 {
+			visitedHashes = append(visitedHashes, h)
+		}
+		visitedI++
+	}
 	forEachState(func(root common.Hash) (found bool, err error) {
 		stateTrie, err := s.EvmState.OpenTrie(root)
 		found = stateTrie != nil && err == nil
@@ -92,7 +100,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 					stateItSkip = true
 					continue
 				}
-				visitedHashes = append(visitedHashes, stateIt.Hash())
+				visited(stateIt.Hash(), 2)
 			}
 
 			if stateIt.Leaf() {
@@ -128,7 +136,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 								storageItSkip = true
 								continue
 							}
-							visitedHashes = append(visitedHashes, storageIt.Hash())
+							visited(storageIt.Hash(), 1)
 						}
 					}
 					if storageIt.Error() != nil {
