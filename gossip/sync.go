@@ -180,6 +180,13 @@ func (h *handler) snapsyncStageTick() {
 			if time.Since(bs.LastBlock.Time.Time()) > snapsyncMinEndAge {
 				continue
 			}
+			// cancel snapsync activity to prevent race condition
+			done := make(chan struct{})
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				snapsyncCancelCmd: &snapsyncCancelCmd{done},
+			}
+			<-done
+			// finalize snapsync
 			err := h.process.SwitchEpochTo(epoch)
 			if err == nil {
 				h.Log.Info("Epoch is switched by snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
@@ -195,8 +202,10 @@ func (h *handler) snapsyncStageTick() {
 		lastBs, _ := h.store.GetHistoryBlockEpochState(lastEpoch)
 		if lastBs != nil && time.Since(lastBs.LastBlock.Time.Time()) < snapsyncMaxStartAge {
 			h.snapState.updatesCh <- snapsyncStateUpd{
-				epoch: lastEpoch,
-				root:  common.Hash(lastBs.FinalizedStateRoot),
+				snapsyncEpochUpd: &snapsyncEpochUpd{
+					epoch: lastEpoch,
+					root:  common.Hash(lastBs.FinalizedStateRoot),
+				},
 			}
 		}
 	}
@@ -226,21 +235,32 @@ func (h *handler) snapsyncStateLoop() {
 	defer h.loopsWg.Done()
 	for {
 		select {
-		case upd := <-h.snapState.updatesCh:
-			// check if epoch has advanced
-			if h.snapState.epoch >= upd.epoch {
-				continue
+		case cmd := <-h.snapState.updatesCh:
+			if cmd.snapsyncEpochUpd != nil {
+				upd := cmd.snapsyncEpochUpd
+				// check if epoch has advanced
+				if h.snapState.epoch >= upd.epoch {
+					continue
+				}
+				h.snapState.epoch = upd.epoch
+				// cancel existing snapsync state
+				if h.snapState.cancel != nil {
+					_ = h.snapState.cancel()
+					h.snapState.cancel = nil
+				}
+				// start new snapsync state
+				h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
+				ss := h.snapLeecher.SyncState(upd.root)
+				h.snapState.cancel = ss.Cancel
 			}
-			h.snapState.epoch = upd.epoch
-			// cancel existing snapsync state
-			if h.snapState.cancel != nil {
-				_ = h.snapState.cancel()
-				h.snapState.cancel = nil
+			if cmd.snapsyncCancelCmd != nil {
+				// cancel existing snapsync state
+				if h.snapState.cancel != nil {
+					_ = h.snapState.cancel()
+					h.snapState.cancel = nil
+				}
+				cmd.snapsyncCancelCmd.done <- struct{}{}
 			}
-			// start new snapsync state
-			h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
-			ss := h.snapLeecher.SyncState(upd.root)
-			h.snapState.cancel = ss.Cancel
 		case <-h.snapState.quit:
 			return
 		}

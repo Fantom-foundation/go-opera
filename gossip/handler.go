@@ -101,9 +101,18 @@ type handlerConfig struct {
 	process  processCallback
 }
 
-type snapsyncStateUpd struct {
+type snapsyncEpochUpd struct {
 	epoch idx.Epoch
 	root  common.Hash
+}
+
+type snapsyncCancelCmd struct {
+	done chan struct{}
+}
+
+type snapsyncStateUpd struct {
+	snapsyncEpochUpd  *snapsyncEpochUpd
+	snapsyncCancelCmd *snapsyncCancelCmd
 }
 
 type snapsyncState struct {
