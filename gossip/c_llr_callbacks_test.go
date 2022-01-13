@@ -163,21 +163,20 @@ func TestLLRCallbacks(t *testing.T) {
 
 	// TODO add fullrepeater and make 2 go routines and then check if the states of 2 dbs match.
 	//we make full repeater where we receviing events and llr votes from generator concurrently using two go routines
-    // make sure that fullrepeater db state and geenrator db state is identical 
-	
+	// make sure that fullrepeater db state and geenrator db state is identical
+
 	/*
-	fullReapeter := newTestEnv(startEpoch, validatorsNum)
-	defer fullReapeter.Close()
-	go func(){
+		fullReapeter := newTestEnv(startEpoch, validatorsNum)
+		defer fullReapeter.Close()
+		go func(){
 
-	}()
+		}()
 
 
-	go  func(){
+		go  func(){
 
-	}()
+		}()
 	*/
-
 
 	/* testing ProcessEpochVote and ProcessBlockVote
 	   1. make new processor testenv
@@ -215,23 +214,9 @@ func TestLLRCallbacks(t *testing.T) {
 	}
 
 	for i := 0; i < len(evs); i++ {
-		require.Equal(epochVotes[i].Signed.Size(),  evs[i].Signed.Size())
+		require.Equal(epochVotes[i].Signed.Size(), evs[i].Signed.Size())
 		require.Equal(epochVotes[i].Val.Hash().String(), evs[i].Val.Hash().String()) // ?
 	}
-
-
-
-
-
-
-
-
-
-
-
-	
-
-	
 
 }
 

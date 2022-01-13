@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -15,6 +16,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
 
+var errLLRVotingDoubleSign = errors.New("LLR voting doublesign is met")
+
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
 	if current == upd {
 		current++
@@ -25,19 +28,25 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 	return current
 }
 
-func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) error {
 	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
 	if newWeight >= vals.TotalWeight()/3+1 {
+		fmt.Println("processBlockVote newWeight >= vals.TotalWeight()/3+1 newWeight block", newWeight, block)
 		wonBr := s.store.GetLlrBlockResult(block)
 		if wonBr == nil {
+			fmt.Println("processBlockVote wonBr=nil, block", block)
 			s.store.SetLlrBlockResult(block, bv)
 			llrs.LowestBlockToDecide = idx.Block(actualizeLowestIndex(uint64(llrs.LowestBlockToDecide), uint64(block), func(u uint64) bool {
 				return s.store.GetLlrBlockResult(idx.Block(u)) != nil
 			}))
 		} else if *wonBr != bv {
-			s.Log.Error("LLR voting doublesign is met", "block", block)
+			// s.Log.Error("LLR voting doublesign is met", "block", block)
+			// return err for testing purposes
+			return errLLRVotingDoubleSign
 		}
 	}
+
+	return nil
 }
 
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
@@ -62,7 +71,9 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	llrs := s.store.GetLlrState()
 	b := bvs.Val.Start
 	for _, bv := range bvs.Val.Votes {
-		s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs)
+		if err := s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs); err != nil {
+			return err
+		}
 		b++
 	}
 	s.store.SetLlrState(llrs)

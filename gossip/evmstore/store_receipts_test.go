@@ -88,7 +88,7 @@ func benchStoreSetRawReceipts(b *testing.B, store *Store) {
 func fakeReceipts() (idx.Block, []*types.ReceiptForStorage) {
 	return idx.Block(1),
 		[]*types.ReceiptForStorage{
-			&types.ReceiptForStorage{
+			{
 				PostState:         nil,
 				Status:            0,
 				CumulativeGasUsed: 0,

@@ -4,10 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+//	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/inter"
+//	"github.com/Fantom-foundation/go-opera/utils"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
+//	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
 type LLRCallbacksTestSuite struct {
@@ -24,9 +28,33 @@ type LLRCallbacksTestSuite struct {
 func (s *LLRCallbacksTestSuite) SetupSuite() {
 	s.T().Log("setting up test suite")
 
-	const validatorsNum = 1
+	const (
+		validatorsNum = 10
+		////rounds        = 50
+	)
 
 	env := newTestEnv(1, validatorsNum)
+
+	// generate txs and multiple blocks
+	// TODO consider declare a standalone function
+	/*
+	for n := uint64(0); n < rounds; n++ {
+		// transfers
+		txs := make([]*types.Transaction, validatorsNum)
+		for i := idx.Validator(0); i < validatorsNum; i++ {
+			from := i % validatorsNum
+			to := 0
+			txs[i] = env.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
+		}
+		tm := sameEpoch
+		if n%10 == 0 {
+			tm = nextEpoch
+		}
+		_, err := env.ApplyTxs(tm, txs...)
+		s.Require().NoError(err)
+	}
+	*/
+	
 
 	em := env.emitters[0]
 	e, err := em.EmitEvent()
@@ -36,6 +64,7 @@ func (s *LLRCallbacksTestSuite) SetupSuite() {
 	s.env = env
 	s.e = e
 	s.me = mutableEventPayloadFromImmutable(e)
+	
 	s.bvs = inter.AsSignedBlockVotes(s.me)
 	s.ev = inter.AsSignedEpochVote(s.me)
 
@@ -128,6 +157,30 @@ func (s *LLRCallbacksTestSuite) Test_processBlockVoteLLRVotingDoubleSignIsMet() 
 			just wonder how to apply it in my test case
 
 	*/
+
+	bs, es := s.env.store.GetHistoryBlockEpochState(1)
+	s.Require().NotNil(es)
+	s.Require().NotNil(bs)
+
+	var bv1 inter.LlrSignedBlockVotes
+	bv1 = s.bvs
+	
+	bv1.Val.Start = bs.LastBlock.Idx - 1
+	bv1.Val.Epoch = 1
+	bv1.Val.Votes = []hash.Hash{hash.Zero,hash.HexToHash("0x01"), hash.HexToHash("0x02")}
+
+	em := s.env.emitters[1] 
+	e, err := em.EmitEvent()
+	s.Require().NoError(err)
+	bv2 := inter.AsSignedBlockVotes(mutableEventPayloadFromImmutable(e))
+
+	bv2.Val.Start = bs.LastBlock.Idx
+	bv2.Val.Epoch = 1
+	bv2.Val.Votes = []hash.Hash{hash.HexToHash("0x02"), hash.HexToHash("0x03")}
+
+
+	s.Require().NoError(s.env.ProcessBlockVotes(bv1))
+	s.Require().EqualError(s.env.ProcessBlockVotes(bv2), errLLRVotingDoubleSign.Error())
 
 }
 
@@ -223,7 +276,7 @@ func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEvent
 	// we migrate immutable payload to mutable payload
 	// we set
 	// we test against errors in processEvent
-  
+
 	me := &inter.MutableEventPayload{}
 	me.SetVersion(e.Version())
 	me.SetNetForkID(e.NetForkID())
@@ -241,10 +294,9 @@ func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEvent
 	me.SetMisbehaviourProofs(e.MisbehaviourProofs())
 	me.SetBlockVotes(e.BlockVotes())
 	me.SetEpochVote(e.EpochVote())
-  
+
 	return me
- }
- 
+}
 
 /*
 func ExampleProcessBlockVotes() {
