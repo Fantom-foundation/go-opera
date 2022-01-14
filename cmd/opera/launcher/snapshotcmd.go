@@ -146,7 +146,7 @@ It's also usable without snapshot enabled.
 
 func pruneState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.Cachescale)
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
@@ -189,7 +189,7 @@ func pruneState(ctx *cli.Context) error {
 
 func verifyState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.Cachescale)
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
@@ -234,7 +234,7 @@ func verifyState(ctx *cli.Context) error {
 // contract codes are present.
 func traverseState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.Cachescale)
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
@@ -327,7 +327,7 @@ func traverseState(ctx *cli.Context) error {
 // but it will check each trie node.
 func traverseRawState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.Cachescale)
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
