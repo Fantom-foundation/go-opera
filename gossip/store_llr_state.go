@@ -13,8 +13,16 @@ type LlrState struct {
 	LowestBlockToFill   idx.Block
 }
 
-func (s *Store) SetLlrState(llrs LlrState) {
+func (s *Store) setLlrState(llrs LlrState) {
 	s.cache.LlrState.Store(&llrs)
+}
+
+func (s *Store) ModifyLlrState(f func(*LlrState)) {
+	s.mutex.WriteLlrState.Lock()
+	defer s.mutex.WriteLlrState.Unlock()
+	llrs := s.GetLlrState()
+	f(&llrs)
+	s.setLlrState(llrs)
 }
 
 func (s *Store) GetLlrState() LlrState {

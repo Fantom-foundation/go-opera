@@ -59,13 +59,13 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 		return eventcheck.ErrUnknownEpochBVs
 	}
 
-	llrs := s.store.GetLlrState()
-	b := bvs.Val.Start
-	for _, bv := range bvs.Val.Votes {
-		s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, &llrs)
-		b++
-	}
-	s.store.SetLlrState(llrs)
+	s.store.ModifyLlrState(func(llrs *LlrState) {
+		b := bvs.Val.Start
+		for _, bv := range bvs.Val.Votes {
+			s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, llrs)
+			b++
+		}
+	})
 	s.store.SetBlockVotes(bvs)
 	lBVs := s.store.GetLastBVs()
 	lBVs.Lock()
@@ -177,9 +177,9 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 		return eventcheck.ErrUnknownEpochEV
 	}
 
-	llrs := s.store.GetLlrState()
-	s.processEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, &llrs)
-	s.store.SetLlrState(llrs)
+	s.store.ModifyLlrState(func(llrs *LlrState) {
+		s.processEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
+	})
 	s.store.SetEpochVote(ev)
 	lEVs := s.store.GetLastEVs()
 	lEVs.Lock()
@@ -219,10 +219,18 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	return nil
 }
 
+func updateLowestBlockToFill(block idx.Block, store *Store) {
+	store.ModifyLlrState(func(llrs *LlrState) {
+		llrs.LowestBlockToFill = idx.Block(actualizeLowestIndex(uint64(llrs.LowestBlockToFill), uint64(block), func(u uint64) bool {
+			return store.GetBlock(idx.Block(u)) != nil
+		}))
+	})
+}
+
 func updateLowestEpochToFill(epoch idx.Epoch, store *Store) {
-	llrs := store.GetLlrState()
-	llrs.LowestEpochToFill = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToFill), uint64(epoch), func(u uint64) bool {
-		return store.HasHistoryBlockEpochState(idx.Epoch(u))
-	}))
-	store.SetLlrState(llrs)
+	store.ModifyLlrState(func(llrs *LlrState) {
+		llrs.LowestEpochToFill = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToFill), uint64(epoch), func(u uint64) bool {
+			return store.HasHistoryBlockEpochState(idx.Epoch(u))
+		}))
+	})
 }

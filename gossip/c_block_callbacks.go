@@ -247,14 +247,14 @@ func consensusCallbackBeginBlockFn(
 
 				// skip LLR block/epoch deciding if not activated
 				if !es.Rules.Upgrades.Llr {
-					llrs := store.GetLlrState()
-					if llrs.LowestBlockToDecide == blockCtx.Idx {
-						llrs.LowestBlockToDecide++
-					}
-					if sealing && es.Epoch+1 == llrs.LowestEpochToDecide {
-						llrs.LowestEpochToDecide++
-					}
-					store.SetLlrState(llrs)
+					store.ModifyLlrState(func(llrs *LlrState) {
+						if llrs.LowestBlockToDecide == blockCtx.Idx {
+							llrs.LowestBlockToDecide++
+						}
+						if sealing && es.Epoch+1 == llrs.LowestEpochToDecide {
+							llrs.LowestEpochToDecide++
+						}
+					})
 				}
 
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
