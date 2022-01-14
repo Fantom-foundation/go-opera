@@ -2,6 +2,8 @@ package gossip
 
 import (
 	"testing"
+	"bytes"
+
 
 	"github.com/stretchr/testify/require"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/utils"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
@@ -141,8 +144,6 @@ func TestLLRCallbacks(t *testing.T) {
 		}
 	}
 
-
-
 	// compare results
 	// TODO check more parameters 
 	for e := idx.Epoch(2); e <= lastEpoch; e++ { 
@@ -165,6 +166,58 @@ func TestLLRCallbacks(t *testing.T) {
 
 	// TODO full repeater
 
+	fullRepeater := newTestEnv(startEpoch, validatorsNum)
+	defer fullRepeater.Close()
+
+
+	fetchEvents := func() (events []*inter.EventPayload) {
+		it := generator.store.table.Events.NewIterator(nil,nil)
+		defer it.Release()
+		for it.Next() {
+			e := &inter.EventPayload{}
+			if err := rlp.DecodeBytes(it.Value(), e); err != nil {
+				generator.store.Log.Crit("Failed to decode event", "err", err)
+			}
+			if e != nil {
+				events = append(events, e)
+			}
+		}
+		return
+	}
+
+	events := fetchEvents()
+
+	for _, e := range events {
+		require.NoError(fullRepeater.processEvent(e))
+	}
+
+	fetchTable := func(table kvdb.Store) ([]byte, []byte) {
+		var keys, values []byte
+		it := table.NewIterator(nil,nil)
+		defer it.Release()
+		for it.Next() {
+			key, value := it.Key(), it.Value()
+			keys = append(keys, key...)
+			values = append(values, value...)
+		}
+		return keys, values
+	}
+
+	genKeys, genValues := fetchTable(generator.store.mainDB)
+	fullRepKeys, fullRepValues := fetchTable(fullRepeater.store.mainDB)
+
+	require.Equal(len(genKeys), len(fullRepKeys)) // ok
+	require.Equal(len(genValues), len(fullRepValues)) // false
+	require.True(bytes.Equal(genKeys, fullRepKeys)) // ok
+	require.True(bytes.Equal(genValues, fullRepValues)) // false
+    /*
+	    /home/ai/go/src/github.com/cyberbono3/go-opera/gossip/c_llr_callbacks_test.go:210: 
+        	Error Trace:	c_llr_callbacks_test.go:210
+        	Error:      	Not equal: 
+        	            	expected: 863657
+        	            	actual  : 863656
+        	Test:       	TestLLRCallbacks
+	*/
 }
 
 // TODO make sure there are no race conditions
