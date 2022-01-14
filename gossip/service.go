@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -424,6 +425,9 @@ func (s *Service) Start() error {
 	// start snapshots generation
 	root := s.store.GetBlockState().FinalizedStateRoot
 	if !s.store.evm.HasStateDB(root) {
+		if !s.config.AllowSnapsync {
+			return errors.New("fullsync isn't possible because state root is missing")
+		}
 		root = hash.Zero
 	}
 	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
