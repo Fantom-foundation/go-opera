@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-//	"github.com/ethereum/go-ethereum/core/types"
+	//	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/inter"
-//	"github.com/Fantom-foundation/go-opera/utils"
+	//	"github.com/Fantom-foundation/go-opera/utils"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-//	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	//	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
 type LLRCallbacksTestSuite struct {
@@ -38,23 +38,22 @@ func (s *LLRCallbacksTestSuite) SetupSuite() {
 	// generate txs and multiple blocks
 	// TODO consider declare a standalone function
 	/*
-	for n := uint64(0); n < rounds; n++ {
-		// transfers
-		txs := make([]*types.Transaction, validatorsNum)
-		for i := idx.Validator(0); i < validatorsNum; i++ {
-			from := i % validatorsNum
-			to := 0
-			txs[i] = env.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
+		for n := uint64(0); n < rounds; n++ {
+			// transfers
+			txs := make([]*types.Transaction, validatorsNum)
+			for i := idx.Validator(0); i < validatorsNum; i++ {
+				from := i % validatorsNum
+				to := 0
+				txs[i] = env.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
+			}
+			tm := sameEpoch
+			if n%10 == 0 {
+				tm = nextEpoch
+			}
+			_, err := env.ApplyTxs(tm, txs...)
+			s.Require().NoError(err)
 		}
-		tm := sameEpoch
-		if n%10 == 0 {
-			tm = nextEpoch
-		}
-		_, err := env.ApplyTxs(tm, txs...)
-		s.Require().NoError(err)
-	}
 	*/
-	
 
 	em := env.emitters[0]
 	e, err := em.EmitEvent()
@@ -64,7 +63,7 @@ func (s *LLRCallbacksTestSuite) SetupSuite() {
 	s.env = env
 	s.e = e
 	s.me = mutableEventPayloadFromImmutable(e)
-	
+
 	s.bvs = inter.AsSignedBlockVotes(s.me)
 	s.ev = inter.AsSignedEpochVote(s.me)
 
@@ -85,57 +84,26 @@ func (s *LLRCallbacksTestSuite) Test_processBlockVotesErrAlreadyProcessedBVs() {
 	s.Require().EqualError(s.env.ProcessBlockVotes(s.bvs), eventcheck.ErrAlreadyProcessedBVs.Error())
 }
 
-
 func (s *LLRCallbacksTestSuite) Test_processBlockVotesErrUnknownEpochBVs() {
 	bv := inter.LlrSignedBlockVotes{
 		Val: inter.LlrBlockVotes{
-				Start: s.env.store.GetLatestBlockIndex() - 1,
-				Epoch: 1,
-				Votes: []hash.Hash{
-					hash.Zero,
-					hash.HexToHash("0x01"),
-				},
+			Start: s.env.store.GetLatestBlockIndex() - 1,
+			Epoch: 1,
+			Votes: []hash.Hash{
+				hash.Zero,
+				hash.HexToHash("0x01"),
+			},
 		},
 	}
-	
+
 	s.Require().EqualError(s.env.ProcessBlockVotes(bv), eventcheck.ErrUnknownEpochBVs.Error())
 }
-
 
 func (s *LLRCallbacksTestSuite) Test_processBlockVoteWonBrIsNil() {
 	s.bvs.Val.Votes = []hash.Hash{hash.HexToHash("0x01"), hash.Zero}
 	//s.env.store.SetBlockVotes(s.bvs)
 	s.Require().Nil(s.env.ProcessBlockVotes(s.bvs))
 }
-
-// TODO fix it
-func (s *LLRCallbacksTestSuite) Test_processBlockVoteLLRVotingDoubleSignIsMet() {
-	
-	bs, es := s.env.store.GetHistoryBlockEpochState(1)
-	s.Require().NotNil(es)
-	s.Require().NotNil(bs)
-
-	var bv1 inter.LlrSignedBlockVotes
-	bv1 = s.bvs
-	
-	bv1.Val.Start = bs.LastBlock.Idx - 1
-	bv1.Val.Epoch = 1
-	bv1.Val.Votes = []hash.Hash{hash.Zero,hash.HexToHash("0x01"), hash.HexToHash("0x02")}
-
-	em := s.env.emitters[1] 
-	e, err := em.EmitEvent()
-	s.Require().NoError(err)
-	bv2 := inter.AsSignedBlockVotes(mutableEventPayloadFromImmutable(e))
-
-	bv2.Val.Start = bs.LastBlock.Idx
-	bv2.Val.Epoch = 1
-	bv2.Val.Votes = []hash.Hash{hash.HexToHash("0x02"), hash.HexToHash("0x03")}
-
-
-	s.Require().NoError(s.env.ProcessBlockVotes(bv1))
-	s.Require().EqualError(s.env.ProcessBlockVotes(bv2), errLLRVotingDoubleSign.Error())
-}
-
 
 func TestLLRCallbacksTestSuite(t *testing.T) {
 	suite.Run(t, new(LLRCallbacksTestSuite))
@@ -156,14 +124,13 @@ func (s *LLRCallbacksTestSuite) Test_processEpochVoteErrUnknownEpochEV() {
 	// print outr everything in GetHistoryEpochState
 	ev := inter.LlrSignedEpochVote{
 		Val: inter.LlrEpochVote{
-				Epoch: 1,
-				Vote:  hash.HexToHash("0x01"),
+			Epoch: 1,
+			Vote:  hash.HexToHash("0x01"),
 		},
 	}
 
 	s.Require().EqualError(s.env.ProcessEpochVote(ev), eventcheck.ErrUnknownEpochEV.Error())
 }
-
 
 // TODO
 func Test_actualizeLowestIndex(t *testing.T) {
@@ -196,12 +163,7 @@ func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEvent
 	return me
 }
 
-/*
-func ExampleProcessBlockVotes() {
-	//votes := []hash.Hash{hash.Zero,hash.HexToHash("0x01")}
-    // take event e.g. empty event
-	// make mutable event from it?
-	//
+// TODO make standalone test that is called by a set of validators
+func Test_processBlockVoteLLRVotingDoubleSignIsMet(t *testing.T) {
 
 }
-*/

@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -31,10 +30,8 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) error {
 	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
 	if newWeight >= vals.TotalWeight()/3+1 {
-		fmt.Println("processBlockVote newWeight >= vals.TotalWeight()/3+1 newWeight block", newWeight, block)
 		wonBr := s.store.GetLlrBlockResult(block)
 		if wonBr == nil {
-			fmt.Println("processBlockVote wonBr=nil, block", block)
 			s.store.SetLlrBlockResult(block, bv)
 			llrs.LowestBlockToDecide = idx.Block(actualizeLowestIndex(uint64(llrs.LowestBlockToDecide), uint64(block), func(u uint64) bool {
 				return s.store.GetLlrBlockResult(idx.Block(u)) != nil
