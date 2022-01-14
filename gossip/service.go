@@ -423,6 +423,9 @@ func (s *Service) Start() error {
 	// start tflusher before starting snapshots generation
 	s.tflusher.Start()
 	// start snapshots generation
+	if s.store.evm.IsEvmSnapshotPaused() && !s.config.AllowSnapsync {
+		return errors.New("fullsync isn't possible because state root is missing")
+	}
 	root := s.store.GetBlockState().FinalizedStateRoot
 	if !s.store.evm.HasStateDB(root) {
 		if !s.config.AllowSnapsync {
