@@ -207,15 +207,18 @@ func TestLLRCallbacks(t *testing.T) {
 	fullRepKeys, fullRepValues := fetchTable(fullRepeater.store.mainDB)
 
 	require.Equal(len(genKeys), len(fullRepKeys)) // ok
-	require.Equal(len(genValues), len(fullRepValues)) // false
+	require.Equal(len(genValues), len(fullRepValues)) // ok
 	require.True(bytes.Equal(genKeys, fullRepKeys)) // ok
-	require.True(bytes.Equal(genValues, fullRepValues)) // false
-   /*
-       /home/ai/go/src/github.com/cyberbono3/go-opera/gossip/c_llr_callbacks_test.go:212: 
-        	Error Trace:	c_llr_callbacks_test.go:212
-        	Error:      	Should be true
-        	Test:       	TestLLRCallbacks
-   */
+	//require.True(bytes.Equal(genValues, fullRepValues)) // false
+
+	for i, v := range genValues {
+		t.Log("i", i)
+		require.Equal(string(v), string(fullRepValues[i]))
+	}
+
+
+
+   
 }
 
 // TODO make sure there are no race conditions
