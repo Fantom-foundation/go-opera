@@ -348,7 +348,7 @@ func (s *Store) recoverLlrState() error {
 	epoch := v1.EpochState.Epoch + 1
 	block := v1.BlockState.LastBlock.Idx + 1
 
-	s.SetLlrState(LlrState{
+	s.setLlrState(LlrState{
 		LowestEpochToDecide: epoch,
 		LowestEpochToFill:   epoch,
 		LowestBlockToDecide: block,

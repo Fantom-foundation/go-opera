@@ -126,6 +126,14 @@ func (s *Store) RebuildEvmSnapshot(root common.Hash) {
 	s.Snaps.Rebuild(root)
 }
 
+func (s *Store) PauseEvmSnapshot() {
+	s.Snaps.Disable()
+}
+
+func (s *Store) IsEvmSnapshotPaused() bool {
+	return rawdb.ReadSnapshotDisabled(s.table.Evm)
+}
+
 // Commit changes.
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()

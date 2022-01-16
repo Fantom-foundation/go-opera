@@ -158,11 +158,25 @@ func (s *Service) SwitchEpochTo(newEpoch idx.Epoch) error {
 	return nil
 }
 
+func (s *Service) PauseEvmSnapshot() {
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	s.blockProcWg.Wait()
+	if !s.store.evm.IsEvmSnapshotPaused() {
+		s.store.evm.PauseEvmSnapshot()
+	}
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
 	if s.stopped {
 		return errStopped
+	}
+	if s.store.evm.IsEvmSnapshotPaused() {
+		root := s.store.GetBlockState().FinalizedStateRoot
+		s.Log.Warn("Rebuilding state snapshot after a pause", "root", root)
+		s.store.evm.RebuildEvmSnapshot(common.Hash(root))
 	}
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
 	defer atomic.StoreUint32(&s.eventBusyFlag, 0)

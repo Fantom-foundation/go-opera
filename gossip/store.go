@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -81,6 +82,10 @@ type Store struct {
 		LastEV                 atomic.Value
 		LlrState               atomic.Value
 		KvdbEvmSnap            atomic.Value
+	}
+
+	mutex struct {
+		WriteLlrState sync.Mutex
 	}
 
 	rlp rlpstore.Helper
