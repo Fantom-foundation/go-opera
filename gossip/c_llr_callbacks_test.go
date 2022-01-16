@@ -210,14 +210,12 @@ func TestLLRCallbacks(t *testing.T) {
 	require.Equal(len(genValues), len(fullRepValues)) // false
 	require.True(bytes.Equal(genKeys, fullRepKeys)) // ok
 	require.True(bytes.Equal(genValues, fullRepValues)) // false
-    /*
-	    /home/ai/go/src/github.com/cyberbono3/go-opera/gossip/c_llr_callbacks_test.go:210: 
-        	Error Trace:	c_llr_callbacks_test.go:210
-        	Error:      	Not equal: 
-        	            	expected: 863657
-        	            	actual  : 863656
+   /*
+       /home/ai/go/src/github.com/cyberbono3/go-opera/gossip/c_llr_callbacks_test.go:212: 
+        	Error Trace:	c_llr_callbacks_test.go:212
+        	Error:      	Should be true
         	Test:       	TestLLRCallbacks
-	*/
+   */
 }
 
 // TODO make sure there are no race conditions
