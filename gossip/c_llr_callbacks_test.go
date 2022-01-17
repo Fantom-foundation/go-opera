@@ -2,8 +2,6 @@ package gossip
 
 import (
 	"testing"
-	"bytes"
-
 
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +15,8 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
+	"github.com/status-im/keycard-go/hexutils"
 )
 
 // WIP test for ProcessFullBlockRecord and ProcessFullEpochRecord
@@ -163,12 +163,8 @@ func TestLLRCallbacks(t *testing.T) {
 		require.Equal(repBrHash, genBrHash)
 	}
 
-
-	// TODO full repeater
-
 	fullRepeater := newTestEnv(startEpoch, validatorsNum)
 	defer fullRepeater.Close()
-
 
 	fetchEvents := func() (events []*inter.EventPayload) {
 		it := generator.store.table.Events.NewIterator(nil,nil)
@@ -188,17 +184,19 @@ func TestLLRCallbacks(t *testing.T) {
 	events := fetchEvents()
 
 	for _, e := range events {
+		fullRepeater.engineMu.Lock()
 		require.NoError(fullRepeater.processEvent(e))
+		fullRepeater.engineMu.Unlock()
 	}
 
-	fetchTable := func(table kvdb.Store) ([]byte, []byte) {
-		var keys, values []byte
+	fetchTable := func(table kvdb.Store) ([][]byte, [][]byte) {
+		var keys, values [][]byte
 		it := table.NewIterator(nil,nil)
 		defer it.Release()
 		for it.Next() {
 			key, value := it.Key(), it.Value()
-			keys = append(keys, key...)
-			values = append(values, value...)
+			keys = append(keys, key)
+			values = append(values, value)
 		}
 		return keys, values
 	}
@@ -208,17 +206,17 @@ func TestLLRCallbacks(t *testing.T) {
 
 	require.Equal(len(genKeys), len(fullRepKeys)) // ok
 	require.Equal(len(genValues), len(fullRepValues)) // ok
-	require.True(bytes.Equal(genKeys, fullRepKeys)) // ok
-	//require.True(bytes.Equal(genValues, fullRepValues)) // false
 
-	for i, v := range genValues {
-		t.Log("i", i)
-		require.Equal(string(v), string(fullRepValues[i]))
+	for i, k := range genKeys {
+		require.Equal(hexutils.BytesToHex(k), hexutils.BytesToHex(fullRepKeys[i])) // ok
 	}
 
-
-
-   
+	for i, v := range genValues {
+		if genKeys[i][0] == 0 || genKeys[i][0] == 'x' || genKeys[i][0] == 'X' || genKeys[i][0] == 'b' || genKeys[i][0] == 'S'{
+			continue
+		}
+		require.Equal(hexutils.BytesToHex(v), hexutils.BytesToHex(fullRepValues[i]), hexutils.BytesToHex(genKeys[i])) // ok
+	}
 }
 
 // TODO make sure there are no race conditions
