@@ -192,13 +192,12 @@ func (h *handler) snapsyncStageTick() {
 			}
 			<-done
 			// finalize snapsync
-			err := h.process.SwitchEpochTo(epoch)
-			if err == nil {
-				h.Log.Info("Epoch is switched by snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
-			} else {
+			if err := h.process.SwitchEpochTo(epoch); err != nil {
 				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
+			} else {
+				h.Log.Info("Snapsync is finalized at", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
+				h.syncStatus.Set(ssEvents)
 			}
-			h.syncStatus.Set(ssEvents)
 		}
 	}
 	// push new data into an existing snapsync process
