@@ -93,24 +93,28 @@ func TestLLRCallbacks(t *testing.T) {
 	// create repeater
 	repeater := newTestEnv(startEpoch, validatorsNum)
 	defer repeater.Close()
-	
 
-	// invoke repeater.ProcessEpochVote and ProcessFullEpochRecord for epoch in range [2; lastepoch]
-	for e := idx.Epoch(2); e <= lastEpoch; e++ {
-		epochVotes, ok := epochToEvsMap[e]
-		if !ok {
-			repeater.store.Log.Crit("Failed to fetch epoch votes for a given epoch")
-		}
+	processEpochVotesRecords := func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, processor *testEnv){
+		// invoke repeater.ProcessEpochVote and ProcessFullEpochRecord for epoch in range [2; lastepoch]
+		for e := idx.Epoch(startEpoch +1); e <= lastEpoch; e++ {
+			epochVotes, ok := epochToEvsMap[e]
+			if !ok {
+				repeater.store.Log.Crit("Failed to fetch epoch votes for a given epoch")
+			}
 
-		for _, v := range epochVotes {
-			require.NoError(repeater.ProcessEpochVote(*v))
-		}
+			for _, v := range epochVotes {
+				require.NoError(processor.ProcessEpochVote(*v))
+			}
 
-		if er := generator.store.GetFullEpochRecord(e); er != nil {
-			ier := ier.LlrIdxFullEpochRecord{LlrFullEpochRecord: *er, Idx: e}
-			require.NoError(repeater.ProcessFullEpochRecord(ier))
+			if er := generator.store.GetFullEpochRecord(e); er != nil {
+				ier := ier.LlrIdxFullEpochRecord{LlrFullEpochRecord: *er, Idx: e}
+				require.NoError(processor.ProcessFullEpochRecord(ier))
+			}
 		}
 	}
+	
+	processEpochVotesRecords(epochToEvsMap, repeater)
+	
 
 	// TODO find out how many votes at most has each block? one or multiple?
 	// map[idx.Block][]*inter.LlrSignedBlockVotes  or map[idx.Block]*inter.LlrSignedBlockVotes
@@ -133,16 +137,20 @@ func TestLLRCallbacks(t *testing.T) {
 
 	blockToBvsMap := fetchBvs(generator)
 
-	for b, bvs := range blockToBvsMap {
-		for _, bv := range bvs {
-			require.NoError(repeater.ProcessBlockVotes(*bv))
-		}
-
-		if br := generator.store.GetFullBlockRecord(b); br != nil {
-			ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: b}
-			require.NoError(repeater.ProcessFullBlockRecord(ibr))
+	processBlockVotesRecords := func(blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes, processor *testEnv) {
+		for b, bvs := range blockToBvsMap {
+			for _, bv := range bvs {
+				require.NoError(processor.ProcessBlockVotes(*bv))
+			}
+	
+			if br := generator.store.GetFullBlockRecord(b); br != nil {
+				ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: b}
+				require.NoError(processor.ProcessFullBlockRecord(ibr))
+			}
 		}
 	}
+
+	processBlockVotesRecords(blockToBvsMap, repeater)
 
 	// compare results
 	// TODO check more parameters
@@ -169,35 +177,10 @@ func TestLLRCallbacks(t *testing.T) {
 
 	// process LLR epochVotes  in fullRepeater
 	// with epochVotes there is no need to run them concurrently, cause you encounter an error
-	// TODO make a standalone func for that 
-	for e := idx.Epoch(2); e <= lastEpoch; e++ {
-		epochVotes, ok := epochToEvsMap[e]
-		if !ok {
-			repeater.store.Log.Crit("Failed to fetch epoch votes for a given epoch")
-		}
-
-		for _, v := range epochVotes {
-			require.NoError(fullRepeater.ProcessEpochVote(*v))
-		}
-
-		if er := generator.store.GetFullEpochRecord(e); er != nil {
-			ier := ier.LlrIdxFullEpochRecord{LlrFullEpochRecord: *er, Idx: e}
-			require.NoError(fullRepeater.ProcessFullEpochRecord(ier))
-		}
-	}
+	processEpochVotesRecords(epochToEvsMap, fullRepeater)
 
 	// process LLR block votes and BRs in fullReapeter
-	// TODO make standalone func for that
-	for b, bvs := range blockToBvsMap {
-		for _, bv := range bvs {
-			require.NoError(fullRepeater.ProcessBlockVotes(*bv))
-		}
-
-		if br := generator.store.GetFullBlockRecord(b); br != nil {
-			ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: b}
-			require.NoError(fullRepeater.ProcessFullBlockRecord(ibr))
-		}
-	}
+	processBlockVotesRecords(blockToBvsMap, fullRepeater)
 
 	fetchEvents := func() (events []*inter.EventPayload) {
 		it := generator.store.table.Events.NewIterator(nil, nil)
