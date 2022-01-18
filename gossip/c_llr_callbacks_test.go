@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"testing"
+	"sync"
 
 	"github.com/stretchr/testify/require"
 
@@ -175,38 +176,46 @@ func TestLLRCallbacks(t *testing.T) {
 	defer fullRepeater.Close()
 
 
-	// process LLR epochVotes  in fullRepeater
-	// with epochVotes there is no need to run them concurrently, cause you encounter an error
-	processEpochVotesRecords(epochToEvsMap, fullRepeater)
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+	go func(fullRepeater *testEnv, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes){
+		defer wg.Done()
+		// process LLR epochVotes  in fullRepeater
+		processEpochVotesRecords(epochToEvsMap, fullRepeater)
 
-	// process LLR block votes and BRs in fullReapeter
-	processBlockVotesRecords(blockToBvsMap, fullRepeater)
+		// process LLR block votes and BRs in fullReapeter
+		processBlockVotesRecords(blockToBvsMap, fullRepeater)
 
-	fetchEvents := func() (events []*inter.EventPayload) {
-		it := generator.store.table.Events.NewIterator(nil, nil)
-		defer it.Release()
-		for it.Next() {
-			e := &inter.EventPayload{}
-			if err := rlp.DecodeBytes(it.Value(), e); err != nil {
-				generator.store.Log.Crit("Failed to decode event", "err", err)
+	}(fullRepeater, epochToEvsMap, blockToBvsMap)
+
+	go func(fullRepeater *testEnv){
+		defer wg.Done()
+		events := func() (events []*inter.EventPayload) {
+			it := generator.store.table.Events.NewIterator(nil, nil)
+			defer it.Release()
+			for it.Next() {
+				e := &inter.EventPayload{}
+				if err := rlp.DecodeBytes(it.Value(), e); err != nil {
+					generator.store.Log.Crit("Failed to decode event", "err", err)
+				}
+				if e != nil {
+					// TODO I might call processEvent here
+					events = append(events, e)
+				}
 			}
-			if e != nil {
-				events = append(events, e)
-			}
+			return
+		}()
+	
+		for _, e := range events {
+			fullRepeater.engineMu.Lock()
+			require.NoError(fullRepeater.processEvent(e))
+			fullRepeater.engineMu.Unlock()
 		}
-		return
-	}
+	}(fullRepeater)
 
-	events := fetchEvents()
+	wg.Wait()
 
-	for _, e := range events {
-		fullRepeater.engineMu.Lock()
-		require.NoError(fullRepeater.processEvent(e))
-		fullRepeater.engineMu.Unlock()
-	}
-
-
-
+	// Comparing the store states
 
 	fetchTable := func(table kvdb.Store) map[string]string {
 		var m = make(map[string]string)
@@ -219,6 +228,7 @@ func TestLLRCallbacks(t *testing.T) {
 		return m
 	}
 
+	
 	require.NoError(generator.store.Commit())
 	require.NoError(fullRepeater.store.Commit())
 
