@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	//"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -94,6 +93,7 @@ func TestLLRCallbacks(t *testing.T) {
 	// create repeater
 	repeater := newTestEnv(startEpoch, validatorsNum)
 	defer repeater.Close()
+	
 
 	// invoke repeater.ProcessEpochVote and ProcessFullEpochRecord for epoch in range [2; lastepoch]
 	for e := idx.Epoch(2); e <= lastEpoch; e++ {
@@ -166,6 +166,7 @@ func TestLLRCallbacks(t *testing.T) {
 	fullRepeater := newTestEnv(startEpoch, validatorsNum)
 	defer fullRepeater.Close()
 
+
 	// process LLR epochVotes  in fullRepeater
 	// with epochVotes there is no need to run them concurrently, cause you encounter an error
 	// TODO make a standalone func for that 
@@ -221,81 +222,40 @@ func TestLLRCallbacks(t *testing.T) {
 		fullRepeater.engineMu.Unlock()
 	}
 
-	/* concurrent scenario
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
-	declare buffered error channel to get errors from gourotines
-	go processEpochVotesandER(){
-		defer wg.Done()
-		process EpochVotes and ERs sequentially due to error we discussed (for loop in range [2, lastEpoch])
-		write possible errors into error channel
-	}
-	go processBlockVotesandBR(){
-		defer wg.Done()
-       process BlockVotes and BRs in any arbitrary order. We can either spawn a go routine for every for loop iteration or nor
-	   write possible errors into error channel
-	}
-
-	wg.Wait() waiting until both go routines done, so we can run processEvent.
-
-    loop over errors in error channel and run require.NoError(err) for each error.
-
-	we can run processEvent(e) concurrently by spawning go routine for every for loop iteration
-    like that:  but it is slow i guess due to my computer performance limitations e.g.
-	
-	wg := new(sync.WaitGroup)
-	wg.Add(len(events))
-	errc := make(chan error, len(events))
-	for _, e := range events {
-		go func(e *inter.EventPayload, errc chan<- error) {
-			defer wg.Done()
-			errc <- fullRepeater.processEvent(e)
-		}(e, errc)
-	}
-
-	wg.Wait()
-	// make sure there is no error occured
-	for err := range errc {
-		require.NoError(err)
-	}
-
-	or we can just run processEvents as usual
 
 
-	*/
 
-	fetchTable := func(table kvdb.Store) ([][]byte, [][]byte) {
-		var keys, values [][]byte
+	fetchTable := func(table kvdb.Store) map[string]string {
+		var m = make(map[string]string)
 		it := table.NewIterator(nil, nil)
 		defer it.Release()
 		for it.Next() {
 			key, value := it.Key(), it.Value()
-			keys = append(keys, key)
-			values = append(values, value)
+			m[string(key)] = string(value)
 		}
-		return keys, values
+		return m
 	}
 
-	genKeys, genValues := fetchTable(generator.store.mainDB)
-	fullRepKeys, fullRepValues := fetchTable(fullRepeater.store.mainDB)
+	require.NoError(generator.store.Commit())
+	require.NoError(fullRepeater.store.Commit())
 
-	//require.Equal(len(genKeys), len(fullRepKeys))     
-	// false expected: 6801 actual  : 6809  
-	// second time expected: 6777 actual  : 6785
-	//	require.Equal(len(genValues), len(fullRepValues)) 
-	 // false expected: 6717, actual  : 6725
+	genKVMap := fetchTable(generator.store.mainDB)
+	fullRepKVMap := fetchTable(fullRepeater.store.mainDB)
 
-	for i, k := range genKeys {
-		t.Log("for loop i", i)
-		require.Equal(hexutils.BytesToHex(k), hexutils.BytesToHex(fullRepKeys[i])) // https://go.dev/play/p/eggb2vAZ3_B
-	}
-
-	for i, v := range genValues {
-		if genKeys[i][0] == 0 || genKeys[i][0] == 'x' || genKeys[i][0] == 'X' || genKeys[i][0] == 'b' || genKeys[i][0] == 'S' {
-			continue
+	subsetOf := func(aa, bb map[string]string) {
+		for _k, _v := range aa {
+			k, v := []byte(_k), []byte(_v)
+			if k[0] == 0 || k[0] == 'x' || k[0] == 'X' || k[0] == 'b' || k[0] == 'S' {
+				continue
+			}
+			require.Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])), hexutils.BytesToHex(k))
 		}
-		require.Equal(hexutils.BytesToHex(v), hexutils.BytesToHex(fullRepValues[i]), hexutils.BytesToHex(genKeys[i])) // ok
 	}
+
+	t.Log("Checking genKVs <= fullKVs")
+	subsetOf(genKVMap, fullRepKVMap)
+	t.Log("Checking fullKVs <= genKVs")
+	subsetOf(genKVMap, fullRepKVMap)
 }
 
 // TODO make sure there are no race conditions
