@@ -52,7 +52,7 @@ var (
 				Action:    utils.MigrateFlags(pruneState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -82,7 +82,7 @@ the trie clean cache with default directory will be deleted.
 				Action:    utils.MigrateFlags(verifyState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -102,7 +102,7 @@ In other words, this command does the snapshot to trie conversion.
 				Action:    utils.MigrateFlags(traverseState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -124,7 +124,7 @@ It's also usable without snapshot enabled.
 				Action:    utils.MigrateFlags(traverseRawState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
