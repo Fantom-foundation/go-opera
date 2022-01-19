@@ -282,8 +282,8 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	defaultDataDir := DefaultDataDir()
 
 	switch {
-	case ctx.GlobalIsSet(utils.DataDirFlag.Name):
-		cfg.DataDir = ctx.GlobalString(utils.DataDirFlag.Name)
+	case ctx.GlobalIsSet(DataDirFlag.Name):
+		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {

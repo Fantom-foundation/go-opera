@@ -80,7 +80,7 @@ be gzipped
 				ArgsUsage: "<filename> [<epochFrom> <epochTo>]",
 				Action:    utils.MigrateFlags(exportGenesis),
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 				},
 				Description: `
     opera export genesis
