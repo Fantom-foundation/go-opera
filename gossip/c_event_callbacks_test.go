@@ -3,6 +3,8 @@ package gossip
 import (
 	"math"
 	"testing"
+   "bytes"
+   "math/big"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	//	"github.com/stretchr/testify/require"
@@ -14,6 +16,7 @@ import (
 	//      "github.com/ethereum/go-ethereum/core/types"
 	//      "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+   "github.com/ethereum/go-ethereum/core/types"
 )
 
 /*
@@ -63,14 +66,18 @@ type LLREventCallbacksTestSuite struct {
 
 	env *testEnv
 	me  *inter.MutableEventPayload
+   startEpoch idx.Epoch
 }
 
 func (s *LLREventCallbacksTestSuite) SetupSuite() {
 	s.T().Log("setting up test suite")
 
-	const validatorsNum = 10
+	const (
+      validatorsNum = 10
+      startEpoch = 1
+   )
 
-	env := newTestEnv(1, validatorsNum)
+	env := newTestEnv(startEpoch, validatorsNum)
 
 	// generate txs and multiple blocks
 	// TODO consider declare a standalone function
@@ -99,6 +106,7 @@ func (s *LLREventCallbacksTestSuite) SetupSuite() {
 
 	s.env = env
 	s.me = mutableEventPayloadFromImmutable(e)
+   s.startEpoch = idx.Epoch(startEpoch)
 
 }
 
@@ -130,7 +138,7 @@ func (s *LLREventCallbacksTestSuite) TestBasicCheckValidate() {
 		pretest func()
 		errExp  error
 	}{
-
+      
 		{"ErrWrongNetForkID",
 			func() {
 				s.me.SetNetForkID(1)
@@ -153,7 +161,7 @@ func (s *LLREventCallbacksTestSuite) TestBasicCheckValidate() {
        lbasiccheck.ErrNotInited,
       },
       {
-       "Validate checkInited checkInited ErrNoParents",
+       "Validate checkInited ErrNoParents",
         func() {
             s.me.SetEpoch(idx.Epoch(1))
             s.me.SetFrame(idx.Frame(1))
@@ -165,24 +173,557 @@ func (s *LLREventCallbacksTestSuite) TestBasicCheckValidate() {
          },
          lbasiccheck.ErrNoParents,
       },
+      {
+         "Validate ErrHugeValue-1",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            s.me.SetGasPowerUsed(math.MaxInt64-1)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate ErrHugeValue-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            s.me.SetGasPowerLeft(inter.GasPowerLeft{Gas: [2]uint64{math.MaxInt64-1, math.MaxInt64}})
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate ErrZeroTime-1",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            s.me.SetCreationTime(0)
+           },
+           basiccheck.ErrZeroTime,
+      },
+      {
+         "Validate ErrZeroTime-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            s.me.SetMedianTime(0)
+           },
+           basiccheck.ErrZeroTime,
+      },
+      {
+         "Validate checkTxs validateTx ErrNegativeValue-1",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+            tx1 := types.NewTx(&types.LegacyTx{
+               Nonce:    math.MaxUint64,
+               GasPrice: h.Big(),
+               Gas:      math.MaxUint64,
+               To:       nil,
+               Value:    big.NewInt(-1000),
+               Data:     []byte{},
+               V:        big.NewInt(0xff),
+               R:        h.Big(),
+               S:        h.Big(),
+            })
+            txs := types.Transactions{}
+	         txs = append(txs, tx1)
+            s.me.SetTxs(txs)
+           },
+           basiccheck.ErrNegativeValue,
+      },
+      {
+         "Validate checkTxs validateTx ErrNegativeValue-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+            tx1 := types.NewTx(&types.LegacyTx{
+               Nonce:    math.MaxUint64,
+               GasPrice: big.NewInt(-1000),
+               Gas:      math.MaxUint64,
+               To:       nil,
+               Value:    h.Big(),
+               Data:     []byte{},
+               V:        big.NewInt(0xff),
+               R:        h.Big(),
+               S:        h.Big(),
+            })
+            txs := types.Transactions{}
+	         txs = append(txs, tx1)
+            s.me.SetTxs(txs)
+           },
+           basiccheck.ErrNegativeValue,
+      },
+      {
+         "Validate checkTxs validateTx ErrIntrinsicGas",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+            tx1 := types.NewTx(&types.LegacyTx{
+               Nonce:    math.MaxUint64,
+               GasPrice: h.Big(),
+               Gas:      0,
+               To:       nil,
+               Value:    h.Big(),
+               Data:     []byte{},
+               V:        big.NewInt(0xff),
+               R:        h.Big(),
+               S:        h.Big(),
+            })
+            txs := types.Transactions{}
+	         txs = append(txs, tx1)
+            s.me.SetTxs(txs)
+           },
+           basiccheck.ErrIntrinsicGas,
+      },
+    
+      /*
+      {
+         "Validate checkTxs validateTx ErrTipAboveFeeCap",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+            tx1 := types.NewTx(&types.LegacyTx{
+               Nonce:    math.MaxUint64,
+               GasPrice: h.Big(),
+               Gas:      math.MaxUint64,
+               To:       nil,
+               Value:    h.Big(),
+               Data:     []byte{},
+               V:        big.NewInt(0xff),
+               R:        h.Big(),
+               S:        h.Big(),
+            })
+            txs := types.Transactions{}
+	         txs = append(txs, tx1)
+            s.me.SetTxs(txs)
+           },
+           basiccheck.ErrTipAboveFeeCap,
+      },
+      */
+      {
+         "Validate validateMP validatorvalidateEventLocator ErrWrongNetForkID",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            wrongNetforkIDMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           NetForkID: uint16(1),
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = wrongNetforkIDMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+            /*
+            for i, p := range wrongNetforkIDMp.EventsDoublesign.Pair {
+               sig, err := s.env.signer.Sign(s.env.pubkeys[0], p.Locator.HashToSign().Bytes())
+               s.Require().NoError(err)
+               copy(wrongNetforkIDMp.EventsDoublesign.Pair[i].Sig[:], sig)
+            }
+            */
+          // s.Require().EqualError(s.env.ApplyMPs(nextEpoch, wrongNetforkIDMp), basiccheck.ErrWrongNetForkID.Error())
+        //  s.Require().EqualError(s.env.ApplyMPs(time.Duration(s.startEpoch), wrongNetforkIDMp), basiccheck.ErrWrongNetForkID.Error())
+           },
+           basiccheck.ErrWrongNetForkID,
+      },
+      {
+         "Validate validateMP validatorvalidateEventLocator base.ErrHugeValue-1",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            invalidSeqMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     math.MaxInt32-1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = invalidSeqMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate validateMP validatorvalidateEventLocator base.ErrHugeValue-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            invalidEpochMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   math.MaxInt32-1,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = invalidEpochMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate validateMP validatorvalidateEventLocator base.ErrHugeValue-3",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            invalidLamportMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: math.MaxInt32-1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = invalidLamportMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate validateMP ErrWrongCreatorMP",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            wrongCreatorMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 2,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = wrongCreatorMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.ErrWrongCreatorMP,
+      },
+      {
+         "Validate validateMP ErrNoCrimeInMP",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            wrongEpochMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch+1,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = wrongEpochMp 
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.ErrNoCrimeInMP,
+      },
+      {
+         "Validate validateMP ErrNoCrimeInMP-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            wrongSeqMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     2,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = wrongSeqMp 
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.ErrNoCrimeInMP,
+      },
+      {
+         "Validate validateMP ErrNoCrimeInMP-3",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            wrongLocatorMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = wrongLocatorMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.ErrNoCrimeInMP,
+      },
+      {
+         "Validate validateMP ErrMPTooLate",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(20) + basiccheck.MaxLiableEpochs)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            tooLateMp := inter.MisbehaviourProof{
+               EventsDoublesign: &inter.EventsDoublesign{
+                  Pair: [2]inter.SignedEventLocator{
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 1,
+                           Creator: 1,
+                        },
+                     },
+                     {
+                        Locator: inter.EventLocator{
+                           Epoch:   s.startEpoch,
+                           Seq:     1,
+                           Lamport: 2,
+                           Creator: 1,
+                        },
+                     },
+                  },
+               },
+            }
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = tooLateMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.ErrMPTooLate,
+      },
+
+
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-		s.SetupSuite()
-		tc.pretest()
+      tc := tc
+		s.Run(tc.name, func() {
+         s.SetupSuite()
+		   tc.pretest()
 
-		err := s.env.checkers.Basiccheck.Validate(s.me)
+         err := s.env.checkers.Basiccheck.Validate(s.me)
 
-		if tc.errExp != nil {
-			s.Require().Error(err)
-			s.Require().EqualError(err, tc.errExp.Error())
-		} else {
-			s.Require().NoError(err)
-		}
-
+         if tc.errExp != nil {
+            s.Require().Error(err)
+            s.Require().EqualError(err, tc.errExp.Error())
+         } else {
+            s.Require().NoError(err)
+         }
+      })
 	}
 }
+
+
+
+
+
 
 func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEventPayload {
 	// we migrate immutable payload to mutable payload
