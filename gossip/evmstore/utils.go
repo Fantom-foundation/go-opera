@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -187,11 +188,19 @@ type restrictedEvmBatch struct {
 	kvdb.Batch
 }
 
+func IsMptKey(key []byte) bool {
+	return len(key) == common.HashLength ||
+		(bytes.HasPrefix(key, rawdb.CodePrefix) && len(key) == len(rawdb.CodePrefix)+common.HashLength)
+}
+
+func IsPreimageKey(key []byte) bool {
+	preimagePrefix := []byte("secure-key-")
+	return bytes.HasPrefix(key, preimagePrefix) && len(key) == (len(preimagePrefix)+common.HashLength)
+}
+
 func (v *restrictedEvmBatch) Put(key []byte, value []byte) error {
-	if len(key) != 32 {
-		if !bytes.HasPrefix(key, []byte("secure-key-")) && !bytes.HasPrefix(key, []byte("c")) {
-			return errors.New("not expected prefix for EVM history dump")
-		}
+	if !IsMptKey(key) && !IsPreimageKey(key) {
+		return errors.New("not expected prefix for EVM history dump")
 	}
 	return v.Batch.Put(key, value)
 }

@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -11,12 +12,14 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -34,6 +37,36 @@ type dropableFile struct {
 
 func (f dropableFile) Drop() error {
 	return os.Remove(f.path)
+}
+
+type mptIterator struct {
+	kvdb.Iterator
+}
+
+func (it mptIterator) Next() bool {
+	first := true
+	for first || !evmstore.IsMptKey(it.Key()) {
+		if !it.Iterator.Next() {
+			return false
+		}
+		first = false
+	}
+	return true
+}
+
+type mptAndPreimageIterator struct {
+	kvdb.Iterator
+}
+
+func (it mptAndPreimageIterator) Next() bool {
+	first := true
+	for first || !(evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key())) {
+		if !it.Iterator.Next() {
+			return false
+		}
+		first = false
+	}
+	return true
 }
 
 func wrapIntoHashFile(backend *zip.Writer, tmpDirPath, name string) *fileshash.Writer {
@@ -78,6 +111,10 @@ func exportGenesis(ctx *cli.Context) error {
 			return err
 		}
 		to = idx.Epoch(n)
+	}
+	mode := ctx.String(EvmExportMode.Name)
+	if mode != "full" && mode != "ext-mpt" && mode != "mpt" && mode != "none" {
+		return errors.New("--export.evm.mode must be one of {full, ext-mpt, mpt, none}")
 	}
 
 	cfg := makeAllConfigs(ctx)
@@ -124,11 +161,15 @@ func exportGenesis(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	b, _ := rlp.EncodeToBytes(genesis.Hashes{
+	dummy := genesis.Hashes{
 		Blocks:      hash.Hashes{hash.Zero},
 		Epochs:      hash.Hashes{hash.Zero},
 		RawEvmItems: hash.Hashes{hash.Zero},
-	})
+	}
+	if mode == "none" {
+		dummy.RawEvmItems = hash.Hashes{}
+	}
+	b, _ := rlp.EncodeToBytes(dummy)
 	hashesFileLen := len(b)
 	_, err = fh.Write(b)
 	if err != nil {
@@ -147,10 +188,10 @@ func exportGenesis(ctx *cli.Context) error {
 	if to > gdb.GetEpoch() {
 		to = gdb.GetEpoch()
 	}
-	log.Info("Exporting epochs", "from", from, "to", to)
 	toBlock := idx.Block(0)
 	fromBlock := idx.Block(0)
 	{
+		log.Info("Exporting epochs", "from", from, "to", to)
 		writer := wrapIntoHashFile(z, tmpPath, genesisstore.EpochsSection)
 		for i := to; i >= from; i-- {
 			er := gdb.GetFullEpochRecord(i)
@@ -188,8 +229,8 @@ func exportGenesis(ctx *cli.Context) error {
 		// avoid underflow
 		fromBlock = 1
 	}
-	log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
 	{
+		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
 		writer := wrapIntoHashFile(z, tmpPath, genesisstore.BlocksSection)
 		for i := toBlock; i >= fromBlock; i-- {
 			br := gdb.GetFullBlockRecord(i)
@@ -220,10 +261,17 @@ func exportGenesis(ctx *cli.Context) error {
 		}
 	}
 
-	log.Info("Exporting EVM storage")
-	{
+	if mode != "none" {
+		log.Info("Exporting EVM storage")
 		writer := wrapIntoHashFile(z, tmpPath, genesisstore.EvmSection)
 		it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
+		if mode == "mpt" {
+			// iterate only over MPT data
+			it = mptIterator{it}
+		} else if mode == "ext-mpt" {
+			// iterate only over MPT data and preimages
+			it = mptAndPreimageIterator{it}
+		}
 		defer it.Release()
 		err = iodb.Write(writer, it)
 		if err != nil {
