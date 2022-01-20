@@ -41,14 +41,14 @@ func Open(rr []Reader) (*Map, error) {
 	}, nil
 }
 
-func (r *Map) Open(name string) (io.ReadCloser, error) {
+func (r *Map) Open(name string) (io.ReadCloser, uint64, error) {
 	f := r.files[name]
 	if f == nil {
-		return nil, ErrNotFound
+		return nil, 0, ErrNotFound
 	}
 	stream, err := f.Open()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return stream, nil
+	return stream, f.UncompressedSize64, nil
 }

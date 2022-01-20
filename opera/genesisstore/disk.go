@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -12,6 +13,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore/filelog"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileszip"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
@@ -104,7 +106,24 @@ func OpenGenesisStore(rawReaders []fileszip.Reader, close func() error) (*Store,
 	for i, h := range hashes.RawEvmItems {
 		hashesMap[getSectionName(EvmSection, i)] = h
 	}
-	hashedMap := fileshash.Wrap(zipMap.Open, FilesHashMaxMemUsage, hashesMap)
+	hashedMap := fileshash.Wrap(func(name string) (io.ReadCloser, error) {
+		// wrap with a logger
+		f, size, err := zipMap.Open(name)
+		if err != nil {
+			return nil, err
+		}
+		// human-readable name
+		if name == BlocksSection {
+			name = "blocks"
+		}
+		if name == EpochsSection {
+			name = "epochs"
+		}
+		if name == EvmSection {
+			name = "EVM data"
+		}
+		return filelog.Wrap(f, name, size, time.Minute), nil
+	}, FilesHashMaxMemUsage, hashesMap)
 
 	return NewStore(hashedMap, header, close), hashes, nil
 }
