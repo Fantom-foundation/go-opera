@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"bytes"
 	"context"
 	"reflect"
 	"sync"
@@ -12,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	//	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -20,8 +23,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-
-	//	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/status-im/keycard-go/hexutils"
 )
@@ -81,9 +82,9 @@ func TestLLRCallbacks(t *testing.T) {
 	repeater := newTestEnv(startEpoch, validatorsNum)
 	defer repeater.Close()
 
-	processEpochVotesRecords := func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, processor *testEnv){
+	processEpochVotesRecords := func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, processor *testEnv) {
 		// invoke repeater.ProcessEpochVote and ProcessFullEpochRecord for epoch in range [2; lastepoch]
-		for e := idx.Epoch(startEpoch +1); e <= lastEpoch; e++ {
+		for e := idx.Epoch(startEpoch + 1); e <= lastEpoch; e++ {
 			epochVotes, ok := epochToEvsMap[e]
 			if !ok {
 				repeater.store.Log.Crit("Failed to fetch epoch votes for a given epoch")
@@ -99,9 +100,8 @@ func TestLLRCallbacks(t *testing.T) {
 			}
 		}
 	}
-	
+
 	processEpochVotesRecords(epochToEvsMap, repeater)
-	
 
 	// TODO find out how many votes at most has each block? one or multiple?
 	// map[idx.Block][]*inter.LlrSignedBlockVotes  or map[idx.Block]*inter.LlrSignedBlockVotes
@@ -129,7 +129,7 @@ func TestLLRCallbacks(t *testing.T) {
 			for _, bv := range bvs {
 				require.NoError(processor.ProcessBlockVotes(*bv))
 			}
-	
+
 			if br := generator.store.GetFullBlockRecord(b); br != nil {
 				ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: b}
 				require.NoError(processor.ProcessFullBlockRecord(ibr))
@@ -142,10 +142,9 @@ func TestLLRCallbacks(t *testing.T) {
 	require.NoError(generator.store.Commit())
 	require.NoError(repeater.store.Commit())
 
+	// Compare the states of generator and repeater
 
-    // Compare the states of generator and repeater
-
-	fetchTxsbyBlock := func(env *testEnv)  map[idx.Block]types.Transactions {
+	fetchTxsbyBlock := func(env *testEnv) map[idx.Block]types.Transactions {
 		numKeys := len(reflect.ValueOf(blockToBvsMap).MapKeys())
 		m := make(map[idx.Block]types.Transactions, numKeys)
 		it := env.store.table.Blocks.NewIterator(nil, nil)
@@ -165,37 +164,32 @@ func TestLLRCallbacks(t *testing.T) {
 		return m
 	}
 
-	
-
 	genBlockToTxsMap := fetchTxsbyBlock(generator)
 	repBlockToTxsMap := fetchTxsbyBlock(repeater)
 
-	txByBlockSubsetOf := func(repMap, genMap map[idx.Block]types.Transactions ){
+	txByBlockSubsetOf := func(repMap, genMap map[idx.Block]types.Transactions) {
 		// I assume repMap is a subset of genMap
 		//require.Less(len(reflect.ValueOf(repMap).MapKeys()), len(reflect.ValueOf(genMap).MapKeys()))
 		for b, txs := range repMap {
 			genTxs, ok := genMap[b]
 			require.True(ok)
 			require.Equal(len(txs), len(genTxs))
-			for i,tx := range txs {
+			for i, tx := range txs {
 				require.Equal(tx.Hash().Hex(), genTxs[i].Hash().Hex())
 			}
 		}
 	}
 
-    // 1.Compare transaction hashes
+	// 1.Compare transaction hashes
 	t.Log("Checking repBlockToTxsMap <= genBlockToTxsMap")
 	txByBlockSubsetOf(repBlockToTxsMap, genBlockToTxsMap)
 
-	// 2.BlockByNUmber  
-     // func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
-	// 
-    
-
+	// 2.BlockByNUmber
+	// func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+	//
 
 	// 2.Compare  ER hashes
 	for e := idx.Epoch(2); e <= lastEpoch; e++ {
-
 
 		genBs, genEs := generator.store.GetHistoryBlockEpochState(e)
 		repBs, repEs := repeater.store.GetHistoryBlockEpochState(e)
@@ -207,9 +201,8 @@ func TestLLRCallbacks(t *testing.T) {
 		require.Equal(genEr.Hash().Hex(), repEr.Hash().Hex())
 	}
 
-
-    // 2a compare BlockByNumber
-	compareBlocksByNumberHash := func(blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes,  initiator, processor *testEnv) {
+	// 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
+	compareParams := func(blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes, initiator, processor *testEnv) {
 		// initiator is generator
 		// processor is ether fullRep or repeater
 		ctx := context.Background()
@@ -228,21 +221,51 @@ func TestLLRCallbacks(t *testing.T) {
 				panicked = true
 			}
 
-			return emvBlock,panicked
+			return emvBlock, panicked
 		}
 
-		for b := range blockToBvsMap  {
+		compareBlocksByHash := func(initEvmBlock, procEvmBlock *evmcore.EvmBlock) {
+			// invoke BlockByHash
+			initEvmBlockByHash, err := initiator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
+			require.NoError(err)
+			require.NotNil(initEvmBlockByHash)
+			require.Equal(initEvmBlockByHash, initEvmBlock)
+			require.Equal(initEvmBlockByHash.Hash, procEvmBlock.Hash)
+
+			procEvmBlockByHash, err := processor.EthAPI.BlockByHash(ctx, procEvmBlock.Hash)
+			require.NoError(err)
+			require.NotNil(procEvmBlockByHash)
+			require.Equal(procEvmBlockByHash, procEvmBlock)
+			require.Equal(procEvmBlockByHash.Hash, procEvmBlock.Hash)
+		}
+
+		compareReceiptsLogs := func(initReceipts, procReceipts types.Receipts) {
+			require.Equal(initReceipts.Len(), procReceipts.Len())
+			for i, r := range initReceipts {
+				require.Equal(r.Type, procReceipts[i].Type)
+				require.True(bytes.Equal(r.PostState, procReceipts[i].PostState))
+				require.Equal(r.Status, procReceipts[i].Status)
+				require.Equal(r.CumulativeGasUsed, procReceipts[i].CumulativeGasUsed)
+				require.True(bytes.Equal(r.Bloom.Bytes(), procReceipts[i].Bloom.Bytes()))
+				for j, l := range r.Logs {
+					require.Equal(l.Address, procReceipts[i].Logs[j].Address)
+					require.True(bytes.Equal(l.Data, procReceipts[i].Logs[j].Data))
+				}
+			}
+		}
+
+		for b := range blockToBvsMap {
 
 			// it panics sometimes.I introduced blockByNumberPanickedOrErr to handle this behavior.
 			procEvmBlock, panicked := blockByNumberPanickedOrErr(b, processor)
-			if panicked ||  procEvmBlock == nil{
+			if panicked || procEvmBlock == nil {
 				continue
 			}
 
 			/*
-			procEvmBlock, err := processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
-			require.NoError(err)
-			require.NotNil(procEvmBlock)
+				procEvmBlock, err := processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+				require.NoError(err)
+				require.NotNil(procEvmBlock)
 			*/
 
 			// outputs no error
@@ -250,43 +273,41 @@ func TestLLRCallbacks(t *testing.T) {
 			require.NoError(err)
 			require.NotNil(initEvmBlock)
 
-		    require.Equal(initEvmBlock.Hash.Hex(), procEvmBlock.Hash.Hex())
+			require.Equal(initEvmBlock.Hash.Hex(), procEvmBlock.Hash.Hex())
 
-			// invoke BlockByHash
-			procEvmBlockByHash, err := processor.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
-			require.NoError(err)
-			require.NotNil(initEvmBlock)
-			require.Equal(procEvmBlockByHash, procEvmBlock)
-			require.Equal(procEvmBlockByHash.Hash, procEvmBlock.Hash)
+			// compareBlocksByHash
+			compareBlocksByHash(initEvmBlock, procEvmBlock)
 
-			initEvmBlockByHash, err := initiator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
-			require.NoError(err)
-			require.NotNil(initEvmBlock)
-			require.Equal(initEvmBlockByHash, initEvmBlock)
-			require.Equal(procEvmBlockByHash.Hash, procEvmBlock.Hash)
+			// invoke GetReceipts
+			initReceipts := initiator.store.evm.GetReceipts(b, initiator.EthAPI.signer, initEvmBlock.Hash, initEvmBlock.Transactions)
+			require.NotNil(initReceipts)
+
+			procReceipts := processor.store.evm.GetReceipts(b, processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
+			require.NotNil(procReceipts)
+
+			// compare Receipts and Logs
+			compareReceiptsLogs(initReceipts, procReceipts)
 		}
 	}
 
 	t.Log("generator.BlockByNumber >= repeater.BlockByNumber")
-	compareBlocksByNumberHash(blockToBvsMap, generator, repeater)
+	compareParams(blockToBvsMap, generator, repeater)
 
-
-    // TODO why BlockByNumber returns an error? Handle panic in procEvmBlock, err := repeater.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
-    // func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
-	// 
-    // 3.Compare BR hashes
+	// TODO why BlockByNumber returns an error? Handle panic in procEvmBlock, err := repeater.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+	// func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+	//
+	// 3.Compare BR hashes
 	for b := range blockToBvsMap {
-        // 	Receipts and Logs WIP
+		// 	Receipts and Logs WIP
 		// receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
 		/*
-		genBlock := generator.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
-		genReceipts := generator.store.evm.GetReceipts(b, generator.EthAPI.signer, genBlock.Hash, genBlock.Transactions)
-		repBlock := repeater.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
-		repReceipts := repeater.store.evm.GetReceipts(b, repeater.EthAPI.signer, repBlock.Hash, repBlock.Transactions)
-		require.Equal(len(genReceipts),len(repReceipts))
+			genBlock := generator.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
+			genReceipts := generator.store.evm.GetReceipts(b, generator.EthAPI.signer, genBlock.Hash, genBlock.Transactions)
+			repBlock := repeater.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
+			repReceipts := repeater.store.evm.GetReceipts(b, repeater.EthAPI.signer, repBlock.Hash, repBlock.Transactions)
+			require.Equal(len(genReceipts),len(repReceipts))
 		*/
 
-		
 		genBlockResHash := generator.store.GetLlrBlockResult(b)
 		repBlockResHash := repeater.store.GetLlrBlockResult(b)
 		require.Equal(genBlockResHash.Hex(), repBlockResHash.Hex())
@@ -296,17 +317,13 @@ func TestLLRCallbacks(t *testing.T) {
 		require.Equal(repBrHash, genBrHash)
 	}
 
-
-
-
 	// declare fullRepeater
 	fullRepeater := newTestEnv(startEpoch, validatorsNum)
 	defer fullRepeater.Close()
 
-
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
-	go func(fullRepeater *testEnv, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes){
+	go func(fullRepeater *testEnv, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes) {
 		defer wg.Done()
 		// process LLR epochVotes  in fullRepeater
 		processEpochVotesRecords(epochToEvsMap, fullRepeater)
@@ -316,7 +333,7 @@ func TestLLRCallbacks(t *testing.T) {
 
 	}(fullRepeater, epochToEvsMap, blockToBvsMap)
 
-	go func(fullRepeater *testEnv){
+	go func(fullRepeater *testEnv) {
 		defer wg.Done()
 		events := func() (events []*inter.EventPayload) {
 			it := generator.store.table.Events.NewIterator(nil, nil)
@@ -333,7 +350,7 @@ func TestLLRCallbacks(t *testing.T) {
 			}
 			return
 		}()
-	
+
 		for _, e := range events {
 			fullRepeater.engineMu.Lock()
 			require.NoError(fullRepeater.processEvent(e))
@@ -360,17 +377,16 @@ func TestLLRCallbacks(t *testing.T) {
 
 	// Comparing generator and fullRepeater states
 
-    // 1.Comparing Tx hashes
+	// 1.Comparing Tx hashes
 	fullRepBlockToTxsMap := fetchTxsbyBlock(fullRepeater)
 	t.Log("Checking genBlockToTxsMap <= fullRepBlockToTxsMap")
 	txByBlockSubsetOf(genBlockToTxsMap, fullRepBlockToTxsMap)
 
 	// 2.Compare BlockByNumber
 	// TODO fullRepeater panics some time by calling BlockByNumber
-	compareBlocksByNumberHash(blockToBvsMap, generator, fullRepeater)
+	compareParams(blockToBvsMap, generator, fullRepeater)
 
-
-    // 2. Comparing mainDb of generator and fullRepeater
+	// 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(generator.store.mainDB)
 	fullRepKVMap := fetchTable(fullRepeater.store.mainDB)
 
