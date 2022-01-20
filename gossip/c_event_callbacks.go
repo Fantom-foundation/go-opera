@@ -250,9 +250,9 @@ func (s *Service) mayCommit(epochSealing bool) {
 func (s *Service) commit(epochSealing bool) {
 	// s.engineMu is locked here
 	s.blockProcWg.Wait()
-	// if gcmode is full and syncmode is snapsync, clean all the old state trie
+	// if gcmode is full and snapsync is finalized, clean all the old state trie
 	// and commit the state trie at the current block
-	if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
+	if !s.store.cfg.EVM.Cache.TrieDirtyDisabled && s.handler.syncStatus.AcceptEvents() {
 		s.store.cleanCommitEVM()
 	}
 	_ = s.store.Commit()
