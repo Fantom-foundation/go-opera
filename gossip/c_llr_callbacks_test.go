@@ -1,8 +1,10 @@
 package gossip
 
 import (
-	"testing"
+	//"context"
 	"sync"
+	"testing"
+	"reflect"
 
 	"github.com/stretchr/testify/require"
 
@@ -22,26 +24,6 @@ import (
 
 // WIP test for ProcessFullBlockRecord and ProcessFullEpochRecord
 func TestLLRCallbacks(t *testing.T) {
-
-	/*
-			Plan
-			1. generate over 50 blocks using applyTx in generator
-			2. retriving br and er GetFullBlockRecord and GetFullEpochRecord from generator
-			3. Retrieve LLR votes  by iterating over tables s.table.LlrBlockVotes и s.table.LlrEpochVotes from generator
-			4. Set llr votes on repeater how?
-			5. conveting br and er in LlrIdxFullBlockRecord and LlrIdxEpochBlockRecord, epoch from one to last, block from one to last
-		    6. run ProcessFullBlockRecord ProcessFullEpochRecord on repeater
-		    7. compare parameters if generator and repeater using
-			(b *EthAPIBackend) BlockByHash
-		(b *EthAPIBackend) GetReceiptsByNumber
-		(b *EthAPIBackend) GetReceipts
-		(b *EthAPIBackend) GetLogs
-		(b *EthAPIBackend) GetTransaction
-		(f *Filter) Logs
-		(s *Store) GetHistoryBlockEpochState
-
-	*/
-
 	const (
 		rounds        = 60
 		validatorsNum = 10
@@ -153,9 +135,57 @@ func TestLLRCallbacks(t *testing.T) {
 
 	processBlockVotesRecords(blockToBvsMap, repeater)
 
-	// compare results
-	// TODO check more parameters
+	require.NoError(generator.store.Commit())
+	require.NoError(repeater.store.Commit())
+
+
+    // Compare the states of generator and repeater
+
+	fetchTxsbyBlock := func(env *testEnv)  map[idx.Block]types.Transactions {
+		numKeys := len(reflect.ValueOf(blockToBvsMap).MapKeys())
+		m := make(map[idx.Block]types.Transactions, numKeys)
+		it := env.store.table.Blocks.NewIterator(nil, nil)
+		defer it.Release()
+		for it.Next() {
+			block := &inter.Block{}
+			if err := rlp.DecodeBytes(it.Value(), block); err != nil {
+				env.store.Log.Crit("Failed to decode block", "err", err)
+			}
+
+			if block != nil {
+				n := idx.BytesToBlock(it.Key())
+				txs := env.store.GetBlockTxs(n, block)
+				m[n] = txs
+			}
+		}
+		return m
+	}
+
+
+	genBlockToTxsMap := fetchTxsbyBlock(generator)
+	repBlockToTxsMap := fetchTxsbyBlock(repeater)
+
+	txByBlockSubsetOf := func(repMap, genMap map[idx.Block]types.Transactions ){
+		// I assume repMap is a subset of genMap
+		require.Less(len(reflect.ValueOf(repMap).MapKeys()), len(reflect.ValueOf(genMap).MapKeys()))
+		for b, txs := range repMap {
+			genTxs, ok := genMap[b]
+			require.True(ok)
+			require.Equal(len(txs), len(genTxs))
+			for i,tx := range txs {
+				require.Equal(tx.Hash().Hex(), genTxs[i].Hash().Hex())
+			}
+		}
+	}
+
+    // 1.Compare transaction hashes
+	t.Log("Checking repBlockToTxsMap <= genBlockToTxsMap")
+	txByBlockSubsetOf(repBlockToTxsMap, genBlockToTxsMap)
+
+	// 2.Compare  ER hashes
 	for e := idx.Epoch(2); e <= lastEpoch; e++ {
+
+
 		genBs, genEs := generator.store.GetHistoryBlockEpochState(e)
 		repBs, repEs := repeater.store.GetHistoryBlockEpochState(e)
 		require.Equal(genBs.Hash().Hex(), repBs.Hash().Hex())
@@ -166,12 +196,22 @@ func TestLLRCallbacks(t *testing.T) {
 		require.Equal(genEr.Hash().Hex(), repEr.Hash().Hex())
 	}
 
+    // 3.Compare BR hashes
 	for b := range blockToBvsMap {
+
+		genBlockResHash := generator.store.GetLlrBlockResult(b)
+		repBlockResHash := repeater.store.GetLlrBlockResult(b)
+		require.Equal(genBlockResHash.Hex(), repBlockResHash.Hex())
+
 		genBrHash := generator.store.GetFullBlockRecord(b).Hash().Hex()
 		repBrHash := repeater.store.GetFullBlockRecord(b).Hash().Hex()
 		require.Equal(repBrHash, genBrHash)
 	}
 
+
+
+
+	// declare fullRepeater
 	fullRepeater := newTestEnv(startEpoch, validatorsNum)
 	defer fullRepeater.Close()
 
@@ -229,7 +269,6 @@ func TestLLRCallbacks(t *testing.T) {
 	}
 
 	
-	require.NoError(generator.store.Commit())
 	require.NoError(fullRepeater.store.Commit())
 
 	genKVMap := fetchTable(generator.store.mainDB)
@@ -247,12 +286,4 @@ func TestLLRCallbacks(t *testing.T) {
 
 	t.Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
-	t.Log("Checking fullKVs <= genKVs")
-	subsetOf(genKVMap, fullRepKVMap)
-}
-
-// TODO make sure there are no race conditions
-// TODO plan
-func TestProcessFullRecord2ThreadSafety(t *testing.T) {
-
 }
