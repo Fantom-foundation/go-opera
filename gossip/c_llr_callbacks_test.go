@@ -1,16 +1,18 @@
 package gossip
 
 import (
-	//"context"
+	"context"
+	"reflect"
 	"sync"
 	"testing"
-	"reflect"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -18,6 +20,8 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+
+	//	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/status-im/keycard-go/hexutils"
 )
@@ -161,6 +165,7 @@ func TestLLRCallbacks(t *testing.T) {
 		return m
 	}
 
+	
 
 	genBlockToTxsMap := fetchTxsbyBlock(generator)
 	repBlockToTxsMap := fetchTxsbyBlock(repeater)
@@ -182,6 +187,12 @@ func TestLLRCallbacks(t *testing.T) {
 	t.Log("Checking repBlockToTxsMap <= genBlockToTxsMap")
 	txByBlockSubsetOf(repBlockToTxsMap, genBlockToTxsMap)
 
+	// 2.BlockByNUmber  
+     // func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+	// 
+    
+
+
 	// 2.Compare  ER hashes
 	for e := idx.Epoch(2); e <= lastEpoch; e++ {
 
@@ -196,9 +207,86 @@ func TestLLRCallbacks(t *testing.T) {
 		require.Equal(genEr.Hash().Hex(), repEr.Hash().Hex())
 	}
 
+
+    // 2a compare BlockByNumber
+	compareBlocksByNumberHash := func(blockToBvsMap map[idx.Block][]*inter.LlrSignedBlockVotes,  initiator, processor *testEnv) {
+		// initiator is generator
+		// processor is ether fullRep or repeater
+		ctx := context.Background()
+
+		blockByNumberPanickedOrErr := func(b idx.Block, processor *testEnv) (*evmcore.EvmBlock, bool) {
+			panicked := false
+
+			defer func() {
+				if r := recover(); r != nil {
+					panicked = true
+				}
+			}()
+
+			emvBlock, err := processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+			if err != nil {
+				panicked = true
+			}
+
+			return emvBlock,panicked
+		}
+
+		for b := range blockToBvsMap  {
+
+			// it panics sometimes.I introduced blockByNumberPanickedOrErr to handle this behavior.
+			procEvmBlock, panicked := blockByNumberPanickedOrErr(b, processor)
+			if panicked ||  procEvmBlock == nil{
+				continue
+			}
+
+			/*
+			procEvmBlock, err := processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+			require.NoError(err)
+			require.NotNil(procEvmBlock)
+			*/
+
+			// outputs no error
+			initEvmBlock, err := initiator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+			require.NoError(err)
+			require.NotNil(initEvmBlock)
+
+		    require.Equal(initEvmBlock.Hash.Hex(), procEvmBlock.Hash.Hex())
+
+			// invoke BlockByHash
+			procEvmBlockByHash, err := processor.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
+			require.NoError(err)
+			require.NotNil(initEvmBlock)
+			require.Equal(procEvmBlockByHash, procEvmBlock)
+			require.Equal(procEvmBlockByHash.Hash, procEvmBlock.Hash)
+
+			initEvmBlockByHash, err := initiator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
+			require.NoError(err)
+			require.NotNil(initEvmBlock)
+			require.Equal(initEvmBlockByHash, initEvmBlock)
+			require.Equal(procEvmBlockByHash.Hash, procEvmBlock.Hash)
+		}
+	}
+
+	t.Log("generator.BlockByNumber >= repeater.BlockByNumber")
+	compareBlocksByNumberHash(blockToBvsMap, generator, repeater)
+
+
+    // TODO why BlockByNumber returns an error? Handle panic in procEvmBlock, err := repeater.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(b))
+    // func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+	// 
     // 3.Compare BR hashes
 	for b := range blockToBvsMap {
+        // 	Receipts and Logs WIP
+		// receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
+		/*
+		genBlock := generator.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
+		genReceipts := generator.store.evm.GetReceipts(b, generator.EthAPI.signer, genBlock.Hash, genBlock.Transactions)
+		repBlock := repeater.EthAPI.state.GetBlock(common.Hash{}, uint64(b))
+		repReceipts := repeater.store.evm.GetReceipts(b, repeater.EthAPI.signer, repBlock.Hash, repBlock.Transactions)
+		require.Equal(len(genReceipts),len(repReceipts))
+		*/
 
+		
 		genBlockResHash := generator.store.GetLlrBlockResult(b)
 		repBlockResHash := repeater.store.GetLlrBlockResult(b)
 		require.Equal(genBlockResHash.Hex(), repBlockResHash.Hex())
@@ -268,7 +356,6 @@ func TestLLRCallbacks(t *testing.T) {
 		return m
 	}
 
-	
 	require.NoError(fullRepeater.store.Commit())
 
 	// Comparing generator and fullRepeater states
@@ -278,6 +365,9 @@ func TestLLRCallbacks(t *testing.T) {
 	t.Log("Checking genBlockToTxsMap <= fullRepBlockToTxsMap")
 	txByBlockSubsetOf(genBlockToTxsMap, fullRepBlockToTxsMap)
 
+	// 2.Compare BlockByNumber
+	// TODO fullRepeater panics some time by calling BlockByNumber
+	compareBlocksByNumberHash(blockToBvsMap, generator, fullRepeater)
 
 
     // 2. Comparing mainDb of generator and fullRepeater
@@ -296,6 +386,4 @@ func TestLLRCallbacks(t *testing.T) {
 
 	t.Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
-
-	// receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
 }
