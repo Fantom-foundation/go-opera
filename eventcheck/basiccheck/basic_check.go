@@ -3,6 +3,7 @@ package basiccheck
 import (
 	"errors"
 	"math"
+	"fmt"
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -99,7 +100,9 @@ func (v *Checker) validateMP(msgEpoch idx.Epoch, mp inter.MisbehaviourProof) err
 			return ErrMPTooLate
 		}
 	}
+	// done
 	if proof := mp.BlockVoteDoublesign; proof != nil {
+		fmt.Println("mp.BlockVoteDoublesign")
 		count++
 		if err := v.ValidateBVs(proof.Pair[0]); err != nil {
 			return err
@@ -253,23 +256,33 @@ func (v *Checker) validateEventLocator(e inter.EventLocator) error {
 
 func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, greedy bool) error {
 	if bvs.Epoch > eventEpoch {
+		fmt.Println("validateBVs FutureBVsEpoch bvsEpoch, eventEpoch", bvs.Epoch, eventEpoch)
 		return FutureBVsEpoch
 	}
+
 	if bvs.Start >= math.MaxInt64/2 {
+		fmt.Println("bvs.Start", bvs.Start)
+		fmt.Println("base.ErrHugeValue-1")
 		return base.ErrHugeValue
 	}
 	if bvs.Epoch >= math.MaxInt32-1 {
+		fmt.Println("base.ErrHugeValue-2")
 		return base.ErrHugeValue
 	}
 	if len(bvs.Votes) > MaxBlockVotesPerEvent {
+		fmt.Println("TooManyBVs")
 		return TooManyBVs
 	}
+    // TODO discuss if we require the checks below
+                                                            
 	if ((bvs.Start == 0) != (len(bvs.Votes) == 0)) || ((bvs.Start == 0) != (bvs.Epoch == 0)) {
+		fmt.Println("MalformedBVs1")
+		fmt.Println("bvs.Start==0", bvs.Start == 0)
+		fmt.Println("len(bvs.Votes) == 0", len(bvs.Votes) == 0)
+		fmt.Println("bvs.Epoch == 0", bvs.Epoch == 0)
 		return MalformedBVs
 	}
-	if ((bvs.Start == 0) != (len(bvs.Votes) == 0)) || ((bvs.Start == 0) != (bvs.Epoch == 0)) {
-		return MalformedBVs
-	}
+
 	if greedy && bvs.Epoch == 0 {
 		return EmptyBVs
 	}
@@ -294,6 +307,7 @@ func (v *Checker) validateEV(eventEpoch idx.Epoch, ev inter.LlrEpochVote, greedy
 
 func (v *Checker) ValidateBVs(bvs inter.LlrSignedBlockVotes) error {
 	if err := v.validateEventLocator(bvs.Signed.Locator); err != nil {
+		fmt.Println("ValidateBVs v.validateEventLocator")
 		return err
 	}
 	return v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)

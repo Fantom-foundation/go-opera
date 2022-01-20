@@ -117,22 +117,6 @@ func (s *LLREventCallbacksTestSuite) TearDownSuite() {
 
 func (s *LLREventCallbacksTestSuite) TestBasicCheckValidate() {
 
-	/*
-		   const (
-				rounds        = 60
-				validatorsNum = 10
-				startEpoch    = 1
-			)
-
-			require := require.New(t)
-
-			//creating generator
-			generator := newTestEnv(startEpoch, validatorsNum)
-			defer generator.Close()
-
-		   em := generator.emitters[0]
-	*/
-
 	testCases := []struct {
 		name    string
 		pretest func()
@@ -698,8 +682,352 @@ func (s *LLREventCallbacksTestSuite) TestBasicCheckValidate() {
            },
            basiccheck.ErrMPTooLate,
       },
+      {
+         "Validate validateMP ValidateBVs - FutureBVsEpoch",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(idx.Epoch(1))
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            incorrectEpochMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: s.env.store.GetLatestBlockIndex() - 1,
+                           Epoch: s.startEpoch + 20,
+                           Votes: []hash.Hash{
+                              hash.Zero,
+                              hash.HexToHash("0x01"),
+                           },
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: s.env.store.GetLatestBlockIndex(),
+                           Epoch: s.startEpoch +20,
+                           Votes: []hash.Hash{
+                              hash.HexToHash("0x02"),
+                           },
+                        },
+                     },
+                  },
+               },
+            }
+
+            
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = incorrectEpochMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.FutureBVsEpoch,
+      },
+      {
+         "Validate validateMP ValidateBVs - ErrHugeValue",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(s.startEpoch)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            incorrectbvsStartMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: math.MaxInt64/2,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.Zero,
+                              hash.HexToHash("0x01"),
+                           },
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: math.MaxInt64/2 + 100,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.HexToHash("0x02"),
+                           },
+                        },
+                     },
+                  },
+               },
+            }
+            // v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
+            	// sign
+            for i, p := range incorrectbvsStartMp.BlockVoteDoublesign.Pair {
+               s.me.SetBlockVotes(p.Val)
+               s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+               sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+               s.Require().NoError(err)
+               sSig := inter.Signature{}
+               copy(sSig[:], sig)
+               s.me.SetSig(sSig)
+
+               incorrectbvsStartMp.BlockVoteDoublesign.Pair[i] = inter.AsSignedBlockVotes(s.me)
+            }
 
 
+
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = incorrectbvsStartMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate validateMP ValidateBVs - ErrHugeValue-2",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(s.startEpoch)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            incorrectbvsEpochMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: s.env.store.GetLatestBlockIndex() - 1,
+                           Epoch: math.MaxInt32-1,
+                           Votes: []hash.Hash{
+                              hash.Zero,
+                              hash.HexToHash("0x01"),
+                           },
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: s.env.store.GetLatestBlockIndex(),
+                           Epoch: math.MaxInt32,
+                           Votes: []hash.Hash{
+                              hash.HexToHash("0x02"),
+                           },
+                        },
+                     },
+                  },
+               },
+            }
+            // v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
+            	// sign
+            for i, p := range incorrectbvsEpochMp.BlockVoteDoublesign.Pair {
+               s.me.SetBlockVotes(p.Val)
+               s.me.SetEpoch(2147483646)
+               s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+               sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+               s.Require().NoError(err)
+               sSig := inter.Signature{}
+               copy(sSig[:], sig)
+               s.me.SetSig(sSig)
+
+               incorrectbvsEpochMp.BlockVoteDoublesign.Pair[i] = inter.AsSignedBlockVotes(s.me)
+            }
+
+
+
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = incorrectbvsEpochMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           lbasiccheck.ErrHugeValue,
+      },
+      {
+         "Validate validateMP ValidateBVs - TooManyBVs",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(s.startEpoch)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            tooManyBvsMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 1,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.Zero,
+                              hash.HexToHash("0x01"),
+                           },
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 2,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.HexToHash("0x02"),
+                           },
+                        },
+                     },
+                  },
+               },
+            }  
+            // v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
+   // func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, greedy bool) error {
+            // sign
+            for i, p := range tooManyBvsMp.BlockVoteDoublesign.Pair {
+               s.me.SetBlockVotes(p.Val)
+               s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+               sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+               s.Require().NoError(err)
+               sSig := inter.Signature{}
+               copy(sSig[:], sig)
+               s.me.SetSig(sSig)
+
+               tooManyBvsMp.BlockVoteDoublesign.Pair[i] = inter.AsSignedBlockVotes(s.me)
+           
+               for j := 0; j < basiccheck.MaxBlockVotesPerEvent+1;j++ {
+                  tooManyBvsMp.BlockVoteDoublesign.Pair[i].Val.Votes = append(tooManyBvsMp.BlockVoteDoublesign.Pair[i].Val.Votes, hash.HexToHash("0x01") )
+               }
+            }
+
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = tooManyBvsMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.TooManyBVs,
+      },
+      {
+         "Validate validateMP ValidateBVs - MalformedBVs",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(s.startEpoch)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            tooManyBvsMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 0,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.Zero,
+                              hash.HexToHash("0x01"),
+                           },
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 0,
+                           Epoch: s.startEpoch,
+                           Votes: []hash.Hash{
+                              hash.HexToHash("0x02"),
+                           },
+                        },
+                     },
+                  },
+               },
+            }  
+            // v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
+   // func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, greedy bool) error {
+            // sign
+            for i, p := range tooManyBvsMp.BlockVoteDoublesign.Pair {
+               s.me.SetBlockVotes(p.Val)
+               s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+               sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+               s.Require().NoError(err)
+               sSig := inter.Signature{}
+               copy(sSig[:], sig)
+               s.me.SetSig(sSig)
+
+               tooManyBvsMp.BlockVoteDoublesign.Pair[i] = inter.AsSignedBlockVotes(s.me)
+            }
+
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = tooManyBvsMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.MalformedBVs,
+      },
+      {
+         "Validate validateMP ValidateBVs - EmptyBVs",
+          func() {
+            s.me.SetSeq(idx.Event(1))
+            s.me.SetEpoch(s.startEpoch)
+            s.me.SetFrame(idx.Frame(1))
+            s.me.SetLamport(idx.Lamport(1))
+
+            tooManyBvsMp := inter.MisbehaviourProof{
+               BlockVoteDoublesign: &inter.BlockVoteDoublesign{
+                  Block: s.env.store.GetLatestBlockIndex(),
+                  Pair: [2]inter.LlrSignedBlockVotes{
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 0,
+                           Epoch: 0,
+                           Votes: []hash.Hash{},
+                        },
+                     },
+                     {
+                        Val: inter.LlrBlockVotes{
+                           Start: 0,
+                           Epoch: 0,
+                           Votes: []hash.Hash{},
+                        },
+                     },
+                  },
+               },
+            }  
+            // v.validateBVs(bvs.Signed.Locator.Epoch, bvs.Val, true)
+   // func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, greedy bool) error {
+            // sign
+            for i, p := range tooManyBvsMp.BlockVoteDoublesign.Pair {
+               s.me.SetBlockVotes(p.Val)
+               s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+               sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+               s.Require().NoError(err)
+               sSig := inter.Signature{}
+               copy(sSig[:], sig)
+               s.me.SetSig(sSig)
+
+               tooManyBvsMp.BlockVoteDoublesign.Pair[i] = inter.AsSignedBlockVotes(s.me)
+            }
+
+            
+            mps := make([]inter.MisbehaviourProof, 2)
+            for i:=0; i < 2; i++ {
+               mps[i] = tooManyBvsMp
+            }
+   
+            s.me.SetMisbehaviourProofs(mps)
+           },
+           basiccheck.EmptyBVs,
+      },
 	}
 
 	for _, tc := range testCases {
