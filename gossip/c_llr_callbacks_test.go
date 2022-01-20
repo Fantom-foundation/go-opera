@@ -167,7 +167,7 @@ func TestLLRCallbacks(t *testing.T) {
 
 	txByBlockSubsetOf := func(repMap, genMap map[idx.Block]types.Transactions ){
 		// I assume repMap is a subset of genMap
-		require.Less(len(reflect.ValueOf(repMap).MapKeys()), len(reflect.ValueOf(genMap).MapKeys()))
+		//require.Less(len(reflect.ValueOf(repMap).MapKeys()), len(reflect.ValueOf(genMap).MapKeys()))
 		for b, txs := range repMap {
 			genTxs, ok := genMap[b]
 			require.True(ok)
@@ -271,6 +271,16 @@ func TestLLRCallbacks(t *testing.T) {
 	
 	require.NoError(fullRepeater.store.Commit())
 
+	// Comparing generator and fullRepeater states
+
+    // 1.Comparing Tx hashes
+	fullRepBlockToTxsMap := fetchTxsbyBlock(fullRepeater)
+	t.Log("Checking genBlockToTxsMap <= fullRepBlockToTxsMap")
+	txByBlockSubsetOf(genBlockToTxsMap, fullRepBlockToTxsMap)
+
+
+
+    // 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(generator.store.mainDB)
 	fullRepKVMap := fetchTable(fullRepeater.store.mainDB)
 
@@ -286,4 +296,6 @@ func TestLLRCallbacks(t *testing.T) {
 
 	t.Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
+
+	// receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
 }
