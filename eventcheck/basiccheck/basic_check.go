@@ -260,15 +260,11 @@ func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, gre
 		return FutureBVsEpoch
 	}
 
-	if bvs.Start >= math.MaxInt64/2 {
-		fmt.Println("bvs.Start", bvs.Start)
-		fmt.Println("base.ErrHugeValue-1")
+	// let us unite it in one if block
+	if bvs.Start >= math.MaxInt64/2 || bvs.Epoch >= math.MaxInt32-1 {
 		return base.ErrHugeValue
 	}
-	if bvs.Epoch >= math.MaxInt32-1 {
-		fmt.Println("base.ErrHugeValue-2")
-		return base.ErrHugeValue
-	}
+    // TODO check if validateEV has this check
 	if len(bvs.Votes) > MaxBlockVotesPerEvent {
 		fmt.Println("TooManyBVs")
 		return TooManyBVs
