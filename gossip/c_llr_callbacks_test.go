@@ -183,6 +183,15 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 	ctx := context.Background()
 
+
+	testIndexLogs := func(env *testEnv, logs2D [][]*types.Log){
+		for _, logs := range logs2D  {
+			for _, l := range logs {
+				require.NoError(t, env.store.EvmStore().EvmLogs.Push(l))
+			}
+		}
+	}
+
 	// compare blockbyNumber
 	for _, blockIdx := range blockIdxs {
 
@@ -217,8 +226,6 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 		testParams = newTestParams(t, initEvmBlock, procEvmBlock, initReceipts, procReceipts)
 		testParams.compareEvmBlocks()
 
-		// TODO compare indexLogs
-
 		// compare Logs
 		initLogs, err := initiator.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
 		require.NotNil(t, initLogs)
@@ -228,6 +235,10 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 		require.NotNil(t, procLogs)
 		require.NoError(t, err)
 
+		// test IndexLogs 
+		testIndexLogs(initiator, initLogs)
+		testIndexLogs(processor, procLogs)
+		
 		testParams.serializeAndCompare(initLogs, procLogs)
 
 		// compare ReceiptForStorage
