@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -26,7 +27,428 @@ import (
 	"github.com/status-im/keycard-go/hexutils"
 )
 
-// WIP test for ProcessFullBlockRecord and ProcessFullEpochRecord
+type IntegrationTestSuite struct {
+	suite.Suite
+
+	startEpoch idx.Epoch
+	generator  *testEnv
+	processor  *testEnv
+}
+
+func (s *IntegrationTestSuite) SetupTest() {
+	const (
+		rounds        = 60
+		validatorsNum = 10
+		startEpoch    = 1
+	)
+
+	//creating generator
+	generator := newTestEnv(startEpoch, validatorsNum)
+	processor := newTestEnv(startEpoch, validatorsNum)
+
+	// generate txs and multiple blocks
+	for n := uint64(0); n < rounds; n++ {
+		// transfers
+		txs := make([]*types.Transaction, validatorsNum)
+		for i := idx.Validator(0); i < validatorsNum; i++ {
+			from := i % validatorsNum
+			to := 0
+			txs[i] = generator.Transfer(idx.ValidatorID(from+1), idx.ValidatorID(to+1), utils.ToFtm(100))
+		}
+		tm := sameEpoch
+		if n%10 == 0 {
+			tm = nextEpoch
+		}
+		_, err := generator.ApplyTxs(tm, txs...)
+		s.Require().NoError(err)
+	}
+
+	s.startEpoch = startEpoch
+	s.generator = generator
+	s.processor = processor
+
+}
+
+func (s *IntegrationTestSuite) TearDownSuite() {
+	s.T().Log("tearing down test suite")
+	s.generator.Close()
+	s.processor.Close()
+}
+
+func fetchEvs(generator *testEnv) map[idx.Epoch][]*inter.LlrSignedEpochVote {
+	m := make(map[idx.Epoch][]*inter.LlrSignedEpochVote)
+	it := generator.store.table.LlrEpochVotes.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		ev := &inter.LlrSignedEpochVote{}
+		if err := rlp.DecodeBytes(it.Value(), ev); err != nil {
+			generator.store.Log.Crit("Failed to decode epoch vote", "err", err)
+		}
+
+		if ev != nil {
+			m[ev.Val.Epoch] = append(m[ev.Val.Epoch], ev)
+		}
+	}
+	return m
+}
+
+func processEpochVotesRecords(t *testing.T, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, generator, processor *testEnv, startEpoch, lastEpoch idx.Epoch) {
+	// invoke repeater.ProcessEpochVote and ProcessFullEpochRecord for epoch in range [2; lastepoch]
+	for e := idx.Epoch(startEpoch + 1); e <= lastEpoch; e++ {
+		epochVotes, ok := epochToEvsMap[e]
+		if !ok {
+			processor.store.Log.Crit("Failed to fetch epoch votes for a given epoch")
+		}
+
+		for _, v := range epochVotes {
+			require.NoError(t, processor.ProcessEpochVote(*v))
+		}
+
+		if er := generator.store.GetFullEpochRecord(e); er != nil {
+			ier := ier.LlrIdxFullEpochRecord{LlrFullEpochRecord: *er, Idx: e}
+			require.NoError(t, processor.ProcessFullEpochRecord(ier))
+		}
+	}
+}
+
+func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.Block) {
+
+	var (
+		blockIdxCountMap map[idx.Block]uint64
+		bvs              []*inter.LlrSignedBlockVotes
+	)
+
+	blockIdxCountMap = make(map[idx.Block]uint64)
+
+	// fetching blockIdxs with at least minVoteCount
+	fetchBlockIdxs := func(blockIdxCountMap map[idx.Block]uint64) (blockIdxs []idx.Block) {
+		const minVoteCount = 4
+		for blockIdx, count := range blockIdxCountMap {
+			if count >= minVoteCount {
+				blockIdxs = append(blockIdxs, blockIdx)
+			}
+		}
+		return
+	}
+
+	// compute how any votes have been given for a particular block idx
+	fillblockIdxCountMap := func(bv *inter.LlrSignedBlockVotes) {
+		start, end := bv.Val.Start, bv.Val.Start+idx.Block(len(bv.Val.Votes))-1
+		// check case if bv.Val.Votes == 0
+		if start == end {
+			blockIdxCountMap[start] += 1
+			return
+		}
+
+		for start <= end {
+			blockIdxCountMap[start] += 1
+			start++
+		}
+	}
+
+	it := generator.store.table.LlrBlockVotes.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		bv := &inter.LlrSignedBlockVotes{}
+		if err := rlp.DecodeBytes(it.Value(), bv); err != nil {
+			generator.store.Log.Crit("Failed to decode block vote while running ", "err", err)
+		}
+
+		if bv != nil {
+			fillblockIdxCountMap(bv)
+			bvs = append(bvs, bv)
+		}
+	}
+
+	return bvs, fetchBlockIdxs(blockIdxCountMap)
+}
+
+func processBlockVotesRecords(t *testing.T, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block, generator, processor *testEnv) {
+	for _, bv := range bvs {
+		processor.ProcessBlockVotes(*bv)
+	}
+
+	for _, blockIdx := range blockIdxs {
+		if br := generator.store.GetFullBlockRecord(blockIdx); br != nil {
+			ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: blockIdx}
+			require.NoError(t, processor.ProcessFullBlockRecord(ibr))
+		} else {
+			generator.Log.Crit("Empty full block record popped up")
+		}
+	}
+}
+
+// 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
+func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *testEnv) {
+
+	ctx := context.Background()
+
+	// compare blockbyNumber
+	for _, blockIdx := range blockIdxs {
+
+		// comparing EvmBlock by calling BlockByHash
+		initEvmBlock, err := initiator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+		require.NotNil(t, initEvmBlock)
+		require.NoError(t, err)
+
+		procEvmBlock, err := processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+		require.NotNil(t, procEvmBlock)
+		require.NoError(t, err)
+
+		// compare Receipts
+		initReceipts := initiator.store.evm.GetReceipts(blockIdx, initiator.EthAPI.signer, initEvmBlock.Hash, initEvmBlock.Transactions)
+		require.NotNil(t, initReceipts)
+		procReceipts := processor.store.evm.GetReceipts(blockIdx, processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
+		require.NotNil(t, procReceipts)
+
+		testParams := newTestParams(t, initEvmBlock, procEvmBlock, initReceipts, procReceipts)
+		testParams.compareEvmBlocks()
+		testParams.serializeAndCompare(initReceipts, procReceipts)
+
+		// comparing evmBlock by calling BlockByHash
+		// TODO should I compare of all Blocks or only block indexes for what 1/3W+1 votes have been given
+		initEvmBlock, err = initiator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
+		require.NotNil(t, initEvmBlock)
+		require.NoError(t, err)
+		procEvmBlock, err = processor.EthAPI.BlockByHash(ctx, procEvmBlock.Hash)
+		require.NotNil(t, procEvmBlock)
+		require.NoError(t, err)
+
+		testParams = newTestParams(t, initEvmBlock, procEvmBlock, initReceipts, procReceipts)
+		testParams.compareEvmBlocks()
+
+		// TODO compare indexLogs
+
+		// compare Logs
+		initLogs, err := initiator.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
+		require.NotNil(t, initLogs)
+		require.NoError(t, err)
+
+		procLogs, err := processor.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
+		require.NotNil(t, procLogs)
+		require.NoError(t, err)
+
+		testParams.serializeAndCompare(initLogs, procLogs)
+
+		// compare ReceiptForStorage
+		initBR := initiator.store.GetFullBlockRecord(blockIdx)
+		procBR := processor.store.GetFullBlockRecord(blockIdx)
+
+		testParams.serializeAndCompare(initBR.Receipts, procBR.Receipts)
+
+		// compare BR hashes
+		require.Equal(t, initBR.Hash().Hex(), procBR.Hash().Hex())
+	}
+}
+
+func txByBlockSubsetOf(t *testing.T, repMap, genMap map[idx.Block]types.Transactions) {
+	for b, txs := range repMap {
+		genTxs, ok := genMap[b]
+		require.True(t, ok)
+		require.Equal(t, len(txs), len(genTxs))
+		for i, tx := range txs {
+			require.Equal(t, tx.Hash().Hex(), genTxs[i].Hash().Hex())
+		}
+	}
+}
+
+type testParams struct {
+	t            *testing.T
+	initEvmBlock *evmcore.EvmBlock
+	procEvmBlock *evmcore.EvmBlock
+	initReceipts types.Receipts
+	procReceipts types.Receipts
+}
+
+func newTestParams(t *testing.T, initEvmBlock, procEvmBlock *evmcore.EvmBlock, initReceipts, procReceipts types.Receipts) testParams {
+	return testParams{t, initEvmBlock, procEvmBlock, initReceipts, procReceipts}
+}
+
+func (p testParams) compareEvmBlocks() {
+	// comparing all fields of initEvmBlock and procEvmBlock
+	require.Equal(p.t, p.initEvmBlock.Number, p.procEvmBlock.Number)
+	//require.Equal(initEvmBlock.Hash, procEvmBlock.Hash)
+	require.Equal(p.t, p.initEvmBlock.ParentHash, p.procEvmBlock.ParentHash)
+	require.Equal(p.t, p.initEvmBlock.Root, p.procEvmBlock.Root)
+	require.Equal(p.t, p.initEvmBlock.TxHash, p.procEvmBlock.TxHash)
+	require.Equal(p.t, p.initEvmBlock.Time, p.procEvmBlock.Time)
+	require.Equal(p.t, p.initEvmBlock.GasLimit, p.procEvmBlock.GasLimit)
+	require.Equal(p.t, p.initEvmBlock.GasUsed, p.procEvmBlock.GasUsed)
+	require.Equal(p.t, p.initEvmBlock.BaseFee, p.procEvmBlock.BaseFee)
+	require.Equal(p.t, len(p.initEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
+	for i, tx := range p.initEvmBlock.Transactions {
+		require.Equal(p.t, tx.Hash().Hex(), p.procEvmBlock.Transactions[i].Hash().Hex())
+	}
+}
+
+func (p testParams) serializeAndCompare(val1, val2 interface{}) {
+	// serialize val1 and val2
+	buf1, err := rlp.EncodeToBytes(val1)
+	require.NotNil(p.t, buf1)
+	require.NoError(p.t, err)
+	buf2, err := rlp.EncodeToBytes(val2)
+	require.NotNil(p.t, buf2)
+	require.NoError(p.t, err)
+
+	// compare serialized representation of val1 and val2
+	require.True(p.t, bytes.Equal(buf1, buf2))
+}
+
+func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
+	m := make(map[idx.Block]types.Transactions)
+	it := env.store.table.Blocks.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		block := &inter.Block{}
+		if err := rlp.DecodeBytes(it.Value(), block); err != nil {
+			env.store.Log.Crit("Failed to decode block", "err", err)
+		}
+
+		if block != nil {
+			n := idx.BytesToBlock(it.Key())
+			txs := env.store.GetBlockTxs(n, block)
+			m[n] = txs
+		}
+	}
+	return m
+}
+
+func (s *IntegrationTestSuite) TestRepeater() {
+	epochToEvsMap := fetchEvs(s.generator)
+	lastEpoch := s.generator.store.GetEpoch()
+	processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
+
+	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
+	processBlockVotesRecords(s.T(), bvs, blockIdxs, s.generator, s.processor)
+
+	s.Require().NoError(s.generator.store.Commit())
+	s.Require().NoError(s.processor.store.Commit())
+
+	genBlockToTxsMap := fetchTxsbyBlock(s.generator)
+	repBlockToTxsMap := fetchTxsbyBlock(s.processor)
+
+	// 1.Compare transaction hashes
+	s.T().Log("Checking repBlockToTxsMap <= genBlockToTxsMap")
+	txByBlockSubsetOf(s.T(), repBlockToTxsMap, genBlockToTxsMap)
+
+	// 2. Compare ER hashes
+	compareERHashes := func(startEpoch, lastEpoch idx.Epoch) {
+		for e := startEpoch; e <= lastEpoch; e++ {
+
+			genBs, genEs := s.generator.store.GetHistoryBlockEpochState(e)
+			repBs, repEs := s.processor.store.GetHistoryBlockEpochState(e)
+			s.Require().Equal(genBs.Hash().Hex(), repBs.Hash().Hex())
+			s.Require().Equal(genEs.Hash().Hex(), repEs.Hash().Hex())
+
+			genEr := s.generator.store.GetFullEpochRecord(e)
+			repEr := s.processor.store.GetFullEpochRecord(e)
+			s.Require().Equal(genEr.Hash().Hex(), repEr.Hash().Hex())
+		}
+	}
+
+	compareERHashes(s.startEpoch+1, lastEpoch)
+
+	s.T().Log("generator.BlockByNumber >= repeater.BlockByNumber")
+	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+}
+
+func (s *IntegrationTestSuite) TestFullRepeater() {
+
+	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
+	epochToEvsMap := fetchEvs(s.generator)
+	lastEpoch := s.generator.store.GetEpoch()
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+	go func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block) {
+		defer wg.Done()
+		// process LLR epochVotes  in fullRepeater
+		processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
+
+		// process LLR block votes and BRs in fullReapeter
+		processBlockVotesRecords(s.T(), bvs, blockIdxs, s.generator, s.processor)
+
+	}(epochToEvsMap, bvs, blockIdxs)
+
+	go func() {
+		defer wg.Done()
+		events := func() (events []*inter.EventPayload) {
+			it := s.generator.store.table.Events.NewIterator(nil, nil)
+			defer it.Release()
+			for it.Next() {
+				e := &inter.EventPayload{}
+				if err := rlp.DecodeBytes(it.Value(), e); err != nil {
+					s.generator.store.Log.Crit("Failed to decode event", "err", err)
+				}
+				if e != nil {
+					// TODO I might call processEvent here
+					events = append(events, e)
+				}
+			}
+			return
+		}()
+
+		for _, e := range events {
+			s.processor.engineMu.Lock()
+			s.Require().NoError(s.processor.processEvent(e))
+			s.processor.engineMu.Unlock()
+		}
+	}()
+
+	wg.Wait()
+
+	// Comparing the store states
+
+	fetchTable := func(table kvdb.Store) map[string]string {
+		var m = make(map[string]string)
+		it := table.NewIterator(nil, nil)
+		defer it.Release()
+		for it.Next() {
+			key, value := it.Key(), it.Value()
+			m[string(key)] = string(value)
+		}
+		return m
+	}
+
+	s.Require().NoError(s.generator.store.Commit())
+	s.Require().NoError(s.processor.store.Commit())
+
+	// Comparing generator and fullRepeater states
+
+	// 1.Comparing Tx hashes
+	genBlockToTxsMap := fetchTxsbyBlock(s.generator)
+	fullRepBlockToTxsMap := fetchTxsbyBlock(s.processor)
+
+	s.T().Log("Checking genBlockToTxsMap <= fullRepBlockToTxsMap")
+	txByBlockSubsetOf(s.T(), genBlockToTxsMap, fullRepBlockToTxsMap)
+
+	// 2.Compare BlockByNumber,BlockByhash, GetReceipts, GetLogs
+	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+
+	// 2. Comparing mainDb of generator and fullRepeater
+	genKVMap := fetchTable(s.generator.store.mainDB)
+	fullRepKVMap := fetchTable(s.processor.store.mainDB)
+
+	subsetOf := func(aa, bb map[string]string) {
+		for _k, _v := range aa {
+			k, v := []byte(_k), []byte(_v)
+			if k[0] == 0 || k[0] == 'x' || k[0] == 'X' || k[0] == 'b' || k[0] == 'S' {
+				continue
+			}
+			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])), hexutils.BytesToHex(k))
+		}
+	}
+
+	s.T().Log("Checking genKVs <= fullKVs")
+	subsetOf(genKVMap, fullRepKVMap)
+}
+
+func TestIntegrationTestSuite(t *testing.T) {
+	suite.Run(t, new(IntegrationTestSuite))
+}
+
+/*
+
 func TestLLRCallbacks(t *testing.T) {
 	const (
 		rounds        = 60
@@ -418,3 +840,4 @@ func TestLLRCallbacks(t *testing.T) {
 	t.Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
 }
+*/
