@@ -365,7 +365,11 @@ func newHandler(
 	h.epProcessor = h.makeEpProcessor(h.checkers)
 	h.epLeecher = epstreamleecher.New(h.config.Protocol.EpStreamLeecher, epstreamleecher.Callbacks{
 		LowestEpochToFetch: func() idx.Epoch {
-			return h.store.GetLlrState().LowestEpochToFill
+			llrs := h.store.GetLlrState()
+			if llrs.LowestEpochToFill < llrs.LowestEpochToDecide {
+				return llrs.LowestEpochToFill
+			}
+			return llrs.LowestEpochToDecide
 		},
 		MaxEpochToFetch: func() idx.Epoch {
 			return h.store.GetLlrState().LowestEpochToDecide + 10000
