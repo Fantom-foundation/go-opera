@@ -201,11 +201,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	// Process LLR votes
-	err := s.ProcessBlockVotes(inter.AsSignedBlockVotes(e))
+	err := s.processBlockVotes(inter.AsSignedBlockVotes(e))
 	if err != nil && err != eventcheck.ErrAlreadyProcessedBVs {
 		return err
 	}
-	err = s.ProcessEpochVote(inter.AsSignedEpochVote(e))
+	err = s.processEpochVote(inter.AsSignedEpochVote(e))
 	if err != nil && err != eventcheck.ErrAlreadyProcessedEV {
 		return err
 	}
