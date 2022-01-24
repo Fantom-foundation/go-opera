@@ -17,6 +17,7 @@ type BlockEpochState struct {
 }
 
 func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockState, es iblockproc.EpochState) {
+	bs, es = bs.Copy(), es.Copy()
 	bes := &BlockEpochState{
 		BlockState: &bs,
 		EpochState: &es,
@@ -44,7 +45,9 @@ func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockSta
 	}
 	// Save to the LRU cache
 	s.cache.BlockEpochStateHistory.Add(epoch, v, nominalSize)
-	return v.BlockState, v.EpochState
+	bs := v.BlockState.Copy()
+	es := v.EpochState.Copy()
+	return &bs, &es
 }
 
 func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
