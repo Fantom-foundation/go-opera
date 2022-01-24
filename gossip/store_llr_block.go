@@ -88,14 +88,6 @@ func (s *Store) GetLlrBlockResult(block idx.Block) *hash.Hash {
 	return &bv
 }
 
-func updateLowestBlockToFill(block idx.Block, store *Store) {
-	llrs := store.GetLlrState()
-	llrs.LowestBlockToFill = idx.Block(actualizeLowestIndex(uint64(llrs.LowestBlockToFill), uint64(block), func(u uint64) bool {
-		return store.GetBlock(idx.Block(u)) != nil
-	}))
-	store.SetLlrState(llrs)
-}
-
 func (s *Store) GetFullBlockRecord(n idx.Block) *ibr.LlrFullBlockRecord {
 	block := s.GetBlock(n)
 	if block == nil {

@@ -81,12 +81,13 @@ type dagNotifier interface {
 }
 
 type processCallback struct {
-	Event         func(*inter.EventPayload) error
-	SwitchEpochTo func(idx.Epoch) error
-	BVs           func(inter.LlrSignedBlockVotes) error
-	BR            func(ibr.LlrIdxFullBlockRecord) error
-	EV            func(inter.LlrSignedEpochVote) error
-	ER            func(ier.LlrIdxFullEpochRecord) error
+	Event            func(*inter.EventPayload) error
+	SwitchEpochTo    func(idx.Epoch) error
+	PauseEvmSnapshot func()
+	BVs              func(inter.LlrSignedBlockVotes) error
+	BR               func(ibr.LlrIdxFullBlockRecord) error
+	EV               func(inter.LlrSignedEpochVote) error
+	ER               func(ier.LlrIdxFullEpochRecord) error
 }
 
 // handlerConfig is the collection of initialization parameters to create a full
@@ -101,9 +102,18 @@ type handlerConfig struct {
 	process  processCallback
 }
 
-type snapsyncStateUpd struct {
+type snapsyncEpochUpd struct {
 	epoch idx.Epoch
 	root  common.Hash
+}
+
+type snapsyncCancelCmd struct {
+	done chan struct{}
+}
+
+type snapsyncStateUpd struct {
+	snapsyncEpochUpd  *snapsyncEpochUpd
+	snapsyncCancelCmd *snapsyncCancelCmd
 }
 
 type snapsyncState struct {
