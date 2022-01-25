@@ -50,7 +50,6 @@ func (s *LLRBasicCheckTestSuite) TearDownSuite() {
 	s.env.Close()
 }
 
-
 func (s *LLRBasicCheckTestSuite) TestBasicCheckValidate() {
 
 	testCases := []struct {
@@ -59,7 +58,8 @@ func (s *LLRBasicCheckTestSuite) TestBasicCheckValidate() {
 		errExp  error
 	}{
 
-		{"ErrWrongNetForkID",
+		{
+			"ErrWrongNetForkID",
 			func() {
 				s.me.SetNetForkID(1)
 			},
@@ -220,49 +220,66 @@ func (s *LLRBasicCheckTestSuite) TestBasicCheckValidate() {
 			basiccheck.ErrIntrinsicGas,
 		},
 
-		/*
-			      {
-			         "Validate checkTxs validateTx ErrTipAboveFeeCap",
-			          func() {
-			            s.me.SetSeq(idx.Event(1))
-			            s.me.SetEpoch(idx.Epoch(1))
-			            s.me.SetFrame(idx.Frame(1))
-			            s.me.SetLamport(idx.Lamport(1))
+		{
+			"Validate checkTxs validateTx ErrTipAboveFeeCap",
+			func() {
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetEpoch(idx.Epoch(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
 
-			            h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+				h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
 
-			            tx1 := types.NewTx(&types.LegacyTx{
-			               Nonce:    math.MaxUint64,
-			               GasPrice: h.Big(),
-			               Gas:      math.MaxUint64,
-			               To:       nil,
-			               Value:    h.Big(),
-			               Data:     []byte{},
-			               V:        big.NewInt(0xff),
-			               R:        h.Big(),
-			               S:        h.Big(),
-			            })
+				tx1 := types.NewTx(&types.DynamicFeeTx{
+					Nonce:     math.MaxUint64,
+					To:        nil,
+					Data:      []byte{},
+					Gas:       math.MaxUint64,
+					Value:     h.Big(),
+					ChainID:   new(big.Int),
+					GasTipCap: big.NewInt(1000),
+					GasFeeCap: new(big.Int),
+					V:         big.NewInt(0xff),
+					R:         h.Big(),
+					S:         h.Big(),
+				})
 
+				txs := types.Transactions{}
+				txs = append(txs, tx1)
+				s.me.SetTxs(txs)
+			},
+			basiccheck.ErrTipAboveFeeCap,
+		},
+		{
+			"Validate returns nil",
+			func() {
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetEpoch(idx.Epoch(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
 
-			            tx1 := types.NewTx(&types.DynamicFeeTx{
-			               ChainID:    gspec.Config.ChainID,
-			               Nonce:      0,
-			               To:         &aa,
-			               Gas:        30000,
-			               GasFeeCap:  newGwei(5),
-			               GasTipCap:  big.NewInt(2),
-			               AccessList: accesses,
-			               Data:       []byte{},
-			            })
+				h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
 
+				tx1 := types.NewTx(&types.DynamicFeeTx{
+					Nonce:     math.MaxUint64,
+					To:        nil,
+					Data:      []byte{},
+					Gas:       math.MaxUint64,
+					Value:     h.Big(),
+					ChainID:   new(big.Int),
+					GasTipCap: new(big.Int),
+					GasFeeCap: big.NewInt(1000),
+					V:         big.NewInt(0xff),
+					R:         h.Big(),
+					S:         h.Big(),
+				})
 
-			            txs := types.Transactions{}
-				         txs = append(txs, tx1)
-			            s.me.SetTxs(txs)
-			           },
-			           basiccheck.ErrTipAboveFeeCap,
-			      },
-		*/
+				txs := types.Transactions{}
+				txs = append(txs, tx1)
+				s.me.SetTxs(txs)
+			},
+			nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -885,14 +902,11 @@ func (s *LLRBasicCheckTestSuite) TestBasicCheckValidateBV() {
 }
 
 func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEventPayload {
-	// we migrate immutable payload to mutable payload
-	// we set
-	// we test against errors in processEvent
 	me := &inter.MutableEventPayload{}
 	me.SetVersion(e.Version())
 	me.SetNetForkID(e.NetForkID())
-	me.SetCreator(e.Creator()) //check in Validate
-	me.SetEpoch(e.Epoch())     // check in Validate
+	me.SetCreator(e.Creator())
+	me.SetEpoch(e.Epoch())
 	me.SetCreationTime(e.CreationTime())
 	me.SetMedianTime(e.MedianTime())
 	me.SetPrevEpochHash(e.PrevEpochHash())
