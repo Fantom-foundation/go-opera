@@ -182,16 +182,6 @@ func processBlockVotesRecords(t *testing.T, bvs []*inter.LlrSignedBlockVotes, bl
 func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *testEnv) {
 
 	ctx := context.Background()
-
-
-	testIndexLogs := func(env *testEnv, logs2D [][]*types.Log){
-		for _, logs := range logs2D  {
-			for _, l := range logs {
-				require.NoError(t, env.store.EvmStore().EvmLogs.Push(l))
-			}
-		}
-	}
-
 	// compare blockbyNumber
 	for _, blockIdx := range blockIdxs {
 
@@ -236,8 +226,8 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 		require.NoError(t, err)
 
 		// test IndexLogs 
-		testIndexLogs(initiator, initLogs)
-		testIndexLogs(processor, procLogs)
+	//	testIndexLogs(initiator, initLogs)
+	//	testIndexLogs(processor, procLogs)
 		
 		testParams.serializeAndCompare(initLogs, procLogs)
 
@@ -452,6 +442,37 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 
 	s.T().Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
+
+
+	// IndexLogs scenario
+	// run EvmLogs.Push(l) for all logs and then compare the states of generator and processor
+	ctx := context.Background()
+	s.Require().NotNil(blockIdxs)
+
+	evmBlock, err := s.processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdxs[0]))
+	s.Require().NotNil(evmBlock)
+	s.Require().NoError(err)
+
+	logs2D, err := s.processor.EthAPI.GetLogs(ctx, evmBlock.Hash)
+	s.Require().NotNil(evmBlock)
+	s.Require().NoError(err)
+
+	testIndexLogs := func(logs2D [][]*types.Log){
+		for _, logs := range logs2D  {
+			for _, l := range logs {
+				s.Require().NoError(s.processor.store.EvmStore().EvmLogs.Push(l))
+			}
+		}
+	}
+
+	testIndexLogs(logs2D)
+	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
+	fullRepKVMapAfterIndexLogs  := fetchTable(s.processor.store.mainDB)
+	
+	// comparing the states
+	subsetOf(genKVMap, genKVMapAfterIndexLogs)
+	subsetOf(fullRepKVMap, fullRepKVMapAfterIndexLogs)
+	subsetOf(genKVMapAfterIndexLogs, fullRepKVMapAfterIndexLogs)
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
