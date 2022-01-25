@@ -132,11 +132,6 @@ func (s *LLRCallbacksTestSuite) Test_processEpochVoteErrUnknownEpochEV() {
 	s.Require().EqualError(s.env.ProcessEpochVote(ev), eventcheck.ErrUnknownEpochEV.Error())
 }
 
-// TODO
-func Test_actualizeLowestIndex(t *testing.T) {
-
-}
-
 func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEventPayload {
 	// we migrate immutable payload to mutable payload
 	// we set

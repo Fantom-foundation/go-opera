@@ -3,6 +3,7 @@ package gossip
 import (
 	"bytes"
 	"context"
+	"math/rand"
 	"sync"
 	"testing"
 
@@ -13,13 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	//	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -35,6 +35,7 @@ type IntegrationTestSuite struct {
 	processor  *testEnv
 }
 
+// TODO add godoc
 func (s *IntegrationTestSuite) SetupTest() {
 	const (
 		rounds        = 60
@@ -42,7 +43,7 @@ func (s *IntegrationTestSuite) SetupTest() {
 		startEpoch    = 1
 	)
 
-	//creating generator
+	//creating generator and processor
 	generator := newTestEnv(startEpoch, validatorsNum)
 	processor := newTestEnv(startEpoch, validatorsNum)
 
@@ -225,10 +226,6 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 		require.NotNil(t, procLogs)
 		require.NoError(t, err)
 
-		// test IndexLogs 
-	//	testIndexLogs(initiator, initLogs)
-	//	testIndexLogs(processor, procLogs)
-		
 		testParams.serializeAndCompare(initLogs, procLogs)
 
 		// compare ReceiptForStorage
@@ -443,7 +440,6 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	s.T().Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
 
-
 	// IndexLogs scenario
 	// run EvmLogs.Push(l) for all logs and then compare the states of generator and processor
 	ctx := context.Background()
@@ -457,8 +453,8 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	s.Require().NotNil(evmBlock)
 	s.Require().NoError(err)
 
-	testIndexLogs := func(logs2D [][]*types.Log){
-		for _, logs := range logs2D  {
+	testIndexLogs := func(logs2D [][]*types.Log) {
+		for _, logs := range logs2D {
 			for _, l := range logs {
 				s.Require().NoError(s.processor.store.EvmStore().EvmLogs.Push(l))
 			}
@@ -467,12 +463,153 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 
 	testIndexLogs(logs2D)
 	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
-	fullRepKVMapAfterIndexLogs  := fetchTable(s.processor.store.mainDB)
-	
+	fullRepKVMapAfterIndexLogs := fetchTable(s.processor.store.mainDB)
+
 	// comparing the states
 	subsetOf(genKVMap, genKVMapAfterIndexLogs)
 	subsetOf(fullRepKVMap, fullRepKVMapAfterIndexLogs)
 	subsetOf(genKVMapAfterIndexLogs, fullRepKVMapAfterIndexLogs)
+
+	// Search logs by topic, block and address
+	// make sure it work as expected
+	// see  TestIndexSearchMultyVariants in topicsdb/topicsdb_test.go
+
+	testSearchLogsWithLLRSync := func(blockIdx idx.Block) {
+
+		randAddress := func() (addr common.Address) {
+			n, err := rand.Read(addr[:])
+			if err != nil {
+				panic(err)
+			}
+			if n != common.AddressLength {
+				panic("address is not filled")
+			}
+			return
+		}
+
+		var (
+			hash1 = common.BytesToHash([]byte("topic1"))
+			hash2 = common.BytesToHash([]byte("topic2"))
+			hash3 = common.BytesToHash([]byte("topic3"))
+			hash4 = common.BytesToHash([]byte("topic4"))
+			addr1 = randAddress()
+			addr2 = randAddress()
+			addr3 = randAddress()
+			addr4 = randAddress()
+		)
+
+		// I looked atso at Logs2D, if loop over them, Log struct has empty fields.
+		// To resolve this issue, I came up with testData
+		testdata := []*types.Log{{
+			BlockNumber: uint64(blockIdx),
+			Address:     addr1,
+			Topics:      []common.Hash{hash1, hash1, hash1},
+		}, {
+			BlockNumber: uint64(blockIdx),
+			Address:     addr2,
+			Topics:      []common.Hash{hash2, hash2, hash2},
+		}, {
+			BlockNumber: uint64(blockIdx),
+			Address:     addr3,
+			Topics:      []common.Hash{hash3, hash3, hash3},
+		}, {
+			BlockNumber: uint64(blockIdx),
+			Address:     addr4,
+			Topics:      []common.Hash{hash4, hash4, hash4},
+		},
+		}
+
+		index := s.processor.store.EvmStore().EvmLogs
+
+		for _, l := range testdata {
+			s.Require().NoError(index.Push(l))
+		}
+
+		// require.ElementsMatchf(testdata, got, "") doesn't work properly here,
+		// so use check()
+		check := func(got []*types.Log) {
+			// why we declared count here?
+			count := 0
+			for _, a := range got {
+				for _, b := range testdata {
+					if b.Address == a.Address {
+						s.Require().ElementsMatch(a.Topics, b.Topics)
+						count++
+						break
+					}
+				}
+			}
+		}
+
+		for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+			"sync": index.FindInBlocks,
+			//	"async": index.FindInBlocksAsync,
+		} {
+			s.Run(dsc, func() {
+
+				s.Run("With no addresses", func() {
+					got, err := method(nil, 0, 1000, [][]common.Hash{
+						{},
+						{hash1, hash2, hash3, hash4},
+						{},
+						{hash1, hash2, hash3, hash4},
+					})
+					s.Require().NoError(err)
+					//s.Require().Equal(4, len(got))
+					check(got)
+				})
+
+				s.Run("With addresses", func() {
+					got, err := method(nil, 0, 1000, [][]common.Hash{
+						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+						{hash1, hash2, hash3, hash4},
+						{},
+						{hash1, hash2, hash3, hash4},
+					})
+					s.Require().NoError(err)
+					//s.Require().Equal(4, len(got))
+					check(got)
+				})
+
+				s.Run("With block range", func() {
+					got, err := method(nil, 2, 998, [][]common.Hash{
+						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+						{hash1, hash2, hash3, hash4},
+						{},
+						{hash1, hash2, hash3, hash4},
+					})
+					s.Require().NoError(err)
+					//s.Require().Equal(2, len(got))
+					check(got)
+				})
+
+				s.Run("With addresses and blocks", func() {
+					got1, err := method(nil, 2, 998, [][]common.Hash{
+						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+						{hash1, hash2, hash3, hash4},
+						{},
+						{hash1, hash2, hash3, hash4},
+					})
+					s.Require().NoError(err)
+					//s.Require().Equal(2, len(got1))
+					check(got1)
+
+					got2, err := method(nil, 2, 998, [][]common.Hash{
+						{addr4.Hash(), addr3.Hash(), addr2.Hash(), addr1.Hash()},
+						{hash1, hash2, hash3, hash4},
+						{},
+						{hash1, hash2, hash3, hash4},
+					})
+					s.Require().NoError(err)
+					s.Require().ElementsMatch(got1, got2)
+				})
+
+			})
+
+		}
+	}
+
+	testSearchLogsWithLLRSync(blockIdxs[0])
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
