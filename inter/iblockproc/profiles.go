@@ -2,6 +2,7 @@ package iblockproc
 
 import (
 	"io"
+	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
@@ -15,7 +16,10 @@ type ValidatorProfiles map[idx.ValidatorID]drivertype.Validator
 func (vv ValidatorProfiles) Copy() ValidatorProfiles {
 	cp := make(ValidatorProfiles, len(vv))
 	for k, v := range vv {
-		cp[k] = v
+		cpv := v
+		cpv.Weight = new(big.Int).Set(cpv.Weight)
+		cpv.PubKey = cpv.PubKey.Copy()
+		cp[k] = cpv
 	}
 	return cp
 }
