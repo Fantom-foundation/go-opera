@@ -176,7 +176,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 	if gen, err := s.store.evm.Snaps.Generating(); gen || err != nil {
 		// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
-		s.Log.Warn("EVM snapshot is not ready during event processing", "gen", gen, "err", gen)
+		s.Log.Warn("EVM snapshot is not ready during event processing", "gen", gen, "err", err)
 		return errDirtyEvmSnap
 	}
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
