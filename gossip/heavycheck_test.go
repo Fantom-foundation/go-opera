@@ -202,6 +202,81 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEV() {
 
 }
 
+
+func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateBVs() {
+	var bv inter.LlrSignedBlockVotes
+
+	testCases := []struct {
+		name    string
+		errExp  error
+		pretest func()
+	}{
+		{
+			"success",
+			nil,
+			func() {
+				bv = inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+				
+				/*
+				s.me.SetVersion(1)
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch + 1))
+				s.me.SetCreator(4)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+				*/
+				s.me.SetVersion(1)
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch+1))
+				s.me.SetCreator(2)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+				
+
+				bv = inter.AsSignedBlockVotes(s.me)
+				
+			},
+		},
+
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		s.Run(tc.name, func() {
+			s.SetupSuite()
+			tc.pretest()
+
+			err := s.env.checkers.Heavycheck.ValidateBVs(bv)
+
+			if tc.errExp != nil {
+				s.Require().Error(err)
+				s.Require().EqualError(err, tc.errExp.Error())
+			} else {
+				s.Require().NoError(err)
+			}
+		})
+	}
+
+
+
+
+
+
+}
+
 func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEventPayload {
 	me := &inter.MutableEventPayload{}
 	me.SetVersion(e.Version())
