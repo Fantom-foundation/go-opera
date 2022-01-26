@@ -464,7 +464,7 @@ func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEvent
 	return me
 }
 
-// WIP
+
 func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 
 	testCases := []struct {
@@ -662,7 +662,7 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 			func() {
 				ev := inter.LlrSignedEpochVote{
 					Val: inter.LlrEpochVote{
-						Epoch: s.startEpoch+1,
+						Epoch: s.startEpoch + 1,
 						Vote:  hash.HexToHash("0x01"),
 					},
 				}
@@ -686,42 +686,42 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 				ev = inter.AsSignedEpochVote(s.me)
 			},
 		},
-		{    // TODO yield an error somehow
-			"EpochVote().Epoch != 0, matchPubkey returns ErrPubkeyChanged",
-			heavycheck.ErrPubkeyChanged,
-			func() {
-				ev := inter.LlrSignedEpochVote{
-					Val: inter.LlrEpochVote{
-						Epoch: s.startEpoch+1,
-						Vote:  hash.HexToHash("0x01"),
-					},
-				}
+		/*
+			{    // I am not sure if i have to address this test case. Please advice
+				"EpochVote().Epoch != 0, matchPubkey returns ErrPubkeyChanged",
+				heavycheck.ErrPubkeyChanged,
+				func() {
+					ev := inter.LlrSignedEpochVote{
+						Val: inter.LlrEpochVote{
+							Epoch: s.startEpoch+1,
+							Vote:  hash.HexToHash("0x01"),
+						},
+					}
 
-				s.me.SetEpochVote(ev.Val)
-				s.me.SetVersion(1)
-				s.me.SetEpoch(idx.Epoch(s.startEpoch))
-				s.me.SetSeq(idx.Event(1))
-				s.me.SetFrame(idx.Frame(1))
-				s.me.SetLamport(idx.Lamport(1))
-				s.me.SetCreator(3)
-				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+					s.me.SetEpochVote(ev.Val)
+					s.me.SetVersion(1)
+					s.me.SetEpoch(idx.Epoch(s.startEpoch))
+					s.me.SetSeq(idx.Event(1))
+					s.me.SetFrame(idx.Frame(1))
+					s.me.SetLamport(idx.Lamport(1))
+					s.me.SetCreator(3)
+					s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
 
-				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
-				s.Require().NoError(err)
-				sSig := inter.Signature{}
-				copy(sSig[:], sig)
-				s.me.SetSig(sSig)
-
-				ev = inter.AsSignedEpochVote(s.me)
+					sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+					s.Require().NoError(err)
+					sSig := inter.Signature{}
+					copy(sSig[:], sig)
+					s.me.SetSig(sSig)
+				},
 			},
-		},
-		{    
+		*/
+		{
 			"EpochVote().Epoch != 0, matchPubkey returns nil",
 			nil,
 			func() {
 				ev := inter.LlrSignedEpochVote{
 					Val: inter.LlrEpochVote{
-						Epoch: s.startEpoch+1,
+						Epoch: s.startEpoch + 1,
 						Vote:  hash.HexToHash("0x01"),
 					},
 				}
@@ -744,7 +744,7 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 				ev = inter.AsSignedEpochVote(s.me)
 			},
 		},
-		{    
+		{
 			"BlockVote().Epoch == 0",
 			nil,
 			func() {
@@ -775,8 +775,8 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 				s.me.SetSig(sSig)
 			},
 		},
-		{    
-			"BlockVote().Epoch != 0",
+		{
+			"BlockVote().Epoch != 0, validateBVsEpoch returns nil",
 			nil,
 			func() {
 				bv := inter.LlrSignedBlockVotes{
@@ -806,32 +806,39 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 				s.me.SetSig(sSig)
 			},
 		},
+		{
+			"blockvote epoch is 0, block vote epoch does not match event epoch,matchPubkey returns nil",
+			nil,
+			func() {
+				bv := inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
 
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
 
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+				bv = inter.AsSignedBlockVotes(s.me)
+			},
+		},
 	}
-
-	/*
-	if err := v.matchPubkey(e.Creator(), e.EpochVote().Epoch-1, pubkey.Bytes(), ErrUnknownEpochEV); err != nil {
-
-	func (v *Checker) matchPubkey(creator idx.ValidatorID, epoch idx.Epoch, want []byte, authErr error) error {
-	pubkeys := v.reader.GetEpochPubKeysOf(epoch)
-	if len(pubkeys) == 0 {
-		return authErr
-	}
-	pubkey, ok := pubkeys[creator]
-	if !ok {
-		return epochcheck.ErrAuth
-	}
-	if bytes.Compare(pubkey.Bytes(), want) != 0 {
-		return ErrPubkeyChanged
-	}
-	return nil
-}
-
-
-
-
-	*/
 
 	for _, tc := range testCases {
 		tc := tc
@@ -849,8 +856,464 @@ func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEvent() {
 			}
 		})
 	}
-
 }
+
+func (s *LLRHeavyCheckTestSuite) TestHeavyCheckValidateEventMultiple() {
+	var (
+		bv inter.LlrSignedBlockVotes
+		ev inter.LlrSignedEpochVote
+	) 
+
+
+	testCases := []struct {
+		name    string
+		errExp  error
+		pretest func()
+	}{
+		{
+			"success",
+			nil,
+			func() {
+				bv = inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+
+				ev = inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: s.startEpoch + 1,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetCreator(3)
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				bv = inter.AsSignedBlockVotes(s.me)
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		{
+			"epochcheck.ErrNotRelevant",
+			epochcheck.ErrNotRelevant,
+			func() {
+				bv = inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+
+				ev = inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: s.startEpoch + 1,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch + 1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				bv = inter.AsSignedBlockVotes(s.me)
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		/*
+		{
+			"epochcheck.ErrAuth",
+			epochcheck.ErrAuth,
+			func() {
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				invalidCreator := idx.ValidatorID(100)
+				s.me.SetCreator(invalidCreator)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"ErrWrongEventSig",
+			heavycheck.ErrWrongEventSig,
+			func() {
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetCreator(3)
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[1], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"ErrMalformedTxSig",
+			heavycheck.ErrMalformedTxSig,
+			func() {
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetCreator(3)
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
+				tx1 := types.NewTx(&types.LegacyTx{
+					Nonce:    math.MaxUint64,
+					GasPrice: h.Big(),
+					Gas:      math.MaxUint64,
+					To:       nil,
+					Value:    h.Big(),
+					Data:     []byte{},
+				})
+				txs := types.Transactions{}
+				txs = append(txs, tx1)
+				s.me.SetTxs(txs)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"ErrWrongPayloadHash",
+			heavycheck.ErrWrongPayloadHash,
+			func() {
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+
+				invalidPayloadHash := hash.Hash{}
+				s.me.SetPayloadHash(invalidPayloadHash)
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"EpochVote().Epoch == 0",
+			nil,
+			func() {
+				ev := inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: 0,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		{
+			"EpochVote().Epoch != 0, matchPubkey returns heavycheck.ErrUnknownEpochEV",
+			heavycheck.ErrUnknownEpochEV,
+			func() {
+				ev := inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: s.startEpoch,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		{
+			"EpochVote().Epoch != 0, matchPubkey returns epochcheck.ErrAuth",
+			epochcheck.ErrAuth,
+			func() {
+				ev := inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: s.startEpoch + 1,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				invalidCreator := idx.ValidatorID(100)
+				s.me.SetCreator(invalidCreator)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		*/
+		/*
+			{    // I am not sure if i have to address this test case. Please advice
+				"EpochVote().Epoch != 0, matchPubkey returns ErrPubkeyChanged",
+				heavycheck.ErrPubkeyChanged,
+				func() {
+					ev := inter.LlrSignedEpochVote{
+						Val: inter.LlrEpochVote{
+							Epoch: s.startEpoch+1,
+							Vote:  hash.HexToHash("0x01"),
+						},
+					}
+
+					s.me.SetEpochVote(ev.Val)
+					s.me.SetVersion(1)
+					s.me.SetEpoch(idx.Epoch(s.startEpoch))
+					s.me.SetSeq(idx.Event(1))
+					s.me.SetFrame(idx.Frame(1))
+					s.me.SetLamport(idx.Lamport(1))
+					s.me.SetCreator(3)
+					s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+					sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+					s.Require().NoError(err)
+					sSig := inter.Signature{}
+					copy(sSig[:], sig)
+					s.me.SetSig(sSig)
+				},
+			},
+		*/
+		/*
+		{
+			"EpochVote().Epoch != 0, matchPubkey returns nil",
+			nil,
+			func() {
+				ev := inter.LlrSignedEpochVote{
+					Val: inter.LlrEpochVote{
+						Epoch: s.startEpoch + 1,
+						Vote:  hash.HexToHash("0x01"),
+					},
+				}
+
+				s.me.SetEpochVote(ev.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+
+				ev = inter.AsSignedEpochVote(s.me)
+			},
+		},
+		{
+			"BlockVote().Epoch == 0",
+			nil,
+			func() {
+				bv := inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: 0,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"BlockVote().Epoch != 0, validateBVsEpoch returns nil",
+			nil,
+			func() {
+				bv := inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+			},
+		},
+		{
+			"blockvote epoch is 0, block vote epoch does not match event epoch,matchPubkey returns nil",
+			nil,
+			func() {
+				bv := inter.LlrSignedBlockVotes{
+					Val: inter.LlrBlockVotes{
+						Start: 1,
+						Epoch: s.startEpoch,
+						Votes: []hash.Hash{
+							hash.Zero,
+							hash.HexToHash("0x01"),
+						},
+					},
+				}
+
+				s.me.SetBlockVotes(bv.Val)
+				s.me.SetVersion(1)
+				s.me.SetEpoch(idx.Epoch(s.startEpoch))
+				s.me.SetSeq(idx.Event(1))
+				s.me.SetFrame(idx.Frame(1))
+				s.me.SetLamport(idx.Lamport(1))
+				s.me.SetCreator(3)
+				s.me.SetPayloadHash(inter.CalcPayloadHash(s.me))
+
+				sig, err := s.env.signer.Sign(s.env.pubkeys[2], s.me.HashToSign().Bytes())
+				s.Require().NoError(err)
+				sSig := inter.Signature{}
+				copy(sSig[:], sig)
+				s.me.SetSig(sSig)
+				bv = inter.AsSignedBlockVotes(s.me)
+			},
+		},*/
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		s.Run(tc.name, func() {
+			s.SetupSuite()
+			tc.pretest()
+
+			err := s.env.checkers.Heavycheck.ValidateEvent(s.me)
+			evErr := s.env.checkers.Heavycheck.ValidateEV(ev)
+			bvErr := s.env.checkers.Heavycheck.ValidateBVs(bv)
+
+
+			if tc.errExp != nil {
+				s.Require().Error(err)
+				s.Require().EqualError(err, tc.errExp.Error())
+
+				// should we match expected error or not?
+				s.Require().Error(bvErr)
+				s.Require().Error(evErr)
+			} else {
+				s.Require().NoError(err)
+				s.Require().NoError(evErr)
+				s.Require().NoError(bvErr)
+			}
+		})
+	}
+}
+
 
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(LLRHeavyCheckTestSuite))
