@@ -164,6 +164,9 @@ func (h *handler) updateSnapsyncStage() {
 	} else if snapGenOngoing {
 		h.syncStatus.Set(ssEvmSnapGen)
 	} else if fullsyncPossibleNow {
+		if !h.syncStatus.Is(ssEvents) {
+			h.Log.Info("Start/Switch to fullsync mode...")
+		}
 		h.syncStatus.Set(ssEvents)
 	}
 }
