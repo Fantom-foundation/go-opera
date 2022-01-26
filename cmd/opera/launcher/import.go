@@ -82,7 +82,7 @@ func importEvents(ctx *cli.Context) error {
 	}
 
 	// avoid P2P interaction, API calls and events emitting
-	genesisStore := getGenesisStore(ctx)
+	genesisStore := mayGetGenesisStore(ctx)
 	cfg := makeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32

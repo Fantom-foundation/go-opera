@@ -25,7 +25,8 @@ func BenchmarkFlushDBs(b *testing.B) {
 	rawProducer, dir := dbProducer("flush_bench")
 	defer os.RemoveAll(dir)
 	genStore := makefakegenesis.FakeGenesisStore(1, utils.ToFtm(1), utils.ToFtm(1))
-	_, _, store, s2, _ := MakeEngine(rawProducer, genStore.Genesis(), Configs{
+	g := genStore.Genesis()
+	_, _, store, s2, _ := MakeEngine(rawProducer, &g, Configs{
 		Opera:         gossip.DefaultConfig(cachescale.Identity),
 		OperaStore:    gossip.DefaultStoreConfig(cachescale.Identity),
 		Lachesis:      abft.DefaultConfig(),

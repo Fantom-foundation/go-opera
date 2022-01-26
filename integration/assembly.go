@@ -73,15 +73,15 @@ func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *
 }
 
 func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g genesis.Genesis, cfg Configs) error {
-	_, _, _, err := rawMakeEngine(gdb, cdb, g, cfg, true)
+	_, _, _, err := rawMakeEngine(gdb, cdb, &g, cfg)
 	return err
 }
 
-func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g genesis.Genesis, cfg Configs, applyGenesis bool) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
+func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
 	blockProc := gossip.DefaultBlockProc()
 
-	if applyGenesis {
-		_, err := gdb.ApplyGenesis(g)
+	if g != nil {
+		_, err := gdb.ApplyGenesis(*g)
 		if err != nil {
 			return nil, nil, blockProc, fmt.Errorf("failed to write Gossip genesis state: %v", err)
 		}
@@ -132,20 +132,23 @@ func applyGenesis(rawProducer kvdb.DBProducer, g genesis.Genesis, cfg Configs) e
 	return nil
 }
 
-func makeEngine(rawProducer kvdb.IterableDBProducer, g genesis.Genesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, error) {
+func makeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, error) {
 	dbs, err := makeFlushableProducer(rawProducer)
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
 	}
 
 	if emptyStart {
+		if g == nil {
+			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("missing --genesis flag for an empty datadir")
+		}
 		// close flushable DBs and open raw DBs for performance reasons
 		err := dbs.Close()
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to close existing databases: %v", err)
 		}
 
-		err = applyGenesis(rawProducer, g, cfg)
+		err = applyGenesis(rawProducer, *g, cfg)
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
@@ -172,19 +175,19 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, g genesis.Genesis, emptySta
 	}()
 
 	// compare genesis with the input
-	if !emptyStart {
-		genesisID := gdb.GetGenesisID()
-		if genesisID == nil {
-			err = errors.New("malformed chainstore: genesis ID is not written")
-			return nil, nil, nil, nil, gossip.BlockProc{}, err
-		}
+	genesisID := gdb.GetGenesisID()
+	if genesisID == nil {
+		err = errors.New("malformed chainstore: genesis ID is not written")
+		return nil, nil, nil, nil, gossip.BlockProc{}, err
+	}
+	if g != nil {
 		if *genesisID != g.GenesisID {
 			err = &GenesisMismatchError{*genesisID, g.GenesisID}
 			return nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
 	}
 
-	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, g, cfg, false)
+	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, nil, cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to make engine: %v", err)
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
@@ -200,7 +203,7 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, g genesis.Genesis, emptySta
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(rawProducer kvdb.IterableDBProducer, g genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc) {
+func MakeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc) {
 	dropAllDBsIfInterrupted(rawProducer)
 	existingDBs := rawProducer.Names()
 
@@ -212,10 +215,12 @@ func MakeEngine(rawProducer kvdb.IterableDBProducer, g genesis.Genesis, cfg Conf
 		utils.Fatalf("Failed to make engine: %v", err)
 	}
 
+	rules := gdb.GetRules()
+	genesisID := gdb.GetGenesisID()
 	if len(existingDBs) == 0 {
-		log.Info("Applied genesis state", "name", g.NetworkName, "id", g.NetworkID, "genesis", g.GenesisID.String())
+		log.Info("Applied genesis state", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())
 	} else {
-		log.Info("Genesis is already written", "name", g.NetworkName, "id", g.NetworkID, "genesis", g.GenesisID.String())
+		log.Info("Genesis is already written", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())
 	}
 
 	return engine, vecClock, gdb, cdb, blockProc
