@@ -184,7 +184,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	s.SetHistoryBlockEpochState(es.Epoch, bs, es)
 	s.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
 	s.SetBlockEpochState(bs, es)
-	s.SetLlrState(LlrState{
+	s.setLlrState(LlrState{
 		LowestEpochToDecide: es.Epoch + 1,
 		LowestEpochToFill:   es.Epoch + 1,
 		LowestBlockToDecide: bs.LastBlock.Idx + 1,

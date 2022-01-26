@@ -149,6 +149,14 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 	return err
 }
 
+func (s *Store) PauseEvmSnapshot() {
+	s.Snaps.Disable()
+}
+
+func (s *Store) IsEvmSnapshotPaused() bool {
+	return rawdb.ReadSnapshotDisabled(s.table.Evm)
+}
+
 // Commit changes.
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()

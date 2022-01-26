@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -249,11 +250,12 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 				defer done()
 				return svc.processEvent(event)
 			},
-			SwitchEpochTo: svc.SwitchEpochTo,
-			BVs:           svc.ProcessBlockVotes,
-			BR:            svc.ProcessFullBlockRecord,
-			EV:            svc.ProcessEpochVote,
-			ER:            svc.ProcessFullEpochRecord,
+			SwitchEpochTo:    svc.SwitchEpochTo,
+			PauseEvmSnapshot: svc.PauseEvmSnapshot,
+			BVs:              svc.ProcessBlockVotes,
+			BR:               svc.ProcessFullBlockRecord,
+			EV:               svc.ProcessEpochVote,
+			ER:               svc.ProcessFullEpochRecord,
 		},
 	})
 	if err != nil {
@@ -421,8 +423,14 @@ func (s *Service) Start() error {
 	// start tflusher before starting snapshots generation
 	s.tflusher.Start()
 	// start snapshots generation
+	if s.store.evm.IsEvmSnapshotPaused() && !s.config.AllowSnapsync {
+		return errors.New("cannot halt snapsync and start fullsync")
+	}
 	root := s.store.GetBlockState().FinalizedStateRoot
 	if !s.store.evm.HasStateDB(root) {
+		if !s.config.AllowSnapsync {
+			return errors.New("fullsync isn't possible because state root is missing")
+		}
 		root = hash.Zero
 	}
 	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
