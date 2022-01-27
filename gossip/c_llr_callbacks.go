@@ -79,9 +79,13 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 }
 
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
-	// engineMu should be locked here
-	defer s.mayCommit(false)
-	return s.processBlockVotes(bvs)
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	err := s.processBlockVotes(bvs)
+	if err != nil {
+		s.mayCommit(false)
+	}
+	return err
 }
 
 func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
@@ -198,9 +202,13 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 }
 
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
-	// engineMu should be locked here
-	defer s.mayCommit(false)
-	return s.processEpochVote(ev)
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	err := s.processEpochVote(ev)
+	if err != nil {
+		s.mayCommit(false)
+	}
+	return err
 }
 
 func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
