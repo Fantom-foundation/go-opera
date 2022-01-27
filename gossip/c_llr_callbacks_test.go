@@ -15,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
+
+	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -164,7 +166,7 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 	return bvs, fetchBlockIdxs(blockIdxCountMap)
 }
 
-func processBlockVotesRecords(t *testing.T, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block, generator, processor *testEnv) {
+func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block, generator, processor *testEnv) {
 	for _, bv := range bvs {
 		processor.ProcessBlockVotes(*bv)
 	}
@@ -172,7 +174,19 @@ func processBlockVotesRecords(t *testing.T, bvs []*inter.LlrSignedBlockVotes, bl
 	for _, blockIdx := range blockIdxs {
 		if br := generator.store.GetFullBlockRecord(blockIdx); br != nil {
 			ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: blockIdx}
-			require.NoError(t, processor.ProcessFullBlockRecord(ibr))
+			err := processor.ProcessFullBlockRecord(ibr)
+			if err == nil {
+				continue
+			}
+	
+			// do not ingore this error in testRepeater
+			if isTestRepeater {
+				require.NoError(t, err)
+			} else {
+				// omit this error in fullRepeater 
+				require.EqualError(t, err, eventcheck.ErrAlreadyProcessedBR.Error())
+			}
+
 		} else {
 			generator.Log.Crit("Empty full block record popped up")
 		}
@@ -334,7 +348,7 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
 
 	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
-	processBlockVotesRecords(s.T(), bvs, blockIdxs, s.generator, s.processor)
+	processBlockVotesRecords(s.T(), true, bvs, blockIdxs, s.generator, s.processor)
 
 	s.Require().NoError(s.generator.store.Commit())
 	s.Require().NoError(s.processor.store.Commit())
@@ -381,7 +395,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 		processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
 
 		// process LLR block votes and BRs in fullReapeter
-		processBlockVotesRecords(s.T(), bvs, blockIdxs, s.generator, s.processor)
+		processBlockVotesRecords(s.T(), false, bvs, blockIdxs, s.generator, s.processor)
 
 	}(epochToEvsMap, bvs, blockIdxs)
 
