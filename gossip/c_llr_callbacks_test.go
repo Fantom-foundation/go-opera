@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -19,7 +20,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -236,6 +236,10 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 		// compare BR hashes
 		require.Equal(t, initBR.Hash().Hex(), procBR.Hash().Hex())
+
+		// compare transactions
+		testParams.compareTransactions(initiator, processor)
+
 	}
 }
 
@@ -273,10 +277,6 @@ func (p testParams) compareEvmBlocks() {
 	require.Equal(p.t, p.initEvmBlock.GasLimit, p.procEvmBlock.GasLimit)
 	require.Equal(p.t, p.initEvmBlock.GasUsed, p.procEvmBlock.GasUsed)
 	require.Equal(p.t, p.initEvmBlock.BaseFee, p.procEvmBlock.BaseFee)
-	require.Equal(p.t, len(p.initEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
-	for i, tx := range p.initEvmBlock.Transactions {
-		require.Equal(p.t, tx.Hash().Hex(), p.procEvmBlock.Transactions[i].Hash().Hex())
-	}
 }
 
 func (p testParams) serializeAndCompare(val1, val2 interface{}) {
@@ -290,6 +290,23 @@ func (p testParams) serializeAndCompare(val1, val2 interface{}) {
 
 	// compare serialized representation of val1 and val2
 	require.True(p.t, bytes.Equal(buf1, buf2))
+}
+
+func (p testParams) compareTransactions(initiator, processor *testEnv) {
+	ctx := context.Background()
+	require.Equal(p.t, len(p.initEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
+	for i, tx := range p.initEvmBlock.Transactions {
+		txHash := tx.Hash()
+		initTx, _, _, err := initiator.EthAPI.GetTransaction(ctx, txHash)
+		require.NoError(p.t, err)
+
+		procTx, _, _, err := processor.EthAPI.GetTransaction(ctx, txHash)
+		require.NoError(p.t, err)
+
+		require.Equal(p.t, txHash.Hex(), p.procEvmBlock.Transactions[i].Hash().Hex())
+		require.Equal(p.t, txHash.Hex(), initTx.Hash().Hex())
+		require.Equal(p.t, txHash.Hex(), procTx.Hash().Hex())
+	}
 }
 
 func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
@@ -433,7 +450,8 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 			if k[0] == 0 || k[0] == 'x' || k[0] == 'X' || k[0] == 'b' || k[0] == 'S' {
 				continue
 			}
-			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])), hexutils.BytesToHex(k))
+			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])))
+			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex(k))
 		}
 	}
 
