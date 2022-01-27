@@ -82,7 +82,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	err := s.processBlockVotes(bvs)
-	if err != nil {
+	if err == nil {
 		s.mayCommit(false)
 	}
 	return err
@@ -205,7 +205,7 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	err := s.processEpochVote(ev)
-	if err != nil {
+	if err == nil {
 		s.mayCommit(false)
 	}
 	return err
