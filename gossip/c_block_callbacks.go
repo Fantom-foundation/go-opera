@@ -298,7 +298,7 @@ func consensusCallbackBeginBlockFn(
 						Events:  hash.Events(confirmedEvents),
 					}
 					for _, tx := range append(preInternalTxs, internalTxs...) {
-						block.InternalTxs = append(block.InternalTxs, tx.Hash())
+						block.Txs = append(block.Txs, tx.Hash())
 					}
 
 					block, blockEvents := spillBlockEvents(store, block, es.Rules)
