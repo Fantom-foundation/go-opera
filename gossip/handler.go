@@ -514,11 +514,7 @@ func (h *handler) makeBvProcessor(checkers *eventcheck.Checkers) *bvprocessor.Pr
 	return bvprocessor.New(datasemaphore.New(h.config.Protocol.BVsSemaphoreLimit, getSemaphoreWarningFn("BVs")), h.config.Protocol.BvProcessor, bvprocessor.Callback{
 		// DAG callbacks
 		Item: bvprocessor.ItemCallback{
-			Process: func(bvs inter.LlrSignedBlockVotes) error {
-				h.engineMu.Lock()
-				defer h.engineMu.Unlock()
-				return h.process.BVs(bvs)
-			},
+			Process: h.process.BVs,
 			Released: func(bvs inter.LlrSignedBlockVotes, peer string, err error) {
 				if eventcheck.IsBan(err) {
 					log.Warn("Incoming BVs rejected", "BVs", bvs.Signed.Locator.ID(), "creator", bvs.Signed.Locator.Creator, "err", err)
@@ -562,11 +558,7 @@ func (h *handler) makeEpProcessor(checkers *eventcheck.Checkers) *epprocessor.Pr
 	return epprocessor.New(datasemaphore.New(h.config.Protocol.BVsSemaphoreLimit, getSemaphoreWarningFn("BR")), h.config.Protocol.EpProcessor, epprocessor.Callback{
 		// DAG callbacks
 		Item: epprocessor.ItemCallback{
-			ProcessEV: func(ev inter.LlrSignedEpochVote) error {
-				h.engineMu.Lock()
-				defer h.engineMu.Unlock()
-				return h.process.EV(ev)
-			},
+			ProcessEV: h.process.EV,
 			ProcessER: h.process.ER,
 			ReleasedEV: func(ev inter.LlrSignedEpochVote, peer string, err error) {
 				if eventcheck.IsBan(err) {
