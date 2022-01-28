@@ -3,25 +3,34 @@ package gossip
 import (
 	"bytes"
 	"context"
-	"math/rand"
+
+	//"math/rand"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/ethereum/go-ethereum/core/types"
+	//"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
-	"github.com/Fantom-foundation/go-opera/utils"
+//	"github.com/Fantom-foundation/go-opera/utils"
+
+//	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
+//	"github.com/Fantom-foundation/go-opera/gossip/contract/driver100"
+	//	"github.com/Fantom-foundation/go-opera/gossip/contract/driverauth100"
+	//	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
+//	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
+//	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -40,7 +49,7 @@ type IntegrationTestSuite struct {
 // TODO add godoc
 func (s *IntegrationTestSuite) SetupTest() {
 	const (
-		rounds        = 60
+		rounds        = 1
 		validatorsNum = 10
 		startEpoch    = 1
 	)
@@ -48,8 +57,45 @@ func (s *IntegrationTestSuite) SetupTest() {
 	//creating generator and processor
 	generator := newTestEnv(startEpoch, validatorsNum)
 	processor := newTestEnv(startEpoch, validatorsNum)
+	//var sfc10 *sfc100.Contract
+
+	//rootDriver10, err := driver100.NewContract(driver.ContractAddress, generator)
+	//s.Require().NoError(err)
+
+	proposals := [][32]byte{
+		ballotOption("Option 1"),
+		ballotOption("Option 2"),
+		ballotOption("Option 3"),
+	}
+
+	for n := uint64(0); n < rounds; n++ {
+		txs := make([]*types.Transaction, validatorsNum)
+		for i := idx.Validator(0); i < validatorsNum; i++ {
+			//from := i % validatorsNum
+			_, tx, cBallot, err := ballot.DeployBallot(generator.Pay(idx.ValidatorID(i)), generator, proposals)
+			s.Require().NoError(err)
+			s.Require().NotNil(cBallot)
+			s.Require().NotNil(tx)
+			// s.Require().Equal(tx.Hash().Hex(), "d09d9s9d9") this test works
+			txs[i] = tx
+		}
+		tm := sameEpoch
+		if n%10 == 0 {
+			tm = nextEpoch
+		}
+		rr, err := generator.ApplyTxs(tm, txs...)
+		// TODO this test does not work s.Require().Equal(l.Address.Hex(), "0xkssjdnsjdsjdhd3")
+		for _, r := range rr {
+			for _, l := range r.Logs {
+				s.Require().NotNil(l) //this too
+				s.Require().Equal(l.Address.Hex(), "0xkssjdnsjdsjdhd3") // this testd deos not work
+			}
+		}
+		s.Require().NoError(err)
+	}
 
 	// generate txs and multiple blocks
+	/*
 	for n := uint64(0); n < rounds; n++ {
 		// transfers
 		txs := make([]*types.Transaction, validatorsNum)
@@ -65,6 +111,7 @@ func (s *IntegrationTestSuite) SetupTest() {
 		_, err := generator.ApplyTxs(tm, txs...)
 		s.Require().NoError(err)
 	}
+	*/
 
 	s.startEpoch = startEpoch
 	s.generator = generator
@@ -138,6 +185,11 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 	fillblockIdxCountMap := func(bv *inter.LlrSignedBlockVotes) {
 		start, end := bv.Val.Start, bv.Val.Start+idx.Block(len(bv.Val.Votes))-1
 		// check case if bv.Val.Votes == 0
+
+		for b := start; start != 0 && b <= end; b++ {
+			blockIdxCountMap[b] += 1
+		}
+		/*
 		if start == end {
 			blockIdxCountMap[start] += 1
 			return
@@ -147,6 +199,7 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 			blockIdxCountMap[start] += 1
 			start++
 		}
+		*/
 	}
 
 	it := generator.store.table.LlrBlockVotes.NewIterator(nil, nil)
@@ -194,9 +247,10 @@ func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.Ll
 }
 
 // 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
+/*
 func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *testEnv) {
-
 	ctx := context.Background()
+	require.Nil(t, t)
 	// compare blockbyNumber
 	for _, blockIdx := range blockIdxs {
 
@@ -233,12 +287,28 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 		// compare Logs
 		initLogs, err := initiator.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
-		require.NotNil(t, initLogs)
 		require.NoError(t, err)
 
 		procLogs, err := processor.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
-		require.NotNil(t, procLogs)
 		require.NoError(t, err)
+
+		testBlockIdxLogs := func() {
+			t.Log("blockIdxs", blockIdxs)
+			evmBlock, err := initiator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+			require.NoError(t, err)
+			logs, err := initiator.EthAPI.GetLogs(ctx, evmBlock.Hash)
+			
+			for _, ls := range logs {
+				require.Len(t, ls, 5)
+				for _, l := range ls {
+					t.Log("l.Address", l.Address)
+					require.Nil(t, l)
+				}
+			}
+		}
+	
+		testBlockIdxLogs()
+
 
 		testParams.serializeAndCompare(initLogs, procLogs)
 
@@ -256,6 +326,7 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 	}
 }
+*/
 
 func txByBlockSubsetOf(t *testing.T, repMap, genMap map[idx.Block]types.Transactions) {
 	for b, txs := range repMap {
@@ -343,6 +414,7 @@ func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 }
 
 func (s *IntegrationTestSuite) TestRepeater() {
+	s.Require().Nil(s)
 	epochToEvsMap := fetchEvs(s.generator)
 	lastEpoch := s.generator.store.GetEpoch()
 	processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
@@ -378,7 +450,81 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	compareERHashes(s.startEpoch+1, lastEpoch)
 
 	s.T().Log("generator.BlockByNumber >= repeater.BlockByNumber")
-	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+	//compareParams(s.T(), blockIdxs, s.generator, s.processor)
+	ctx := context.Background()
+	for _, blockIdx := range blockIdxs {
+
+		// comparing EvmBlock by calling BlockByHash
+		initEvmBlock, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+		s.Require().NotNil(initEvmBlock)
+		s.Require().NoError(err)
+
+		procEvmBlock, err := s.processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+		s.Require().NotNil(procEvmBlock)
+		s.Require().Error(err)
+
+		// compare Receipts
+		initReceipts := s.generator.store.evm.GetReceipts(blockIdx, s.generator.EthAPI.signer, initEvmBlock.Hash, initEvmBlock.Transactions)
+		s.Require().NotNil(initReceipts)
+		procReceipts := s.processor.store.evm.GetReceipts(blockIdx, s.processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
+		s.Require().NotNil(procReceipts)
+
+		testParams := newTestParams(s.T(), initEvmBlock, procEvmBlock, initReceipts, procReceipts)
+		testParams.compareEvmBlocks()
+		testParams.serializeAndCompare(initReceipts, procReceipts)
+
+		// comparing evmBlock by calling BlockByHash
+		// TODO should I compare of all Blocks or only block indexes for what 1/3W+1 votes have been given
+		initEvmBlock, err = s.generator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
+		s.Require().NotNil(initEvmBlock)
+		s.Require().NoError(err)
+		procEvmBlock, err = s.processor.EthAPI.BlockByHash(ctx, procEvmBlock.Hash)
+		s.Require().NotNil(procEvmBlock)
+		s.Require().NoError(err)
+
+		testParams = newTestParams(s.T(), initEvmBlock, procEvmBlock, initReceipts, procReceipts)
+		testParams.compareEvmBlocks()
+
+		// compare Logs
+		initLogs, err := s.generator.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
+		s.Require().NoError(err)
+
+		procLogs, err := s.processor.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
+		s.Require().NoError(err)
+
+		testBlockIdxLogs := func() {
+			s.T().Log("blockIdxs", blockIdxs)
+			evmBlock, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+			s.Require().NoError(err)
+			logs, err := s.generator.EthAPI.GetLogs(ctx, evmBlock.Hash)
+			
+			for _, ls := range logs {
+				s.Require().Len(ls, 5)
+				for _, l := range ls {
+					s.Require().Nil(l)
+					s.T().Log("l.Address", l.Address)
+				}
+			}
+		}
+	
+		testBlockIdxLogs()
+
+
+		testParams.serializeAndCompare(initLogs, procLogs)
+
+		// compare ReceiptForStorage
+		initBR := s.generator.store.GetFullBlockRecord(blockIdx)
+		procBR := s.processor.store.GetFullBlockRecord(blockIdx)
+
+		testParams.serializeAndCompare(initBR.Receipts, procBR.Receipts)
+
+		// compare BR hashes
+		s.Require().Equal(initBR.Hash().Hex(), procBR.Hash().Hex())
+
+		// compare transactions
+		testParams.compareTransactions(s.generator, s.processor)
+	}
+
 }
 
 func (s *IntegrationTestSuite) TestFullRepeater() {
@@ -452,7 +598,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	txByBlockSubsetOf(s.T(), genBlockToTxsMap, fullRepBlockToTxsMap)
 
 	// 2.Compare BlockByNumber,BlockByhash, GetReceipts, GetLogs
-	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+	//compareParams(s.T(), blockIdxs, s.generator, s.processor)
 
 	// 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(s.generator.store.mainDB)
@@ -474,6 +620,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 
 	// IndexLogs scenario
 	// run EvmLogs.Push(l) for all logs and then compare the states of generator and processor
+	/*
 	ctx := context.Background()
 	s.Require().NotNil(blockIdxs)
 
@@ -485,6 +632,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	s.Require().NotNil(evmBlock)
 	s.Require().NoError(err)
 
+
 	testIndexLogs := func(logs2D [][]*types.Log) {
 		for _, logs := range logs2D {
 			for _, l := range logs {
@@ -494,6 +642,8 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	}
 
 	testIndexLogs(logs2D)
+	*/
+	
 	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
 	fullRepKVMapAfterIndexLogs := fetchTable(s.processor.store.mainDB)
 
@@ -505,7 +655,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	// Search logs by topic, block and address
 	// make sure it work as expected
 	// see  TestIndexSearchMultyVariants in topicsdb/topicsdb_test.go
-
+	/*
 	testSearchLogsWithLLRSync := func(blockIdx idx.Block) {
 
 		randAddress := func() (addr common.Address) {
@@ -642,6 +792,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	}
 
 	testSearchLogsWithLLRSync(blockIdxs[0])
+	*/
 }
 
 func TestIntegrationTestSuite(t *testing.T) {

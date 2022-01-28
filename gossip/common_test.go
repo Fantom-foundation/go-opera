@@ -293,7 +293,7 @@ func (env *testEnv) EmitUntil(stop func() bool) error {
 		}
 		env.WaitBlockEnd()
 		env.t = env.t.Add(time.Second)
-		if time.Since(t) > 30*time.Second {
+		if time.Since(t) > 120*time.Second { // was3 0 sec
 			panic("block doesn't get processed")
 		}
 	}
