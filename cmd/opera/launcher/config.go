@@ -385,9 +385,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		return nil, err
 	}
 
-	if ctx.GlobalIsSet(TraceNodeFlag.Name) {
-		cfg.OperaStore.TraceTransactions = true
-	}
+	cfg.OperaStore.TraceTransactions = ctx.GlobalIsSet(TraceNodeFlag.Name)
 
 	return &cfg, nil
 }
