@@ -99,13 +99,8 @@ func indexRawReceipts(s *Store, receiptsForStorage []*types.ReceiptForStorage, t
 
 func (s *Store) WriteFullBlockRecord(br ibr.LlrIdxFullBlockRecord) {
 	txHashes := make([]common.Hash, 0, len(br.Txs))
-	internalTxHashes := make([]common.Hash, 0, 2)
 	for _, tx := range br.Txs {
-		if tx.GasPrice().Sign() == 0 {
-			internalTxHashes = append(internalTxHashes, tx.Hash())
-		} else {
-			txHashes = append(txHashes, tx.Hash())
-		}
+		txHashes = append(txHashes, tx.Hash())
 		s.EvmStore().SetTx(tx.Hash(), tx)
 	}
 
@@ -125,7 +120,7 @@ func (s *Store) WriteFullBlockRecord(br ibr.LlrIdxFullBlockRecord) {
 		Atropos:     br.Atropos,
 		Events:      hash.Events{},
 		Txs:         txHashes,
-		InternalTxs: internalTxHashes,
+		InternalTxs: []common.Hash{},
 		SkippedTxs:  []uint32{},
 		GasUsed:     br.GasUsed,
 		Root:        br.Root,
