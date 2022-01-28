@@ -57,6 +57,7 @@ var (
 	legacyRpcFlags   []cli.Flag
 	rpcFlags         []cli.Flag
 	metricsFlags     []cli.Flag
+	tracingFlags     []cli.Flag
 )
 
 func initFlags() {
@@ -159,7 +160,12 @@ func initFlags() {
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
+	}
+
+	tracingFlags = []cli.Flag{
 		tracing.EnableFlag,
+		tracing.AgentEndpointFlag,
+		tracing.EnableDevFlag,
 	}
 
 	nodeFlags = []cli.Flag{}
@@ -215,6 +221,7 @@ func init() {
 	app.Flags = append(app.Flags, consoleFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, metricsFlags...)
+	app.Flags = append(app.Flags, tracingFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
@@ -248,12 +255,11 @@ func lachesisMain(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
-	// TODO: tracing flags
-	//tracingStop, err := tracing.Start(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//defer tracingStop()
+	tracingStop, err := tracing.Start(ctx)
+	if err != nil {
+		return err
+	}
+	defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
 	genesisPath := getOperaGenesis(ctx)

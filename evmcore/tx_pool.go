@@ -18,6 +18,7 @@ package evmcore
 
 import (
 	"errors"
+	"github.com/Fantom-foundation/go-opera/tracing"
 	"math"
 	"math/big"
 	"math/rand"
@@ -1827,6 +1828,8 @@ func (t *txLookup) Add(tx *types.Transaction, local bool) {
 func (t *txLookup) Remove(hash common.Hash) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
+
+	defer tracing.FinishTx(hash, "txLookup.Remove()")
 
 	tx, ok := t.locals[hash]
 	if !ok {
