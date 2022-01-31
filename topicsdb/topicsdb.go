@@ -109,8 +109,11 @@ func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) 
 	copy(limited, pattern)
 
 	ok := false
-	for _, variants := range limited {
+	for i, variants := range limited {
 		ok = ok || len(variants) > 0
+		if len(variants) > 1 {
+			limited[i] = uniqOnly(variants)
+		}
 	}
 	if !ok {
 		err = ErrEmptyTopics
@@ -118,6 +121,19 @@ func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) 
 	}
 
 	return
+}
+
+func uniqOnly(hh []common.Hash) []common.Hash {
+	index := make(map[common.Hash]struct{}, len(hh))
+	for _, h := range hh {
+		index[h] = struct{}{}
+	}
+
+	uniq := make([]common.Hash, 0, len(index))
+	for h := range index {
+		uniq = append(uniq, h)
+	}
+	return uniq
 }
 
 // MustPush calls Write() and panics if error.
