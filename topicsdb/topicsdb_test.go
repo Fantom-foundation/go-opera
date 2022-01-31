@@ -348,6 +348,53 @@ func TestMaxTopicsCount(t *testing.T) {
 	require.Equal(t, MaxTopicsCount+1, len(pattern[0]))
 }
 
+func TestPatternLimit(t *testing.T) {
+	logger.SetTestMode(t)
+	require := require.New(t)
+
+	data := []struct {
+		pattern [][]common.Hash
+		exp     [][]common.Hash
+		err     error
+	}{
+		{
+			pattern: [][]common.Hash{},
+			exp:     [][]common.Hash{},
+			err:     ErrEmptyTopics,
+		},
+		{
+			pattern: [][]common.Hash{[]common.Hash{}, []common.Hash{}, []common.Hash{}},
+			exp:     [][]common.Hash{[]common.Hash{}, []common.Hash{}, []common.Hash{}},
+			err:     ErrEmptyTopics,
+		},
+		{
+			pattern: [][]common.Hash{
+				[]common.Hash{hash.FakeHash(1), hash.FakeHash(1)}, []common.Hash{hash.FakeHash(2), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}},
+			exp: [][]common.Hash{
+				[]common.Hash{hash.FakeHash(1)}, []common.Hash{hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}},
+			err: nil,
+		},
+		{
+			pattern: [][]common.Hash{
+				[]common.Hash{hash.FakeHash(1), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}, []common.Hash{hash.FakeHash(5), hash.FakeHash(6)}},
+			exp: [][]common.Hash{
+				[]common.Hash{hash.FakeHash(1), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}, []common.Hash{hash.FakeHash(5), hash.FakeHash(6)}},
+			err: nil,
+		},
+		{
+			pattern: append(append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}), []common.Hash{hash.FakeHash(1)}),
+			exp:     append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}),
+			err:     nil,
+		},
+	}
+
+	for i, x := range data {
+		got, err := limitPattern(x.pattern)
+		require.ElementsMatch(x.exp, got, i)
+		require.Equal(x.err, err, i)
+	}
+}
+
 func genTestData(count int) (
 	topics []common.Hash,
 	recs []*types.Log,
