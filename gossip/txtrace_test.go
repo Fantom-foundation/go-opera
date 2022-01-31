@@ -7,6 +7,7 @@ package gossip
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -58,10 +59,17 @@ func TestTxTracing(t *testing.T) {
 	require.NotNil(tx)
 	receipts := env.ApplyBlock(time.Second, tx)
 	require.NotEmpty(receipts)
-	t.Logf("receipts: %#v", receipts)
 
 	trace, err := backend.TxTraceByHash(context.Background(), tx.Hash())
 	require.NoError(err)
-	require.NotNil(trace)
-	t.Logf("trace: %#v", trace)
+	require.NotEmpty(trace)
+
+	// visulization
+	receiptStr, err := json.Marshal(receipts)
+	require.NoError(err)
+	t.Logf("receipts: %s", string(receiptStr))
+
+	traceStr, err := json.Marshal(trace)
+	require.NoError(err)
+	t.Logf("trace: %s", string(traceStr))
 }
