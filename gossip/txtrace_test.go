@@ -1,5 +1,10 @@
 package gossip
 
+// SynthereumFactoryVersioning contract
+//go:generate bash -c "docker run --rm -v $(pwd)/contract/SynthereumFactoryVersioning:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/FactoryVersioning.sol"
+// NOTE: you have to use abigen after github.com/ethereum/go-ethereum/pull/23940, than fix contract/SynthereumFactoryVersioning/contract.go manually
+//go:generate bash -c "cd ${GOPATH}/src/github.com/ethereum/go-ethereum && go run ./cmd/abigen --bin=${PWD}/contract/solc/SynthereumDeployer.bin --abi=${PWD}/contract/solc/SynthereumFactoryVersioning.abi --pkg=SynthereumFactoryVersioning --type=Contract --out=${PWD}/contract/SynthereumFactoryVersioning/contract.go"
+
 // SynthereumDeployer contract
 //go:generate bash -c "docker run --rm -v $(pwd)/contract/SynthereumDeployer:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/Deployer.sol"
 // NOTE: you have to use abigen after github.com/ethereum/go-ethereum/pull/23940, than fix contract/SynthereumDeployer/contract.go manually
@@ -17,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/contract/SynthereumDeployer"
+	"github.com/Fantom-foundation/go-opera/gossip/contract/SynthereumFactoryVersioning"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
@@ -31,20 +37,31 @@ func TestTxTracing(t *testing.T) {
 	backend := &EthAPIBackend{state: env.stateReader}
 
 	var (
-		tx       *types.Transaction
-		deployer *SynthereumDeployer.Contract
-		err      error
+		addr       common.Address
+		tx         *types.Transaction
+		deployer   *SynthereumDeployer.Contract
+		versioning *SynthereumFactoryVersioning.Contract
+		err        error
 	)
 	var (
 		admin      = env.Payer(1)
 		maintainer = env.Payer(2)
-		roles      = SynthereumDeployer.SynthereumDeployerRoles{
+		roles      = SynthereumFactoryVersioning.SynthereumFactoryVersioningRoles{
 			Admin:      env.Address(1),
 			Maintainer: env.Address(2),
 		}
 	)
 
-	_, tx, deployer, err = SynthereumDeployer.DeployContract(admin, env, common.Address{}, roles)
+	addr, tx, versioning, err = SynthereumFactoryVersioning.DeployContract(admin, env, roles)
+	env.incNonce(roles.Admin)
+	require.NoError(err)
+	require.NotNil(versioning)
+	env.ApplyBlock(time.Second, tx)
+
+	_, tx, deployer, err = SynthereumDeployer.DeployContract(admin, env, addr, SynthereumDeployer.SynthereumDeployerRoles{
+		Admin:      roles.Admin,
+		Maintainer: roles.Maintainer,
+	})
 	env.incNonce(roles.Admin)
 	require.NoError(err)
 	require.NotNil(deployer)
