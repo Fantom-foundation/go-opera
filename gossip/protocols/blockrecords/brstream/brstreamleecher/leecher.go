@@ -24,6 +24,7 @@ type Leecher struct {
 	session sessionState
 
 	forceSyncing bool
+	paused       bool
 }
 
 // New creates an BRs downloader to request BRs based on lexicographic BRs streams
@@ -71,7 +72,7 @@ type sessionState struct {
 }
 
 func (d *Leecher) shouldTerminateSession() bool {
-	if d.session.agent.Stopped() {
+	if d.paused || d.session.agent.Stopped() {
 		return true
 	}
 
@@ -93,7 +94,23 @@ func (d *Leecher) terminateSession() {
 	}
 }
 
+func (d *Leecher) Pause() {
+	d.Mu.Lock()
+	defer d.Mu.Unlock()
+	d.paused = true
+	d.terminateSession()
+}
+
+func (d *Leecher) Resume() {
+	d.Mu.Lock()
+	defer d.Mu.Unlock()
+	d.paused = false
+}
+
 func (d *Leecher) selectSessionPeerCandidates() []string {
+	if d.paused {
+		return nil
+	}
 	knowledgeablePeers := make([]string, 0, len(d.Peers))
 	allPeers := make([]string, 0, len(d.Peers))
 	start := d.callback.LowestBlockToFill()

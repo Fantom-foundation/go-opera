@@ -55,6 +55,10 @@ func (ss *syncStatus) AcceptEvents() bool {
 	return ss.Is(ssEvents)
 }
 
+func (ss *syncStatus) AcceptBlockRecords() bool {
+	return !ss.Is(ssEvents)
+}
+
 func (ss *syncStatus) AcceptTxs() bool {
 	return ss.MaybeSynced() && ss.Is(ssEvents)
 }
@@ -226,8 +230,10 @@ func (h *handler) snapsyncStageTick() {
 	// resume events downloading if events sync is enabled
 	if h.syncStatus.Is(ssEvents) {
 		h.dagLeecher.Resume()
+		h.brLeecher.Pause()
 	} else {
 		h.dagLeecher.Pause()
+		h.brLeecher.Resume()
 	}
 }
 
