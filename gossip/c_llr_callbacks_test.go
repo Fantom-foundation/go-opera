@@ -156,12 +156,12 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 
 	blockIdxCountMap = make(map[idx.Block]uint64)
 
-	// fetching blockIdxs with at least minVoteCount
-	fetchBlockIdxs := func(blockIdxCountMap map[idx.Block]uint64) (blockIdxs []idx.Block) {
+	// fetching blockIndices with at least minVoteCount
+	fetchBlockIdxs := func(blockIdxCountMap map[idx.Block]uint64) (blockIndices []idx.Block) {
 		const minVoteCount = 4
 		for blockIdx, count := range blockIdxCountMap {
 			if count >= minVoteCount {
-				blockIdxs = append(blockIdxs, blockIdx)
+				blockIndices = append(blockIndices, blockIdx)
 			}
 		}
 		return
@@ -193,12 +193,12 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 	return bvs, fetchBlockIdxs(blockIdxCountMap)
 }
 
-func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block, generator, processor *testEnv) {
+func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.LlrSignedBlockVotes, blockIndices []idx.Block, generator, processor *testEnv) {
 	for _, bv := range bvs {
 		processor.ProcessBlockVotes(*bv)
 	}
 
-	for _, blockIdx := range blockIdxs {
+	for _, blockIdx := range blockIndices {
 		if br := generator.store.GetFullBlockRecord(blockIdx); br != nil {
 			ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: blockIdx}
 			err := processor.ProcessFullBlockRecord(ibr)
@@ -223,11 +223,11 @@ func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.Ll
 // 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
 
 //TODO
-func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *testEnv) {
+func compareParams(t *testing.T, blockIndices []idx.Block, initiator, processor *testEnv) {
 	ctx := context.Background()
 
 	// compare blockbyNumber
-	for _, blockIdx := range blockIdxs {
+	for _, blockIdx := range blockIndices {
 
 		// comparing EvmBlock by calling BlockByHash
 		initEvmBlock, err := initiator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
@@ -483,8 +483,8 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	// TODO make a struct a putg generator processor and t oni t
 	processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
 
-	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
-	processBlockVotesRecords(s.T(), true, bvs, blockIdxs, s.generator, s.processor)
+	bvs, blockIndices := fetchBvsBlockIdxs(s.generator)
+	processBlockVotesRecords(s.T(), true, bvs, blockIndices, s.generator, s.processor)
 
 	s.Require().NoError(s.generator.store.Commit())
 	s.Require().NoError(s.processor.store.Commit())
@@ -515,14 +515,14 @@ func (s *IntegrationTestSuite) TestRepeater() {
 
 	s.T().Log("generator.BlockByNumber >= repeater.BlockByNumber")
 
-	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+	compareParams(s.T(), blockIndices, s.generator, s.processor)
 	// or make a map blockIdx to [][]Logs
 
 	fetchNonEmptyLogsbyBlockIdx := func() map[idx.Block][]*types.Log {
 		ctx := context.Background()
-		m := make(map[idx.Block][]*types.Log, len(blockIdxs))
+		m := make(map[idx.Block][]*types.Log, len(blockIndices))
 
-		for _, blockIdx := range blockIdxs {
+		for _, blockIdx := range blockIndices {
 			block, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
 			s.Require().NotNil(block)
 			s.Require().NoError(err)
@@ -540,9 +540,27 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		return m
 	}
 
-	blockIdxsLogsMap := fetchNonEmptyLogsbyBlockIdx()
+	blockIdxLogsMap := fetchNonEmptyLogsbyBlockIdx()
 
-	compareLogsByFilterCriteria := func(blockIdxsLogsMap map[idx.Block][]*types.Log) {
+	// TODO keys in blockIdxLogsMap do not preserve an order, consider to use blockIndices in for loops instead
+	// TODO should we sort
+	/*
+
+	 blockIndices [96 222 460 519 135 189 383 482 514 13 31 252 306 507 20 157 315 409 30 53 139 140 351 52 115 142 255 198
+	 297 307 453 508 80 328 344 458 463 2 63 397 420 177 389 407 466 520 92 232 437 104 214 301 414 40 204 348 377 83 86
+	 269 366 43 196 330 447 212 278 450 516 317 334 431 432 318 346 404 483 59 242 425 292 316 497 91 147 221 270 274 15
+	 65 190 388 467 288 472 125 184 489 339 410 19 181 193 264 322 457 486 280 284 327 25 89 133 145 151 156 239 129 149
+	 172 358 441 81 246 287 405 265 384 452 456 24 150 399 449 22 47 68 202 459 424 39 120 132 197 300 376 417 94 256 295
+	 302 361 12 75 281 321 380 32 50 64 102 435 371 382 386 250 282 310 349 370 444 501 509 136 299 333 340 502 290 412
+	 464 54 141 146 148 186 485 121 168 475 505 29 234 267 272 293 206 262 474 55 77 154 398 446 18 117 289 291 341 10
+	 429 337 353 433 42 58 100 199 320 448 152 314 402 99 118 127 241 311 109 103 413 481 78 95 180 418 176 247 249 308
+	 364 110 229 372 38 347 428 162 443 261 309 360 4 28 98 161 226 365 476 87 134 173 359 375 183 113 378 191 41 74 90 7 101
+	 112 200 426 79 231 237 279 312 70 294 343 356 521 34 187 303 354 421 5 203 273 423 36 216 323 387 392 97 114 427 498 51 67
+	 169 268 478 33 88 455 515 338 342 119 213 329 506 296 518 60 286 374 422 462 479 484 8 224 313 438 465 491 26 107 185 298
+	 415 159 192 236 439 266 325 379 480 14 165 179 195 513 166 208 352 419 487 218 258 276 434 46 85 470 471 82 215 223 332 440 277 391 16 93 155 188 248 367 445 473 6 72 167 257 259 492 493 153 326 158 368 469 205 385 363 451 175 357 390 499 105 123 143 251 331 108 217 350 400 164 174 271 411 504 209 260 522 238 408 436 35 66 163 228 235 56 211 373 178 355 171 336 61 275 131 517 49 416 461 495 511 3 111 201 243 335 116 230 454 73 512 225 381 500 21 106 124 207 219 27 37 496 9 57 62 430 220 244 253 403 406 401 510 23 122 126 233 362 76 160 210 442 245 138 369 69 170 263 503 45 319 393
+	 395 488 84 182 240 130 305 324 477 17 128 137 254 285 490 494 44 227 345 144 283 396 394 468 11 48 71 194 304]
+	*/
+	compareLogsByFilterCriteria := func(blockIndices []idx.Block, blockIdxLogsMap map[idx.Block][]*types.Log) {
 
 		s.T().Log("compareLogsByFilterCriteria")
 		ctx := context.Background()
@@ -553,7 +571,11 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		s.Require().NotNil(procApi)
 
 		findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
-			for blockIdx, logs := range blockIdxsLogsMap {
+			for _, blockIdx := range blockIndices {
+				logs, ok := blockIdxLogsMap[blockIdx]
+				if !ok {
+					continue
+				}
 				if len(logs) > 0 {
 					return blockIdx, logs, nil
 				}
@@ -562,7 +584,7 @@ func (s *IntegrationTestSuite) TestRepeater() {
 			return 0, nil, errors.New("all blocks have no logs")
 		}
 
-		fetchAddrFromLogs := func(logs []*types.Log) (common.Address, error) {
+		fetchFirstAddrFromLogs := func(logs []*types.Log) (common.Address, error) {
 			for i := range logs {
 				if logs[i] != nil {
 					return logs[i].Address, nil
@@ -570,14 +592,56 @@ func (s *IntegrationTestSuite) TestRepeater() {
 			}
 
 			return common.Address{}, errors.New("no address can be found in logs")
+
 		}
+
+		fetchFirstTopicFromLogs := func(logs []*types.Log) (common.Hash, error) {
+			for i := range logs {
+				if logs[i] != nil && len(logs[i].Topics) > 0 {
+					return logs[i].Topics[0], nil
+				}
+			}
+
+			return common.Hash{}, errors.New("no address can be found in logs")
+		}
+
+		/*
+			findLastNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
+				for i := len(blockIndices)-1; i >= 0; i-- {
+					logs, ok := blockIdxLogsMap[blockIndices[i]]
+					if !ok {
+						continue
+					}
+					if len(logs) > 0 {
+						return blockIndices[i], logs, nil
+					}
+				}
+
+				return 0, nil, errors.New("all blocks have no logs")
+			}
+		*/
 
 		blockNumber, logs, err := findFirstNonEmptyLogs()
 		s.Require().NoError(err)
 		s.Require().NotNil(logs)
 
-		addr, err := fetchAddrFromLogs(logs)
+		addr, err := fetchFirstAddrFromLogs(logs)
 		s.Require().NoError(err)
+
+		topic, err := fetchFirstTopicFromLogs(logs)
+		s.Require().NoError(err)
+
+		/*
+			lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
+			s.Require().NoError(err)
+			s.Require().NotNil(lastLogs)
+
+			lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
+			s.Require().NoError(err)
+
+			lastTopic, err := fetchFirstTopicFromLogs(lastLogs)
+			s.Require().NoError(err)
+		*/
 
 		var crit filters.FilterCriteria
 
@@ -617,6 +681,65 @@ func (s *IntegrationTestSuite) TestRepeater() {
 				},
 				false,
 			},
+			{"block range 1-1000",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(1),
+						ToBlock:   big.NewInt(1000),
+					}
+				},
+				true,
+			},
+			{"block range 1-1000 and valid topic",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(1),
+						ToBlock:   big.NewInt(1000),
+						Topics:    [][]common.Hash{{topic}},
+					}
+				},
+				true,
+			},
+			{"block range 1-1000 and valid address",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(1),
+						ToBlock:   big.NewInt(1000),
+						Addresses: []common.Address{addr},
+					}
+				},
+				true,
+			},
+			/*
+				{	"block range lastBlockNumber-1000 to lastBlockNumber",
+					func() {
+						crit = filters.FilterCriteria{
+							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+							ToBlock:   big.NewInt(int64(lastBlockNumber)),
+						}
+					},
+					true,
+				},
+				{	"block range 1-1000 and valid topic",
+					func() {
+						crit = filters.FilterCriteria{
+							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+							ToBlock:   big.NewInt(int64(lastBlockNumber)),
+							Topics:    [][]common.Hash{{lastTopic}},
+						}
+					},
+					true,
+				},
+				{	"block range 1-1000 and valid address",
+					func() {
+						crit = filters.FilterCriteria{
+							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+							ToBlock:   big.NewInt(int64(lastBlockNumber)),
+							Addresses: []common.Address{lastAddr},
+						}
+					},
+					true,
+				},*/
 		}
 
 		for _, tc := range testCases {
@@ -634,17 +757,23 @@ func (s *IntegrationTestSuite) TestRepeater() {
 				if tc.success {
 					s.Require().NoError(genErr)
 					for i, genLog := range genLogs {
-						genBytes, err := genLog.MarshalJSON()
-						s.Require().NoError(err)
-
-						procBytes, err := procLogs[i].MarshalJSON()
-						s.Require().NoError(err)
-
-						s.Require().Equal(hexutils.BytesToHex(genBytes), hexutils.BytesToHex(procBytes))
+						// compare all fields
+						s.Require().Equal(genLog.Address.Hex(), procLogs[i].Address.Hex())
+						s.Require().Equal(genLog.BlockHash.Hex(), procLogs[i].BlockHash.Hex())
+						s.Require().Equal(genLog.BlockNumber, procLogs[i].BlockNumber)
+						s.Require().Equal(hexutils.BytesToHex(genLog.Data), hexutils.BytesToHex(procLogs[i].Data))
+						s.Require().Equal(genLog.Index, procLogs[i].Index)
+						s.Require().Equal(genLog.Removed, procLogs[i].Removed)
+						for j, topic := range genLog.Topics {
+							s.Require().Equal(topic.Hex(), procLogs[i].Topics[j].Hex())
+						}
+						s.Require().Equal(genLog.TxHash.Hex(), procLogs[i].TxHash.Hex())
+						s.Require().Equal(genLog.TxIndex, procLogs[i].TxIndex)
 
 						// make sure search matches expected data
-						s.Require().Equal(crit.Addresses[0].Hex(), genLog.Address.Hex())
-						s.Require().Equal(crit.FromBlock.Uint64(), genLog.BlockNumber)
+						//s.Require().Equal(crit.Addresses[0].Hex(), genLog.Address.Hex())
+						//s.Require().Equal(crit.FromBlock.Uint64(), genLog.BlockNumber)
+						//s.Require().Equal(crit.Topics, genLog.Topics ) //?
 					}
 
 				} else {
@@ -653,65 +782,28 @@ func (s *IntegrationTestSuite) TestRepeater() {
 
 			})
 		}
-
-		/*
-			filter := filters.NewBlockFilter(initiator.EthAPI, *crit.BlockHash, crit.Addresses, crit.Topics)
-			logs, err := filter.Logs(ctx)
-			require.NoError(p.t, err)
-			require.NoError(p.t, err)
-
-			filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
-		*/
-
-		// grab logs in setupTest and put it on suite structre
-		// randomly pick a log record from logs
-		// aply new  range filter and  new block filter
-		// FilterCriteria
-		// will logs from initator and rocessor match
-
-		/*
-			&types.Log{Address:0xD945eC8Be23986c36e6a9f82d05BE3e92E17D66a,
-			Topics:[]common.Hash{0x4913a1b403184a1c69ab16947e9f4c7a1e48c069dccde91f2bf550ea77becc5b, 0x000000000000000000000000a47cbdbcb7b77eec04a06b73a1deb1c7dbb055c2},
-			Data:[]uint8{0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, BlockNumber:0x2, TxHash:0x7ef29c7ace6c45b65ab4d0c3663fe4ba050120edec11ee516deb329283d31470, TxIndex:0x0, BlockHash:0x00000001000000019a2ffd6d8110f8f84ec90a1e73ef8e65ac71850ceb86ee04, Index:0x0, Removed:false}
-		*/
-		// go-ethereum/eth/filters
-		// testcases
-		// block rangnes using range filter
-		//  single address
-		// 	multiple address
-		//  sngle topoic
-		// multiple topics
-
-		// TODO go-ethereum/filters/api.test
-
-		// Logs creates a subscription that fires for all new log that match the given filter criteria.
-		/*
-			func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subscription, error) {
-			notifier, supported := rpc.NotifierFromContext(ctx)
-			if !supported {
-		*/
 	}
 
-	compareLogsByFilterCriteria(blockIdxsLogsMap)
+	compareLogsByFilterCriteria(blockIndices, blockIdxLogsMap)
 }
 
 func (s *IntegrationTestSuite) TestFullRepeater() {
 
-	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
+	bvs, blockIndices := fetchBvsBlockIdxs(s.generator)
 	epochToEvsMap := fetchEvs(s.generator)
 	lastEpoch := s.generator.store.GetEpoch()
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
-	go func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block) {
+	go func(epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, bvs []*inter.LlrSignedBlockVotes, blockIndices []idx.Block) {
 		defer wg.Done()
 		// process LLR epochVotes  in fullRepeater
 		processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
 
 		// process LLR block votes and BRs in fullReapeter
-		processBlockVotesRecords(s.T(), false, bvs, blockIdxs, s.generator, s.processor)
+		processBlockVotesRecords(s.T(), false, bvs, blockIndices, s.generator, s.processor)
 
-	}(epochToEvsMap, bvs, blockIdxs)
+	}(epochToEvsMap, bvs, blockIndices)
 
 	go func() {
 		defer wg.Done()
@@ -766,7 +858,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	txByBlockSubsetOf(s.T(), genBlockToTxsMap, fullRepBlockToTxsMap)
 
 	// 2.Compare BlockByNumber,BlockByhash, GetReceipts, GetLogs
-	compareParams(s.T(), blockIdxs, s.generator, s.processor)
+	compareParams(s.T(), blockIndices, s.generator, s.processor)
 
 	// 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(s.generator.store.mainDB)
@@ -932,7 +1024,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 			}
 		}
 
-		testSearchLogsWithLLRSync(blockIdxs[0])
+		testSearchLogsWithLLRSync(blockIndices[0])
 	*/
 }
 
@@ -1029,12 +1121,12 @@ func TestLLRCallbacks(t *testing.T) {
 
 		blockIdxCountMap = make(map[idx.Block]uint64)
 
-		// fetching blockIdxs with at least minVoteCount
-		fetchBlockIdxs := func(blockIdxCountMap map[idx.Block]uint64) (blockIdxs []idx.Block) {
+		// fetching blockIndices with at least minVoteCount
+		fetchBlockIdxs := func(blockIdxCountMap map[idx.Block]uint64) (blockIndices []idx.Block) {
 			const minVoteCount = 4
 			for blockIdx, count := range blockIdxCountMap {
 				if count >= minVoteCount {
-					blockIdxs = append(blockIdxs, blockIdx)
+					blockIndices = append(blockIndices, blockIdx)
 				}
 			}
 			return
@@ -1072,15 +1164,15 @@ func TestLLRCallbacks(t *testing.T) {
 		return bvs, fetchBlockIdxs(blockIdxCountMap)
 	}
 
-	// fetch LLRBlockVotes and blockIdxs with at least 4 Votes
-	bvs, blockIdxs := fetchBvsBlockIdxs()
+	// fetch LLRBlockVotes and blockIndices with at least 4 Votes
+	bvs, blockIndices := fetchBvsBlockIdxs()
 
-	processBlockVotesRecords := func(bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block, processor *testEnv) {
+	processBlockVotesRecords := func(bvs []*inter.LlrSignedBlockVotes, blockIndices []idx.Block, processor *testEnv) {
 		for _, bv := range bvs {
 			processor.ProcessBlockVotes(*bv)
 		}
 
-		for _, blockIdx := range blockIdxs {
+		for _, blockIdx := range blockIndices {
 			if br := generator.store.GetFullBlockRecord(blockIdx); br != nil {
 				ibr := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: *br, Idx: blockIdx}
 				require.NoError(processor.ProcessFullBlockRecord(ibr))
@@ -1090,8 +1182,8 @@ func TestLLRCallbacks(t *testing.T) {
 		}
 	}
 
-	// process all LLR Block Votes and BRs for blockIdxs with at least 4 Votes
-	processBlockVotesRecords(bvs, blockIdxs, repeater)
+	// process all LLR Block Votes and BRs for blockIndices with at least 4 Votes
+	processBlockVotesRecords(bvs, blockIndices, repeater)
 
 	require.NoError(generator.store.Commit())
 	require.NoError(repeater.store.Commit())
@@ -1153,7 +1245,7 @@ func TestLLRCallbacks(t *testing.T) {
 	}
 
 	// 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
-	compareParams := func(blockIdxs []idx.Block, initiator, processor *testEnv) {
+	compareParams := func(blockIndices []idx.Block, initiator, processor *testEnv) {
 		// initiator is generator
 		// processor is ether fullRep or repeater
 		ctx := context.Background()
@@ -1189,7 +1281,7 @@ func TestLLRCallbacks(t *testing.T) {
 		}
 
 		// compare blockbyNumber
-		for _, blockIdx := range blockIdxs {
+		for _, blockIdx := range blockIndices {
 
 			// comparing EvmBlock by calling BlockByHash
 			initEvmBlock, err := initiator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
@@ -1246,7 +1338,7 @@ func TestLLRCallbacks(t *testing.T) {
 	}
 
 	t.Log("generator.BlockByNumber >= repeater.BlockByNumber")
-	compareParams(blockIdxs, generator, repeater)
+	compareParams(blockIndices, generator, repeater)
 
 	// declare fullRepeater
 	fullRepeater := newTestEnv(startEpoch, validatorsNum)
@@ -1254,15 +1346,15 @@ func TestLLRCallbacks(t *testing.T) {
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
-	go func(fullRepeater *testEnv, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, bvs []*inter.LlrSignedBlockVotes, blockIdxs []idx.Block) {
+	go func(fullRepeater *testEnv, epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote, bvs []*inter.LlrSignedBlockVotes, blockIndices []idx.Block) {
 		defer wg.Done()
 		// process LLR epochVotes  in fullRepeater
 		processEpochVotesRecords(epochToEvsMap, fullRepeater)
 
 		// process LLR block votes and BRs in fullReapeter
-		processBlockVotesRecords(bvs, blockIdxs, fullRepeater)
+		processBlockVotesRecords(bvs, blockIndices, fullRepeater)
 
-	}(fullRepeater, epochToEvsMap, bvs, blockIdxs)
+	}(fullRepeater, epochToEvsMap, bvs, blockIndices)
 
 	go func(fullRepeater *testEnv) {
 		defer wg.Done()
@@ -1314,7 +1406,7 @@ func TestLLRCallbacks(t *testing.T) {
 	txByBlockSubsetOf(genBlockToTxsMap, fullRepBlockToTxsMap)
 
 	// 2.Compare BlockByNumber
-	compareParams(blockIdxs, generator, fullRepeater)
+	compareParams(blockIndices, generator, fullRepeater)
 
 	// 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(generator.store.mainDB)
