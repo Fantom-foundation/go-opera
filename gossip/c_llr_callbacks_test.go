@@ -1,8 +1,10 @@
 package gossip
 
 import (
-	"bytes"
 	"context"
+	"errors"
+	"math/big"
+	"reflect"
 
 	//"math/rand"
 	"sync"
@@ -11,25 +13,20 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	//"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
-//	"github.com/Fantom-foundation/go-opera/utils"
 
-//	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
-//	"github.com/Fantom-foundation/go-opera/gossip/contract/driver100"
-	//	"github.com/Fantom-foundation/go-opera/gossip/contract/driverauth100"
-	//	"github.com/Fantom-foundation/go-opera/opera/genesis/driverauth"
-//	"github.com/Fantom-foundation/go-opera/opera/genesis/driver"
-//	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -49,7 +46,7 @@ type IntegrationTestSuite struct {
 // TODO add godoc
 func (s *IntegrationTestSuite) SetupTest() {
 	const (
-		rounds        = 30
+		rounds        = 20
 		validatorsNum = 10
 		startEpoch    = 1
 	)
@@ -77,16 +74,16 @@ func (s *IntegrationTestSuite) SetupTest() {
 		if n%10 == 0 {
 			tm = nextEpoch
 		}
+		// TODO grab logs only from specific blockhash for thosewere given more or equal 4 votes
 		rr, err := generator.ApplyTxs(tm, txs...)
 		s.Require().NoError(err)
 		for _, r := range rr {
 			s.Require().Len(r.Logs, 3)
 			for _, l := range r.Logs {
-				s.Require().NotNil(l) 
+				s.Require().NotNil(l)
 			}
 		}
 	}
-
 
 	s.startEpoch = startEpoch
 	s.generator = generator
@@ -135,6 +132,20 @@ func processEpochVotesRecords(t *testing.T, epochToEvsMap map[idx.Epoch][]*inter
 		}
 	}
 }
+
+/*
+fetch logs with 4 and more votes
+map[block.idx]LLRVotes
+
+
+&types.Log{Address:0xD945eC8Be23986c36e6a9f82d05BE3e92E17D66a,
+Topics:[]common.Hash{0x4913a1b403184a1c69ab16947e9f4c7a1e48c069dccde91f2bf550ea77becc5b, 0x000000000000000000000000a47cbdbcb7b77eec04a06b73a1deb1c7dbb055c2},
+Data:[]uint8{0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, BlockNumber:0x2, TxHash:0x7ef29c7ace6c45b65ab4d0c3663fe4ba050120edec11ee516deb329283d31470, TxIndex:0x0, BlockHash:0x00000001000000019a2ffd6d8110f8f84ec90a1e73ef8e65ac71850ceb86ee04, Index:0x0, Removed:false}
+idx.Block
+
+
+
+*/
 
 func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.Block) {
 
@@ -194,12 +205,12 @@ func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.Ll
 			if err == nil {
 				continue
 			}
-	
+
 			// do not ingore this error in testRepeater
 			if isTestRepeater {
 				require.NoError(t, err)
 			} else {
-				// omit this error in fullRepeater 
+				// omit this error in fullRepeater
 				require.EqualError(t, err, eventcheck.ErrAlreadyProcessedBR.Error())
 			}
 
@@ -211,6 +222,7 @@ func processBlockVotesRecords(t *testing.T, isTestRepeater bool, bvs []*inter.Ll
 
 // 2a compare different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
 
+//TODO
 func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *testEnv) {
 	ctx := context.Background()
 
@@ -260,6 +272,8 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 		t.Log("comparing logs")
 		testParams.serializeAndCompare(initLogs, procLogs) // test passes ok
+		//t.Log("compareLogsByQueries")
+		//testParams.compareLogsByQueries(ctx, initiator, processor)
 
 		// compare ReceiptForStorage
 		initBR := initiator.store.GetFullBlockRecord(blockIdx)
@@ -272,10 +286,8 @@ func compareParams(t *testing.T, blockIdxs []idx.Block, initiator, processor *te
 
 		// compare transactions
 		testParams.compareTransactions(initiator, processor)
-
 	}
 }
-
 
 func txByBlockSubsetOf(t *testing.T, repMap, genMap map[idx.Block]types.Transactions) {
 	for b, txs := range repMap {
@@ -313,20 +325,20 @@ func (p testParams) compareEvmBlocks() {
 	require.Equal(p.t, p.initEvmBlock.BaseFee, p.procEvmBlock.BaseFee)
 }
 
-func (p testParams) compareReceipts(){
+func (p testParams) compareReceipts() {
 	require.Equal(p.t, len(p.initReceipts), len(p.procReceipts))
 	// compare every field except logs, I compare them separately
-	for i , initRec := range p.initReceipts {
+	for i, initRec := range p.initReceipts {
 		require.Equal(p.t, initRec.BlockHash.String(), p.procReceipts[i].BlockHash.String())
 		require.Equal(p.t, initRec.BlockNumber, p.procReceipts[i].BlockNumber)
 		// TODO initRec.Bloom byte slices do not match
 		// p.t.Log("initRec.Bloom.Bytes()", string(initRec.Bloom.Bytes())) ecxpected: empty string
 		// p.t.Log("p.procReceipts[i].Bloom.Bytes()", string(p.procReceipts[i].Bloom.Bytes())) actual: @H
-		//require.True(p.t, bytes.Equal(initRec.Bloom.Bytes(),p.procReceipts[i].Bloom.Bytes())) // TODO fix it do not match
-		require.Equal(p.t, initRec.ContractAddress.Hex(), p.procReceipts[i].ContractAddress.Hex() )
+		//require.Equal(p.t, hexutils.BytesToHex(initRec.Bloom.Bytes()), hexutils.BytesToHex(p.procReceipts[i].Bloom.Bytes())) // TODO fix it do not match
+		require.Equal(p.t, initRec.ContractAddress.Hex(), p.procReceipts[i].ContractAddress.Hex())
 		require.Equal(p.t, initRec.CumulativeGasUsed, p.procReceipts[i].CumulativeGasUsed)
-		require.True(p.t, bytes.Equal(initRec.PostState, p.procReceipts[i].PostState))
-		require.Equal(p.t, initRec.Status,  p.procReceipts[i].Status)
+		require.Equal(p.t, hexutils.BytesToHex(initRec.PostState), hexutils.BytesToHex(p.procReceipts[i].PostState))
+		require.Equal(p.t, initRec.Status, p.procReceipts[i].Status)
 		require.Equal(p.t, initRec.TransactionIndex, p.procReceipts[i].TransactionIndex)
 		require.Equal(p.t, initRec.TxHash.Hex(), p.procReceipts[i].TxHash.Hex())
 		require.Equal(p.t, initRec.Type, p.procReceipts[i].Type)
@@ -343,13 +355,10 @@ func (p testParams) serializeAndCompare(val1, val2 interface{}) {
 	require.NoError(p.t, err)
 
 	// compare serialized representation of val1 and val2
-	p.t.Log("buf1", buf1)
-	p.t.Log("buff", buf2)
-	require.True(p.t, bytes.Equal(buf1, buf2))
+	require.Equal(p.t, hexutils.BytesToHex(buf1), hexutils.BytesToHex(buf2))
 }
 
-
-
+// TODO consider to put initiator and processor on testParams
 func (p testParams) compareTransactions(initiator, processor *testEnv) {
 	ctx := context.Background()
 	require.Equal(p.t, len(p.initEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
@@ -366,6 +375,34 @@ func (p testParams) compareTransactions(initiator, processor *testEnv) {
 		require.Equal(p.t, txHash.Hex(), procTx.Hash().Hex())
 	}
 }
+
+/*
+func (p testParams) compareLogsByQueries(ctx Context, initiator, processor *testEnv) {
+	// think about adding
+	api, ok := initiator.APIs()[1].Service.(*filters.PublicFilterAPI)
+	require.True(p.t, ok)
+
+	api.GetFilterLogs()
+	// 1. we can have a struct with some methods
+
+
+	for  _, initRec := range p.initReceipts {
+		for _, l := range initRec.Logs {
+			if l == nil {
+				fmt.Println("continue")
+				continue
+			}
+
+			// init log
+			p.t.Log("l.Address", l.Address)
+			p.t.Log("l.Topics", l.Topics)
+			p.t.Log("l.Data", l.Data)
+
+			require.Equal(p.t, l.Address.Hex(), "0xsksksde9ds9d9s9d93838")
+		}
+	}
+}
+*/
 
 func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 	m := make(map[idx.Block]types.Transactions)
@@ -386,9 +423,64 @@ func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 	return m
 }
 
+/*
+func (p testParams) compareLogsByFilterCriteria(){
+
+	// initLogsMap := make(map[idx.Block][][]*types.Log)
+	// procLogsMap := make(map[idx.Block][][]*types.Log)
+
+	ctx := context.Background()
+	initApi, ok := initiator.APIs()[1].Service.(*filters.PublicFilterAPI)
+	require.True(p.t, ok)
+
+	procApi, ok := processpr.APIs()[1].Service.(*filters.PublicFilterAPI)
+	require.True(p.t, ok)
+
+
+	filter := filters.NewBlockFilter(initiator.EthAPI, *crit.BlockHash, crit.Addresses, crit.Topics)
+	logs, err := filter.Logs(ctx)
+	require.NoError(p.t, err)
+	require.NoError(p.t, err)
+
+	filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
+	// grab logs in setupTest and put it on suite structre
+	// randomly pick a log record from logs
+	// aply new  range filter and  new block filter
+	// FilterCriteria
+	// will logs from initator and rocessor match
+
+	/*
+	&types.Log{Address:0xD945eC8Be23986c36e6a9f82d05BE3e92E17D66a,
+	Topics:[]common.Hash{0x4913a1b403184a1c69ab16947e9f4c7a1e48c069dccde91f2bf550ea77becc5b, 0x000000000000000000000000a47cbdbcb7b77eec04a06b73a1deb1c7dbb055c2},
+	Data:[]uint8{0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, BlockNumber:0x2, TxHash:0x7ef29c7ace6c45b65ab4d0c3663fe4ba050120edec11ee516deb329283d31470, TxIndex:0x0, BlockHash:0x00000001000000019a2ffd6d8110f8f84ec90a1e73ef8e65ac71850ceb86ee04, Index:0x0, Removed:false}
+*/
+// go-ethereum/eth/filters
+// testcases
+// block rangnes using range filter
+//  single address
+// 	multiple address
+//  sngle topoic
+// multiple topics
+
+// TODO go-ethereum/filters/api.test
+
+// Logs creates a subscription that fires for all new log that match the given filter criteria.
+/*
+	func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+
+
+}
+*/
+
 func (s *IntegrationTestSuite) TestRepeater() {
+
+	// TODO review the code find the way to improve it
+	// consider put in setupTest()
 	epochToEvsMap := fetchEvs(s.generator)
 	lastEpoch := s.generator.store.GetEpoch()
+	// TODO make a struct a putg generator processor and t oni t
 	processEpochVotesRecords(s.T(), epochToEvsMap, s.generator, s.processor, s.startEpoch, lastEpoch)
 
 	bvs, blockIdxs := fetchBvsBlockIdxs(s.generator)
@@ -422,83 +514,185 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	compareERHashes(s.startEpoch+1, lastEpoch)
 
 	s.T().Log("generator.BlockByNumber >= repeater.BlockByNumber")
+
 	compareParams(s.T(), blockIdxs, s.generator, s.processor)
-	/*
-	ctx := context.Background()
-	for _, blockIdx := range blockIdxs {
+	// or make a map blockIdx to [][]Logs
 
-		// comparing EvmBlock by calling BlockByHash
-		initEvmBlock, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
-		s.Require().NotNil(initEvmBlock)
-		s.Require().NoError(err)
+	fetchNonEmptyLogsbyBlockIdx := func() map[idx.Block][]*types.Log {
+		ctx := context.Background()
+		m := make(map[idx.Block][]*types.Log, len(blockIdxs))
 
-		procEvmBlock, err := s.processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
-		s.Require().NotNil(procEvmBlock)
-		s.Require().Error(err)
-
-		// compare Receipts
-		initReceipts := s.generator.store.evm.GetReceipts(blockIdx, s.generator.EthAPI.signer, initEvmBlock.Hash, initEvmBlock.Transactions)
-		s.Require().NotNil(initReceipts)
-		procReceipts := s.processor.store.evm.GetReceipts(blockIdx, s.processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
-		s.Require().NotNil(procReceipts)
-
-		testParams := newTestParams(s.T(), initEvmBlock, procEvmBlock, initReceipts, procReceipts)
-		testParams.compareEvmBlocks()
-		testParams.serializeAndCompare(initReceipts, procReceipts)
-
-		// comparing evmBlock by calling BlockByHash
-		// TODO should I compare of all Blocks or only block indexes for what 1/3W+1 votes have been given
-		initEvmBlock, err = s.generator.EthAPI.BlockByHash(ctx, initEvmBlock.Hash)
-		s.Require().NotNil(initEvmBlock)
-		s.Require().NoError(err)
-		procEvmBlock, err = s.processor.EthAPI.BlockByHash(ctx, procEvmBlock.Hash)
-		s.Require().NotNil(procEvmBlock)
-		s.Require().NoError(err)
-
-		testParams = newTestParams(s.T(), initEvmBlock, procEvmBlock, initReceipts, procReceipts)
-		testParams.compareEvmBlocks()
-
-		// compare Logs
-		initLogs, err := s.generator.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
-		s.Require().NoError(err)
-
-		procLogs, err := s.processor.EthAPI.GetLogs(ctx, initEvmBlock.Hash)
-		s.Require().NoError(err)
-
-		testBlockIdxLogs := func() {
-			s.T().Log("blockIdxs", blockIdxs)
-			evmBlock, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+		for _, blockIdx := range blockIdxs {
+			block, err := s.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
+			s.Require().NotNil(block)
 			s.Require().NoError(err)
-			logs, err := s.generator.EthAPI.GetLogs(ctx, evmBlock.Hash)
-			
-			for _, ls := range logs {
-				s.Require().Len(ls, 5)
-				for _, l := range ls {
-					s.Require().Nil(l)
-					s.T().Log("l.Address", l.Address)
+			receipts := s.generator.store.evm.GetReceipts(blockIdx, s.generator.EthAPI.signer, block.Hash, block.Transactions)
+			for i, r := range receipts {
+				// we add only non empty logs
+				if len(r.Logs) > 0 {
+					s.T().Log("fetchLogsbyBlockIdx i, r.Logs", i, r.Logs)
+					m[blockIdx] = append(m[blockIdx], r.Logs...)
+					s.T().Log("blockIdx, m[blockidx]", blockIdx, m[blockIdx])
 				}
 			}
+
 		}
-	
-		testBlockIdxLogs()
-
-
-		testParams.serializeAndCompare(initLogs, procLogs)
-
-		// compare ReceiptForStorage
-		initBR := s.generator.store.GetFullBlockRecord(blockIdx)
-		procBR := s.processor.store.GetFullBlockRecord(blockIdx)
-
-		testParams.serializeAndCompare(initBR.Receipts, procBR.Receipts)
-
-		// compare BR hashes
-		s.Require().Equal(initBR.Hash().Hex(), procBR.Hash().Hex())
-
-		// compare transactions
-		testParams.compareTransactions(s.generator, s.processor)
+		return m
 	}
-	*/
 
+	blockIdxsLogsMap := fetchNonEmptyLogsbyBlockIdx()
+
+	compareLogsByFilterCriteria := func(blockIdxsLogsMap map[idx.Block][]*types.Log) {
+
+		s.T().Log("compareLogsByFilterCriteria")
+		ctx := context.Background()
+		genApi := filters.NewPublicFilterAPI(s.generator.EthAPI, s.generator.config.FilterAPI)
+		s.Require().NotNil(genApi)
+
+		procApi := filters.NewPublicFilterAPI(s.processor.EthAPI, s.processor.config.FilterAPI)
+		s.Require().NotNil(procApi)
+
+		findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
+			for blockIdx, logs := range blockIdxsLogsMap {
+				if len(logs) > 0 {
+					return blockIdx, logs, nil
+				}
+			}
+
+			return 0, nil, errors.New("all blocks have no logs")
+		}
+
+		fetchAddrFromLogs := func(logs []*types.Log) (common.Address, error) {
+			for i := range logs {
+				if logs[i] != nil {
+					return logs[i].Address, nil
+				}
+			}
+
+			return common.Address{}, errors.New("no address can be found in logs")
+		}
+
+		blockNumber, logs, err := findFirstNonEmptyLogs()
+		s.Require().NoError(err)
+		s.Require().NotNil(logs)
+
+		addr, err := fetchAddrFromLogs(logs)
+		s.Require().NoError(err)
+
+		var crit filters.FilterCriteria
+
+		testCases := []struct {
+			name    string
+			pretest func()
+			success bool
+		}{
+			{"single valid address",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(blockNumber)),
+						ToBlock:   big.NewInt(int64(blockNumber)),
+						Addresses: []common.Address{addr},
+					}
+				},
+				true,
+			},
+			{"single invalid address",
+				func() {
+					invalidAddr := common.BytesToAddress([]byte("invalid address"))
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(blockNumber)),
+						ToBlock:   big.NewInt(int64(blockNumber)),
+						Addresses: []common.Address{invalidAddr},
+					}
+				},
+				false,
+			},
+			{"invalid block range",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(blockNumber) + 1),
+						ToBlock:   big.NewInt(int64(blockNumber) + 2),
+						Addresses: []common.Address{addr},
+					}
+				},
+				false,
+			},
+		}
+
+		for _, tc := range testCases {
+			tc := tc
+			s.Run(tc.name, func() {
+				tc.pretest()
+				genLogs, genErr := genApi.GetLogs(ctx, crit)
+				procLogs, procErr := procApi.GetLogs(ctx, crit)
+
+				s.Require().Equal(genLogs, procLogs)
+				s.Require().Equal(genErr, procErr)
+
+				s.T().Log("s.Run() logs", logs)
+
+				if tc.success {
+					s.Require().NoError(genErr)
+					for i, genLog := range genLogs {
+						genBytes, err := genLog.MarshalJSON()
+						s.Require().NoError(err)
+
+						procBytes, err := procLogs[i].MarshalJSON()
+						s.Require().NoError(err)
+
+						s.Require().Equal(hexutils.BytesToHex(genBytes), hexutils.BytesToHex(procBytes))
+
+						// make sure search matches expected data
+						s.Require().Equal(crit.Addresses[0].Hex(), genLog.Address.Hex())
+						s.Require().Equal(crit.FromBlock.Uint64(), genLog.BlockNumber)
+					}
+
+				} else {
+					s.Require().Equal(genLogs, []*types.Log{})
+				}
+
+			})
+		}
+
+		/*
+			filter := filters.NewBlockFilter(initiator.EthAPI, *crit.BlockHash, crit.Addresses, crit.Topics)
+			logs, err := filter.Logs(ctx)
+			require.NoError(p.t, err)
+			require.NoError(p.t, err)
+
+			filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
+		*/
+
+		// grab logs in setupTest and put it on suite structre
+		// randomly pick a log record from logs
+		// aply new  range filter and  new block filter
+		// FilterCriteria
+		// will logs from initator and rocessor match
+
+		/*
+			&types.Log{Address:0xD945eC8Be23986c36e6a9f82d05BE3e92E17D66a,
+			Topics:[]common.Hash{0x4913a1b403184a1c69ab16947e9f4c7a1e48c069dccde91f2bf550ea77becc5b, 0x000000000000000000000000a47cbdbcb7b77eec04a06b73a1deb1c7dbb055c2},
+			Data:[]uint8{0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, BlockNumber:0x2, TxHash:0x7ef29c7ace6c45b65ab4d0c3663fe4ba050120edec11ee516deb329283d31470, TxIndex:0x0, BlockHash:0x00000001000000019a2ffd6d8110f8f84ec90a1e73ef8e65ac71850ceb86ee04, Index:0x0, Removed:false}
+		*/
+		// go-ethereum/eth/filters
+		// testcases
+		// block rangnes using range filter
+		//  single address
+		// 	multiple address
+		//  sngle topoic
+		// multiple topics
+
+		// TODO go-ethereum/filters/api.test
+
+		// Logs creates a subscription that fires for all new log that match the given filter criteria.
+		/*
+			func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subscription, error) {
+			notifier, supported := rpc.NotifierFromContext(ctx)
+			if !supported {
+		*/
+	}
+
+	compareLogsByFilterCriteria(blockIdxsLogsMap)
 }
 
 func (s *IntegrationTestSuite) TestFullRepeater() {
@@ -579,45 +773,18 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	fullRepKVMap := fetchTable(s.processor.store.mainDB)
 
 	subsetOf := func(aa, bb map[string]string) {
+		s.Require().LessOrEqual(len(reflect.ValueOf(aa).MapKeys()), len(reflect.ValueOf(bb).MapKeys()), "The number of keys does not match")
 		for _k, _v := range aa {
 			k, v := []byte(_k), []byte(_v)
 			if k[0] == 0 || k[0] == 'x' || k[0] == 'X' || k[0] == 'b' || k[0] == 'S' {
 				continue
 			}
 			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])))
-			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex(k))
 		}
 	}
-
 	s.T().Log("Checking genKVs <= fullKVs")
 	subsetOf(genKVMap, fullRepKVMap)
 
-	// IndexLogs scenario
-	// run EvmLogs.Push(l) for all logs and then compare the states of generator and processor
-	/*
-	ctx := context.Background()
-	s.Require().NotNil(blockIdxs)
-
-	evmBlock, err := s.processor.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdxs[0]))
-	s.Require().NotNil(evmBlock)
-	s.Require().NoError(err)
-
-	logs2D, err := s.processor.EthAPI.GetLogs(ctx, evmBlock.Hash)
-	s.Require().NotNil(evmBlock)
-	s.Require().NoError(err)
-
-
-	testIndexLogs := func(logs2D [][]*types.Log) {
-		for _, logs := range logs2D {
-			for _, l := range logs {
-				s.Require().NoError(s.processor.store.EvmStore().EvmLogs.Push(l))
-			}
-		}
-	}
-
-	testIndexLogs(logs2D)
-	*/
-	
 	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
 	fullRepKVMapAfterIndexLogs := fetchTable(s.processor.store.mainDB)
 
@@ -630,142 +797,142 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	// make sure it work as expected
 	// see  TestIndexSearchMultyVariants in topicsdb/topicsdb_test.go
 	/*
-	testSearchLogsWithLLRSync := func(blockIdx idx.Block) {
+		testSearchLogsWithLLRSync := func(blockIdx idx.Block) {
 
-		randAddress := func() (addr common.Address) {
-			n, err := rand.Read(addr[:])
-			if err != nil {
-				panic(err)
+			randAddress := func() (addr common.Address) {
+				n, err := rand.Read(addr[:])
+				if err != nil {
+					panic(err)
+				}
+				if n != common.AddressLength {
+					panic("address is not filled")
+				}
+				return
 			}
-			if n != common.AddressLength {
-				panic("address is not filled")
+
+			var (
+				hash1 = common.BytesToHash([]byte("topic1"))
+				hash2 = common.BytesToHash([]byte("topic2"))
+				hash3 = common.BytesToHash([]byte("topic3"))
+				hash4 = common.BytesToHash([]byte("topic4"))
+				addr1 = randAddress()
+				addr2 = randAddress()
+				addr3 = randAddress()
+				addr4 = randAddress()
+			)
+
+			// I looked atso at Logs2D, if loop over them, Log struct has empty fields.
+			// To resolve this issue, I came up with testData
+			testdata := []*types.Log{{
+				BlockNumber: uint64(blockIdx),
+				Address:     addr1,
+				Topics:      []common.Hash{hash1, hash1, hash1},
+			}, {
+				BlockNumber: uint64(blockIdx),
+				Address:     addr2,
+				Topics:      []common.Hash{hash2, hash2, hash2},
+			}, {
+				BlockNumber: uint64(blockIdx),
+				Address:     addr3,
+				Topics:      []common.Hash{hash3, hash3, hash3},
+			}, {
+				BlockNumber: uint64(blockIdx),
+				Address:     addr4,
+				Topics:      []common.Hash{hash4, hash4, hash4},
+			},
 			}
-			return
-		}
 
-		var (
-			hash1 = common.BytesToHash([]byte("topic1"))
-			hash2 = common.BytesToHash([]byte("topic2"))
-			hash3 = common.BytesToHash([]byte("topic3"))
-			hash4 = common.BytesToHash([]byte("topic4"))
-			addr1 = randAddress()
-			addr2 = randAddress()
-			addr3 = randAddress()
-			addr4 = randAddress()
-		)
+			index := s.processor.store.EvmStore().EvmLogs
 
-		// I looked atso at Logs2D, if loop over them, Log struct has empty fields.
-		// To resolve this issue, I came up with testData
-		testdata := []*types.Log{{
-			BlockNumber: uint64(blockIdx),
-			Address:     addr1,
-			Topics:      []common.Hash{hash1, hash1, hash1},
-		}, {
-			BlockNumber: uint64(blockIdx),
-			Address:     addr2,
-			Topics:      []common.Hash{hash2, hash2, hash2},
-		}, {
-			BlockNumber: uint64(blockIdx),
-			Address:     addr3,
-			Topics:      []common.Hash{hash3, hash3, hash3},
-		}, {
-			BlockNumber: uint64(blockIdx),
-			Address:     addr4,
-			Topics:      []common.Hash{hash4, hash4, hash4},
-		},
-		}
+			for _, l := range testdata {
+				s.Require().NoError(index.Push(l))
+			}
 
-		index := s.processor.store.EvmStore().EvmLogs
-
-		for _, l := range testdata {
-			s.Require().NoError(index.Push(l))
-		}
-
-		// require.ElementsMatchf(testdata, got, "") doesn't work properly here,
-		// so use check()
-		check := func(got []*types.Log) {
-			// why we declared count here?
-			count := 0
-			for _, a := range got {
-				for _, b := range testdata {
-					if b.Address == a.Address {
-						s.Require().ElementsMatch(a.Topics, b.Topics)
-						count++
-						break
+			// require.ElementsMatchf(testdata, got, "") doesn't work properly here,
+			// so use check()
+			check := func(got []*types.Log) {
+				// why we declared count here?
+				count := 0
+				for _, a := range got {
+					for _, b := range testdata {
+						if b.Address == a.Address {
+							s.Require().ElementsMatch(a.Topics, b.Topics)
+							count++
+							break
+						}
 					}
 				}
 			}
+
+			for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+				"sync": index.FindInBlocks,
+				//	"async": index.FindInBlocksAsync,
+			} {
+				s.Run(dsc, func() {
+
+					s.Run("With no addresses", func() {
+						got, err := method(nil, 0, 1000, [][]common.Hash{
+							{},
+							{hash1, hash2, hash3, hash4},
+							{},
+							{hash1, hash2, hash3, hash4},
+						})
+						s.Require().NoError(err)
+						//s.Require().Equal(4, len(got))
+						check(got)
+					})
+
+					s.Run("With addresses", func() {
+						got, err := method(nil, 0, 1000, [][]common.Hash{
+							{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+							{hash1, hash2, hash3, hash4},
+							{},
+							{hash1, hash2, hash3, hash4},
+						})
+						s.Require().NoError(err)
+						//s.Require().Equal(4, len(got))
+						check(got)
+					})
+
+					s.Run("With block range", func() {
+						got, err := method(nil, 2, 998, [][]common.Hash{
+							{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+							{hash1, hash2, hash3, hash4},
+							{},
+							{hash1, hash2, hash3, hash4},
+						})
+						s.Require().NoError(err)
+						//s.Require().Equal(2, len(got))
+						check(got)
+					})
+
+					s.Run("With addresses and blocks", func() {
+						got1, err := method(nil, 2, 998, [][]common.Hash{
+							{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
+							{hash1, hash2, hash3, hash4},
+							{},
+							{hash1, hash2, hash3, hash4},
+						})
+						s.Require().NoError(err)
+						//s.Require().Equal(2, len(got1))
+						check(got1)
+
+						got2, err := method(nil, 2, 998, [][]common.Hash{
+							{addr4.Hash(), addr3.Hash(), addr2.Hash(), addr1.Hash()},
+							{hash1, hash2, hash3, hash4},
+							{},
+							{hash1, hash2, hash3, hash4},
+						})
+						s.Require().NoError(err)
+						s.Require().ElementsMatch(got1, got2)
+					})
+
+				})
+
+			}
 		}
 
-		for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-			"sync": index.FindInBlocks,
-			//	"async": index.FindInBlocksAsync,
-		} {
-			s.Run(dsc, func() {
-
-				s.Run("With no addresses", func() {
-					got, err := method(nil, 0, 1000, [][]common.Hash{
-						{},
-						{hash1, hash2, hash3, hash4},
-						{},
-						{hash1, hash2, hash3, hash4},
-					})
-					s.Require().NoError(err)
-					//s.Require().Equal(4, len(got))
-					check(got)
-				})
-
-				s.Run("With addresses", func() {
-					got, err := method(nil, 0, 1000, [][]common.Hash{
-						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-						{hash1, hash2, hash3, hash4},
-						{},
-						{hash1, hash2, hash3, hash4},
-					})
-					s.Require().NoError(err)
-					//s.Require().Equal(4, len(got))
-					check(got)
-				})
-
-				s.Run("With block range", func() {
-					got, err := method(nil, 2, 998, [][]common.Hash{
-						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-						{hash1, hash2, hash3, hash4},
-						{},
-						{hash1, hash2, hash3, hash4},
-					})
-					s.Require().NoError(err)
-					//s.Require().Equal(2, len(got))
-					check(got)
-				})
-
-				s.Run("With addresses and blocks", func() {
-					got1, err := method(nil, 2, 998, [][]common.Hash{
-						{addr1.Hash(), addr2.Hash(), addr3.Hash(), addr4.Hash()},
-						{hash1, hash2, hash3, hash4},
-						{},
-						{hash1, hash2, hash3, hash4},
-					})
-					s.Require().NoError(err)
-					//s.Require().Equal(2, len(got1))
-					check(got1)
-
-					got2, err := method(nil, 2, 998, [][]common.Hash{
-						{addr4.Hash(), addr3.Hash(), addr2.Hash(), addr1.Hash()},
-						{hash1, hash2, hash3, hash4},
-						{},
-						{hash1, hash2, hash3, hash4},
-					})
-					s.Require().NoError(err)
-					s.Require().ElementsMatch(got1, got2)
-				})
-
-			})
-
-		}
-	}
-
-	testSearchLogsWithLLRSync(blockIdxs[0])
+		testSearchLogsWithLLRSync(blockIdxs[0])
 	*/
 }
 
