@@ -157,6 +157,7 @@ func applyTransaction(
 
 	// Set the receipt logs.
 	receipt.Logs = logs
+	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 	receipt.BlockHash = blockHash
 	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(statedb.TxIndex())
