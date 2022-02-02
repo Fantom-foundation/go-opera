@@ -70,27 +70,33 @@ const (
 // disk read performance to some extent.
 type Pruner struct {
 	db          ethdb.Database
-	stateBloom  *stateBloom
+	stateBloom  StateBloom
 	datadir     string
 	root        common.Hash
 	genesisRoot common.Hash
 	snaptree    *snapshot.Tree
 }
 
-// NewPruner creates the pruner instance.
-func NewPruner(db ethdb.Database, genesisRoot, root common.Hash, datadir string, bloomSize uint64) (*Pruner, error) {
-	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, root, false, false, false)
-	if err != nil {
-		return nil, err // The relevant snapshot(s) might not exist
-	}
+type StateBloom interface {
+	ethdb.KeyValueWriter
+	Contain(key []byte) (bool, error)
+	Commit(filename, tempname string) error
+}
+
+func NewProbabilisticSet(bloomSize uint64) (StateBloom, error) {
 	// Sanitize the bloom filter size if it's too small.
 	if bloomSize < 256 {
 		log.Warn("Sanitizing bloomfilter size", "provided(MB)", bloomSize, "updated(MB)", 256)
 		bloomSize = 256
 	}
-	stateBloom, err := newStateBloomWithSize(bloomSize)
+	return newStateBloomWithSize(bloomSize)
+}
+
+// NewPruner creates the pruner instance.
+func NewPruner(db ethdb.Database, genesisRoot, root common.Hash, datadir string, stateBloom StateBloom) (*Pruner, error) {
+	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, root, false, false, false)
 	if err != nil {
-		return nil, err
+		return nil, err // The relevant snapshot(s) might not exist
 	}
 	return &Pruner{
 		db:          db,
@@ -102,7 +108,7 @@ func NewPruner(db ethdb.Database, genesisRoot, root common.Hash, datadir string,
 	}, nil
 }
 
-func prune(snaptree *snapshot.Tree, root common.Hash, maindb ethdb.Database, stateBloom *stateBloom, bloomPath string, middleStateRoots map[common.Hash]struct{}, start time.Time) error {
+func prune(snaptree *snapshot.Tree, root common.Hash, maindb ethdb.Database, stateBloom StateBloom, bloomPath string, middleStateRoots map[common.Hash]struct{}, start time.Time) error {
 	// Delete all stale trie nodes in the disk. With the help of state bloom
 	// the trie nodes(and codes) belong to the active state will be filtered
 	// out. A very small part of stale tries will also be filtered because of
@@ -269,11 +275,9 @@ func (p *Pruner) Prune(root common.Hash) error {
 	}
 	filterName := bloomFilterName(p.datadir, root)
 
-	log.Info("Writing state bloom to disk", "name", filterName)
 	if err := p.stateBloom.Commit(filterName, filterName+stateBloomFileTempSuffix); err != nil {
 		return err
 	}
-	log.Info("State bloom filter committed", "name", filterName)
 	return prune(p.snaptree, root, p.db, p.stateBloom, filterName, middleRoots, start)
 }
 
@@ -333,7 +337,10 @@ func RecoverPruning(datadir string, db ethdb.Database, root common.Hash) error {
 
 // extractGenesis loads the genesis state and commits all the state entries
 // into the given bloomfilter.
-func extractGenesis(db ethdb.Database, root common.Hash, stateBloom *stateBloom) error {
+func extractGenesis(db ethdb.Database, root common.Hash, stateBloom ethdb.KeyValueWriter) error {
+	if root == (common.Hash{}) {
+		return nil
+	}
 	t, err := trie.NewSecure(root, trie.NewDatabase(db))
 	if err != nil {
 		return err
