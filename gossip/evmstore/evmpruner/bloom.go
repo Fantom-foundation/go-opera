@@ -67,7 +67,6 @@ func newStateBloomWithSize(size uint64) (*stateBloom, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Initialized state bloom", "size", common.StorageSize(float64(bloom.M()/8)))
 	return &stateBloom{bloom: bloom}, nil
 }
 
@@ -84,6 +83,7 @@ func NewStateBloomFromDisk(filename string) (*stateBloom, error) {
 // Commit flushes the bloom filter content into the disk and marks the bloom
 // as complete.
 func (bloom *stateBloom) Commit(filename, tempname string) error {
+	log.Info("Writing state bloom to disk", "name", filename)
 	// Write the bloom out into a temporary file
 	_, err := bloom.bloom.WriteFile(tempname)
 	if err != nil {
@@ -100,6 +100,7 @@ func (bloom *stateBloom) Commit(filename, tempname string) error {
 	}
 	f.Close()
 
+	log.Info("State bloom filter committed", "name", filename)
 	// Move the teporary file into it's final location
 	return os.Rename(tempname, filename)
 }
