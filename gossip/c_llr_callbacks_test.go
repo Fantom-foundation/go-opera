@@ -2,9 +2,9 @@ package gossip
 
 import (
 	"context"
-	"errors"
-	"math/big"
-	"reflect"
+	//	"errors"
+	//	"math/big"
+//	"reflect"
 
 	//"math/rand"
 	"sync"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/ethereum/go-ethereum/common"
+	//	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	//"github.com/ethereum/go-ethereum/log"
@@ -22,7 +22,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/filters"
+	//	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -540,7 +540,7 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		return m
 	}
 
-	blockIdxLogsMap := fetchNonEmptyLogsbyBlockIdx()
+	_ = fetchNonEmptyLogsbyBlockIdx()
 
 	// TODO keys in blockIdxLogsMap do not preserve an order, consider to use blockIndices in for loops instead
 	// TODO should we sort
@@ -560,67 +560,70 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	 415 159 192 236 439 266 325 379 480 14 165 179 195 513 166 208 352 419 487 218 258 276 434 46 85 470 471 82 215 223 332 440 277 391 16 93 155 188 248 367 445 473 6 72 167 257 259 492 493 153 326 158 368 469 205 385 363 451 175 357 390 499 105 123 143 251 331 108 217 350 400 164 174 271 411 504 209 260 522 238 408 436 35 66 163 228 235 56 211 373 178 355 171 336 61 275 131 517 49 416 461 495 511 3 111 201 243 335 116 230 454 73 512 225 381 500 21 106 124 207 219 27 37 496 9 57 62 430 220 244 253 403 406 401 510 23 122 126 233 362 76 160 210 442 245 138 369 69 170 263 503 45 319 393
 	 395 488 84 182 240 130 305 324 477 17 128 137 254 285 490 494 44 227 345 144 283 396 394 468 11 48 71 194 304]
 	*/
-	compareLogsByFilterCriteria := func(blockIndices []idx.Block, blockIdxLogsMap map[idx.Block][]*types.Log) {
+	/*
+		compareLogsByFilterCriteria := func(blockIndices []idx.Block, blockIdxLogsMap map[idx.Block][]*types.Log) {
 
-		s.T().Log("compareLogsByFilterCriteria")
-		ctx := context.Background()
-		genApi := filters.NewPublicFilterAPI(s.generator.EthAPI, s.generator.config.FilterAPI)
-		s.Require().NotNil(genApi)
+			s.T().Log("compareLogsByFilterCriteria")
+			ctx := context.Background()
+			genApi := filters.NewPublicFilterAPI(s.generator.EthAPI, s.generator.config.FilterAPI)
+			s.Require().NotNil(genApi)
 
-		procApi := filters.NewPublicFilterAPI(s.processor.EthAPI, s.processor.config.FilterAPI)
-		s.Require().NotNil(procApi)
+			procApi := filters.NewPublicFilterAPI(s.processor.EthAPI, s.processor.config.FilterAPI)
+			s.Require().NotNil(procApi)
 
-		findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
-			for _, blockIdx := range blockIndices {
-				logs, ok := blockIdxLogsMap[blockIdx]
-				if !ok {
-					continue
-				}
-				if len(logs) > 0 {
-					return blockIdx, logs, nil
-				}
-			}
-
-			return 0, nil, errors.New("all blocks have no logs")
-		}
-
-		fetchFirstAddrFromLogs := func(logs []*types.Log) (common.Address, error) {
-			for i := range logs {
-				if logs[i] != nil {
-					return logs[i].Address, nil
-				}
-			}
-
-			return common.Address{}, errors.New("no address can be found in logs")
-
-		}
-
-		fetchFirstTopicFromLogs := func(logs []*types.Log) (common.Hash, error) {
-			for i := range logs {
-				if logs[i] != nil && len(logs[i].Topics) > 0 {
-					return logs[i].Topics[0], nil
-				}
-			}
-
-			return common.Hash{}, errors.New("no address can be found in logs")
-		}
-
-		/*
-			findLastNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
-				for i := len(blockIndices)-1; i >= 0; i-- {
-					logs, ok := blockIdxLogsMap[blockIndices[i]]
+			findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
+				for _, blockIdx := range blockIndices {
+					logs, ok := blockIdxLogsMap[blockIdx]
 					if !ok {
 						continue
 					}
 					if len(logs) > 0 {
-						return blockIndices[i], logs, nil
+						return blockIdx, logs, nil
 					}
 				}
 
 				return 0, nil, errors.New("all blocks have no logs")
 			}
-		*/
 
+			fetchFirstAddrFromLogs := func(logs []*types.Log) (common.Address, error) {
+				for i := range logs {
+					if logs[i] != nil {
+						return logs[i].Address, nil
+					}
+				}
+
+				return common.Address{}, errors.New("no address can be found in logs")
+
+			}
+
+			fetchFirstTopicFromLogs := func(logs []*types.Log) (common.Hash, error) {
+				for i := range logs {
+					if logs[i] != nil && len(logs[i].Topics) > 0 {
+						return logs[i].Topics[0], nil
+					}
+				}
+
+				return common.Hash{}, errors.New("no address can be found in logs")
+			}
+	*/
+
+	/*
+		findLastNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
+			for i := len(blockIndices)-1; i >= 0; i-- {
+				logs, ok := blockIdxLogsMap[blockIndices[i]]
+				if !ok {
+					continue
+				}
+				if len(logs) > 0 {
+					return blockIndices[i], logs, nil
+				}
+			}
+
+			return 0, nil, errors.New("all blocks have no logs")
+		}
+	*/
+
+	/*
 		blockNumber, logs, err := findFirstNonEmptyLogs()
 		s.Require().NoError(err)
 		s.Require().NotNil(logs)
@@ -630,19 +633,20 @@ func (s *IntegrationTestSuite) TestRepeater() {
 
 		topic, err := fetchFirstTopicFromLogs(logs)
 		s.Require().NoError(err)
+	*/
 
-		/*
-			lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
-			s.Require().NoError(err)
-			s.Require().NotNil(lastLogs)
+	/*
+		lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
+		s.Require().NoError(err)
+		s.Require().NotNil(lastLogs)
 
-			lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
-			s.Require().NoError(err)
+		lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
+		s.Require().NoError(err)
 
-			lastTopic, err := fetchFirstTopicFromLogs(lastLogs)
-			s.Require().NoError(err)
-		*/
-
+		lastTopic, err := fetchFirstTopicFromLogs(lastLogs)
+		s.Require().NoError(err)
+	*/
+	/*
 		var crit filters.FilterCriteria
 
 		testCases := []struct {
@@ -700,46 +704,48 @@ func (s *IntegrationTestSuite) TestRepeater() {
 				},
 				true,
 			},
-			{"block range 1-1000 and valid address",
+	*/
+	/*
+		{"block range 1-1000 and valid address",
+			func() {
+				crit = filters.FilterCriteria{
+					FromBlock: big.NewInt(1),
+					ToBlock:   big.NewInt(1000),
+					Addresses: []common.Address{addr},
+				}
+			},
+			true,
+		},
+			{	"block range lastBlockNumber-1000 to lastBlockNumber",
 				func() {
 					crit = filters.FilterCriteria{
-						FromBlock: big.NewInt(1),
-						ToBlock:   big.NewInt(1000),
-						Addresses: []common.Address{addr},
+						FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+						ToBlock:   big.NewInt(int64(lastBlockNumber)),
 					}
 				},
 				true,
 			},
-			/*
-				{	"block range lastBlockNumber-1000 to lastBlockNumber",
-					func() {
-						crit = filters.FilterCriteria{
-							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
-							ToBlock:   big.NewInt(int64(lastBlockNumber)),
-						}
-					},
-					true,
+			{	"block range 1-1000 and valid topic",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+						ToBlock:   big.NewInt(int64(lastBlockNumber)),
+						Topics:    [][]common.Hash{{lastTopic}},
+					}
 				},
-				{	"block range 1-1000 and valid topic",
-					func() {
-						crit = filters.FilterCriteria{
-							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
-							ToBlock:   big.NewInt(int64(lastBlockNumber)),
-							Topics:    [][]common.Hash{{lastTopic}},
-						}
-					},
-					true,
+				true,
+			},
+			{	"block range 1-1000 and valid address",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
+						ToBlock:   big.NewInt(int64(lastBlockNumber)),
+						Addresses: []common.Address{lastAddr},
+					}
 				},
-				{	"block range 1-1000 and valid address",
-					func() {
-						crit = filters.FilterCriteria{
-							FromBlock: big.NewInt(int64(lastBlockNumber)-1000),
-							ToBlock:   big.NewInt(int64(lastBlockNumber)),
-							Addresses: []common.Address{lastAddr},
-						}
-					},
-					true,
-				},*/
+				true,
+			},*/
+	/*
 		}
 
 		for _, tc := range testCases {
@@ -764,27 +770,33 @@ func (s *IntegrationTestSuite) TestRepeater() {
 						s.Require().Equal(hexutils.BytesToHex(genLog.Data), hexutils.BytesToHex(procLogs[i].Data))
 						s.Require().Equal(genLog.Index, procLogs[i].Index)
 						s.Require().Equal(genLog.Removed, procLogs[i].Removed)
+						/* output is too dirty
 						for j, topic := range genLog.Topics {
 							s.Require().Equal(topic.Hex(), procLogs[i].Topics[j].Hex())
 						}
-						s.Require().Equal(genLog.TxHash.Hex(), procLogs[i].TxHash.Hex())
-						s.Require().Equal(genLog.TxIndex, procLogs[i].TxIndex)
+	*/
+	/*
+		s.Require().Equal(genLog.TxHash.Hex(), procLogs[i].TxHash.Hex())
+		s.Require().Equal(genLog.TxIndex, procLogs[i].TxIndex)
+	*/
 
-						// make sure search matches expected data
-						//s.Require().Equal(crit.Addresses[0].Hex(), genLog.Address.Hex())
-						//s.Require().Equal(crit.FromBlock.Uint64(), genLog.BlockNumber)
-						//s.Require().Equal(crit.Topics, genLog.Topics ) //?
+	// make sure search matches expected data
+	//s.Require().Equal(crit.Addresses[0].Hex(), genLog.Address.Hex())
+	//s.Require().Equal(crit.FromBlock.Uint64(), genLog.BlockNumber)
+	//s.Require().Equal(crit.Topics, genLog.Topics ) //?
+	//	}
+	/*
+					} else {
+						s.Require().Equal(genLogs, []*types.Log{})
 					}
 
-				} else {
-					s.Require().Equal(genLogs, []*types.Log{})
-				}
-
-			})
+				})
+			}
 		}
-	}
 
-	compareLogsByFilterCriteria(blockIndices, blockIdxLogsMap)
+		compareLogsByFilterCriteria(blockIndices, blockIdxLogsMap)
+	*/
+
 }
 
 func (s *IntegrationTestSuite) TestFullRepeater() {
@@ -865,7 +877,6 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	fullRepKVMap := fetchTable(s.processor.store.mainDB)
 
 	subsetOf := func(aa, bb map[string]string) {
-		s.Require().LessOrEqual(len(reflect.ValueOf(aa).MapKeys()), len(reflect.ValueOf(bb).MapKeys()), "The number of keys does not match")
 		for _k, _v := range aa {
 			k, v := []byte(_k), []byte(_v)
 			if k[0] == 0 || k[0] == 'x' || k[0] == 'X' || k[0] == 'b' || k[0] == 'S' {
@@ -874,16 +885,22 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 			s.Require().Equal(hexutils.BytesToHex(v), hexutils.BytesToHex([]byte(bb[_k])))
 		}
 	}
-	s.T().Log("Checking genKVs <= fullKVs")
-	subsetOf(genKVMap, fullRepKVMap)
+
+	checkEqual := func(aa, bb map[string]string) {
+		subsetOf(aa, bb)
+		subsetOf(bb, aa)
+	}
+
+	s.T().Log("Checking genKVs == fullKVs")
+	checkEqual(genKVMap, fullRepKVMap)
 
 	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
 	fullRepKVMapAfterIndexLogs := fetchTable(s.processor.store.mainDB)
 
 	// comparing the states
-	subsetOf(genKVMap, genKVMapAfterIndexLogs)
-	subsetOf(fullRepKVMap, fullRepKVMapAfterIndexLogs)
-	subsetOf(genKVMapAfterIndexLogs, fullRepKVMapAfterIndexLogs)
+	checkEqual(genKVMap, genKVMapAfterIndexLogs)
+	checkEqual(fullRepKVMap, fullRepKVMapAfterIndexLogs)
+	checkEqual(genKVMapAfterIndexLogs, fullRepKVMapAfterIndexLogs)
 
 	// Search logs by topic, block and address
 	// make sure it work as expected
