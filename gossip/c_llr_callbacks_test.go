@@ -274,7 +274,7 @@ func compareParams(t *testing.T, blockIndices []idx.Block, initiator, processor 
 		t.Log("comparing logs")
 		// TODO compare logs fields
 		testParams.serializeAndCompare(initLogs, procLogs) // test passes ok
-		//t.Log("compareLogsByQueries")
+		testParams.compareLogs(initLogs, procLogs)
 		//testParams.compareLogsByQueries(ctx, initiator, processor)
 
 		// compare ReceiptForStorage
@@ -344,6 +344,29 @@ func (p testParams) compareReceipts() {
 		require.Equal(p.t, initRec.TransactionIndex, p.procReceipts[i].TransactionIndex)
 		require.Equal(p.t, initRec.TxHash.Hex(), p.procReceipts[i].TxHash.Hex())
 		require.Equal(p.t, initRec.Type, p.procReceipts[i].Type)
+	}
+}
+
+// TODO replace this func with checkLogsEquality from compareLogsByFilterCriteria
+func (p testParams) compareLogs(initLogs2D, procLogs2D [][]*types.Log) {
+	require.Equal(p.t, len(initLogs2D), len(procLogs2D))
+	for i, initLogs := range initLogs2D {
+		for j, initLog := range initLogs {
+			// compare all fields
+			require.Equal(p.t, initLog.Address.Hex(), procLogs2D[i][j].Address.Hex())
+			require.Equal(p.t, initLog.BlockHash.Hex(), procLogs2D[i][j].BlockHash.Hex())
+			require.Equal(p.t, initLog.BlockNumber, procLogs2D[i][j].BlockNumber)
+			require.Equal(p.t, hexutils.BytesToHex(initLog.Data), hexutils.BytesToHex(procLogs2D[i][j].Data))
+			require.Equal(p.t, initLog.Index, procLogs2D[i][j].Index)
+			require.Equal(p.t, initLog.Removed, procLogs2D[i][j].Removed)
+
+			for k, topic := range initLog.Topics {
+				require.Equal(p.t, topic.Hex(), procLogs2D[i][j].Topics[k].Hex())
+			}
+
+			require.Equal(p.t, initLog.TxHash.Hex(), procLogs2D[i][j].TxHash.Hex())
+			require.Equal(p.t, initLog.TxIndex, procLogs2D[i][j].TxIndex)
+		}
 	}
 }
 
@@ -564,6 +587,28 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		s.Require().NotNil(defaultLogs)
 		s.Require().NotEqual(defaultLogs, []*types.Log{})
 
+		checkLogsEquality := func(genLogs, procLogs []*types.Log) {
+			// TODO fix it, test fails L577 testcase: block_range_1-1000, expected: 643, actual: 598, testcase block_range_1-1000_and_valid_topic,  expected: 600, actual : 555
+			//s.Require().Equal(len(genLogs), len(procLogs))
+			s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) // to make test pass, sometimes length match, sometimes not
+			for i, procLog := range procLogs {
+				// compare all fields
+				s.Require().Equal(procLog.Address.Hex(), genLogs[i].Address.Hex())
+				s.Require().Equal(procLog.BlockHash.Hex(), genLogs[i].BlockHash.Hex())
+				s.Require().Equal(procLog.BlockNumber, genLogs[i].BlockNumber)
+				s.Require().Equal(hexutils.BytesToHex(procLog.Data), hexutils.BytesToHex(genLogs[i].Data))
+				s.Require().Equal(procLog.Index, genLogs[i].Index)
+				s.Require().Equal(procLog.Removed, genLogs[i].Removed)
+
+				for j, topic := range procLog.Topics {
+					s.Require().Equal(topic.Hex(), genLogs[i].Topics[j].Hex())
+				}
+
+				s.Require().Equal(procLog.TxHash.Hex(), genLogs[i].TxHash.Hex())
+				s.Require().Equal(procLog.TxIndex, genLogs[i].TxIndex)
+			}
+		}
+
 		findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
 			for _, blockIdx := range blockIndices {
 				logs, ok := blockIdxLogsMap[blockIdx]
@@ -612,28 +657,6 @@ func (s *IntegrationTestSuite) TestRepeater() {
 			l := rand.Int() % len(logs) // pick log at random
 
 			return logs[l].Address
-		}
-
-		checkLogsEquality := func(genLogs, procLogs []*types.Log) {
-			// TODO fix it, test fails L619 testcase: block_range_1-1000, expected: 643, actual: 598, testcase block_range_1-1000_and_valid_topic,  expected: 600, actual : 555
-			//s.Require().Equal(len(genLogs), len(procLogs))
-			s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) // to make test pass, sometimes length match, sometimes not
-			for i, procLog := range procLogs {
-				// compare all fields
-				s.Require().Equal(procLog.Address.Hex(), genLogs[i].Address.Hex())
-				s.Require().Equal(procLog.BlockHash.Hex(), genLogs[i].BlockHash.Hex())
-				s.Require().Equal(procLog.BlockNumber, genLogs[i].BlockNumber)
-				s.Require().Equal(hexutils.BytesToHex(procLog.Data), hexutils.BytesToHex(genLogs[i].Data))
-				s.Require().Equal(procLog.Index, genLogs[i].Index)
-				s.Require().Equal(procLog.Removed, genLogs[i].Removed)
-
-				for j, topic := range procLog.Topics {
-					s.Require().Equal(topic.Hex(), genLogs[i].Topics[j].Hex())
-				}
-
-				s.Require().Equal(procLog.TxHash.Hex(), genLogs[i].TxHash.Hex())
-				s.Require().Equal(procLog.TxIndex, genLogs[i].TxIndex)
-			}
 		}
 
 		/*
