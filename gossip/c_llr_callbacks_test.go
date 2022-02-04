@@ -5,30 +5,26 @@ import (
 	"errors"
 	"math/big"
 	"math/rand"
-	"time"
-
-	//"math/rand"
+	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-
-	//"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
-
-	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -41,13 +37,10 @@ type IntegrationTestSuite struct {
 
 	startEpoch, lastEpoch idx.Epoch
 	generator, processor  *testEnv
-	epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote
-	bvs []*inter.LlrSignedBlockVotes
-	blockIndices []idx.Block
-	genBlockToTxsMap, procBlockToTxsMap map[idx.Block]types.Transactions
-
+	epochToEvsMap         map[idx.Epoch][]*inter.LlrSignedEpochVote
+	bvs                   []*inter.LlrSignedBlockVotes
+	blockIndices          []idx.Block
 }
-
 
 func (s *IntegrationTestSuite) SetupTest() {
 	const (
@@ -79,7 +72,7 @@ func (s *IntegrationTestSuite) SetupTest() {
 		if n%10 == 0 {
 			tm = nextEpoch
 		}
-		// TODO grab logs only from specific blockhash for thosewere given more or equal 4 votes
+
 		rr, err := generator.ApplyTxs(tm, txs...)
 		s.Require().NoError(err)
 		for _, r := range rr {
@@ -99,9 +92,6 @@ func (s *IntegrationTestSuite) SetupTest() {
 	s.bvs = bvs
 	s.blockIndices = blockIndices
 	s.lastEpoch = generator.store.GetEpoch()
-	s.genBlockToTxsMap = fetchTxsbyBlock(generator)
-	s.procBlockToTxsMap = fetchTxsbyBlock(processor)
-
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
@@ -128,9 +118,7 @@ func fetchEvs(generator *testEnv) map[idx.Epoch][]*inter.LlrSignedEpochVote {
 	return m
 }
 
-
-
-// fetchBvsBlockIdxs computes block indices of blocks that have min 4 votes.
+// fetchBvsBlockIdxs fetches block indices of blocks that have min 4 LLR votes.
 func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.Block) {
 
 	var bvs []*inter.LlrSignedBlockVotes
@@ -173,11 +161,11 @@ func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.
 	return bvs, fetchBlockIdxs(blockIdxCountMap)
 }
 
-
-
-
-func txByBlockSubsetOf(t *testing.T, repMap, genMap map[idx.Block]types.Transactions) {
-	for b, txs := range repMap {
+// txByBlockSubsetOf iterates over procMap keys and checks equality of transaction hashes of genenerator and processor
+func txByBlockSubsetOf(t *testing.T, procMap, genMap map[idx.Block]types.Transactions) {
+	// assert len(procBlockToTxsMap.keys()) <= len(genBlockToTxsMap.keys()")
+	require.LessOrEqual(t, len(reflect.ValueOf(procMap).MapKeys()), len(reflect.ValueOf(genMap).MapKeys()), "The number of keys does not match")
+	for b, txs := range procMap {
 		genTxs, ok := genMap[b]
 		require.True(t, ok)
 		require.Equal(t, len(txs), len(genTxs))
@@ -187,35 +175,56 @@ func txByBlockSubsetOf(t *testing.T, repMap, genMap map[idx.Block]types.Transact
 	}
 }
 
+// checkLogsEquality checks equality of logs slice field byf ield
+func checkLogsEquality(t *testing.T, genLogs, procLogs []*types.Log) {
+	require.Equal(t, len(genLogs), len(procLogs))
+	for i, procLog := range procLogs {
+		// compare all fields
+		require.Equal(t, procLog.Address.Hex(), genLogs[i].Address.Hex())
+		require.Equal(t, procLog.BlockHash.Hex(), genLogs[i].BlockHash.Hex())
+		require.Equal(t, procLog.BlockNumber, genLogs[i].BlockNumber)
+		require.Equal(t, hexutils.BytesToHex(procLog.Data), hexutils.BytesToHex(genLogs[i].Data))
+		require.Equal(t, procLog.Index, genLogs[i].Index)
+		require.Equal(t, procLog.Removed, genLogs[i].Removed)
+
+		for j, topic := range procLog.Topics {
+			require.Equal(t, topic.Hex(), genLogs[i].Topics[j].Hex())
+		}
+
+		require.Equal(t, procLog.TxHash.Hex(), genLogs[i].TxHash.Hex())
+		require.Equal(t, procLog.TxIndex, genLogs[i].TxIndex)
+	}
+}
+
 type testParams struct {
 	t            *testing.T
-	initEvmBlock *evmcore.EvmBlock
+	genEvmBlock  *evmcore.EvmBlock
 	procEvmBlock *evmcore.EvmBlock
-	initReceipts types.Receipts
+	genReceipts  types.Receipts
 	procReceipts types.Receipts
 }
 
-func newTestParams(t *testing.T, initEvmBlock, procEvmBlock *evmcore.EvmBlock, initReceipts, procReceipts types.Receipts) testParams {
-	return testParams{t, initEvmBlock, procEvmBlock, initReceipts, procReceipts}
+func newTestParams(t *testing.T, genEvmBlock, procEvmBlock *evmcore.EvmBlock, genReceipts, procReceipts types.Receipts) testParams {
+	return testParams{t, genEvmBlock, procEvmBlock, genReceipts, procReceipts}
 }
 
 func (p testParams) compareEvmBlocks() {
-	// comparing all fields of initEvmBlock and procEvmBlock
-	require.Equal(p.t, p.initEvmBlock.Number, p.procEvmBlock.Number)
-	//require.Equal(initEvmBlock.Hash, procEvmBlock.Hash)
-	require.Equal(p.t, p.initEvmBlock.ParentHash, p.procEvmBlock.ParentHash)
-	require.Equal(p.t, p.initEvmBlock.Root, p.procEvmBlock.Root)
-	require.Equal(p.t, p.initEvmBlock.TxHash, p.procEvmBlock.TxHash)
-	require.Equal(p.t, p.initEvmBlock.Time, p.procEvmBlock.Time)
-	require.Equal(p.t, p.initEvmBlock.GasLimit, p.procEvmBlock.GasLimit)
-	require.Equal(p.t, p.initEvmBlock.GasUsed, p.procEvmBlock.GasUsed)
-	require.Equal(p.t, p.initEvmBlock.BaseFee, p.procEvmBlock.BaseFee)
+	// comparing all fields of genEvmBlock and procEvmBlock
+	require.Equal(p.t, p.genEvmBlock.Number, p.procEvmBlock.Number)
+	//require.Equal(genEvmBlock.Hash, procEvmBlock.Hash)
+	require.Equal(p.t, p.genEvmBlock.ParentHash, p.procEvmBlock.ParentHash)
+	require.Equal(p.t, p.genEvmBlock.Root, p.procEvmBlock.Root)
+	require.Equal(p.t, p.genEvmBlock.TxHash, p.procEvmBlock.TxHash)
+	require.Equal(p.t, p.genEvmBlock.Time, p.procEvmBlock.Time)
+	require.Equal(p.t, p.genEvmBlock.GasLimit, p.procEvmBlock.GasLimit)
+	require.Equal(p.t, p.genEvmBlock.GasUsed, p.procEvmBlock.GasUsed)
+	require.Equal(p.t, p.genEvmBlock.BaseFee, p.procEvmBlock.BaseFee)
 }
 
 func (p testParams) compareReceipts() {
-	require.Equal(p.t, len(p.initReceipts), len(p.procReceipts))
+	require.Equal(p.t, len(p.genReceipts), len(p.procReceipts))
 	// compare every field except logs, I compare them separately
-	for i, initRec := range p.initReceipts {
+	for i, initRec := range p.genReceipts {
 		require.Equal(p.t, initRec.BlockHash.String(), p.procReceipts[i].BlockHash.String())
 		require.Equal(p.t, initRec.BlockNumber, p.procReceipts[i].BlockNumber)
 		// TODO initRec.Bloom byte slices do not match
@@ -232,26 +241,10 @@ func (p testParams) compareReceipts() {
 	}
 }
 
-// TODO replace this func with checkLogsEquality from compareLogsByFilterCriteria
 func (p testParams) compareLogs(initLogs2D, procLogs2D [][]*types.Log) {
 	require.Equal(p.t, len(initLogs2D), len(procLogs2D))
 	for i, initLogs := range initLogs2D {
-		for j, initLog := range initLogs {
-			// compare all fields
-			require.Equal(p.t, initLog.Address.Hex(), procLogs2D[i][j].Address.Hex())
-			require.Equal(p.t, initLog.BlockHash.Hex(), procLogs2D[i][j].BlockHash.Hex())
-			require.Equal(p.t, initLog.BlockNumber, procLogs2D[i][j].BlockNumber)
-			require.Equal(p.t, hexutils.BytesToHex(initLog.Data), hexutils.BytesToHex(procLogs2D[i][j].Data))
-			require.Equal(p.t, initLog.Index, procLogs2D[i][j].Index)
-			require.Equal(p.t, initLog.Removed, procLogs2D[i][j].Removed)
-
-			for k, topic := range initLog.Topics {
-				require.Equal(p.t, topic.Hex(), procLogs2D[i][j].Topics[k].Hex())
-			}
-
-			require.Equal(p.t, initLog.TxHash.Hex(), procLogs2D[i][j].TxHash.Hex())
-			require.Equal(p.t, initLog.TxIndex, procLogs2D[i][j].TxIndex)
-		}
+		checkLogsEquality(p.t, initLogs, procLogs2D[i])
 	}
 }
 
@@ -271,8 +264,8 @@ func (p testParams) serializeAndCompare(val1, val2 interface{}) {
 // TODO consider to put initiator and processor on testParams
 func (p testParams) compareTransactions(initiator, processor *testEnv) {
 	ctx := context.Background()
-	require.Equal(p.t, len(p.initEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
-	for i, tx := range p.initEvmBlock.Transactions {
+	require.Equal(p.t, len(p.genEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
+	for i, tx := range p.genEvmBlock.Transactions {
 		txHash := tx.Hash()
 		initTx, _, _, err := initiator.EthAPI.GetTransaction(ctx, txHash)
 		require.NoError(p.t, err)
@@ -285,7 +278,6 @@ func (p testParams) compareTransactions(initiator, processor *testEnv) {
 		require.Equal(p.t, txHash.Hex(), procTx.Hash().Hex())
 	}
 }
-
 
 func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 	m := make(map[idx.Block]types.Transactions)
@@ -306,29 +298,28 @@ func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 	return m
 }
 
-
 type repeater struct {
-	generator *testEnv
-	processor *testEnv
-	bvs []*inter.LlrSignedBlockVotes
-	blockIndices []idx.Block
+	generator     *testEnv
+	processor     *testEnv
+	bvs           []*inter.LlrSignedBlockVotes
+	blockIndices  []idx.Block
 	epochToEvsMap map[idx.Epoch][]*inter.LlrSignedEpochVote
-	t *testing.T
+	t             *testing.T
 }
 
 func newRepeater(s *IntegrationTestSuite) repeater {
 	return repeater{
-		generator: s.generator,
-		processor: s.processor,
-		bvs: s.bvs,
-		blockIndices: s.blockIndices,
+		generator:     s.generator,
+		processor:     s.processor,
+		bvs:           s.bvs,
+		blockIndices:  s.blockIndices,
 		epochToEvsMap: s.epochToEvsMap,
-		t: s.T(),
+		t:             s.T(),
 	}
 }
 
 // processBlockVotesRecords processes block votes. Moreover, it processes block records for evert block index that has minimum 4 LLr Votes.
-// Depending on 
+// Depending on
 func (r repeater) processBlockVotesRecords(isTestRepeater bool) {
 	for _, bv := range r.bvs {
 		r.processor.ProcessBlockVotes(*bv)
@@ -375,6 +366,7 @@ func (r repeater) processEpochVotesRecords(startEpoch, lastEpoch idx.Epoch) {
 		}
 	}
 }
+
 // compareERHashes compares epoch recors hashes. Moreover, it checks equality of hashes of epoch and block states.
 func (r repeater) compareERHashes(startEpoch, lastEpoch idx.Epoch) {
 	for e := startEpoch; e <= lastEpoch; e++ {
@@ -414,10 +406,8 @@ func (r repeater) compareParams() {
 
 		testParams := newTestParams(r.t, genEvmBlock, procEvmBlock, genReceipts, procReceipts)
 		testParams.compareEvmBlocks()
-		r.t.Log("comparing receipts")
 
-		// TODO handle this , testParams.serializeAndCompare(initReceipts, procReceipts) fails, receipts do not match
-		// testParams.serializeAndCompare(initReceipts, procReceipts)
+		r.t.Log("comparing receipts")
 		testParams.compareReceipts()
 
 		// comparing evmBlock by calling BlockByHash
@@ -439,7 +429,6 @@ func (r repeater) compareParams() {
 		require.NoError(r.t, err)
 
 		r.t.Log("comparing logs")
-		// TODO compare logs fields
 		testParams.serializeAndCompare(genLogs, procLogs) // test passes ok
 		testParams.compareLogs(genLogs, procLogs)
 		//testParams.compareLogsByQueries(ctx, initiator, processor)
@@ -447,9 +436,8 @@ func (r repeater) compareParams() {
 		// compare ReceiptForStorage
 		genBR := r.generator.store.GetFullBlockRecord(blockIdx)
 		procBR := r.processor.store.GetFullBlockRecord(blockIdx)
-
 		testParams.serializeAndCompare(genBR.Receipts, procBR.Receipts)
-
+	
 		// compare BR hashes
 		require.Equal(r.t, genBR.Hash().Hex(), procBR.Hash().Hex())
 
@@ -458,7 +446,8 @@ func (r repeater) compareParams() {
 	}
 }
 
- func (r repeater) compareLogsByFilterCriteria() {
+// compareLogsByFilterCriteria introduces testing logic for GetLogs function for generator and processor
+func (r repeater) compareLogsByFilterCriteria() {
 	var crit filters.FilterCriteria
 
 	blockIdxLogsMap := func() map[idx.Block][]*types.Log {
@@ -495,11 +484,11 @@ func (r repeater) compareParams() {
 		return 0, nil, errors.New("all blocks have no logs")
 	}
 
-    lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
-	require.NoError(r.t,err)
+	lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
+	require.NoError(r.t, err)
 	require.NotNil(r.t, lastLogs)
 
-	defaultCrit := filters.FilterCriteria{FromBlock: big.NewInt(1), ToBlock: big.NewInt(int64(lastBlockNumber/2+1))}
+	defaultCrit := filters.FilterCriteria{FromBlock: big.NewInt(1), ToBlock: big.NewInt(int64(lastBlockNumber/2 + 1))}
 
 	r.t.Log("compareLogsByFilterCriteria")
 	ctx := context.Background()
@@ -516,32 +505,6 @@ func (r repeater) compareParams() {
 	require.NoError(r.t, err)
 	require.NotNil(r.t, defaultLogs)
 	require.NotEqual(r.t, defaultLogs, []*types.Log{})
-
-	r.t.Log("len(blockIndices)", len(r.blockIndices))
-
-
-
-
-	checkLogsEquality := func(genLogs, procLogs []*types.Log) {
-		// TODO s.Require().Equal(len(genLogs), len(procLogs))
-		require.GreaterOrEqual(r.t, len(genLogs), len(procLogs))
-		for i, procLog := range procLogs {
-			// compare all fields
-			require.Equal(r.t, procLog.Address.Hex(), genLogs[i].Address.Hex())
-			require.Equal(r.t, procLog.BlockHash.Hex(), genLogs[i].BlockHash.Hex())
-			require.Equal(r.t,procLog.BlockNumber, genLogs[i].BlockNumber)
-			require.Equal(r.t,hexutils.BytesToHex(procLog.Data), hexutils.BytesToHex(genLogs[i].Data))
-			require.Equal(r.t,procLog.Index, genLogs[i].Index)
-			require.Equal(r.t,procLog.Removed, genLogs[i].Removed)
-
-			for j, topic := range procLog.Topics {
-				require.Equal(r.t, topic.Hex(), genLogs[i].Topics[j].Hex())
-			}
-
-			require.Equal(r.t,procLog.TxHash.Hex(), genLogs[i].TxHash.Hex())
-			require.Equal(r.t,procLog.TxIndex, genLogs[i].TxIndex)
-		}
-	}
 
 	findFirstNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
 		for _, blockIdx := range r.blockIndices {
@@ -593,8 +556,6 @@ func (r repeater) compareParams() {
 		return logs[l].Address
 	}
 
-	
-
 	blockNumber, logs, err := findFirstNonEmptyLogs()
 	require.NoError(r.t, err)
 	require.NotNil(r.t, logs)
@@ -605,7 +566,6 @@ func (r repeater) compareParams() {
 	firstTopic, err := fetchFirstTopicFromLogs(logs)
 	require.NoError(r.t, err)
 
-	
 	lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
 	require.NoError(r.t, err)
 
@@ -714,7 +674,7 @@ func (r repeater) compareParams() {
 			},
 			true,
 		},
-		
+
 		{"block range is nil and last address",
 			func() {
 				crit = filters.FilterCriteria{
@@ -724,17 +684,15 @@ func (r repeater) compareParams() {
 			true,
 		},
 		{"block range is nil and invalid address",
-		func() {
-			invalidAddr := common.BytesToAddress([]byte("invalid addr"))
-			crit = filters.FilterCriteria{
-				Addresses: []common.Address{invalidAddr},
-			}
+			func() {
+				invalidAddr := common.BytesToAddress([]byte("invalid addr"))
+				crit = filters.FilterCriteria{
+					Addresses: []common.Address{invalidAddr},
+				}
+			},
+			false,
 		},
-		false,
-	},
 	}
-
-	r.t.Parallel()
 
 	for _, tc := range testCases {
 		tc := tc
@@ -745,7 +703,7 @@ func (r repeater) compareParams() {
 			if tc.success {
 				require.NoError(t, procErr)
 				require.NoError(t, genErr)
-				checkLogsEquality(genLogs, procLogs)
+				checkLogsEquality(t, genLogs, procLogs)
 			} else {
 				require.Equal(t, genLogs, []*types.Log{})
 				require.Equal(t, procLogs, []*types.Log{})
@@ -786,12 +744,11 @@ func (r repeater) compareParams() {
 				procLogs, procErr := procApi.GetLogs(ctx, crit)
 				require.NoError(t, procErr)
 				require.NoError(t, genErr)
-				checkLogsEquality(genLogs, procLogs)
+				checkLogsEquality(t, genLogs, procLogs)
 			}
 		})
 	}
 }
-
 
 func (s *IntegrationTestSuite) TestRepeater() {
 	repeater := newRepeater(s)
@@ -803,31 +760,32 @@ func (s *IntegrationTestSuite) TestRepeater() {
 
 	// Compare transaction hashes
 	s.T().Log("Checking procBlockToTxsMap <= genBlockToTxsMap")
-	txByBlockSubsetOf(s.T(), s.procBlockToTxsMap, s.genBlockToTxsMap)
+	genBlockToTxsMap := fetchTxsbyBlock(s.generator)
+	procBlockToTxsMap := fetchTxsbyBlock(s.processor)
+	txByBlockSubsetOf(s.T(), procBlockToTxsMap, genBlockToTxsMap)
 
-	// 2. Compare ER hashes
+	// compare ER hashes
 	repeater.compareERHashes(s.startEpoch+1, s.lastEpoch)
-
-	s.T().Log("generator.BlockByNumber >= repeater.BlockByNumber")
-
+    // compare different parameters such as Logs,Receipts, Blockhash etc
 	repeater.compareParams()
 
+	// compare Logs by different criteria
 	repeater.compareLogsByFilterCriteria()
 }
 
 func (s *IntegrationTestSuite) TestFullRepeater() {
 
-	repeater := newRepeater(s)
+	fullRepeater := newRepeater(s)
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		// process LLR epochVotes  in fullRepeater
-		repeater.processEpochVotesRecords(s.startEpoch, s.lastEpoch)
+		// process LLR epochVotes in fullRepeater
+		fullRepeater.processEpochVotesRecords(s.startEpoch, s.lastEpoch)
 
 		// process LLR block votes and BRs in fullReapeter
-		repeater.processBlockVotesRecords(false)
+		fullRepeater.processBlockVotesRecords(false)
 
 	}()
 
@@ -842,7 +800,6 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 					s.generator.store.Log.Crit("Failed to decode event", "err", err)
 				}
 				if e != nil {
-					// TODO I might call processEvent here
 					events = append(events, e)
 				}
 			}
@@ -859,7 +816,6 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	wg.Wait()
 
 	// Comparing the store states
-
 	fetchTable := func(table kvdb.Store) map[string]string {
 		var m = make(map[string]string)
 		it := table.NewIterator(nil, nil)
@@ -877,13 +833,13 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	// Comparing generator and fullRepeater states
 
 	// 1.Comparing Tx hashes
-
-
 	s.T().Log("Checking genBlockToTxsMap <= procRepBlockToTxsMap")
-	txByBlockSubsetOf(s.T(), s.genBlockToTxsMap, s.procBlockToTxsMap)
+	genBlockToTxsMap := fetchTxsbyBlock(s.generator)
+	procBlockToTxsMap := fetchTxsbyBlock(s.processor)
+	txByBlockSubsetOf(s.T(), procBlockToTxsMap, genBlockToTxsMap)
 
 	// 2.Compare BlockByNumber,BlockByhash, GetReceipts, GetLogs
-	repeater.compareParams()
+	fullRepeater.compareParams()
 
 	// 2. Comparing mainDb of generator and fullRepeater
 	genKVMap := fetchTable(s.generator.store.mainDB)
@@ -915,7 +871,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	checkEqual(fullRepKVMap, fullRepKVMapAfterIndexLogs)
 	checkEqual(genKVMapAfterIndexLogs, fullRepKVMapAfterIndexLogs)
 
-	repeater.compareLogsByFilterCriteria()
+	fullRepeater.compareLogsByFilterCriteria()
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
