@@ -448,57 +448,6 @@ func fetchTxsbyBlock(env *testEnv) map[idx.Block]types.Transactions {
 	return m
 }
 
-/*
-func (p testParams) compareLogsByFilterCriteria(){
-
-	// initLogsMap := make(map[idx.Block][][]*types.Log)
-	// procLogsMap := make(map[idx.Block][][]*types.Log)
-
-	ctx := context.Background()
-	initApi, ok := initiator.APIs()[1].Service.(*filters.PublicFilterAPI)
-	require.True(p.t, ok)
-
-	procApi, ok := processpr.APIs()[1].Service.(*filters.PublicFilterAPI)
-	require.True(p.t, ok)
-
-
-	filter := filters.NewBlockFilter(initiator.EthAPI, *crit.BlockHash, crit.Addresses, crit.Topics)
-	logs, err := filter.Logs(ctx)
-	require.NoError(p.t, err)
-	require.NoError(p.t, err)
-
-	filter = NewRangeFilter(backend, 1, 10, nil, [][]common.Hash{{hash1, hash2}})
-	// grab logs in setupTest and put it on suite structre
-	// randomly pick a log record from logs
-	// aply new  range filter and  new block filter
-	// FilterCriteria
-	// will logs from initator and rocessor match
-
-	/*
-	&types.Log{Address:0xD945eC8Be23986c36e6a9f82d05BE3e92E17D66a,
-	Topics:[]common.Hash{0x4913a1b403184a1c69ab16947e9f4c7a1e48c069dccde91f2bf550ea77becc5b, 0x000000000000000000000000a47cbdbcb7b77eec04a06b73a1deb1c7dbb055c2},
-	Data:[]uint8{0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x20, 0x31, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, BlockNumber:0x2, TxHash:0x7ef29c7ace6c45b65ab4d0c3663fe4ba050120edec11ee516deb329283d31470, TxIndex:0x0, BlockHash:0x00000001000000019a2ffd6d8110f8f84ec90a1e73ef8e65ac71850ceb86ee04, Index:0x0, Removed:false}
-*/
-// go-ethereum/eth/filters
-// testcases
-// block rangnes using range filter
-//  single address
-// 	multiple address
-//  sngle topoic
-// multiple topics
-
-// TODO go-ethereum/filters/api.test
-
-// Logs creates a subscription that fires for all new log that match the given filter criteria.
-/*
-	func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc.Subscription, error) {
-	notifier, supported := rpc.NotifierFromContext(ctx)
-	if !supported {
-
-
-}
-*/
-
 func (s *IntegrationTestSuite) TestRepeater() {
 
 	// TODO review the code find the way to improve it
@@ -552,12 +501,10 @@ func (s *IntegrationTestSuite) TestRepeater() {
 			s.Require().NotNil(block)
 			s.Require().NoError(err)
 			receipts := s.generator.store.evm.GetReceipts(blockIdx, s.generator.EthAPI.signer, block.Hash, block.Transactions)
-			for i, r := range receipts {
+			for _, r := range receipts {
 				// we add only non empty logs
 				if len(r.Logs) > 0 {
-					s.T().Log("fetchLogsbyBlockIdx i, r.Logs", i, r.Logs)
 					m[blockIdx] = append(m[blockIdx], r.Logs...)
-					s.T().Log("blockIdx, m[blockidx]", blockIdx, m[blockIdx])
 				}
 			}
 
@@ -587,10 +534,10 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		s.Require().NotNil(defaultLogs)
 		s.Require().NotEqual(defaultLogs, []*types.Log{})
 
+		s.T().Log("len(blockIndices)", len(blockIndices))
+
 		checkLogsEquality := func(genLogs, procLogs []*types.Log) {
-			// TODO fix it, test fails L577 testcase: block_range_1-1000, expected: 643, actual: 598, testcase block_range_1-1000_and_valid_topic,  expected: 600, actual : 555
-			//s.Require().Equal(len(genLogs), len(procLogs))
-			s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) // to make test pass, sometimes length match, sometimes not
+			s.Require().GreaterOrEqual(len(genLogs), len(procLogs))
 			for i, procLog := range procLogs {
 				// compare all fields
 				s.Require().Equal(procLog.Address.Hex(), genLogs[i].Address.Hex())
@@ -659,21 +606,19 @@ func (s *IntegrationTestSuite) TestRepeater() {
 			return logs[l].Address
 		}
 
-		/*
-			findLastNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
-				for i := len(blockIndices) - 1; i >= 0; i-- {
-					logs, ok := blockIdxLogsMap[blockIndices[i]]
-					if !ok {
-						continue
-					}
-					if len(logs) > 0 {
-						return blockIndices[i], logs, nil
-					}
+		findLastNonEmptyLogs := func() (idx.Block, []*types.Log, error) {
+			for i := len(blockIndices) - 1; i >= 0; i-- {
+				logs, ok := blockIdxLogsMap[blockIndices[i]]
+				if !ok {
+					continue
 				}
-
-				return 0, nil, errors.New("all blocks have no logs")
+				if len(logs) > 0 {
+					return blockIndices[i], logs, nil
+				}
 			}
-		*/
+
+			return 0, nil, errors.New("all blocks have no logs")
+		}
 
 		blockNumber, logs, err := findFirstNonEmptyLogs()
 		s.Require().NoError(err)
@@ -685,17 +630,15 @@ func (s *IntegrationTestSuite) TestRepeater() {
 		firstTopic, err := fetchFirstTopicFromLogs(logs)
 		s.Require().NoError(err)
 
-		/*
-			lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
-			s.Require().NoError(err)
-			s.Require().NotNil(lastLogs)
+		lastBlockNumber, lastLogs, err := findLastNonEmptyLogs()
+		s.Require().NoError(err)
+		s.Require().NotNil(lastLogs)
 
-			lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
-			s.Require().NoError(err)
+		lastAddr, err := fetchFirstAddrFromLogs(lastLogs)
+		s.Require().NoError(err)
 
-			lastTopic, err := fetchFirstTopicFromLogs(lastLogs)
-			s.Require().NoError(err)
-		*/
+		lastTopic, err := fetchFirstTopicFromLogs(lastLogs)
+		s.Require().NoError(err)
 
 		testCases := []struct {
 			name    string
@@ -770,40 +713,53 @@ func (s *IntegrationTestSuite) TestRepeater() {
 				},
 				true,
 			},
-			// TODO test does not pass L620 s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) expected:0 , actual: 577
-			/*
-				{"block range lastBlockNumber-1000 to lastBlockNumber",
-					func() {
-						crit = filters.FilterCriteria{
-							FromBlock: big.NewInt(int64(lastBlockNumber) - 1000),
-							ToBlock:   big.NewInt(int64(lastBlockNumber)),
-						}
-					},
-					true,
-				},*/
-			// TODO test does not pass L620 s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) expected:0 , actual: 534
-			/*{"block range lastBlockNumber-1000 to lastBlockNumber and last topic",
+			{"block range 1 to lastBlockNumber",
 				func() {
 					crit = filters.FilterCriteria{
-						FromBlock: big.NewInt(int64(lastBlockNumber) - 1000),
+						FromBlock: big.NewInt(int64(1)),
+						ToBlock:   big.NewInt(int64(lastBlockNumber)),
+					}
+				},
+				true,
+			},
+			{"block range 1 to lastBlockNumber and last topic",
+				func() {
+					crit = filters.FilterCriteria{
+						FromBlock: big.NewInt(int64(1)),
 						ToBlock:   big.NewInt(int64(lastBlockNumber)),
 						Topics:    [][]common.Hash{{lastTopic}},
 					}
 				},
 				true,
-			},*/
-			// TODO test does not pass L620  s.Require().GreaterOrEqual(len(genLogs), len(procLogs)) expected:0 , actual: 3
-			/*{"block range lastBlockNumber-1000 to lastBlockNumber and last address",
+			},
+			{"block range 1 to lastBlockNumber, last address",
 				func() {
 					crit = filters.FilterCriteria{
-						FromBlock: big.NewInt(int64(lastBlockNumber) - 1000),
+						FromBlock: big.NewInt(int64(1)),
 						ToBlock:   big.NewInt(int64(lastBlockNumber)),
 						Addresses: []common.Address{lastAddr},
 					}
 				},
 				true,
 			},
-			*/
+			
+			{"block range is nil and last address",
+				func() {
+					crit = filters.FilterCriteria{
+						Addresses: []common.Address{lastAddr},
+					}
+				},
+				true,
+			},
+			{"block range is nil and invalid address",
+			func() {
+				invalidAddr := common.BytesToAddress([]byte("invalid addr"))
+				crit = filters.FilterCriteria{
+					Addresses: []common.Address{invalidAddr},
+				}
+			},
+			false,
+		},
 		}
 
 		for _, tc := range testCases {
