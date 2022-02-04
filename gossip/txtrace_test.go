@@ -1,14 +1,12 @@
 package gossip
 
-// SynthereumFactoryVersioning contract
-//go:generate bash -c "docker run --rm -v $(pwd)/contract/SynthereumFactoryVersioning:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/FactoryVersioning.sol"
-// NOTE: you have to use abigen after github.com/ethereum/go-ethereum/pull/23940, than fix contract/SynthereumFactoryVersioning/contract.go manually
-//go:generate bash -c "cd ${GOPATH}/src/github.com/ethereum/go-ethereum && go run ./cmd/abigen --bin=${PWD}/contract/solc/SynthereumDeployer.bin --abi=${PWD}/contract/solc/SynthereumFactoryVersioning.abi --pkg=SynthereumFactoryVersioning --type=Contract --out=${PWD}/contract/SynthereumFactoryVersioning/contract.go"
+// Called contract
+//go:generate bash -c "docker run --rm -v $(pwd)/contract/called:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/Called.sol"
+//go:generate bash -c "go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/Called.bin --abi=./contract/solc/Called.abi --pkg=called --type=Contract --out=./contract/called/contract.go"
 
-// SynthereumDeployer contract
-//go:generate bash -c "docker run --rm -v $(pwd)/contract/SynthereumDeployer:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/Deployer.sol"
-// NOTE: you have to use abigen after github.com/ethereum/go-ethereum/pull/23940, than fix contract/SynthereumDeployer/contract.go manually
-//go:generate bash -c "cd ${GOPATH}/src/github.com/ethereum/go-ethereum && go run ./cmd/abigen --bin=${PWD}/contract/solc/SynthereumDeployer.bin --abi=${PWD}/contract/solc/SynthereumDeployer.abi --pkg=SynthereumDeployer --type=Contract --out=${PWD}/contract/SynthereumDeployer/contract.go"
+// Caller contract
+//go:generate bash -c "docker run --rm -v $(pwd)/contract/caller:/src -v $(pwd)/contract:/dst ethereum/solc:0.8.4 -o /dst/solc/ --optimize --optimize-runs=200 --bin --abi --allow-paths /src --overwrite /src/Caller.sol"
+//go:generate bash -c "go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/Caller.bin --abi=./contract/solc/Caller.abi --pkg=caller --type=Contract --out=./contract/caller/contract.go"
 
 import (
 	"context"
@@ -18,11 +16,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/status-im/keycard-go/hexutils"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Fantom-foundation/go-opera/gossip/contract/SynthereumDeployer"
-	"github.com/Fantom-foundation/go-opera/gossip/contract/SynthereumFactoryVersioning"
+	"github.com/Fantom-foundation/go-opera/gossip/contract/called"
+	"github.com/Fantom-foundation/go-opera/gossip/contract/caller"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
@@ -37,44 +34,34 @@ func TestTxTracing(t *testing.T) {
 	backend := &EthAPIBackend{state: env.stateReader}
 
 	var (
-		addr       common.Address
-		tx         *types.Transaction
-		deployer   *SynthereumDeployer.Contract
-		versioning *SynthereumFactoryVersioning.Contract
-		err        error
-	)
-	var (
-		admin      = env.Payer(1)
-		maintainer = env.Payer(2)
-		roles      = SynthereumFactoryVersioning.SynthereumFactoryVersioningRoles{
-			Admin:      env.Address(1),
-			Maintainer: env.Address(2),
-		}
+		addr     common.Address
+		tx       *types.Transaction
+		contract *caller.Contract
+		library  *called.Contract
+		err      error
 	)
 
-	addr, tx, versioning, err = SynthereumFactoryVersioning.DeployContract(admin, env, roles)
-	env.incNonce(roles.Admin)
+	const (
+		admin = 1
+		key   = 9
+	)
+
+	addr, tx, library, err = called.DeployContract(env.Payer(admin), env)
 	require.NoError(err)
-	require.NotNil(versioning)
+	require.NotNil(library)
 	env.ApplyBlock(time.Second, tx)
+	env.incNonce(env.Address(admin))
 
-	_, tx, deployer, err = SynthereumDeployer.DeployContract(admin, env, addr, SynthereumDeployer.SynthereumDeployerRoles{
-		Admin:      roles.Admin,
-		Maintainer: roles.Maintainer,
-	})
-	env.incNonce(roles.Admin)
+	_, tx, contract, err = caller.DeployContract(env.Payer(admin), env, addr)
 	require.NoError(err)
-	require.NotNil(deployer)
+	require.NotNil(contract)
 	env.ApplyBlock(time.Second, tx)
+	env.incNonce(env.Address(admin))
 
-	tx, err = deployer.DeployPool(maintainer,
-		5,
-		hexutils.HexToBytes("000000000000000000000000000000000000000000000000000000000000002000000000000000000000000004068da6c83afcfa0e13ba15a6696662335d5b7500000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000024435f5f12ea2977f4b4a3ad990600fd5387732f000000000000000000000000646877b5ea314627426429def0987b15fb8dbb9b000000000000000000000000c31249ba48763df46388ba5c4e7565d62ed4801c000000000000000000000000000000000000000000000000016345785d8a0000000000000000000000000000000000000000000000000000000000000000022045555255534400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e398811bec6800000000000000000000000000000000000000000000000000009b6e64a8ec60000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000154a61727669732053796e746865746963204575726f000000000000000000000000000000000000000000000000000000000000000000000000000000000000046a455552000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008e1bc9bf04000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c31249ba48763df46388ba5c4e7565d62ed4801c00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000064"),
-	)
-	env.incNonce(roles.Maintainer)
+	tx, err = contract.Inc(env.Payer(admin), key)
 	require.NoError(err)
-	require.NotNil(tx)
 	receipts := env.ApplyBlock(time.Second, tx)
+	env.incNonce(env.Address(admin))
 	require.NotEmpty(receipts)
 
 	trace, err := backend.TxTraceByHash(context.Background(), tx.Hash())
