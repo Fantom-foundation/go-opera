@@ -14,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/contract/called"
@@ -24,56 +22,58 @@ import (
 )
 
 func TestTxTracing(t *testing.T) {
-	require := require.New(t)
-
 	logger.SetTestMode(t)
-	logger.SetLevel("debug")
 
 	env := newTestEnv()
 	defer env.Close()
 	backend := &EthAPIBackend{state: env.stateReader}
 
 	var (
-		addr     common.Address
-		tx       *types.Transaction
 		contract *caller.Contract
 		library  *called.Contract
-		err      error
 	)
-
 	const (
 		admin = 1
 		key   = 9
 	)
 
-	addr, tx, library, err = called.DeployContract(env.Payer(admin), env)
-	require.NoError(err)
-	require.NotNil(library)
+	addr, tx, library, err := called.DeployContract(env.Payer(admin), env)
+	require.NoError(t, err)
+	require.NotNil(t, library)
 	env.ApplyBlock(time.Second, tx)
 	env.incNonce(env.Address(admin))
 
 	_, tx, contract, err = caller.DeployContract(env.Payer(admin), env, addr)
-	require.NoError(err)
-	require.NotNil(contract)
+	require.NoError(t, err)
+	require.NotNil(t, contract)
 	env.ApplyBlock(time.Second, tx)
 	env.incNonce(env.Address(admin))
 
-	tx, err = contract.Inc(env.Payer(admin), key)
-	require.NoError(err)
-	receipts := env.ApplyBlock(time.Second, tx)
-	env.incNonce(env.Address(admin))
-	require.NotEmpty(receipts)
+	t.Run("SubReverts", func(t *testing.T) {
+		require := require.New(t)
 
-	trace, err := backend.TxTraceByHash(context.Background(), tx.Hash())
-	require.NoError(err)
-	require.NotEmpty(trace)
+		tx, err := contract.Inc(env.Payer(admin), key)
+		require.NoError(err)
+		receipts := env.ApplyBlock(time.Second, tx)
+		env.incNonce(env.Address(admin))
+		require.NotEmpty(receipts)
 
-	// visulization
-	receiptStr, err := json.Marshal(receipts)
-	require.NoError(err)
-	t.Logf("receipts: %s", string(receiptStr))
+		actions, err := backend.TxTraceByHash(context.Background(), tx.Hash())
+		require.NoError(err)
+		require.NotNil(actions)
+		require.Len(*actions, 3)
 
-	traceStr, err := json.Marshal(trace)
-	require.NoError(err)
-	t.Logf("trace: %s", string(traceStr))
+		reverted := 0
+		for _, action := range *actions {
+			if action.Error == "Reverted" {
+				reverted += 1
+			}
+		}
+		require.Equal(1, reverted)
+
+		// visulization
+		traceStr, err := json.Marshal(actions)
+		require.NoError(err)
+		t.Logf("traces: %s", string(traceStr))
+	})
 }
