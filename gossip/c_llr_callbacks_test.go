@@ -225,19 +225,17 @@ func (p testParams) compareReceipts() {
 	require.Equal(p.t, len(p.genReceipts), len(p.procReceipts))
 	// compare every field except logs, I compare them separately
 	for i, initRec := range p.genReceipts {
-		require.Equal(p.t, initRec.BlockHash.String(), p.procReceipts[i].BlockHash.String())
-		require.Equal(p.t, initRec.BlockNumber, p.procReceipts[i].BlockNumber)
-		// TODO initRec.Bloom byte slices do not match
-		// p.t.Log("initRec.Bloom.Bytes()", string(initRec.Bloom.Bytes())) ecxpected: empty string
-		// p.t.Log("p.procReceipts[i].Bloom.Bytes()", string(p.procReceipts[i].Bloom.Bytes())) actual: @H
-		//require.Equal(p.t, hexutils.BytesToHex(initRec.Bloom.Bytes()), hexutils.BytesToHex(p.procReceipts[i].Bloom.Bytes())) // TODO fix it do not match
-		require.Equal(p.t, initRec.ContractAddress.Hex(), p.procReceipts[i].ContractAddress.Hex())
-		require.Equal(p.t, initRec.CumulativeGasUsed, p.procReceipts[i].CumulativeGasUsed)
+		require.Equal(p.t, initRec.Type, p.procReceipts[i].Type)
 		require.Equal(p.t, hexutils.BytesToHex(initRec.PostState), hexutils.BytesToHex(p.procReceipts[i].PostState))
 		require.Equal(p.t, initRec.Status, p.procReceipts[i].Status)
-		require.Equal(p.t, initRec.TransactionIndex, p.procReceipts[i].TransactionIndex)
+		require.Equal(p.t, initRec.CumulativeGasUsed, p.procReceipts[i].CumulativeGasUsed)
+		require.Equal(p.t, hexutils.BytesToHex(initRec.Bloom.Bytes()), hexutils.BytesToHex(p.procReceipts[i].Bloom.Bytes()))
 		require.Equal(p.t, initRec.TxHash.Hex(), p.procReceipts[i].TxHash.Hex())
-		require.Equal(p.t, initRec.Type, p.procReceipts[i].Type)
+		require.Equal(p.t, initRec.ContractAddress.Hex(), p.procReceipts[i].ContractAddress.Hex())
+		require.Equal(p.t, initRec.GasUsed, p.procReceipts[i].GasUsed)
+		require.Equal(p.t, initRec.BlockHash.String(), p.procReceipts[i].BlockHash.String())
+		require.Equal(p.t, initRec.BlockNumber, p.procReceipts[i].BlockNumber)
+		require.Equal(p.t, initRec.TransactionIndex, p.procReceipts[i].TransactionIndex)
 	}
 }
 
@@ -261,7 +259,6 @@ func (p testParams) serializeAndCompare(val1, val2 interface{}) {
 	require.Equal(p.t, hexutils.BytesToHex(buf1), hexutils.BytesToHex(buf2))
 }
 
-// TODO consider to put initiator and processor on testParams
 func (p testParams) compareTransactions(initiator, processor *testEnv) {
 	ctx := context.Background()
 	require.Equal(p.t, len(p.genEvmBlock.Transactions), len(p.procEvmBlock.Transactions))
@@ -437,7 +434,7 @@ func (r repeater) compareParams() {
 		genBR := r.generator.store.GetFullBlockRecord(blockIdx)
 		procBR := r.processor.store.GetFullBlockRecord(blockIdx)
 		testParams.serializeAndCompare(genBR.Receipts, procBR.Receipts)
-	
+
 		// compare BR hashes
 		require.Equal(r.t, genBR.Hash().Hex(), procBR.Hash().Hex())
 
@@ -766,7 +763,7 @@ func (s *IntegrationTestSuite) TestRepeater() {
 
 	// compare ER hashes
 	repeater.compareERHashes(s.startEpoch+1, s.lastEpoch)
-    // compare different parameters such as Logs,Receipts, Blockhash etc
+	// compare different parameters such as Logs,Receipts, Blockhash etc
 	repeater.compareParams()
 
 	// compare Logs by different criteria
