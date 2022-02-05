@@ -46,7 +46,7 @@ func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Has
 	return nil
 }
 
-func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
+func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	// engineMu should be locked here
 	if len(bvs.Val.Votes) == 0 {
 		// short circuit if no records
@@ -81,8 +81,17 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	}
 	lBVs.Unlock()
 
-	s.mayCommit(false)
 	return nil
+}
+
+func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	err := s.processBlockVotes(bvs)
+	if err == nil {
+		s.mayCommit(false)
+	}
+	return err
 }
 
 func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
@@ -145,12 +154,12 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 		}
 	}
 	updateLowestBlockToFill(br.Idx, s.store)
-
 	s.mayCommit(false)
+
 	return nil
 }
 
-func (s *Service) processEpochVote(epoch idx.Epoch, ev hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+func (s *Service) processRawEpochVote(epoch idx.Epoch, ev hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
 	newWeight := s.store.AddLlrEpochVoteWeight(epoch, ev, val, vals.Len(), vals.GetWeightByIdx(val))
 	if newWeight >= vals.TotalWeight()/3+1 {
 		wonEr := s.store.GetLlrEpochResult(epoch)
@@ -165,7 +174,7 @@ func (s *Service) processEpochVote(epoch idx.Epoch, ev hash.Hash, val idx.Valida
 	}
 }
 
-func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
+func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	// engineMu should be locked here
 	if ev.Val.Epoch == 0 {
 		// short circuit if no records
@@ -184,7 +193,7 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	}
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
-		s.processEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
+		s.processRawEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
 	})
 	s.store.SetEpochVote(ev)
 	lEVs := s.store.GetLastEVs()
@@ -195,8 +204,17 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	}
 	lEVs.Unlock()
 
-	s.mayCommit(false)
 	return nil
+}
+
+func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	err := s.processEpochVote(ev)
+	if err == nil {
+		s.mayCommit(false)
+	}
+	return err
 }
 
 func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
@@ -220,8 +238,8 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)
-
 	s.mayCommit(false)
+
 	return nil
 }
 
