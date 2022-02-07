@@ -15,8 +15,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
 
-var errLLRVotingDoubleSign = errors.New("LLR voting doublesign is met")
-
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
 	if current == upd {
 		current++
@@ -27,7 +25,7 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 	return current
 }
 
-func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) error {
+func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
 	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
 	if newWeight >= vals.TotalWeight()/3+1 {
 		wonBr := s.store.GetLlrBlockResult(block)
@@ -37,13 +35,9 @@ func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Has
 				return s.store.GetLlrBlockResult(idx.Block(u)) != nil
 			}))
 		} else if *wonBr != bv {
-			// s.Log.Error("LLR voting doublesign is met", "block", block)
-			// return err for testing purposes
-			return errLLRVotingDoubleSign
+			s.Log.Error("LLR voting doublesign is met", "block", block)
 		}
 	}
-
-	return nil
 }
 
 func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
