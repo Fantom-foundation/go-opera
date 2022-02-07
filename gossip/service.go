@@ -149,14 +149,17 @@ type Service struct {
 
 	procLogger *proclogger.Logger
 
-	stopped bool
+	stopped      bool
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, time time.Time) bool
 
 	tflusher PeriodicFlusher
 
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc,
+	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -171,6 +174,7 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	svc.eventMux = stack.EventMux()
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
+	svc.haltCheck = haltCheck
 
 	return svc, nil
 }
@@ -443,6 +447,11 @@ func (s *Service) Start() error {
 	}
 
 	s.verWatcher.Start()
+
+	if s.haltCheck != nil && s.haltCheck(s.store.GetEpoch(), s.store.GetEpoch(), s.store.GetBlockState().LastBlock.Time.Time()) {
+		// halt syncing
+		s.stopped = true
+	}
 
 	return nil
 }
