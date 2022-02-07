@@ -120,7 +120,6 @@ func fetchEvs(generator *testEnv) map[idx.Epoch][]*inter.LlrSignedEpochVote {
 
 // fetchBvsBlockIdxs fetches block indices of blocks that have min 4 LLR votes.
 func fetchBvsBlockIdxs(generator *testEnv) ([]*inter.LlrSignedBlockVotes, []idx.Block) {
-
 	var bvs []*inter.LlrSignedBlockVotes
 	blockIdxCountMap := make(map[idx.Block]uint64)
 
@@ -211,7 +210,7 @@ func newTestParams(t *testing.T, genEvmBlock, procEvmBlock *evmcore.EvmBlock, ge
 func (p testParams) compareEvmBlocks() {
 	// comparing all fields of genEvmBlock and procEvmBlock
 	require.Equal(p.t, p.genEvmBlock.Number, p.procEvmBlock.Number)
-	//require.Equal(genEvmBlock.Hash, procEvmBlock.Hash)
+	require.Equal(p.t , p.genEvmBlock.Hash, p.procEvmBlock.Hash)
 	require.Equal(p.t, p.genEvmBlock.ParentHash, p.procEvmBlock.ParentHash)
 	require.Equal(p.t, p.genEvmBlock.Root, p.procEvmBlock.Root)
 	require.Equal(p.t, p.genEvmBlock.TxHash, p.procEvmBlock.TxHash)
@@ -315,8 +314,8 @@ func newRepeater(s *IntegrationTestSuite) repeater {
 	}
 }
 
-// processBlockVotesRecords processes block votes. Moreover, it processes block records for evert block index that has minimum 4 LLr Votes.
-// Depending on
+// processBlockVotesRecords processes block votes. Moreover, it processes block records for every block index that has minimum 4 LLr Votes.
+// If ProcessFullBlockRecord returns an error, omit it in fullRepeater scenario, but not in testRepeater scenario.
 func (r repeater) processBlockVotesRecords(isTestRepeater bool) {
 	for _, bv := range r.bvs {
 		r.processor.ProcessBlockVotes(*bv)
@@ -379,7 +378,7 @@ func (r repeater) compareERHashes(startEpoch, lastEpoch idx.Epoch) {
 	}
 }
 
-// compareParams compares different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
+// compareParams checks equality of different parameters such as BlockByHash, BlockByNumber, Receipts, Logs
 func (r repeater) compareParams() {
 	ctx := context.Background()
 
@@ -426,9 +425,8 @@ func (r repeater) compareParams() {
 		require.NoError(r.t, err)
 
 		r.t.Log("comparing logs")
-		testParams.serializeAndCompare(genLogs, procLogs) // test passes ok
+		testParams.serializeAndCompare(genLogs, procLogs) 
 		testParams.compareLogs(genLogs, procLogs)
-		//testParams.compareLogsByQueries(ctx, initiator, processor)
 
 		// compare ReceiptForStorage
 		genBR := r.generator.store.GetFullBlockRecord(blockIdx)
@@ -487,7 +485,6 @@ func (r repeater) compareLogsByFilterCriteria() {
 
 	defaultCrit := filters.FilterCriteria{FromBlock: big.NewInt(1), ToBlock: big.NewInt(int64(lastBlockNumber/2 + 1))}
 
-	r.t.Log("compareLogsByFilterCriteria")
 	ctx := context.Background()
 
 	config := filters.DefaultConfig()
@@ -747,6 +744,7 @@ func (r repeater) compareLogsByFilterCriteria() {
 	}
 }
 
+// use command `go test  -timeout 120s  -run ^TestIntegrationTestSuite$ -testify.m TestRepeater` to run test scenario
 func (s *IntegrationTestSuite) TestRepeater() {
 	repeater := newRepeater(s)
 	repeater.processEpochVotesRecords(s.startEpoch, s.lastEpoch)
@@ -770,6 +768,7 @@ func (s *IntegrationTestSuite) TestRepeater() {
 	repeater.compareLogsByFilterCriteria()
 }
 
+// use command `go test  -timeout 120s  -run ^TestIntegrationTestSuite$ -testify.m TestFullRepeater` to run test scenario
 func (s *IntegrationTestSuite) TestFullRepeater() {
 
 	fullRepeater := newRepeater(s)
@@ -870,6 +869,7 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 
 	fullRepeater.compareLogsByFilterCriteria()
 }
+
 
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(IntegrationTestSuite))
