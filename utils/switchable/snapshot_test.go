@@ -22,6 +22,7 @@ func decodePair(b []byte) (uint32, uint32) {
 type UncallabaleAfterRelease struct {
 	kvdb.Snapshot
 	iterators []*uncallabaleAfterReleaseIterator
+	mu        sync.RWMutex
 }
 
 type uncallabaleAfterReleaseIterator struct {
@@ -31,7 +32,11 @@ type uncallabaleAfterReleaseIterator struct {
 func (db *UncallabaleAfterRelease) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 	it := db.Snapshot.NewIterator(prefix, start)
 	wrapped := &uncallabaleAfterReleaseIterator{it}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	db.iterators = append(db.iterators, wrapped)
+
 	return wrapped
 }
 
@@ -39,6 +44,9 @@ func (db *UncallabaleAfterRelease) Release() {
 	db.Snapshot.Release()
 	// ensure nil pointer exception on any next call
 	db.Snapshot = nil
+
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 	for _, it := range db.iterators {
 		it.Iterator = nil
 	}
