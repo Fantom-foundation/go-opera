@@ -1222,6 +1222,10 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == BRsStreamResponse:
+		if !h.syncStatus.AcceptBlockRecords() {
+			break
+		}
+
 		msgSize := uint64(msg.Size)
 		var chunk brsChunk
 		if err := msg.Decode(&chunk); err != nil {
