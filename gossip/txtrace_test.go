@@ -24,9 +24,8 @@ import (
 func TestTxTracing(t *testing.T) {
 	logger.SetTestMode(t)
 
-	env := newTestEnv()
+	env := newTestEnv(2, 3)
 	defer env.Close()
-	backend := &EthAPIBackend{state: env.stateReader}
 
 	var (
 		contract *caller.Contract
@@ -40,13 +39,15 @@ func TestTxTracing(t *testing.T) {
 	addr, tx, library, err := called.DeployContract(env.Payer(admin), env)
 	require.NoError(t, err)
 	require.NotNil(t, library)
-	env.ApplyBlock(time.Second, tx)
+	_, err = env.ApplyTxs(time.Second, tx)
+	require.NoError(t, err)
 	env.incNonce(env.Address(admin))
 
 	_, tx, contract, err = caller.DeployContract(env.Payer(admin), env, addr)
 	require.NoError(t, err)
 	require.NotNil(t, contract)
-	env.ApplyBlock(time.Second, tx)
+	_, err = env.ApplyTxs(time.Second, tx)
+	require.NoError(t, err)
 	env.incNonce(env.Address(admin))
 
 	t.Run("SubReverts", func(t *testing.T) {
@@ -54,11 +55,12 @@ func TestTxTracing(t *testing.T) {
 
 		tx, err := contract.Inc(env.Payer(admin), key)
 		require.NoError(err)
-		receipts := env.ApplyBlock(time.Second, tx)
-		env.incNonce(env.Address(admin))
+		receipts, err := env.ApplyTxs(time.Second, tx)
+		require.NoError(err)
 		require.NotEmpty(receipts)
+		env.incNonce(env.Address(admin))
 
-		actions, err := backend.TxTraceByHash(context.Background(), tx.Hash())
+		actions, err := env.EthAPI.TxTraceByHash(context.Background(), tx.Hash())
 		require.NoError(err)
 		require.NotNil(actions)
 		require.Len(*actions, 3)
