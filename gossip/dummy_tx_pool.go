@@ -18,6 +18,8 @@ type dummyTxPool struct {
 	pool   []*types.Transaction        // Collection of all transactions
 	added  chan<- []*types.Transaction // Notification channel for new transactions
 
+	signer types.Signer
+
 	lock sync.RWMutex // Protects the transaction pool
 }
 
@@ -34,14 +36,38 @@ func (p *dummyTxPool) AddRemotes(txs []*types.Transaction) []error {
 	return make([]error, len(txs))
 }
 
+func (p *dummyTxPool) AddLocals(txs []*types.Transaction) []error {
+	return p.AddRemotes(txs)
+}
+
+func (p *dummyTxPool) AddLocal(tx *types.Transaction) error {
+	return p.AddLocals([]*types.Transaction{tx})[0]
+}
+
+func (p *dummyTxPool) Nonce(addr common.Address) uint64 {
+	return 0
+}
+
+func (p *dummyTxPool) Stats() (int, int) {
+	return p.Count(), 0
+}
+
+func (p *dummyTxPool) Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	return nil, nil
+}
+
+func (p *dummyTxPool) ContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	return nil, nil
+}
+
 // Pending returns all the transactions known to the pool
-func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
+func (p *dummyTxPool) Pending(enforceTips bool) (map[common.Address]types.Transactions, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
 	batches := make(map[common.Address]types.Transactions)
 	for _, tx := range p.pool {
-		from, _ := types.Sender(types.HomesteadSigner{}, tx)
+		from, _ := types.Sender(p.signer, tx)
 		batches[from] = append(batches[from], tx)
 	}
 	for _, batch := range batches {
@@ -65,7 +91,25 @@ func (p *dummyTxPool) Map() map[common.Hash]*types.Transaction {
 }
 
 func (p *dummyTxPool) Get(txid common.Hash) *types.Transaction {
-	return p.Map()[txid]
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	for _, tx := range p.pool {
+		if tx.Hash() == txid {
+			return tx
+		}
+	}
+	return nil
+}
+
+func (p *dummyTxPool) Has(txid common.Hash) bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	for _, tx := range p.pool {
+		if tx.Hash() == txid {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *dummyTxPool) OnlyNotExisting(txids []common.Hash) []common.Hash {
@@ -98,4 +142,28 @@ func (p *dummyTxPool) SampleHashes(max int) []common.Hash {
 		res = append(res, tx.Hash())
 	}
 	return res
+}
+
+func (p *dummyTxPool) Count() int {
+	return len(p.pool)
+}
+
+func (p *dummyTxPool) Clear() {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if len(p.pool) != 0 {
+		p.pool = p.pool[:0]
+	}
+}
+
+func (p *dummyTxPool) Delete(needle common.Hash) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	notErased := make([]*types.Transaction, 0, len(p.pool)-1)
+	for _, tx := range p.pool {
+		if tx.Hash() != needle {
+			notErased = append(notErased, tx)
+		}
+	}
+	p.pool = notErased
 }

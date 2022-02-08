@@ -61,3 +61,62 @@ func TestRulesBerlinRLP(t *testing.T) {
 	require.Equal(rules.String(), decodedRules.String())
 	require.True(decodedRules.Upgrades.Berlin)
 }
+
+func TestRulesLondonRLP(t *testing.T) {
+	rules := MainNetRules()
+	rules.Upgrades.London = true
+	rules.Upgrades.Berlin = true
+	require := require.New(t)
+
+	b, err := rlp.EncodeToBytes(rules)
+	require.NoError(err)
+
+	decodedRules := Rules{}
+	require.NoError(rlp.DecodeBytes(b, &decodedRules))
+
+	require.Equal(rules.String(), decodedRules.String())
+	require.True(decodedRules.Upgrades.Berlin)
+	require.True(decodedRules.Upgrades.London)
+}
+
+func TestRulesBerlinCompatibilityRLP(t *testing.T) {
+	require := require.New(t)
+
+	b1, err := rlp.EncodeToBytes(Upgrades{
+		Berlin: true,
+	})
+	require.NoError(err)
+
+	b2, err := rlp.EncodeToBytes(struct {
+		Berlin bool
+	}{true})
+	require.NoError(err)
+
+	require.Equal(b2, b1)
+}
+
+func TestGasRulesLLRCompatibilityRLP(t *testing.T) {
+	require := require.New(t)
+
+	b1, err := rlp.EncodeToBytes(GasRules{
+		MaxEventGas:          1,
+		EventGas:             2,
+		ParentGas:            3,
+		ExtraDataGas:         4,
+		BlockVotesBaseGas:    0,
+		BlockVoteGas:         0,
+		EpochVoteGas:         0,
+		MisbehaviourProofGas: 0,
+	})
+	require.NoError(err)
+
+	b2, err := rlp.EncodeToBytes(struct {
+		MaxEventGas  uint64
+		EventGas     uint64
+		ParentGas    uint64
+		ExtraDataGas uint64
+	}{1, 2, 3, 4})
+	require.NoError(err)
+
+	require.Equal(b2, b1)
+}

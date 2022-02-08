@@ -55,14 +55,14 @@ type PeerProgress struct {
 type Backend interface {
 	// General Ethereum API
 	Progress() PeerProgress
-	SuggestPrice(ctx context.Context) (*big.Int, error)
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
 	RPCGasCap() uint64        // global gas cap for eth_call over rpc: DoS protection
 	RPCTxFeeCap() float64     // global tx fee cap for all transaction related APIs
 	UnprotectedAllowed() bool // allows only for EIP155 transactions.
-	CalcLogsBloom() bool
+	CalcBlockExtApi() bool
 
 	// Blockchain API
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
@@ -89,6 +89,7 @@ type Backend interface {
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions)
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 
 	ChainConfig() *params.ChainConfig

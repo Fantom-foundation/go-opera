@@ -31,11 +31,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 )
 
 const (
@@ -53,14 +55,6 @@ const (
 	// triggering range compaction. It's a quite arbitrary number but just
 	// to avoid triggering range compaction because of small deletion.
 	rangeCompactionThreshold = 100000
-)
-
-var (
-	// emptyRoot is the known root hash of an empty trie.
-	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-
-	// emptyCode is the known hash of the empty EVM bytecode.
-	emptyCode = crypto.Keccak256(nil)
 )
 
 // Pruner is an offline tool to prune the stale state with the
@@ -359,7 +353,7 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom *stateBloom)
 			if err := rlp.DecodeBytes(accIter.LeafBlob(), &acc); err != nil {
 				return err
 			}
-			if acc.Root != emptyRoot {
+			if acc.Root != types.EmptyRootHash {
 				storageTrie, err := trie.NewSecure(acc.Root, trie.NewDatabase(db))
 				if err != nil {
 					return err
@@ -375,7 +369,7 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom *stateBloom)
 					return storageIter.Error()
 				}
 			}
-			if !bytes.Equal(acc.CodeHash, emptyCode) {
+			if !bytes.Equal(acc.CodeHash, evmstore.EmptyCode) {
 				stateBloom.Put(acc.CodeHash, nil)
 			}
 		}

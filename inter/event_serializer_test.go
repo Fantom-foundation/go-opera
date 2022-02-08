@@ -11,19 +11,22 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
-func emptyEvent() EventPayload {
+func emptyEvent(ver uint8) EventPayload {
 	empty := MutableEventPayload{}
+	empty.SetVersion(ver)
+	if ver == 0 {
+		empty.SetEpoch(256)
+	}
 	empty.SetParents(hash.Events{})
 	empty.SetExtra([]byte{})
 	empty.SetTxs(types.Transactions{})
-	empty.SetTxHash(EmptyTxHash)
+	empty.SetPayloadHash(EmptyPayloadHash(ver))
 	return *empty.Build()
 }
 
@@ -34,7 +37,7 @@ func TestEventPayloadSerialization(t *testing.T) {
 	max.SetLamport(idx.Lamport(math.MaxUint32))
 	h := hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32))
 	max.SetParents(hash.Events{hash.Event(h), hash.Event(h), hash.Event(h)})
-	max.SetTxHash(hash.Hash(h))
+	max.SetPayloadHash(hash.Hash(h))
 	max.SetSig(BytesToSignature(bytes.Repeat([]byte{math.MaxUint8}, SigSize)))
 	max.SetExtra(bytes.Repeat([]byte{math.MaxUint8}, 100))
 	max.SetCreationTime(math.MaxUint64)
@@ -69,9 +72,10 @@ func TestEventPayloadSerialization(t *testing.T) {
 	max.SetTxs(txs)
 
 	ee := map[string]EventPayload{
-		"empty":  emptyEvent(),
+		"empty0": emptyEvent(0),
+		"empty1": emptyEvent(1),
 		"max":    *max.Build(),
-		"random": *FakeEvent(2),
+		"random": *FakeEvent(12, 1, 1, true),
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -118,7 +122,7 @@ func TestEventPayloadSerialization(t *testing.T) {
 }
 
 func BenchmarkEventPayload_EncodeRLP_empty(b *testing.B) {
-	e := emptyEvent()
+	e := emptyEvent(0)
 
 	b.ResetTimer()
 
@@ -132,7 +136,7 @@ func BenchmarkEventPayload_EncodeRLP_empty(b *testing.B) {
 }
 
 func BenchmarkEventPayload_EncodeRLP_NoPayload(b *testing.B) {
-	e := FakeEvent(0)
+	e := FakeEvent(0, 0, 0, false)
 
 	b.ResetTimer()
 
@@ -146,7 +150,7 @@ func BenchmarkEventPayload_EncodeRLP_NoPayload(b *testing.B) {
 }
 
 func BenchmarkEventPayload_EncodeRLP(b *testing.B) {
-	e := FakeEvent(1000)
+	e := FakeEvent(1000, 0, 0, false)
 
 	b.ResetTimer()
 
@@ -160,7 +164,7 @@ func BenchmarkEventPayload_EncodeRLP(b *testing.B) {
 }
 
 func BenchmarkEventPayload_DecodeRLP_empty(b *testing.B) {
-	e := emptyEvent()
+	e := emptyEvent(0)
 	me := MutableEventPayload{}
 
 	buf, err := rlp.EncodeToBytes(&e)
@@ -179,7 +183,7 @@ func BenchmarkEventPayload_DecodeRLP_empty(b *testing.B) {
 }
 
 func BenchmarkEventPayload_DecodeRLP_NoPayload(b *testing.B) {
-	e := FakeEvent(0)
+	e := FakeEvent(0, 0, 0, false)
 	me := MutableEventPayload{}
 
 	buf, err := rlp.EncodeToBytes(&e)
@@ -198,7 +202,7 @@ func BenchmarkEventPayload_DecodeRLP_NoPayload(b *testing.B) {
 }
 
 func BenchmarkEventPayload_DecodeRLP(b *testing.B) {
-	e := FakeEvent(1000)
+	e := FakeEvent(1000, 0, 0, false)
 	me := MutableEventPayload{}
 
 	buf, err := rlp.EncodeToBytes(&e)
@@ -220,7 +224,7 @@ func TestEventRPCMarshaling(t *testing.T) {
 	t.Run("Event", func(t *testing.T) {
 		require := require.New(t)
 		for i := 0; i < 3; i++ {
-			var event0 EventI = &FakeEvent(i).Event
+			var event0 EventI = &FakeEvent(i, i, i, i != 0).Event
 			mapping := RPCMarshalEvent(event0)
 			bb, err := json.Marshal(mapping)
 			require.NoError(err)
@@ -237,7 +241,7 @@ func TestEventRPCMarshaling(t *testing.T) {
 	t.Run("EventPayload", func(t *testing.T) {
 		require := require.New(t)
 		for i := 0; i < 3; i++ {
-			var event0 = FakeEvent(i)
+			var event0 = FakeEvent(i, i, i, i != 0)
 			mapping, err := RPCMarshalEventPayload(event0, true, false)
 			require.NoError(err)
 			bb, err := json.Marshal(mapping)
@@ -273,6 +277,10 @@ func randBytes(r *rand.Rand, size int) []byte {
 	return b
 }
 
+func randHash(r *rand.Rand) hash.Hash {
+	return hash.BytesToHash(randBytes(r, 32))
+}
+
 func randAddrPtr(r *rand.Rand) *common.Address {
 	addr := randAddr(r)
 	return &addr
@@ -291,9 +299,11 @@ func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
 }
 
 // FakeEvent generates random event for testing purpose.
-func FakeEvent(txsNum int) *EventPayload {
+func FakeEvent(txsNum, mpsNum, bvsNum int, ersNum bool) *EventPayload {
 	r := rand.New(rand.NewSource(int64(0)))
-	random := MutableEventPayload{}
+	random := &MutableEventPayload{}
+	random.SetVersion(1)
+	random.SetNetForkID(uint16(r.Uint32() >> 16))
 	random.SetLamport(1000)
 	random.SetExtra([]byte{byte(r.Uint32())})
 	random.SetSeq(idx.Event(r.Uint32() >> 8))
@@ -307,7 +317,7 @@ func FakeEvent(txsNum int) *EventPayload {
 	for i := 0; i < txsNum; i++ {
 		h := hash.Hash{}
 		r.Read(h[:])
-		if i%2 == 0 {
+		if i%3 == 0 {
 			tx := types.NewTx(&types.LegacyTx{
 				Nonce:    r.Uint64(),
 				GasPrice: randBig(r),
@@ -320,7 +330,7 @@ func FakeEvent(txsNum int) *EventPayload {
 				S:        h.Big(),
 			})
 			txs = append(txs, tx)
-		} else {
+		} else if i%3 == 1 {
 			tx := types.NewTx(&types.AccessListTx{
 				ChainID:    randBig(r),
 				Nonce:      r.Uint64(),
@@ -335,14 +345,59 @@ func FakeEvent(txsNum int) *EventPayload {
 				S:          h.Big(),
 			})
 			txs = append(txs, tx)
+		} else {
+			tx := types.NewTx(&types.DynamicFeeTx{
+				ChainID:    randBig(r),
+				Nonce:      r.Uint64(),
+				GasTipCap:  randBig(r),
+				GasFeeCap:  randBig(r),
+				Gas:        r.Uint64(),
+				To:         randAddrPtr(r),
+				Value:      randBig(r),
+				Data:       randBytes(r, r.Intn(300)),
+				AccessList: randAccessList(r, 300, 300),
+				V:          big.NewInt(int64(r.Intn(0xffffffff))),
+				R:          h.Big(),
+				S:          h.Big(),
+			})
+			txs = append(txs, tx)
 		}
 	}
-	random.SetTxs(txs)
-	if txs.Len() > 0 {
-		random.SetTxHash(hash.Hash(types.DeriveSha(txs, new(trie.Trie))))
+	mps := []MisbehaviourProof{}
+	for i := 0; i < mpsNum; i++ {
+		// MPs are serialized with RLP, so no need to test extensively
+		mps = append(mps, MisbehaviourProof{
+			EventsDoublesign: &EventsDoublesign{
+				Pair: [2]SignedEventLocator{SignedEventLocator{}, SignedEventLocator{}},
+			},
+			BlockVoteDoublesign: nil,
+			WrongBlockVote:      nil,
+			EpochVoteDoublesign: nil,
+			WrongEpochVote:      nil,
+		})
+	}
+	bvs := LlrBlockVotes{}
+	if bvsNum > 0 {
+		bvs.Start = 1 + idx.Block(rand.Intn(1000))
+		bvs.Epoch = 1 + idx.Epoch(rand.Intn(1000))
+	}
+	for i := 0; i < bvsNum; i++ {
+		bvs.Votes = append(bvs.Votes, randHash(r))
+	}
+	ers := LlrEpochVote{}
+	if ersNum {
+		ers.Epoch = 1 + idx.Epoch(rand.Intn(1000))
+		ers.Vote = randHash(r)
 	}
 
+	random.SetTxs(txs)
+	random.SetMisbehaviourProofs(mps)
+	random.SetEpochVote(ers)
+	random.SetBlockVotes(bvs)
+	random.SetPayloadHash(CalcPayloadHash(random))
+
 	parent := MutableEventPayload{}
+	parent.SetVersion(1)
 	parent.SetLamport(random.Lamport() - 500)
 	parent.SetEpoch(random.Epoch())
 	random.SetParents(hash.Events{parent.Build().ID()})

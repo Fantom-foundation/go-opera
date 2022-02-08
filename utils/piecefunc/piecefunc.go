@@ -1,8 +1,11 @@
 package piecefunc
 
+import "math"
+
 const (
 	// DecimalUnit is used to define ratios with integers, it's 1.0
 	DecimalUnit = 1e6
+	maxVal      = math.MaxUint64/uint64(DecimalUnit) - 1
 )
 
 // Dot is a pair of numbers
@@ -25,6 +28,12 @@ func NewFunc(dots []Dot) func(x uint64) uint64 {
 		if i >= 1 && dot.X <= prevX {
 			panic("non monotonic X")
 		}
+		if dot.Y > maxVal {
+			panic("too large Y")
+		}
+		if dot.X > maxVal {
+			panic("too large X")
+		}
 		prevX = dot.X
 	}
 
@@ -45,6 +54,12 @@ func Div(a, b uint64) uint64 {
 
 // Get calculates f(x), where f is a piecewise linear function defined by the pieces
 func (f Func) Get(x uint64) uint64 {
+	if x < f.dots[0].X {
+		return f.dots[0].Y
+	}
+	if x > f.dots[len(f.dots)-1].X {
+		return f.dots[len(f.dots)-1].Y
+	}
 	// find a piece
 	p0 := len(f.dots) - 2
 	for i, piece := range f.dots {

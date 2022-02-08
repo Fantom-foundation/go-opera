@@ -22,7 +22,11 @@ func (b *GPOBackend) GetRules() opera.Rules {
 }
 
 func (b *GPOBackend) GetPendingRules() opera.Rules {
-	return b.store.GetBlockState().DirtyRules
+	bs, es := b.store.GetBlockEpochState()
+	if bs.DirtyRules != nil {
+		return *bs.DirtyRules
+	}
+	return es.Rules
 }
 
 // TotalGasPowerLeft returns a total amount of obtained gas power by the validators, according to the latest events from each validator
@@ -46,10 +50,7 @@ func (b *GPOBackend) TotalGasPowerLeft() uint64 {
 	for i := idx.Validator(0); i < es.Validators.Len(); i++ {
 		vid := es.Validators.GetID(i)
 		if !metValidators[vid] {
-			prevEvent := b.store.GetEvent(es.ValidatorStates[i].PrevEpochEvent)
-			if prevEvent != nil {
-				total += prevEvent.GasPowerLeft().Gas[inter.LongTermGas]
-			}
+			total += es.ValidatorStates[i].PrevEpochEvent.GasPowerLeft.Gas[inter.LongTermGas]
 		}
 	}
 

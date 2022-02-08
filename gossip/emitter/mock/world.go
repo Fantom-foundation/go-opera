@@ -98,6 +98,48 @@ func (mr *MockExternalMockRecorder) DagIndex() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DagIndex", reflect.TypeOf((*MockExternal)(nil).DagIndex))
 }
 
+// GetBlockEpoch mocks base method
+func (m *MockExternal) GetBlockEpoch(arg0 idx.Block) idx.Epoch {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockEpoch", arg0)
+	ret0, _ := ret[0].(idx.Epoch)
+	return ret0
+}
+
+// GetBlockEpoch indicates an expected call of GetBlockEpoch
+func (mr *MockExternalMockRecorder) GetBlockEpoch(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockEpoch", reflect.TypeOf((*MockExternal)(nil).GetBlockEpoch), arg0)
+}
+
+// GetBlockRecordHash mocks base method
+func (m *MockExternal) GetBlockRecordHash(arg0 idx.Block) *hash.Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockRecordHash", arg0)
+	ret0, _ := ret[0].(*hash.Hash)
+	return ret0
+}
+
+// GetBlockRecordHash indicates an expected call of GetBlockRecordHash
+func (mr *MockExternalMockRecorder) GetBlockRecordHash(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockRecordHash", reflect.TypeOf((*MockExternal)(nil).GetBlockRecordHash), arg0)
+}
+
+// GetEpochRecordHash mocks base method
+func (m *MockExternal) GetEpochRecordHash(arg0 idx.Epoch) *hash.Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEpochRecordHash", arg0)
+	ret0, _ := ret[0].(*hash.Hash)
+	return ret0
+}
+
+// GetEpochRecordHash indicates an expected call of GetEpochRecordHash
+func (mr *MockExternalMockRecorder) GetEpochRecordHash(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEpochRecordHash", reflect.TypeOf((*MockExternal)(nil).GetEpochRecordHash), arg0)
+}
+
 // GetEpochValidators mocks base method
 func (m *MockExternal) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 	m.ctrl.T.Helper()
@@ -169,6 +211,34 @@ func (mr *MockExternalMockRecorder) GetHeads(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockExternal)(nil).GetHeads), arg0)
 }
 
+// GetLastBV mocks base method
+func (m *MockExternal) GetLastBV(arg0 idx.ValidatorID) *idx.Block {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastBV", arg0)
+	ret0, _ := ret[0].(*idx.Block)
+	return ret0
+}
+
+// GetLastBV indicates an expected call of GetLastBV
+func (mr *MockExternalMockRecorder) GetLastBV(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastBV", reflect.TypeOf((*MockExternal)(nil).GetLastBV), arg0)
+}
+
+// GetLastEV mocks base method
+func (m *MockExternal) GetLastEV(arg0 idx.ValidatorID) *idx.Epoch {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastEV", arg0)
+	ret0, _ := ret[0].(*idx.Epoch)
+	return ret0
+}
+
+// GetLastEV indicates an expected call of GetLastEV
+func (mr *MockExternalMockRecorder) GetLastEV(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastEV", reflect.TypeOf((*MockExternal)(nil).GetLastEV), arg0)
+}
+
 // GetLastEvent mocks base method
 func (m *MockExternal) GetLastEvent(arg0 idx.Epoch, arg1 idx.ValidatorID) *hash.Event {
 	m.ctrl.T.Helper()
@@ -197,18 +267,32 @@ func (mr *MockExternalMockRecorder) GetLatestBlockIndex() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestBlockIndex", reflect.TypeOf((*MockExternal)(nil).GetLatestBlockIndex))
 }
 
-// GetRecommendedGasPrice mocks base method
-func (m *MockExternal) GetRecommendedGasPrice() *big.Int {
+// GetLowestBlockToDecide mocks base method
+func (m *MockExternal) GetLowestBlockToDecide() idx.Block {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRecommendedGasPrice")
-	ret0, _ := ret[0].(*big.Int)
+	ret := m.ctrl.Call(m, "GetLowestBlockToDecide")
+	ret0, _ := ret[0].(idx.Block)
 	return ret0
 }
 
-// GetRecommendedGasPrice indicates an expected call of GetRecommendedGasPrice
-func (mr *MockExternalMockRecorder) GetRecommendedGasPrice() *gomock.Call {
+// GetLowestBlockToDecide indicates an expected call of GetLowestBlockToDecide
+func (mr *MockExternalMockRecorder) GetLowestBlockToDecide() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecommendedGasPrice", reflect.TypeOf((*MockExternal)(nil).GetRecommendedGasPrice))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLowestBlockToDecide", reflect.TypeOf((*MockExternal)(nil).GetLowestBlockToDecide))
+}
+
+// GetLowestEpochToDecide mocks base method
+func (m *MockExternal) GetLowestEpochToDecide() idx.Epoch {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLowestEpochToDecide")
+	ret0, _ := ret[0].(idx.Epoch)
+	return ret0
+}
+
+// GetLowestEpochToDecide indicates an expected call of GetLowestEpochToDecide
+func (mr *MockExternalMockRecorder) GetLowestEpochToDecide() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLowestEpochToDecide", reflect.TypeOf((*MockExternal)(nil).GetLowestEpochToDecide))
 }
 
 // GetRules mocks base method
@@ -357,18 +441,18 @@ func (mr *MockTxPoolMockRecorder) Has(arg0 interface{}) *gomock.Call {
 }
 
 // Pending mocks base method
-func (m *MockTxPool) Pending() (map[common.Address]types.Transactions, error) {
+func (m *MockTxPool) Pending(arg0 bool) (map[common.Address]types.Transactions, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Pending")
+	ret := m.ctrl.Call(m, "Pending", arg0)
 	ret0, _ := ret[0].(map[common.Address]types.Transactions)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Pending indicates an expected call of Pending
-func (mr *MockTxPoolMockRecorder) Pending() *gomock.Call {
+func (mr *MockTxPoolMockRecorder) Pending(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pending", reflect.TypeOf((*MockTxPool)(nil).Pending))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pending", reflect.TypeOf((*MockTxPool)(nil).Pending), arg0)
 }
 
 // SubscribeNewTxsNotify mocks base method

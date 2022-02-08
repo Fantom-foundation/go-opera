@@ -1,8 +1,12 @@
 package gossip
 
 import (
+	"math"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -50,6 +54,11 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	}
 
 	return block
+}
+
+func (s *Store) HasBlock(n idx.Block) bool {
+	has, _ := s.table.Blocks.Has(n.Bytes())
+	return has
 }
 
 func (s *Store) ForEachBlock(fn func(index idx.Block, block *inter.Block)) {
@@ -129,4 +138,56 @@ func (s *Store) GetGenesisTime() inter.Timestamp {
 		return 0
 	}
 	return block.Time
+}
+
+func (s *Store) SetEpochBlock(b idx.Block, e idx.Epoch) {
+	err := s.table.EpochBlocks.Put((math.MaxUint64 - b).Bytes(), e.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to set key-value", "err", err)
+	}
+}
+
+func (s *Store) FindBlockEpoch(b idx.Block) idx.Epoch {
+	it := s.table.EpochBlocks.NewIterator(nil, (math.MaxUint64 - b).Bytes())
+	defer it.Release()
+	if !it.Next() {
+		return 0
+	}
+	return idx.BytesToEpoch(it.Value())
+}
+
+func (s *Store) GetBlockTxs(n idx.Block, block *inter.Block) types.Transactions {
+	if cached := s.evm.GetCachedEvmBlock(n); cached != nil {
+		return cached.Transactions
+	}
+
+	transactions := make(types.Transactions, 0, len(block.Txs)+len(block.InternalTxs)+len(block.Events)*10)
+	for _, txid := range block.InternalTxs {
+		tx := s.evm.GetTx(txid)
+		if tx == nil {
+			log.Crit("Internal tx not found", "tx", txid.String())
+			continue
+		}
+		transactions = append(transactions, tx)
+	}
+	for _, txid := range block.Txs {
+		tx := s.evm.GetTx(txid)
+		if tx == nil {
+			log.Crit("Tx not found", "tx", txid.String())
+			continue
+		}
+		transactions = append(transactions, tx)
+	}
+	for _, id := range block.Events {
+		e := s.GetEventPayload(id)
+		if e == nil {
+			log.Crit("Block event not found", "event", id.String())
+			continue
+		}
+		transactions = append(transactions, e.Txs()...)
+	}
+
+	transactions = inter.FilterSkippedTxs(transactions, block.SkippedTxs)
+
+	return transactions
 }

@@ -24,10 +24,11 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
@@ -39,6 +40,7 @@ type EthAPIBackend struct {
 	extRPCEnabled       bool
 	svc                 *Service
 	state               *EvmStateReader
+	signer              types.Signer
 	allowUnprotectedTxs bool
 }
 
@@ -286,12 +288,8 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 		number = rpc.BlockNumber(header.Number.Uint64())
 	}
 
-	receipts := b.svc.store.evm.GetReceipts(idx.Block(number))
 	block := b.state.GetBlock(common.Hash{}, uint64(number))
-	err := receipts.DeriveFields(b.svc.store.GetRules().EvmChainConfig(), block.Hash, uint64(number), block.Transactions)
-	if err != nil {
-		return nil, err
-	}
+	receipts := b.svc.store.evm.GetReceipts(idx.Block(number), b.signer, block.Hash, block.Transactions)
 	return receipts, nil
 }
 
@@ -310,7 +308,7 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, block common.Hash) ([][]*ty
 	if receipts == nil || err != nil {
 		return nil, err
 	}
-	logs := make([][]*types.Log, len(receipts))
+	logs := make([][]*types.Log, receipts.Len())
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
 	}
@@ -355,7 +353,7 @@ func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) no
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	pending, err := b.svc.txpool.Pending()
+	pending, err := b.svc.txpool.Pending(false)
 	if err != nil {
 		return nil, err
 	}
@@ -368,6 +366,10 @@ func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 
 func (b *EthAPIBackend) GetPoolTransaction(hash common.Hash) *types.Transaction {
 	return b.svc.txpool.Get(hash)
+}
+
+func (b *EthAPIBackend) GetTxPosition(txHash common.Hash) *evmstore.TxPosition {
+	return b.svc.store.evm.GetTxPosition(txHash)
 }
 
 func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, uint64, uint64, error) {
@@ -413,8 +415,8 @@ func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, 
 
 // Progress returns current synchronization status of this node
 func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
-	p2pProgress := b.svc.pm.myProgress()
-	highestP2pProgress := b.svc.pm.highestPeerProgress()
+	p2pProgress := b.svc.handler.myProgress()
+	highestP2pProgress := b.svc.handler.highestPeerProgress()
 	b.svc.engineMu.RLock()
 	lastBlock := b.svc.store.GetBlock(p2pProgress.LastBlockIdx)
 	b.svc.engineMu.RUnlock()
@@ -429,12 +431,16 @@ func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	}
 }
 
-func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.svc.gpo.SuggestPrice(), nil
+func (b *EthAPIBackend) TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	return b.svc.txpool.ContentFrom(addr)
+}
+
+func (b *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	return b.svc.gpo.SuggestTipCap(), nil
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.evm.EvmTable()
+	return b.svc.store.evm.EvmDb
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -458,7 +464,7 @@ func (b *EthAPIBackend) RPCTxFeeCap() float64 {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.store.evm.EvmLogs()
+	return b.svc.store.evm.EvmLogs
 }
 
 // CurrentEpoch returns current epoch number.
@@ -546,7 +552,7 @@ func (b *EthAPIBackend) GetStakerDelegationsClaimedRewards(ctx context.Context, 
 	return b.svc.store.sfcapi.GetStakerDelegationsClaimedRewards(stakerID), nil
 }
 
-func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.SfcStaker, bs blockproc.BlockState, es blockproc.EpochState) *sfcapi.SfcStaker {
+func (b *EthAPIBackend) extendStaker(stakerID idx.ValidatorID, staker *sfcapi.SfcStaker, bs iblockproc.BlockState, es iblockproc.EpochState) *sfcapi.SfcStaker {
 	selfDelegation := b.svc.store.sfcapi.GetSfcDelegation(sfcapi.DelegationID{staker.Address, stakerID})
 	if selfDelegation != nil {
 		staker.StakeAmount = selfDelegation.Amount
@@ -625,8 +631,8 @@ func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfcapi.DelegationI
 	return b.svc.store.sfcapi.GetSfcDelegation(id), nil
 }
 
-func (b *EthAPIBackend) CalcLogsBloom() bool {
-	return b.svc.config.RPCLogsBloom
+func (b *EthAPIBackend) CalcBlockExtApi() bool {
+	return b.svc.config.RPCBlockExt
 }
 
 func (b *EthAPIBackend) SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp) {

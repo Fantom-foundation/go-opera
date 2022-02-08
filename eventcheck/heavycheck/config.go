@@ -1,15 +1,13 @@
 package heavycheck
 
 type Config struct {
-	MaxQueuedBatches int // the maximum number of event batches to queue up
-	MaxBatch         int // Maximum number of events in an task batch (batch is divided if exceeded)
-	Threads          int
+	MaxQueuedTasks int // the maximum number of tasks to queue up
+	Threads        int
 }
 
 func DefaultConfig() Config {
 	return Config{
-		MaxQueuedBatches: 128,
-		MaxBatch:         8,
-		Threads:          0,
+		MaxQueuedTasks: 1024,
+		Threads:        0,
 	}
 }

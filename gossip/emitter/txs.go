@@ -158,16 +158,10 @@ func (em *Emitter) addTxs(e *inter.MutableEventPayload, sorted *types.Transactio
 
 	// sort transactions by price and nonce
 	rules := em.world.GetRules()
-	softGasPriceLimit := em.world.GetRecommendedGasPrice()
 	for tx := sorted.Peek(); tx != nil; tx = sorted.Peek() {
 		sender, _ := types.Sender(em.world.TxSigner, tx)
 		// check transaction epoch rules
 		if epochcheck.CheckTxs(types.Transactions{tx}, rules) != nil {
-			sorted.Pop()
-			continue
-		}
-		// check transaction gas price against the soft limit
-		if tx.GasPrice().Cmp(softGasPriceLimit) < 0 {
 			sorted.Pop()
 			continue
 		}

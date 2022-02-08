@@ -22,11 +22,16 @@ type (
 		EvmBlocksNum int
 		// Cache size for EvmBlock (size in bytes).
 		EvmBlocksSize uint
+		// Disk journal for saving clean cache entries.
+		TrieCleanJournal string
+		// Whether to disable trie write caching and GC altogether (archive node)
+		TrieDirtyDisabled bool
+		// Memory limit (MB) at which to start flushing dirty trie nodes to disk
+		TrieDirtyLimit uint
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
-		Cache           StoreCacheConfig
-		EnableSnapshots bool
+		Cache StoreCacheConfig
 		// Enables tracking of SHA3 preimages in the VM
 		EnablePreimageRecording bool
 	}
@@ -36,30 +41,21 @@ type (
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			ReceiptsSize:   scale.U(4 * opt.MiB),
-			ReceiptsBlocks: scale.I(4000),
-			TxPositions:    scale.I(20000),
-			EvmDatabase:    scale.I(32 * opt.MiB),
-			EvmSnap:        scale.I(32 * opt.MiB),
-			EvmBlocksNum:   scale.I(5000),
-			EvmBlocksSize:  scale.U(6 * opt.MiB),
+			ReceiptsSize:      scale.U(4 * opt.MiB),
+			ReceiptsBlocks:    scale.I(4000),
+			TxPositions:       scale.I(20000),
+			EvmDatabase:       scale.I(32 * opt.MiB),
+			EvmSnap:           scale.I(32 * opt.MiB),
+			EvmBlocksNum:      scale.I(5000),
+			EvmBlocksSize:     scale.U(6 * opt.MiB),
+			TrieDirtyDisabled: true,
+			TrieDirtyLimit:    scale.U(400 * opt.MiB),
 		},
-		EnableSnapshots:         true,
 		EnablePreimageRecording: true,
 	}
 }
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
-	return StoreConfig{
-		Cache: StoreCacheConfig{
-			ReceiptsSize:   3 * 1024,
-			ReceiptsBlocks: 100,
-			TxPositions:    500,
-			EvmBlocksNum:   100,
-			EvmBlocksSize:  3 * 1024,
-		},
-		EnableSnapshots:         true,
-		EnablePreimageRecording: true,
-	}
+	return DefaultStoreConfig(cachescale.Ratio{Base: 10, Target: 1})
 }

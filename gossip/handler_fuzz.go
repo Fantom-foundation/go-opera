@@ -4,8 +4,11 @@ package gossip
 
 import (
 	"bytes"
+	"errors"
+	"math/rand"
 	"sync"
 
+	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	_ "github.com/dvyukov/go-fuzz/go-fuzz-defs"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -23,13 +26,13 @@ const (
 )
 
 var (
-	fuzzedPM *ProtocolManager
+	fuzzedHandler *handler
 )
 
-func FuzzPM(data []byte) int {
+func FuzzHandler(data []byte) int {
 	var err error
-	if fuzzedPM == nil {
-		fuzzedPM, err = makeFuzzedPM()
+	if fuzzedHandler == nil {
+		fuzzedHandler, err = makeFuzzedHandler()
 		if err != nil {
 			panic(err)
 		}
@@ -39,11 +42,14 @@ func FuzzPM(data []byte) int {
 	if err != nil {
 		return fuzzCold
 	}
-	peer := p2p.NewPeer(enode.RandomID(enode.ID{}, 1), "fake-node-1", []p2p.Cap{})
 	input := &fuzzMsgReadWriter{msg}
-	other := fuzzedPM.newPeer(ProtocolVersion, peer, input)
+	other := &peer{
+		version: ProtocolVersion,
+		Peer:    p2p.NewPeer(randomID(), "fake-node-1", []p2p.Cap{}),
+		rw:      input,
+	}
 
-	err = fuzzedPM.handleMsg(other)
+	err = fuzzedHandler.handleMsg(other)
 	if err != nil {
 		return fuzzNoMatter
 	}
@@ -51,17 +57,17 @@ func FuzzPM(data []byte) int {
 	return fuzzHot
 }
 
-func makeFuzzedPM() (pm *ProtocolManager, err error) {
+func makeFuzzedHandler() (h *handler, err error) {
 	const (
 		genesisStakers = 3
 		genesisBalance = 1e18
 		genesisStake   = 2 * 4e6
 	)
 
-	genStore := makegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+	genStore := makegenesis.FakeGenesisStore(2, genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
 
-	config := DefaultConfig()
+	config := DefaultConfig(cachescale.Identity)
 	store := NewMemStore()
 	blockProc := DefaultBlockProc(genesis)
 	_, err = store.ApplyGenesis(blockProc, genesis)
@@ -88,21 +94,29 @@ func makeFuzzedPM() (pm *ProtocolManager, err error) {
 		store:       store,
 	})
 
-	pm, err = NewProtocolManager(
-		config,
-		feed,
-		txpool,
-		mu,
-		checkers,
-		store,
-		processEvent,
-		nil)
+	h, err = newHandler(
+		handlerConfig{
+			config:       config,
+			notifier:     feed,
+			txpool:       txpool,
+			engineMu:     mu,
+			checkers:     checkers,
+			s:            store,
+			processEvent: processEvent,
+		})
 	if err != nil {
 		return
 	}
 
-	pm.Start(3)
+	h.Start(3)
 	return
+}
+
+func randomID() (id enode.ID) {
+	for i := range id {
+		id[i] = byte(rand.Intn(255))
+	}
+	return id
 }
 
 type fuzzMsgReadWriter struct {
@@ -111,7 +125,7 @@ type fuzzMsgReadWriter struct {
 
 func newFuzzMsg(data []byte) (*p2p.Msg, error) {
 	if len(data) < 1 {
-		return nil, ErrEmptyMessage
+		return nil, errors.New("empty data")
 	}
 
 	var (

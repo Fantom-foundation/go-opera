@@ -16,17 +16,50 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/Fantom-foundation/go-opera/utils"
+)
+
+var (
+	// Ethereum compatible metrics set (see go-ethereum/core)
+
+	headBlockGauge     = metrics.GetOrRegisterGauge("chain/head/block", nil)
+	headHeaderGauge    = metrics.GetOrRegisterGauge("chain/head/header", nil)
+	headFastBlockGauge = metrics.GetOrRegisterGauge("chain/head/receipt", nil)
+
+	accountReadTimer   = metrics.GetOrRegisterTimer("chain/account/reads", nil)
+	accountHashTimer   = metrics.GetOrRegisterTimer("chain/account/hashes", nil)
+	accountUpdateTimer = metrics.GetOrRegisterTimer("chain/account/updates", nil)
+	accountCommitTimer = metrics.GetOrRegisterTimer("chain/account/commits", nil)
+
+	storageReadTimer   = metrics.GetOrRegisterTimer("chain/storage/reads", nil)
+	storageHashTimer   = metrics.GetOrRegisterTimer("chain/storage/hashes", nil)
+	storageUpdateTimer = metrics.GetOrRegisterTimer("chain/storage/updates", nil)
+	storageCommitTimer = metrics.GetOrRegisterTimer("chain/storage/commits", nil)
+
+	snapshotAccountReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/account/reads", nil)
+	snapshotStorageReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/storage/reads", nil)
+	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
+
+	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
+	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
+	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
+	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
+
+	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
 )
 
 type ExtendedTxPosition struct {
@@ -45,16 +78,14 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			s.blockProcModules,
 			s.config.TxIndex,
 			&s.feed,
-			s.emitter,
+			&s.emitters,
 			s.verWatcher,
-			nil,
 		),
 	}
 }
 
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and
 // makes lachesis.BeginBlockFn.
-// Note that onBlockEnd would be run async.
 func consensusCallbackBeginBlockFn(
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
@@ -63,9 +94,8 @@ func consensusCallbackBeginBlockFn(
 	blockProc BlockProc,
 	txIndex bool,
 	feed *ServiceFeed,
-	emitter *emitter.Emitter,
+	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
-	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		wg.Wait()
@@ -85,12 +115,22 @@ func consensusCallbackBeginBlockFn(
 		if err != nil {
 			log.Crit("Failed to open StateDB", "err", err)
 		}
+		evmStateReader := &EvmStateReader{
+			ServiceFeed: feed,
+			store:       store,
+		}
 
 		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
 		atroposTime := bs.LastBlock.Time + 1
 		atroposDegenerate := true
+		// events with txs
 		confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
+
+		mpsCheatersMap := make(map[idx.ValidatorID]struct{})
+		reportCheater := func(reporter, cheater idx.ValidatorID) {
+			mpsCheatersMap[cheater] = struct{}{}
+		}
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
@@ -99,20 +139,65 @@ func consensusCallbackBeginBlockFn(
 					atroposTime = e.MedianTime()
 					atroposDegenerate = false
 				}
-				if !e.NoTxs() {
-					// non-empty events only
+				if e.AnyTxs() {
 					confirmedEvents = append(confirmedEvents, e.ID())
 				}
+				if e.AnyMisbehaviourProofs() {
+					mps := store.GetEventPayload(e.ID()).MisbehaviourProofs()
+					for _, mp := range mps {
+						// self-contained parts of proofs are already checked by the checkers
+						if proof := mp.BlockVoteDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
+						}
+						if proof := mp.EpochVoteDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Signed.Locator.Creator)
+						}
+						if proof := mp.EventsDoublesign; proof != nil {
+							reportCheater(e.Creator(), proof.Pair[0].Locator.Creator)
+						}
+						if proof := mp.WrongBlockVote; proof != nil {
+							// all other votes are the same, see MinAccomplicesForProof
+							if proof.WrongEpoch {
+								actualBlockEpoch := store.FindBlockEpoch(proof.Block)
+								if actualBlockEpoch != 0 && actualBlockEpoch != proof.Pals[0].Val.Epoch {
+									for _, pal := range proof.Pals {
+										reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+									}
+								}
+							} else {
+								actualRecord := store.GetFullBlockRecord(proof.Block)
+								if actualRecord != nil && proof.GetVote(0) != actualRecord.Hash() {
+									for _, pal := range proof.Pals {
+										reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+									}
+								}
+							}
+						}
+						if proof := mp.WrongEpochVote; proof != nil {
+							// all other votes are the same, see MinAccomplicesForProof
+							vote := proof.Pals[0]
+							actualRecord := store.GetFullEpochRecord(vote.Val.Epoch)
+							if actualRecord == nil {
+								continue
+							}
+							if vote.Val.Vote != actualRecord.Hash() {
+								for _, pal := range proof.Pals {
+									reportCheater(e.Creator(), pal.Signed.Locator.Creator)
+								}
+							}
+						}
+					}
+				}
 				eventProcessor.ProcessConfirmedEvent(e)
-				if emitter != nil {
-					emitter.OnEventConfirmed(e)
+				for _, em := range *emitters {
+					em.OnEventConfirmed(e)
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
 				if atroposTime <= bs.LastBlock.Time {
 					atroposTime = bs.LastBlock.Time + 1
 				}
-				blockCtx := blockproc.BlockCtx{
+				blockCtx := iblockproc.BlockCtx{
 					Idx:     bs.LastBlock.Idx + 1,
 					Time:    atroposTime,
 					Atropos: cBlock.Atropos,
@@ -131,6 +216,17 @@ func consensusCallbackBeginBlockFn(
 				skipBlock = skipBlock || (emptyBlock && blockCtx.Time < bs.LastBlock.Time+es.Rules.Blocks.MaxEmptyBlockSkipPeriod)
 				// Finalize the progress of eventProcessor
 				bs = eventProcessor.Finalize(blockCtx, skipBlock) // TODO: refactor to not mutate the bs, it is unclear
+				{                                                 // sort and merge MPs cheaters
+					mpsCheaters := make(lachesis.Cheaters, 0, len(mpsCheatersMap))
+					for vid := range mpsCheatersMap {
+						mpsCheaters = append(mpsCheaters, vid)
+					}
+					sort.Slice(mpsCheaters, func(i, j int) bool {
+						a, b := mpsCheaters[i], mpsCheaters[j]
+						return a < b
+					})
+					bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, mpsCheaters)
+				}
 				if skipBlock {
 					// save the latest block state even if block is skipped
 					store.SetBlockEpochState(bs, es)
@@ -141,18 +237,29 @@ func consensusCallbackBeginBlockFn(
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
 				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
-				evmStateReader := &EvmStateReader{
-					ServiceFeed: feed,
-					store:       store,
-				}
 				onNewLogAll := func(l *types.Log) {
 					txListener.OnNewLog(l)
+					// Note: it's possible for logs to get indexed twice by BR and block processing
 					if verWatcher != nil {
 						verWatcher.OnNewLog(l)
 					}
 					sfcapi.OnNewLog(store.sfcapi, l)
 				}
+
+				// skip LLR block/epoch deciding if not activated
+				if !es.Rules.Upgrades.Llr {
+					store.ModifyLlrState(func(llrs *LlrState) {
+						if llrs.LowestBlockToDecide == blockCtx.Idx {
+							llrs.LowestBlockToDecide++
+						}
+						if sealing && es.Epoch+1 == llrs.LowestEpochToDecide {
+							llrs.LowestEpochToDecide++
+						}
+					})
+				}
+
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
+				substart := time.Now()
 
 				// Providing default config
 				// In case of trace transaction node, this config is changed
@@ -211,7 +318,7 @@ func consensusCallbackBeginBlockFn(
 						txs = append(txs, e.Txs()...)
 					}
 
-					externalReceipts := evmProcessor.Execute(txs, false, evmCfg)
+					_ = evmProcessor.Execute(txs, false, evmCfg)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs
@@ -264,6 +371,7 @@ func consensusCallbackBeginBlockFn(
 						}
 
 						// Index receipts
+						// Note: it's possible for receipts to get indexed twice by BR and block processing
 						if allReceipts.Len() != 0 {
 							store.evm.SetReceipts(blockCtx.Idx, allReceipts)
 							for _, r := range allReceipts {
@@ -275,11 +383,38 @@ func consensusCallbackBeginBlockFn(
 						store.evm.SetTx(tx.Hash(), tx)
 					}
 
+					bs.LastBlock = blockCtx
+					bs.CheatersWritten = uint32(bs.EpochCheaters.Len())
+					if sealing {
+						store.SetHistoryBlockEpochState(es.Epoch, bs, es)
+						store.SetEpochBlock(blockCtx.Idx+1, es.Epoch)
+					}
 					store.SetBlock(blockCtx.Idx, block)
 					store.SetBlockIndex(block.Atropos, blockCtx.Idx)
-					bs.LastBlock = blockCtx
 					store.SetBlockEpochState(bs, es)
 					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
+					updateLowestBlockToFill(blockCtx.Idx, store)
+					updateLowestEpochToFill(es.Epoch, store)
+
+					// Update the metrics touched during block processing
+					accountReadTimer.Update(statedb.AccountReads)
+					storageReadTimer.Update(statedb.StorageReads)
+					accountUpdateTimer.Update(statedb.AccountUpdates)
+					storageUpdateTimer.Update(statedb.StorageUpdates)
+					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
+					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
+					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
+					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
+					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
+					// Update the metrics touched during block validation
+					accountHashTimer.Update(statedb.AccountHashes)
+					storageHashTimer.Update(statedb.StorageHashes)
+					blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
+					// Update the metrics touched by new block
+					headBlockGauge.Update(int64(blockCtx.Idx))
+					headHeaderGauge.Update(int64(blockCtx.Idx))
+					headFastBlockGauge.Update(int64(blockCtx.Idx))
 
 					// Notify about new block
 					if feed != nil {
@@ -293,11 +428,13 @@ func consensusCallbackBeginBlockFn(
 						feed.newLogs.Send(logs)
 					}
 
-					if onBlockEnd != nil {
-						onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
-					}
-
-					store.commitEVM()
+					store.commitEVM(false)
+					// Update the metrics touched during block commit
+					accountCommitTimer.Update(statedb.AccountCommits)
+					storageCommitTimer.Update(statedb.StorageCommits)
+					snapshotCommitTimer.Update(statedb.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",

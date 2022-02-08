@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 )
 
 type ValidatorState struct {
-	PrevEpochEvent inter.EventI
+	PrevEpochEvent iblockproc.EventInfo
 	GasRefund      uint64
 }
 
@@ -91,9 +93,9 @@ func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContex
 		prevTime = selfParent.MedianTime()
 	} else {
 		validatorState := ctx.ValidatorStates[ctx.Validators.GetIdx(e.Creator())]
-		if validatorState.PrevEpochEvent != nil {
-			prevGasPowerLeft = validatorState.PrevEpochEvent.GasPowerLeft().Gas[config.Idx]
-			prevTime = validatorState.PrevEpochEvent.MedianTime()
+		if validatorState.PrevEpochEvent.ID != hash.ZeroEvent {
+			prevGasPowerLeft = validatorState.PrevEpochEvent.GasPowerLeft.Gas[config.Idx]
+			prevTime = validatorState.PrevEpochEvent.Time
 		} else {
 			prevGasPowerLeft = 0
 			prevTime = ctx.EpochStart

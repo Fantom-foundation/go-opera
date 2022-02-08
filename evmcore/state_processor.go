@@ -18,14 +18,18 @@ package evmcore
 
 import (
 	"fmt"
+	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-opera/txtrace"
+
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -65,21 +69,23 @@ func (p *StateProcessor) Process(
 		header       = block.Header()
 		blockContext = NewEVMBlockContext(header, p.bc, nil)
 		vmenv        = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
+		blockHash    = block.Hash
+		blockNumber  = block.Number
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
 		var msg types.Message
 		if !internal {
-			msg, err = tx.AsMessage(types.MakeSigner(p.config, header.Number))
+			msg, err = tx.AsMessage(gsignercache.Wrap(types.MakeSigner(p.config, header.Number)), header.BaseFee)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 			}
 		} else {
-			msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data(), tx.AccessList(), false)
+			msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
 		}
 
-		statedb.Prepare(tx.Hash(), block.Hash, i)
-		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, block.Header(), tx, usedGas, vmenv, cfg, onNewLog)
+		statedb.Prepare(tx.Hash(), i)
+		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, blockNumber, blockHash, tx, usedGas, vmenv, cfg, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
 			err = nil
@@ -99,7 +105,8 @@ func applyTransaction(
 	config *params.ChainConfig,
 	gp *GasPool,
 	statedb *state.StateDB,
-	header *EvmHeader,
+	blockNumber *big.Int,
+	blockHash common.Hash,
 	tx *types.Transaction,
 	usedGas *uint64,
 	evm *vm.EVM,
@@ -125,8 +132,8 @@ func applyTransaction(
 		traceLogger.SetFrom(msg.From())
 		traceLogger.SetTo(msg.To())
 		traceLogger.SetValue(*msg.Value())
-		traceLogger.SetBlockHash(statedb.BlockHash())
-		traceLogger.SetBlockNumber(header.Number)
+		traceLogger.SetBlockHash(blockHash)
+		traceLogger.SetBlockNumber(blockNumber)
 		traceLogger.SetTxIndex(uint(statedb.TxIndex()))
 	}
 	// Apply the transaction to the current state (included in the env).
@@ -135,17 +142,17 @@ func applyTransaction(
 		return nil, 0, result == nil, err
 	}
 	// Notify about logs with potential state changes
-	logs := statedb.GetLogs(tx.Hash())
+	logs := statedb.GetLogs(tx.Hash(), blockHash)
 	for _, l := range logs {
 		onNewLog(l, statedb)
 	}
 
 	// Update the state with pending changes.
 	var root []byte
-	if config.IsByzantium(header.Number) {
+	if config.IsByzantium(blockNumber) {
 		statedb.Finalise(true)
 	} else {
-		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
 	}
 	*usedGas += result.UsedGas
 
@@ -167,8 +174,9 @@ func applyTransaction(
 
 	// Set the receipt logs.
 	receipt.Logs = logs
-	receipt.BlockHash = statedb.BlockHash()
-	receipt.BlockNumber = header.Number
+	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+	receipt.BlockHash = blockHash
+	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
 	// Set post informations and save trace

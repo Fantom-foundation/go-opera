@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type (
@@ -41,6 +42,8 @@ type (
 
 		GasLimit uint64
 		GasUsed  uint64
+
+		BaseFee *big.Int
 	}
 
 	EvmBlock struct {
@@ -60,14 +63,18 @@ func NewEvmBlock(h *EvmHeader, txs types.Transactions) *EvmBlock {
 	if len(txs) == 0 {
 		b.EvmHeader.TxHash = types.EmptyRootHash
 	} else {
-		b.EvmHeader.TxHash = types.DeriveSha(txs, new(trie.Trie))
+		b.EvmHeader.TxHash = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
 
 	return b
 }
 
 // ToEvmHeader converts inter.Block to EvmHeader.
-func ToEvmHeader(block *inter.Block, index idx.Block, prevHash hash.Event) *EvmHeader {
+func ToEvmHeader(block *inter.Block, index idx.Block, prevHash hash.Event, rules opera.Rules) *EvmHeader {
+	baseFee := rules.Economy.MinGasPrice
+	if !rules.Upgrades.London {
+		baseFee = nil
+	}
 	return &EvmHeader{
 		Hash:       common.Hash(block.Atropos),
 		ParentHash: common.Hash(prevHash),
@@ -76,6 +83,7 @@ func ToEvmHeader(block *inter.Block, index idx.Block, prevHash hash.Event) *EvmH
 		Time:       block.Time,
 		GasLimit:   math.MaxUint64,
 		GasUsed:    block.GasUsed,
+		BaseFee:    baseFee,
 	}
 }
 
@@ -92,11 +100,15 @@ func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 		ParentHash: h.ParentHash,
 		Time:       inter.FromUnix(int64(h.Time)),
 		Hash:       common.BytesToHash(h.Extra),
+		BaseFee:    h.BaseFee,
 	}
 }
 
 // EthHeader returns header in ETH format
 func (h *EvmHeader) EthHeader() *types.Header {
+	if h == nil {
+		return nil
+	}
 	// NOTE: incomplete conversion
 	ethHeader := &types.Header{
 		Number:     h.Number,
@@ -108,10 +120,11 @@ func (h *EvmHeader) EthHeader() *types.Header {
 		ParentHash: h.ParentHash,
 		Time:       uint64(h.Time.Unix()),
 		Extra:      h.Hash.Bytes(),
+		BaseFee:    h.BaseFee,
 
 		Difficulty: new(big.Int),
 	}
-	ethHeader.SetHashCache(h.Hash)
+	ethHeader.SetExternalHash(h.Hash)
 	return ethHeader
 }
 
@@ -124,6 +137,9 @@ func (b *EvmBlock) Header() *EvmHeader {
 	h := b.EvmHeader
 	// copy refs
 	h.Number = new(big.Int).Set(b.Number)
+	if b.BaseFee != nil {
+		h.BaseFee = new(big.Int).Set(b.BaseFee)
+	}
 
 	return &h
 }
@@ -136,7 +152,7 @@ func (b *EvmBlock) EthBlock() *types.Block {
 	if b == nil {
 		return nil
 	}
-	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, new(trie.Trie))
+	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, trie.NewStackTrie(nil))
 }
 
 func (b *EvmBlock) EstimateSize() int {

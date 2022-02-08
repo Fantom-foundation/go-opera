@@ -5,25 +5,28 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	notify "github.com/ethereum/go-ethereum/event"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/ibr"
+	"github.com/Fantom-foundation/go-opera/inter/iep"
 )
 
 // Constants to match up protocol versions and messages
 const (
-	ProtocolVersion = 62 // derived from eth62
+	FTM62           = 62
+	FTM63           = 63
+	ProtocolVersion = FTM63
 )
 
 // ProtocolName is the official short name of the protocol used during capability negotiation.
 const ProtocolName = "opera"
 
 // ProtocolVersions are the supported versions of the protocol (first is primary).
-var ProtocolVersions = []uint{ProtocolVersion}
+var ProtocolVersions = []uint{FTM62, FTM63}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
-var protocolLengths = map[uint]uint64{ProtocolVersion: EventsStreamResponse + 1}
+var protocolLengths = map[uint]uint64{FTM62: EventsStreamResponse + 1, FTM63: EPsStreamResponse + 1}
 
 const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -55,6 +58,13 @@ const (
 	RequestEventsStream = 8
 	// Contains the requested events by RequestEventsStream
 	EventsStreamResponse = 9
+
+	RequestBVsStream  = 10
+	BVsStreamResponse = 11
+	RequestBRsStream  = 12
+	BRsStreamResponse = 13
+	RequestEPsStream  = 14
+	EPsStreamResponse = 15
 )
 
 type errCode int
@@ -90,22 +100,22 @@ var errorToString = map[int]string{
 	ErrEmptyMessage:            "Empty message",
 }
 
-type txPool interface {
+type TxPool interface {
+	emitter.TxPool
 	// AddRemotes should add the given transactions to the pool.
 	AddRemotes([]*types.Transaction) []error
-
-	// Pending should return pending transactions.
-	// The slice should be modifiable by the caller.
-	Pending() (map[common.Address]types.Transactions, error)
-
-	// SubscribeNewTxsNotify should return an event subscription of
-	// NewTxsNotify and send events to the given channel.
-	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+	AddLocals(txs []*types.Transaction) []error
+	AddLocal(tx *types.Transaction) error
 
 	Get(common.Hash) *types.Transaction
 
 	OnlyNotExisting(hashes []common.Hash) []common.Hash
 	SampleHashes(max int) []common.Hash
+
+	Nonce(addr common.Address) uint64
+	Stats() (int, int)
+	Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	ContentFrom(addr common.Address) (types.Transactions, types.Transactions)
 }
 
 // handshakeData is the network packet for the initial handshake message
@@ -124,9 +134,27 @@ type PeerProgress struct {
 	HighestLamport idx.Lamport
 }
 
-type epochChunk struct {
+type dagChunk struct {
 	SessionID uint32
 	Done      bool
 	IDs       hash.Events
 	Events    inter.EventPayloads
+}
+
+type bvsChunk struct {
+	SessionID uint32
+	Done      bool
+	BVs       []inter.LlrSignedBlockVotes
+}
+
+type brsChunk struct {
+	SessionID uint32
+	Done      bool
+	BRs       []ibr.LlrIdxFullBlockRecord
+}
+
+type epsChunk struct {
+	SessionID uint32
+	Done      bool
+	EPs       []iep.LlrEpochPack
 }

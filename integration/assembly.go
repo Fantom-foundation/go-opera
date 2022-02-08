@@ -15,12 +15,18 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+)
+
+var (
+	FlushIDKey = hexutils.HexToBytes("0068c2927bf842c3e9e2f1364494a33a752db334b9a819534bc9f17d2c3b4e5970008ff519d35a86f29fcaa5aae706b75dee871f65f174fcea1747f2915fc92158f6bfbf5eb79f65d16225738594bffb0c")
 )
 
 // GenesisMismatchError is raised when trying to overwrite an existing
@@ -169,7 +175,14 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, inputGenesis InputGenesis, 
 			return nil, nil, nil, nil, nil, gossip.BlockProc{}, err
 		}
 	}
-	gdb, cdb, genesisStore := getStores(dbs, cfg)
+
+	var db kvdb.FlushableDBProducer
+	if metrics.Enabled {
+		db = WrapDatabaseWithMetrics(dbs)
+	} else {
+		db = dbs
+	}
+	gdb, cdb, genesisStore := getStores(db, cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()

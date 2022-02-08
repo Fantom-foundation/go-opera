@@ -112,7 +112,7 @@ func readFakeValidator(fakenet string) *validatorpk.PubKey {
 	}
 
 	return &validatorpk.PubKey{
-		Raw:  crypto.FromECDSAPub(&makegenesis.FakeKey(int(n)).PublicKey),
+		Raw:  crypto.FromECDSAPub(&makegenesis.FakeKey(n).PublicKey),
 		Type: validatorpk.Types.Secp256k1,
 	}
 }

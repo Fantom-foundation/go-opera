@@ -93,14 +93,14 @@ func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
 	}
-	msg, err := tx.AsMessage(types.MakeSigner(b.config, b.header.Number))
+	msg, err := tx.AsMessage(types.MakeSigner(b.config, b.header.Number), b.header.BaseFee)
 	if err != nil {
 		panic(err)
 	}
-	b.statedb.Prepare(tx.Hash(), common.Hash{}, len(b.txs))
+	b.statedb.Prepare(tx.Hash(), len(b.txs))
 	blockContext := NewEVMBlockContext(b.header, bc, nil)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, b.statedb, b.config, opera.DefaultVMConfig)
-	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vmenv, opera.DefaultVMConfig, func(log *types.Log, db *state.StateDB) {})
+	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, opera.DefaultVMConfig, func(log *types.Log, db *state.StateDB) {})
 	if err != nil {
 		panic(err)
 	}
@@ -125,6 +125,11 @@ func (b *BlockGen) AddUncheckedTx(tx *types.Transaction) {
 // Number returns the block number of the block being generated.
 func (b *BlockGen) Number() *big.Int {
 	return new(big.Int).Set(b.header.Number)
+}
+
+// BaseFee returns the EIP-1559 base fee of the block being generated.
+func (b *BlockGen) BaseFee() *big.Int {
+	return new(big.Int).Set(b.header.BaseFee)
 }
 
 // AddUncheckedReceipt forcefully adds a receipts to the block without a
@@ -236,14 +241,15 @@ func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
 	} else {
 		t = parent.Time + inter.Timestamp(10*time.Second) // block time is fixed at 10 seconds
 	}
-
-	return &EvmHeader{
+	header := &EvmHeader{
 		ParentHash: parent.Hash,
 		Coinbase:   parent.Coinbase,
 		GasLimit:   parent.GasLimit,
+		BaseFee:    parent.BaseFee,
 		Number:     new(big.Int).Add(parent.Number, common.Big1),
 		Time:       t,
 	}
+	return header
 }
 
 // makeHeaderChain creates a deterministic chain of headers rooted at parent.

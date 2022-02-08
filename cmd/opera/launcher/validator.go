@@ -33,38 +33,35 @@ var validatorPasswordFlag = cli.StringFlag{
 // command line flags or from the keystore if CLI indexed.
 func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 	// Extract the current validator address, new flag overriding legacy one
-	var validatorID idx.ValidatorID
-	var validatorPubkey validatorpk.PubKey
-	var err error
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		var num int
-		validatorID, num, err = parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		id, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			return err
 		}
+
+		if ctx.GlobalIsSet(validatorIDFlag.Name) && id != 0 {
+			return errors.New("specified validator ID with both --fakenet and --validator.id")
+		}
+
+		cfg.Validator.ID = id
 		validators := makegenesis.GetFakeValidators(num)
-		validatorPubkey = validators.Map()[validatorID].PubKey
+		cfg.Validator.PubKey = validators.Map()[cfg.Validator.ID].PubKey
 	}
+
 	if ctx.GlobalIsSet(validatorIDFlag.Name) {
-		validatorID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))
+		cfg.Validator.ID = idx.ValidatorID(ctx.GlobalInt(validatorIDFlag.Name))
 	}
+
 	if ctx.GlobalIsSet(validatorPubkeyFlag.Name) {
-		validatorPubkey, err = validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
+		pk, err := validatorpk.FromString(ctx.GlobalString(validatorPubkeyFlag.Name))
 		if err != nil {
 			return err
 		}
+		cfg.Validator.PubKey = pk
 	}
 
-	// Convert the validator into an address and configure it
-	if validatorID == 0 {
-		return nil
-	}
-
-	if validatorPubkey.Empty() {
+	if cfg.Validator.ID != 0 && cfg.Validator.PubKey.Empty() {
 		return errors.New("validator public key is not set")
 	}
-
-	cfg.Validator.ID = validatorID
-	cfg.Validator.PubKey = validatorPubkey
 	return nil
 }

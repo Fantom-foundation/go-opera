@@ -16,7 +16,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -28,22 +27,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/utils/iodb"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
-
-type restrictedEvmBatch struct {
-	kvdb.Batch
-}
-
-func (v *restrictedEvmBatch) Put(key []byte, value []byte) error {
-	if len(key) != 32 {
-		if !bytes.HasPrefix(key, []byte("secure-key-")) && !bytes.HasPrefix(key, []byte("c")) {
-			return errors.New("not expected prefix for EVM history dump")
-		}
-	}
-	return v.Batch.Put(key, value)
-}
 
 func importEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
@@ -52,7 +37,7 @@ func importEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.Cachescale)
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
@@ -87,7 +72,7 @@ func importEvmFile(fn string, gdb *gossip.Store) error {
 		defer reader.(*gzip.Reader).Close()
 	}
 
-	return iodb.Read(reader, &restrictedEvmBatch{gdb.EvmStore().EvmKvdbTable().NewBatch()})
+	return gdb.EvmStore().ImportEvm(reader)
 }
 
 func importEvents(ctx *cli.Context) error {
@@ -100,8 +85,8 @@ func importEvents(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
-	cfg.Opera.Emitter.Validator = emitter.ValidatorConfig{}
-	cfg.Opera.TxPool.Journal = ""
+	cfg.Emitter.Validator = emitter.ValidatorConfig{}
+	cfg.TxPool.Journal = ""
 	cfg.Node.IPCPath = ""
 	cfg.Node.HTTPHost = ""
 	cfg.Node.WSHost = ""

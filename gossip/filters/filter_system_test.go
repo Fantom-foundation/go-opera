@@ -35,6 +35,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
@@ -134,6 +135,10 @@ func (b *testBackend) EvmLogIndex() *topicsdb.Index {
 	return b.logIndex
 }
 
+func (b *testBackend) GetTxPosition(txid common.Hash) *evmstore.TxPosition {
+	return nil
+}
+
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain notify.
 // It creates multiple subscriptions:
 // - one at the start and should receive all posted chain events and a second (blockHashes)
@@ -146,7 +151,7 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend, testConfig())
 
-		net         = makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
+		net         = makegenesis.FakeGenesisStore(2, 5, big.NewInt(0), big.NewInt(1)).GetGenesis()
 		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
 		genesis     = evmcore.MustApplyGenesis(net, statedb, opt.MiB)
 		chain, _, _ = evmcore.GenerateChain(

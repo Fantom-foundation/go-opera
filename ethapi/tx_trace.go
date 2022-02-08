@@ -23,10 +23,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
-	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -34,6 +30,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 // PublicTxTraceAPI provides an API to access transaction tracing.
@@ -74,7 +75,7 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	var from common.Address
 
 	// reconstruct message from transaction
-	msg, err := tx.AsMessage(signer)
+	msg, err := tx.AsMessage(signer, header.BaseFee)
 	if err != nil {
 		log.Debug("Can't recreate message for transaction:", "txHash", tx.Hash().String(), " err", err.Error())
 		if v, _, _ := tx.RawSignatureValues(); new(big.Int).Cmp(v) == 0 {
@@ -94,7 +95,7 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	txTracer.SetGasUsed(tx.Gas())
 
 	// Changing some variables for replay and get a new instance of the EVM.
-	replayMsg := types.NewMessage(from, msg.To(), 0, msg.Value(), tx.Gas(), tx.GasPrice(), msg.Data(), tx.AccessList(), false)
+	replayMsg := types.NewMessage(from, msg.To(), 0, msg.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), msg.Data(), tx.AccessList(), true)
 	evm, vmError, err := backend.GetEVM(nil, replayMsg, state, header, &cfg)
 	if err != nil {
 		log.Error("Can't get evm for processing transaction:", "txHash", tx.Hash().String(), " err", err.Error())
@@ -110,7 +111,7 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
 	gp := new(evmcore.GasPool).AddGas(math.MaxUint64)
-	state.Prepare(tx.Hash(), block.Hash, int(index))
+	state.Prepare(tx.Hash(), int(index))
 	result, err := evmcore.ApplyMessage(evm, replayMsg, gp)
 	if err = vmError(); err != nil {
 		log.Error("Error when replaying transaction:", "txHash", tx.Hash().String(), " err", err.Error())

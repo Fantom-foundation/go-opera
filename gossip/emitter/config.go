@@ -25,7 +25,7 @@ type ValidatorConfig struct {
 	PubKey validatorpk.PubKey
 }
 
-type PrevEmittedEventFile struct {
+type FileConfig struct {
 	Path     string
 	SyncMode bool
 }
@@ -49,7 +49,9 @@ type Config struct {
 
 	TxsCacheInvalidation time.Duration
 
-	PrevEmittedEventFile PrevEmittedEventFile
+	PrevEmittedEventFile FileConfig
+	PrevBlockVotesFile   FileConfig
+	PrevEpochVoteFile    FileConfig
 }
 
 // DefaultConfig returns the default configurations for the events emitter.
@@ -92,7 +94,7 @@ func (cfg EmitIntervals) RandomizeEmitTime(r *rand.Rand) EmitIntervals {
 }
 
 // FakeConfig returns the testing configurations for the events emitter.
-func FakeConfig(num int) Config {
+func FakeConfig(num idx.Validator) Config {
 	cfg := DefaultConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
 	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max / 2

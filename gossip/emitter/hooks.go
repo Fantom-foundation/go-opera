@@ -22,13 +22,15 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	if em.maxParents > rules.Dag.MaxParents {
 		em.maxParents = rules.Dag.MaxParents
 	}
+	if em.validators != nil && em.isValidator() && !em.validators.Exists(em.config.Validator.ID) && newValidators.Exists(em.config.Validator.ID) {
+		em.syncStatus.becameValidator = time.Now()
+	}
 
 	em.validators, em.epoch = newValidators, newEpoch
 
 	if !em.isValidator() {
 		return
 	}
-	// update myValidatorID
 	em.prevEmittedAtTime = em.loadPrevEmitTime()
 
 	em.originatedTxs.Clear()
@@ -79,7 +81,7 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 	} else {
 		em.pendingGas = 0
 	}
-	if !he.NoTxs() {
+	if he.AnyTxs() {
 		e := em.world.GetEventPayload(he.ID())
 		for _, tx := range e.Txs() {
 			addr, _ := types.Sender(em.world.TxSigner, tx)

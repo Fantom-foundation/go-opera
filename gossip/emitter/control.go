@@ -40,7 +40,13 @@ func eventMetric(orig ancestor.Metric, seq idx.Event) ancestor.Metric {
 
 func (em *Emitter) isAllowedToEmit(e inter.EventI, eTxs bool, metric ancestor.Metric, selfParent *inter.Event) bool {
 	passedTime := e.CreationTime().Time().Sub(em.prevEmittedAtTime)
+	if passedTime < 0 {
+		passedTime = 0
+	}
 	passedTimeIdle := e.CreationTime().Time().Sub(em.prevIdleTime)
+	if passedTimeIdle < 0 {
+		passedTimeIdle = 0
+	}
 	if em.stakeRatio[e.Creator()] < 0.35*piecefunc.DecimalUnit {
 		// top validators emit event right after transaction is originated
 		passedTimeIdle = passedTime

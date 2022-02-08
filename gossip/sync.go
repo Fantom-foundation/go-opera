@@ -2,10 +2,66 @@ package gossip
 
 import (
 	"math/rand"
+	"sync/atomic"
+	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
+
+type syncStage uint32
+
+type syncStatus struct {
+	stage       uint32
+	maybeSynced uint32
+}
+
+const (
+	ssUnknown syncStage = iota
+	ssSnaps
+	ssEvmSnapGen
+	ssEvents
+)
+
+const (
+	snapsyncMinEndAge   = 14 * 24 * time.Hour
+	snapsyncMaxStartAge = 6 * time.Hour
+)
+
+func (ss *syncStatus) Is(s ...syncStage) bool {
+	self := &ss.stage
+	for _, v := range s {
+		if atomic.LoadUint32(self) == uint32(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ss *syncStatus) Set(s syncStage) {
+	atomic.StoreUint32(&ss.stage, uint32(s))
+}
+
+func (ss *syncStatus) MaybeSynced() bool {
+	return atomic.LoadUint32(&ss.maybeSynced) != 0
+}
+
+func (ss *syncStatus) MarkMaybeSynced() {
+	atomic.StoreUint32(&ss.maybeSynced, uint32(1))
+}
+
+func (ss *syncStatus) AcceptEvents() bool {
+	return ss.Is(ssEvents)
+}
+
+func (ss *syncStatus) AcceptBlockRecords() bool {
+	return !ss.Is(ssEvents)
+}
+
+func (ss *syncStatus) AcceptTxs() bool {
+	return ss.MaybeSynced() && ss.Is(ssEvents)
+}
 
 type txsync struct {
 	p     *peer
@@ -13,13 +69,13 @@ type txsync struct {
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
-func (pm *ProtocolManager) syncTransactions(p *peer, txids []common.Hash) {
+func (h *handler) syncTransactions(p *peer, txids []common.Hash) {
 	if len(txids) == 0 {
 		return
 	}
 	select {
-	case pm.txsyncCh <- &txsync{p, txids}:
-	case <-pm.quitSync:
+	case h.txsyncCh <- &txsync{p, txids}:
+	case <-h.quitSync:
 	}
 }
 
@@ -27,7 +83,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer, txids []common.Hash) {
 // connection. When a new peer appears, we relay all currently pending
 // transactions. In order to minimise egress bandwidth usage, we send
 // the transactions in small packs to one peer at a time.
-func (pm *ProtocolManager) txsyncLoop() {
+func (h *handler) txsyncLoop() {
 	var (
 		pending = make(map[enode.ID]*txsync)
 		sending = false               // whether a send is active
@@ -76,7 +132,7 @@ func (pm *ProtocolManager) txsyncLoop() {
 
 	for {
 		select {
-		case s := <-pm.txsyncCh:
+		case s := <-h.txsyncCh:
 			pending[s.p.ID()] = s
 			if !sending {
 				send(s)
@@ -92,20 +148,141 @@ func (pm *ProtocolManager) txsyncLoop() {
 			if s := pick(); s != nil {
 				send(s)
 			}
-		case <-pm.quitSync:
+		case <-h.quitSync:
 			return
 		}
 	}
 }
 
-// syncer is responsible for periodically synchronising with the network, both
-// downloading hashes and events as well as handling the announcement handler.
-func (pm *ProtocolManager) syncer() {
-	// Start and ensure cleanup of sync mechanisms
+func (h *handler) updateSnapsyncStage() {
+	// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
+	snapGenOngoing, _ := h.store.evm.Snaps.Generating()
+	fullsyncPossibleEver := h.store.evm.HasStateDB(h.store.GetBlockState().FinalizedStateRoot)
+	fullsyncPossibleNow := fullsyncPossibleEver && !snapGenOngoing
+	// never allow to stop fullsync as it may lead to a race condition due to overwritten EVM snapshot by snapsync
+	snapsyncPossible := h.config.AllowSnapsync && (h.syncStatus.Is(ssUnknown) || h.syncStatus.Is(ssSnaps))
+	snapsyncNeeded := !fullsyncPossibleEver || time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
+
+	if snapsyncPossible && snapsyncNeeded {
+		h.syncStatus.Set(ssSnaps)
+	} else if snapGenOngoing {
+		h.syncStatus.Set(ssEvmSnapGen)
+	} else if fullsyncPossibleNow {
+		if !h.syncStatus.Is(ssEvents) {
+			h.Log.Info("Start/Switch to fullsync mode...")
+		}
+		h.syncStatus.Set(ssEvents)
+	}
+}
+
+func (h *handler) snapsyncStageTick() {
+	// check if existing snapsync process can be resulted
+	h.updateSnapsyncStage()
+	llrs := h.store.GetLlrState()
+	if h.syncStatus.Is(ssSnaps) {
+		for i := 0; i < 3; i++ {
+			epoch := llrs.LowestEpochToFill - 1 - idx.Epoch(i)
+			if epoch <= h.store.GetEpoch() {
+				continue
+			}
+			bs, _ := h.store.GetHistoryBlockEpochState(epoch)
+			if bs == nil {
+				continue
+			}
+			if !h.store.evm.HasStateDB(bs.FinalizedStateRoot) {
+				continue
+			}
+			if llrs.LowestBlockToFill <= bs.LastBlock.Idx {
+				continue
+			}
+			if time.Since(bs.LastBlock.Time.Time()) > snapsyncMinEndAge {
+				continue
+			}
+			// cancel snapsync activity to prevent race condition
+			done := make(chan struct{})
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				snapsyncCancelCmd: &snapsyncCancelCmd{done},
+			}
+			<-done
+			// finalize snapsync
+			if err := h.process.SwitchEpochTo(epoch); err != nil {
+				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
+			} else {
+				h.Log.Info("Snapsync is finalized at", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
+				// switch state to non-snapsync and thus not allow ssSnaps ever again
+				h.syncStatus.Set(ssEvmSnapGen)
+			}
+		}
+	}
+	// push new data into an existing snapsync process
+	if h.syncStatus.Is(ssSnaps) {
+		lastEpoch := llrs.LowestEpochToFill - 1
+		lastBs, _ := h.store.GetHistoryBlockEpochState(lastEpoch)
+		if lastBs != nil && time.Since(lastBs.LastBlock.Time.Time()) < snapsyncMaxStartAge {
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				snapsyncEpochUpd: &snapsyncEpochUpd{
+					epoch: lastEpoch,
+					root:  common.Hash(lastBs.FinalizedStateRoot),
+				},
+			}
+		}
+	}
+	// resume events downloading if events sync is enabled
+	if h.syncStatus.Is(ssEvents) {
+		h.dagLeecher.Resume()
+		h.brLeecher.Pause()
+	} else {
+		h.dagLeecher.Pause()
+		h.brLeecher.Resume()
+	}
+}
+
+func (h *handler) snapsyncStageLoop() {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	defer h.loopsWg.Done()
 	for {
 		select {
-		case <-pm.newPeerCh:
-		case <-pm.noMorePeers:
+		case <-ticker.C:
+			h.snapsyncStageTick()
+		case <-h.snapState.quit:
+			return
+		}
+	}
+}
+
+func (h *handler) snapsyncStateLoop() {
+	defer h.loopsWg.Done()
+	for {
+		select {
+		case cmd := <-h.snapState.updatesCh:
+			if cmd.snapsyncEpochUpd != nil {
+				upd := cmd.snapsyncEpochUpd
+				// check if epoch has advanced
+				if h.snapState.epoch >= upd.epoch {
+					continue
+				}
+				h.snapState.epoch = upd.epoch
+				// cancel existing snapsync state
+				if h.snapState.cancel != nil {
+					_ = h.snapState.cancel()
+					h.snapState.cancel = nil
+				}
+				// start new snapsync state
+				h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
+				h.process.PauseEvmSnapshot()
+				ss := h.snapLeecher.SyncState(upd.root)
+				h.snapState.cancel = ss.Cancel
+			}
+			if cmd.snapsyncCancelCmd != nil {
+				// cancel existing snapsync state
+				if h.snapState.cancel != nil {
+					_ = h.snapState.cancel()
+					h.snapState.cancel = nil
+				}
+				cmd.snapsyncCancelCmd.done <- struct{}{}
+			}
+		case <-h.snapState.quit:
 			return
 		}
 	}

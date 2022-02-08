@@ -69,9 +69,9 @@ func BenchmarkInsertChain_ring1000_diskdb(b *testing.B) {
 
 var (
 	// This is the content of the genesis block used by the benchmarks.
-	benchRootKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	benchRootAddr   = crypto.PubkeyToAddress(benchRootKey.PublicKey)
-	benchRootFunds  = math.BigPow(2, 100)
+	benchRootKey   = makegenesis.FakeKey(1)
+	benchRootAddr  = crypto.PubkeyToAddress(benchRootKey.PublicKey)
+	benchRootFunds = math.BigPow(2, 100)
 )
 
 // genValueTx returns a block generator that includes a single
@@ -150,7 +150,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	net := makegenesis.FakeGenesisStore(5, big.NewInt(0), big.NewInt(1)).GetGenesis()
+	net := makegenesis.FakeGenesisStore(2, 1, benchRootFunds, big.NewInt(1)).GetGenesis()
 
 	// state
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
