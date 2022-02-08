@@ -204,6 +204,7 @@ func traceBlock(ctx context.Context, block *evmcore.EvmBlock, backend Backend, t
 					if err != nil {
 						log.Debug("Cannot get state for blockblock ", "block", block.NumberU64(), "err", err.Error())
 						callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, nil, common.Hash{}, 0, err))
+						continue
 					}
 
 					txTraces, err := traceTx(ctx, state, header, backend, block, tx, index)
