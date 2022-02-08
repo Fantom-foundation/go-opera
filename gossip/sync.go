@@ -283,6 +283,10 @@ func (h *handler) snapsyncStateLoop() {
 				cmd.snapsyncCancelCmd.done <- struct{}{}
 			}
 		case <-h.snapState.quit:
+			if h.snapState.cancel != nil {
+				_ = h.snapState.cancel()
+				h.snapState.cancel = nil
+			}
 			return
 		}
 	}
