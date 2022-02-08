@@ -35,6 +35,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
 	"github.com/Fantom-foundation/go-opera/txtrace"
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 // PublicTxTraceAPI provides an API to access transaction tracing.
@@ -71,7 +72,7 @@ func traceTx(ctx context.Context, state *state.StateDB, header *evmcore.EvmHeade
 	defer cancel()
 
 	// create a signer of this transaction
-	signer := types.MakeSigner(backend.ChainConfig(), block.Number)
+	signer := gsignercache.Wrap(types.MakeSigner(backend.ChainConfig(), block.Number))
 	var from common.Address
 
 	// reconstruct message from transaction
