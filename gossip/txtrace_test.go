@@ -24,7 +24,9 @@ import (
 func TestTxTracing(t *testing.T) {
 	logger.SetTestMode(t)
 
-	env := newTestEnv(2, 3)
+	env := newTestEnv(2, 3, func(cfg *StoreConfig) {
+		cfg.TraceTransactions = true
+	})
 	defer env.Close()
 
 	var (
