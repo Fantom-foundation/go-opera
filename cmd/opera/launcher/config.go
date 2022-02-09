@@ -130,7 +130,7 @@ type config struct {
 	Lachesis      abft.Config
 	LachesisStore abft.StoreConfig
 	VectorClock   vecmt.IndexConfig
-	Cachescale    cachescale.Func
+	cachescale    cachescale.Func
 }
 
 func (c *config) AppConfigs() integration.Configs {
@@ -354,7 +354,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
-		Cachescale:    cacheRatio,
+		cachescale:    cacheRatio,
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
