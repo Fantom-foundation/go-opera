@@ -126,4 +126,14 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		require.ErrorIs(err, ErrRootMismatch)
 		maliciousReader.Close()
 	}
+
+	// hashed file requires too much memory
+	{
+		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
+		require.NoError(err)
+		oomReader := WrapReader(f, 16, root)
+		data := make([]byte, PIECE_SIZE)
+		_, err = oomReader.Read(data)
+		require.Errorf(err, "hashed file requires too much memory")
+	}
 }
