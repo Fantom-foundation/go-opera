@@ -1,16 +1,12 @@
 package fileshash
 
 import (
-	"fmt"
 	"io"
-	"math/rand"
+	"io/ioutil"
 	"os"
-	"path"
 	"testing"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,23 +37,19 @@ func (f dropableFile) Drop() error {
 
 func TestFileHash_ReadWrite(t *testing.T) {
 	require := require.New(t)
-	f, err := os.OpenFile("/tmp/testnet.g", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	defer os.Remove(f.Name())
+	tmpDirPath, err := ioutil.TempDir("", "filehash*")
+	defer os.RemoveAll(tmpDirPath)
 	require.NoError(err)
-	tmpDirPath := "/tmp/"
+	f, err := ioutil.TempFile(tmpDirPath, "testnet.g")
+	filePath := f.Name()
+	require.NoError(err)
 	writer := WrapWriter(f, PIECE_SIZE, 200, func() TmpWriter {
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r1 := rand.New(s1)
-		tmpPath := path.Join(tmpDirPath, fmt.Sprintf("genesis-tmp-%d", r1.Intn(10000)))
-		_ = os.MkdirAll(tmpDirPath, os.ModePerm)
-		tmpFh, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
-		if err != nil {
-			log.Crit("File opening error", "path", tmpPath, "err", err)
-		}
+		tmpFh, err := ioutil.TempFile(tmpDirPath, "genesis.*.dat")
+		require.NoError(err)
 		return dropableFile{
 			ReadWriteSeeker: tmpFh,
 			Closer:          tmpFh,
-			path:            tmpPath,
+			path:            tmpFh.Name(),
 		}
 	})
 
@@ -71,7 +63,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 
 	// normal case: correct root hash and content
 	{
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
 		require.NoError(err)
 		reader := WrapReader(f, 2048, root)
 		data := make([]byte, 5)
@@ -84,7 +76,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 
 	// passing the wrong root hash to reader
 	{
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
 		require.NoError(err)
 		maliciousReader := WrapReader(f, 2048, hash.HexToHash("0x00"))
 		data := make([]byte, PIECE_SIZE)
@@ -95,14 +87,14 @@ func TestFileHash_ReadWrite(t *testing.T) {
 
 	// modify piece data to make the mismatch piece hash
 	{
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_WRONLY, 0600)
 		require.NoError(err)
 		f.Seek(300, 0)
-		s := []byte("0000000000")
+		s := []byte("foobar")
 		f.Write(s)
 		f.Close()
 
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
 		maliciousReader := WrapReader(f, 2048, root)
 		data := make([]byte, PIECE_SIZE)
 		_, err = maliciousReader.Read(data)
@@ -112,14 +104,14 @@ func TestFileHash_ReadWrite(t *testing.T) {
 
 	// modify a piece hash in file to make the wrong one
 	{
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_WRONLY, 0600)
 		require.NoError(err)
 		f.Seek(16, 0)
 		s := []byte("0000000000")
 		f.Write(s)
 		f.Close()
 
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
 		maliciousReader := WrapReader(f, 2048, root)
 		data := make([]byte, PIECE_SIZE)
 		_, err = maliciousReader.Read(data)
@@ -129,7 +121,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 
 	// hashed file requires too much memory
 	{
-		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
+		f, err = os.OpenFile(filePath, os.O_WRONLY, 0600)
 		require.NoError(err)
 		oomReader := WrapReader(f, 16, root)
 		data := make([]byte, PIECE_SIZE)
