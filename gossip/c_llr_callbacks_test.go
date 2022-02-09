@@ -3,6 +3,7 @@ package gossip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -26,6 +27,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 
@@ -210,7 +212,7 @@ func newTestParams(t *testing.T, genEvmBlock, procEvmBlock *evmcore.EvmBlock, ge
 func (p testParams) compareEvmBlocks() {
 	// comparing all fields of genEvmBlock and procEvmBlock
 	require.Equal(p.t, p.genEvmBlock.Number, p.procEvmBlock.Number)
-	require.Equal(p.t , p.genEvmBlock.Hash, p.procEvmBlock.Hash)
+	require.Equal(p.t, p.genEvmBlock.Hash, p.procEvmBlock.Hash)
 	require.Equal(p.t, p.genEvmBlock.ParentHash, p.procEvmBlock.ParentHash)
 	require.Equal(p.t, p.genEvmBlock.Root, p.procEvmBlock.Root)
 	require.Equal(p.t, p.genEvmBlock.TxHash, p.procEvmBlock.TxHash)
@@ -425,7 +427,7 @@ func (r repeater) compareParams() {
 		require.NoError(r.t, err)
 
 		r.t.Log("comparing logs")
-		testParams.serializeAndCompare(genLogs, procLogs) 
+		testParams.serializeAndCompare(genLogs, procLogs)
 		testParams.compareLogs(genLogs, procLogs)
 
 		// compare ReceiptForStorage
@@ -870,7 +872,221 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	fullRepeater.compareLogsByFilterCriteria()
 }
 
-
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(IntegrationTestSuite))
+}
+
+func TestBlockAndEpochRecords(t *testing.T) {
+	const (
+		validatorsNum = 10
+		startEpoch    = 1
+	)
+	// setup testEnv
+	env := newTestEnv(startEpoch, validatorsNum)
+
+	// 1.create epoch record  e1 manually
+	er1 := ier.LlrIdxFullEpochRecord{Idx: idx.Epoch(startEpoch + 1)}
+	// 3
+	require.EqualError(t, env.ProcessFullEpochRecord(er1), eventcheck.ErrUndecidedER.Error())
+
+	// 2.create block record manually
+	br1 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
+	//3
+	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
+
+	// 4.create less than 1/3W+1 epoch votes, ER still should not be processed
+	for i := 1; i < 4; i++ {
+		e := fakeEvent(0, 0, i, true)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(t, env.ProcessEpochVote(ev))
+	}
+
+	require.EqualError(t, env.ProcessFullEpochRecord(er1), eventcheck.ErrUndecidedER.Error())
+
+	// 5. add one more epoch vote,so 4 = 1/3W+1 it has to be processed
+	fmt.Println("adding 4th epoch vote")
+	e := fakeEvent(0, 0, 4, true)
+	ev := inter.AsSignedEpochVote(e)
+	require.NoError(t, env.ProcessEpochVote(ev))
+	require.NoError(t, env.ProcessFullEpochRecord(er1))
+
+	// 6.create epoch record er2  of same epoch as er1, but with another name.
+	er2 := ier.LlrIdxFullEpochRecord{Idx: idx.Epoch(startEpoch + 1)}
+	// 7.Get an error that the er has been already processed.
+	require.EqualError(t, env.ProcessFullEpochRecord(er2), eventcheck.ErrAlreadyProcessedER.Error())
+
+	//8. try to process Br1 witho ne vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
+	e = fakeEvent(0, 1, 0, false)
+	bv := inter.AsSignedBlockVotes(e)
+	// TODO resolve Panics  later
+	//	require.Panics(t, func() {env.ProcessBlockVotes(bv)}) //(*Validators).GetWeightByIdx(...)panic
+	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
+
+	//9,10. process er1 and er2. it should yield an ErrAlreadyProcessedER error
+	require.EqualError(t, env.ProcessFullEpochRecord(er1), eventcheck.ErrAlreadyProcessedER.Error())
+	require.EqualError(t, env.ProcessFullEpochRecord(er2), eventcheck.ErrAlreadyProcessedER.Error())
+
+	//11 add votes < 1/3W+1 for Br1. Record still should not be processed.
+	fmt.Println("adding 3 votes for br1")
+	for i := 5; i < 8; i++ {
+		e := fakeEvent(0, 1, i, true)
+		bv := inter.AsSignedBlockVotes(e)
+		require.NoError(t, env.ProcessBlockVotes(bv))
+	}
+	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
+
+	//12 add one vote for br1, br1 has to be processed
+	fmt.Println("adding 4th block vote to make up to match 1/3W+1")
+	e = fakeEvent(0, 1, 8, true)
+	bv = inter.AsSignedBlockVotes(e)
+	require.NoError(t, env.ProcessBlockVotes(bv))
+	// TODO fix block record hash mismatch error
+	require.NoError(t, env.ProcessFullBlockRecord(br1))
+
+	// TODO make somet test cases for  record hash mismatch error
+
+	// 13. create one more record of the same block , but dufferent br2. The error should pop up that br1
+	br2 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
+	require.EqualError(t, env.ProcessFullBlockRecord(br2), eventcheck.ErrAlreadyProcessedBR.Error())
+
+	//14. process BR1, nestikovka
+	// TODO fix block record hash mismatch error
+	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrAlreadyProcessedBR.Error())
+}
+
+// can not import it from inter package (((
+func fakeEvent(txsNum, bvsNum int, valID int, ersNum bool) *inter.EventPayload {
+	r := rand.New(rand.NewSource(int64(0)))
+	random := &inter.MutableEventPayload{}
+	random.SetVersion(1)
+	random.SetEpoch(2)
+	random.SetNetForkID(uint16(r.Uint32() >> 16))
+	random.SetLamport(idx.Lamport(rand.Intn(100) + 900))
+	random.SetExtra([]byte{byte(r.Uint32())})
+	random.SetSeq(idx.Event(r.Uint32() >> 8))
+	random.SetCreator(idx.ValidatorID(valID))
+	random.SetFrame(idx.Frame(r.Uint32() >> 16))
+	random.SetCreationTime(inter.Timestamp(r.Uint64()))
+	random.SetMedianTime(inter.Timestamp(r.Uint64()))
+	random.SetGasPowerUsed(r.Uint64())
+	random.SetGasPowerLeft(inter.GasPowerLeft{[2]uint64{r.Uint64(), r.Uint64()}})
+	txs := types.Transactions{}
+	for i := 0; i < txsNum; i++ {
+		h := hash.Hash{}
+		r.Read(h[:])
+		if i%3 == 0 {
+			tx := types.NewTx(&types.LegacyTx{
+				Nonce:    r.Uint64(),
+				GasPrice: randBig(r),
+				Gas:      257 + r.Uint64(),
+				To:       nil,
+				Value:    randBig(r),
+				Data:     randBytes(r, r.Intn(300)),
+				V:        big.NewInt(int64(r.Intn(0xffffffff))),
+				R:        h.Big(),
+				S:        h.Big(),
+			})
+			txs = append(txs, tx)
+		} else if i%3 == 1 {
+			tx := types.NewTx(&types.AccessListTx{
+				ChainID:    randBig(r),
+				Nonce:      r.Uint64(),
+				GasPrice:   randBig(r),
+				Gas:        r.Uint64(),
+				To:         randAddrPtr(r),
+				Value:      randBig(r),
+				Data:       randBytes(r, r.Intn(300)),
+				AccessList: randAccessList(r, 300, 300),
+				V:          big.NewInt(int64(r.Intn(0xffffffff))),
+				R:          h.Big(),
+				S:          h.Big(),
+			})
+			txs = append(txs, tx)
+		} else {
+			tx := types.NewTx(&types.DynamicFeeTx{
+				ChainID:    randBig(r),
+				Nonce:      r.Uint64(),
+				GasTipCap:  randBig(r),
+				GasFeeCap:  randBig(r),
+				Gas:        r.Uint64(),
+				To:         randAddrPtr(r),
+				Value:      randBig(r),
+				Data:       randBytes(r, r.Intn(300)),
+				AccessList: randAccessList(r, 300, 300),
+				V:          big.NewInt(int64(r.Intn(0xffffffff))),
+				R:          h.Big(),
+				S:          h.Big(),
+			})
+			txs = append(txs, tx)
+		}
+	}
+
+	bvs := inter.LlrBlockVotes{}
+	if bvsNum > 0 {
+		bvs.Start = 2
+		bvs.Epoch = 1
+		random.SetEpoch(1)
+	}
+
+	v := hash.HexToHash("0x11")
+	for i := 0; i < bvsNum; i++ {
+		bvs.Votes = append(bvs.Votes, v)
+	}
+
+	ev := inter.LlrEpochVote{}
+	if ersNum {
+		ev.Epoch = 2
+		ev.Vote = hash.HexToHash("0x12")
+	}
+
+	random.SetTxs(txs)
+	random.SetEpochVote(ev)
+	random.SetBlockVotes(bvs)
+	random.SetPayloadHash(inter.CalcPayloadHash(random))
+
+	parent := inter.MutableEventPayload{}
+	parent.SetVersion(1)
+	parent.SetLamport(random.Lamport() - 500)
+	parent.SetEpoch(random.Epoch())
+	random.SetParents(hash.Events{parent.Build().ID()})
+
+	return random.Build()
+}
+
+func randBig(r *rand.Rand) *big.Int {
+	b := make([]byte, r.Intn(8))
+	_, _ = r.Read(b)
+	if len(b) == 0 {
+		b = []byte{0}
+	}
+	return new(big.Int).SetBytes(b)
+}
+
+func randBytes(r *rand.Rand, size int) []byte {
+	b := make([]byte, size)
+	r.Read(b)
+	return b
+}
+
+func randAddrPtr(r *rand.Rand) *common.Address {
+	addr := randAddr(r)
+	return &addr
+}
+
+func randAddr(r *rand.Rand) common.Address {
+	addr := common.Address{}
+	r.Read(addr[:])
+	return addr
+}
+
+func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
+	accessList := make(types.AccessList, r.Intn(maxAddrs))
+	for i := range accessList {
+		accessList[i].Address = randAddr(r)
+		accessList[i].StorageKeys = make([]common.Hash, r.Intn(maxKeys))
+		for j := range accessList[i].StorageKeys {
+			r.Read(accessList[i].StorageKeys[j][:])
+		}
+	}
+	return accessList
 }

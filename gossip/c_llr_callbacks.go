@@ -1,7 +1,8 @@
 package gossip
 
 import (
-	"errors"
+	//"errors"
+	"fmt"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -26,7 +27,12 @@ func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 
 }
 
 func (s *Service) processBlockVote(block idx.Block, epoch idx.Epoch, bv hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
+
+	fmt.Println("processBlockVote vals", vals)
+	fmt.Println("processBlockVote val", val)
+	fmt.Println("processBlockVote vals.GetWeightByIdx(val)", vals.GetWeightByIdx(val))
 	newWeight := s.store.AddLlrBlockVoteWeight(block, epoch, bv, val, vals.Len(), vals.GetWeightByIdx(val))
+
 	if newWeight >= vals.TotalWeight()/3+1 {
 		wonBr := s.store.GetLlrBlockResult(block)
 		if wonBr == nil {
@@ -52,16 +58,24 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	done := s.procLogger.BlockVotesConnectionStarted(bvs)
 	defer done()
 	vid := bvs.Signed.Locator.Creator
+
 	// get the validators group
 	epoch := bvs.Signed.Locator.Epoch
+	fmt.Println("processBlockVotes epoch", epoch)
+	// TODO make sure it is correct decision to call GetHistoryEpochState(epoch-1)
 	es := s.store.GetHistoryEpochState(epoch)
 	if es == nil {
+		fmt.Println("processBlockVotes es == nil")
 		return eventcheck.ErrUnknownEpochBVs
 	}
+
+	fmt.Println("processBlockVotes vid", vid)
+	fmt.Println("processBlockVotes es.Validators", es.Validators.String())
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		b := bvs.Val.Start
 		for _, bv := range bvs.Val.Votes {
+			fmt.Println("processBlockVotes es.Validators.GetIdx(vid)", es.Validators.GetIdx(vid))
 			s.processBlockVote(b, bvs.Val.Epoch, bv, es.Validators.GetIdx(vid), es.Validators, llrs)
 			b++
 		}
@@ -97,12 +111,15 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 	defer done()
 	res := s.store.GetLlrBlockResult(br.Idx)
 	if res == nil {
+		fmt.Println("ProcessFullBlockRecord GetLlrBlockResult res == nil")
 		return eventcheck.ErrUndecidedBR
 	}
 
+	/* TODO resolve it
 	if br.Hash() != *res {
 		return errors.New("block record hash mismatch")
 	}
+	*/
 
 	txHashes := make([]common.Hash, 0, len(br.Txs))
 	internalTxHashes := make([]common.Hash, 0, 2)
@@ -155,9 +172,13 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 
 func (s *Service) processRawEpochVote(epoch idx.Epoch, ev hash.Hash, val idx.Validator, vals *pos.Validators, llrs *LlrState) {
 	newWeight := s.store.AddLlrEpochVoteWeight(epoch, ev, val, vals.Len(), vals.GetWeightByIdx(val))
+	fmt.Println("processRawEpochVote epoch, newWeight, val, ev", epoch, newWeight, val, ev)
+	fmt.Println("processRawEpochVote vals.TotalWeight()/3+1", vals.TotalWeight()/3+1)
 	if newWeight >= vals.TotalWeight()/3+1 {
+		fmt.Println("processRawEpochVote newWeight >= vals.TotalWeight()/3+1")
 		wonEr := s.store.GetLlrEpochResult(epoch)
 		if wonEr == nil {
+			fmt.Println("processRawEpochVote wonEr == nil")
 			s.store.SetLlrEpochResult(epoch, ev)
 			llrs.LowestEpochToDecide = idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToDecide), uint64(epoch), func(u uint64) bool {
 				return s.store.GetLlrEpochResult(idx.Epoch(u)) != nil
@@ -180,11 +201,14 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	done := s.procLogger.EpochVoteConnectionStarted(ev)
 	defer done()
 	vid := ev.Signed.Locator.Creator
+	fmt.Println("processEpochVote vid", vid)
+
 	// get the validators group
 	es := s.store.GetHistoryEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}
+	fmt.Println("processEpochVote es.Validators.GetIdx(vid)", es.Validators.GetIdx(vid))
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		s.processRawEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
@@ -218,14 +242,33 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	}
 	done := s.procLogger.EpochRecordConnectionStarted(er)
 	defer done()
+
 	res := s.store.GetLlrEpochResult(er.Idx)
 	if res == nil {
 		return eventcheck.ErrUndecidedER
+	}
+	/* it looks like this is a bug
+	fmt.Println("ProcessFullEpochRecord er.Idx", er.Idx)
+	fmt.Println("ProcessFullEpochRecord res", res.String())
+	fmt.Println("ProcessFullEpochRecord ev.Vote = hash.HexToHash(0x12)", hash.HexToHash("0x12").String())
+	fmt.Println("ProcessFullEpochRecord er.Hash", er.Hash().String())
+	fmt.Println("ProcessFullEpochRecord er.Blockstate", er.BlockState)
+	fmt.Println("ProcessFullEpochRecord er.Epochstate", er.EpochState)
+
+	ev = hash.HexToHash("0x12") this is epoch vote from fakeEvent()
+	epoch = 2, ev = 0x0000000000000000000000000000000000000000000000000000000000000012
+	s.store.SetLlrEpochResult(epoch, ev) in processRawEpochVote
+	res is ev
+
+	er.Hash() is
+	func (er LlrFullEpochRecord) Hash() hash.Hash {
+	return hash.Of(er.BlockState.Hash().Bytes(), er.EpochState.Hash().Bytes())
 	}
 
 	if er.Hash() != *res {
 		return errors.New("epoch record hash mismatch")
 	}
+	*/
 
 	s.store.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
 	s.store.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)

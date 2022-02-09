@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"fmt"
+
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -46,9 +48,11 @@ func (s *Store) getLlrVoteWeight(reader kvdb.Reader, key []byte) (pos.Weight, bi
 }
 
 func (s *Store) addLlrVoteWeight(table kvdb.Store, key []byte, val idx.Validator, vals idx.Validator, diff pos.Weight) pos.Weight {
+	fmt.Println("addLlrVoteWeight diff", diff)
 	weight, set := s.getLlrVoteWeight(table, key)
 	if set != nil && set.Has(int(val)) {
 		// don't count the vote if validator already voted
+		fmt.Println("addLlrVoteWeight set != nil && set.Has(int(val)), weight, set", weight)
 		return weight
 	}
 	if set == nil {
