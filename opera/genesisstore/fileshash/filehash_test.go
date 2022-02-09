@@ -61,6 +61,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		}
 	})
 
+	// write out the (secure) self-hashed file properly
 	_, err = writer.Write([]byte(FILE_CONTENT))
 	require.NoError(err)
 	h, err := writer.Flush()
@@ -68,6 +69,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 	require.Equal(h.Hex(), FILE_HASH)
 	f.Close()
 
+	// normal case: correct root hash and content
 	{
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
 		require.NoError(err)
@@ -80,6 +82,7 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		reader.Close()
 	}
 
+	// passing the wrong root hash to reader
 	{
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
 		require.NoError(err)
@@ -90,11 +93,12 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		maliciousReader.Close()
 	}
 
+	// modify a piece hash in file to make the wrong one
 	{
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
 		require.NoError(err)
-		f.Seek(200, 1)
-		f.Write([]byte("foobar"))
+		f.Seek(12, 0)
+		f.Write([]byte("0000000000"))
 		f.Close()
 
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
@@ -103,5 +107,9 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		_, err = maliciousReader.Read(data)
 		require.ErrorIs(err, ErrRootMismatch)
 		maliciousReader.Close()
+	}
+
+	// TODO: need to reproduce the ErrHashMismatch error
+	{
 	}
 }
