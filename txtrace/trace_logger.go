@@ -187,28 +187,27 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		tr.state = append(tr.state, depthState{depth, false})
 
 	case vm.RETURN, vm.STOP:
-		if tr.reverted {
-			tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result = nil
-			tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Error = "Reverted"
-		} else {
+		if !tr.reverted {
 			result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
-			var data []byte
+			if result != nil {
+				var data []byte
 
-			if vm.STOP != op {
-				offset := stackPosFromEnd(scope.Stack.Data(), 0).Int64()
-				size := stackPosFromEnd(scope.Stack.Data(), 1).Int64()
-				if size > 0 {
-					data = make([]byte, size)
-					copy(data, scope.Memory.Data()[offset:offset+size])
+				if vm.STOP != op {
+					offset := stackPosFromEnd(scope.Stack.Data(), 0).Int64()
+					size := stackPosFromEnd(scope.Stack.Data(), 1).Int64()
+					if size > 0 {
+						data = make([]byte, size)
+						copy(data, scope.Memory.Data()[offset:offset+size])
+					}
 				}
-			}
 
-			if lastState(tr.state).create {
-				result.Code = data
-			} else {
-				result.GasUsed = hexutil.Uint64(gas)
-				out := hexutil.Bytes(data)
-				result.Output = &out
+				if lastState(tr.state).create {
+					result.Code = data
+				} else {
+					result.GasUsed = hexutil.Uint64(gas)
+					out := hexutil.Bytes(data)
+					result.Output = &out
+				}
 			}
 		}
 
