@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	FILE_HASH    = "0xa0749da36e9047ee75daeeee62acfd05c6c47f23a9864e3923894725248f1c11"
+	FILE_HASH    = "0x15c45aba675b7c49f5def32b4f24e827d478e5dfd712613fd6a5df69a2793b60"
 	FILE_CONTENT = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
 			Nunc finibus ultricies interdum. Nulla porttitor arcu a tincidunt mollis. Aliquam erat volutpat. 
 			Maecenas eget ligula mi. Maecenas in ligula non elit fringilla consequat. 
@@ -64,16 +64,16 @@ func TestFileHash_ReadWrite(t *testing.T) {
 	// write out the (secure) self-hashed file properly
 	_, err = writer.Write([]byte(FILE_CONTENT))
 	require.NoError(err)
-	h, err := writer.Flush()
+	root, err := writer.Flush()
 	require.NoError(err)
-	require.Equal(h.Hex(), FILE_HASH)
+	require.Equal(root.Hex(), FILE_HASH)
 	f.Close()
 
 	// normal case: correct root hash and content
 	{
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
 		require.NoError(err)
-		reader := WrapReader(f, 2048, h)
+		reader := WrapReader(f, 2048, root)
 		data := make([]byte, 5)
 		n, err := reader.Read(data)
 		require.Equal("Lorem", string(data[:]))
@@ -93,23 +93,37 @@ func TestFileHash_ReadWrite(t *testing.T) {
 		maliciousReader.Close()
 	}
 
+	// modify piece data to make the mismatch piece hash
+	{
+		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
+		require.NoError(err)
+		f.Seek(300, 0)
+		s := []byte("0000000000")
+		f.Write(s)
+		f.Close()
+
+		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
+		maliciousReader := WrapReader(f, 2048, root)
+		data := make([]byte, PIECE_SIZE)
+		_, err = maliciousReader.Read(data)
+		require.ErrorIs(err, ErrHashMismatch)
+		maliciousReader.Close()
+	}
+
 	// modify a piece hash in file to make the wrong one
 	{
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_WRONLY, 0600)
 		require.NoError(err)
-		f.Seek(12, 0)
-		f.Write([]byte("0000000000"))
+		f.Seek(16, 0)
+		s := []byte("0000000000")
+		f.Write(s)
 		f.Close()
 
 		f, err = os.OpenFile("/tmp/testnet.g", os.O_RDONLY, 0600)
-		maliciousReader := WrapReader(f, 2048, h)
+		maliciousReader := WrapReader(f, 2048, root)
 		data := make([]byte, PIECE_SIZE)
 		_, err = maliciousReader.Read(data)
 		require.ErrorIs(err, ErrRootMismatch)
 		maliciousReader.Close()
-	}
-
-	// TODO: need to reproduce the ErrHashMismatch error
-	{
 	}
 }

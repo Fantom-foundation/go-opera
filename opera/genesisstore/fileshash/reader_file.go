@@ -64,7 +64,8 @@ func (r *Reader) readHashes(n uint64) (hash.Hashes, error) {
 
 func calcHash(piece []byte) hash.Hash {
 	hasher := sha256.New()
-	return hash.BytesToHash(hasher.Sum(piece))
+	hasher.Write(piece)
+	return hash.BytesToHash(hasher.Sum(nil))
 }
 
 func calcHashesRoot(hashes hash.Hashes, pieceSize, size uint64) hash.Hash {
