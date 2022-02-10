@@ -182,7 +182,7 @@ func (r *Reader) read(p []byte) (n int, err error) {
 	if r.hashes == nil {
 		err := r.init()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("%v: %v", ErrInit, err)
 		}
 	}
 	if r.pos >= r.size {
