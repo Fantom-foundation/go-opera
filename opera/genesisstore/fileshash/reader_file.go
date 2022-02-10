@@ -16,6 +16,7 @@ var (
 	ErrRootNotFound = errors.New("hashes root not found")
 	ErrRootMismatch = errors.New("hashes root mismatch")
 	ErrHashMismatch = errors.New("hash mismatch")
+	ErrTooMuchMem   = errors.New("hashed file requires too much memory")
 	ErrClosed       = errors.New("closed")
 )
 
@@ -32,12 +33,12 @@ type Reader struct {
 	root   hash.Hash
 	hashes hash.Hashes
 
-	maxMemUsage int
+	maxMemUsage uint64
 
 	err error
 }
 
-func WrapReader(backend io.ReadCloser, maxMemUsage int, root hash.Hash) *Reader {
+func WrapReader(backend io.ReadCloser, maxMemUsage uint64, root hash.Hash) *Reader {
 	return &Reader{
 		backend:         backend,
 		pos:             0,
@@ -129,6 +130,13 @@ func (r *Reader) readFromPiece(p []byte) (n int, err error) {
 	return consumed, nil
 }
 
+func memUsageOf(pieceSize, hashesNum uint64) uint64 {
+	if hashesNum > math.MaxUint32 {
+		return math.MaxUint64
+	}
+	return pieceSize + hashesNum*128
+}
+
 func (r *Reader) init() error {
 	buf := make([]byte, 8)
 	// read piece size
@@ -145,8 +153,8 @@ func (r *Reader) init() error {
 	r.size = bigendian.BytesToUint64(buf)
 
 	hashesNum := r.getPiecesNum(r.size)
-	if hashesNum > math.MaxUint32 || r.pieceSize+hashesNum*128 > uint64(r.maxMemUsage) {
-		return errors.New("hashed file requires too much memory")
+	if memUsageOf(r.pieceSize, hashesNum) > uint64(r.maxMemUsage) {
+		return ErrTooMuchMem
 	}
 	// read piece hashes
 	hashes, err := r.readHashes(hashesNum)

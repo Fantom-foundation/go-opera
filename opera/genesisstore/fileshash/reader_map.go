@@ -10,7 +10,7 @@ type Map struct {
 	backend func(string) (io.ReadCloser, error)
 }
 
-func Wrap(backend func(string) (io.ReadCloser, error), maxMemoryUsage int, roots map[string]hash.Hash) func(string) (io.ReadCloser, error) {
+func Wrap(backend func(string) (io.ReadCloser, error), maxMemoryUsage uint64, roots map[string]hash.Hash) func(string) (io.ReadCloser, error) {
 	return func(name string) (io.ReadCloser, error) {
 		root, ok := roots[name]
 		if !ok {
