@@ -74,11 +74,15 @@ func calcHashesRoot(hashes hash.Hashes, pieceSize, size uint64) hash.Hash {
 	return hash.BytesToHash(hasher.Sum(nil))
 }
 
-func (r *Reader) getPiecesNum(size uint64) uint64 {
-	if size%r.pieceSize != 0 {
-		return size/r.pieceSize + 1
+func getPiecesNum(size, pieceSize uint64) uint64 {
+	if size%pieceSize != 0 {
+		return size/pieceSize + 1
 	}
-	return size / r.pieceSize
+	return size / pieceSize
+}
+
+func (r *Reader) getPiecesNum(size uint64) uint64 {
+	return getPiecesNum(size, r.pieceSize)
 }
 
 func (r *Reader) getPiecePos(pos uint64) uint64 {
