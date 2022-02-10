@@ -120,6 +120,18 @@ func testFileHash_ReadWrite(t *testing.T, content []byte, expRoot hash.Hash, pie
 		err = ioread.ReadAll(reader, readB)
 		require.NoError(err)
 		require.Equal(content, readB)
+		// try to read one more byte
+		require.Error(ioread.ReadAll(reader, make([]byte, 1)), io.EOF)
+		reader.Close()
+	}
+
+	// correct root hash and reading too much content
+	{
+		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
+		require.NoError(err)
+		reader := WrapReader(f, maxMemUsage, root)
+		readB := make([]byte, len(content)+1)
+		require.Error(ioread.ReadAll(reader, readB), io.EOF)
 		reader.Close()
 	}
 
