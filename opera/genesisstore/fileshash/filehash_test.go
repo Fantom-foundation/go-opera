@@ -192,7 +192,7 @@ func testFileHash_ReadWrite(t *testing.T, content []byte, expRoot hash.Hash, pie
 
 		// try to read
 		f, err = os.OpenFile(filePath, os.O_RDONLY, 0600)
-		maliciousReader := WrapReader(f, math.MaxUint64, root)
+		maliciousReader := WrapReader(f, maxMemUsage*2, root)
 		data := make([]byte, 1)
 		err = ioread.ReadAll(maliciousReader, data)
 		require.Contains(err.Error(), ErrInit.Error())
