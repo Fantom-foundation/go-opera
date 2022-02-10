@@ -39,6 +39,9 @@ func TestFileHash_ReadWrite(t *testing.T) {
 			Cras id eros fermentum mauris tristique faucibus. 
 			Praesent vehicula lectus nec ipsum sollicitudin tempus. Nullam et massa velit.`
 	)
+	t.Run("Large file, pieceSize=10000", func(t *testing.T) {
+		testFileHash_ReadWrite(t, bytes.Repeat([]byte(FILE_CONTENT), 20), hash.HexToHash("0xe3c3075749531525b472f4d6d70578e6d497d3e75b0727fea1ee10bdd1fcd490"), 10000)
+	})
 	t.Run("Large file, pieceSize=100", func(t *testing.T) {
 		testFileHash_ReadWrite(t, bytes.Repeat([]byte(FILE_CONTENT), 20), hash.HexToHash("0xdc6d882fde82b2dd44884a97884d79be40e1d0f780a493dee0f7256d8261f7a5"), 100)
 	})
