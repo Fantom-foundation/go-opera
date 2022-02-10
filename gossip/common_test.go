@@ -14,6 +14,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -130,14 +132,21 @@ func (m testConfirmedEventsModule) Start(bs iblockproc.BlockState, es iblockproc
 	return testConfirmedEventsProcessor{p, m.env}
 }
 
-func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
+func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator, mods ...func(*StoreConfig)) *testEnv {
 	genStore := makegenesis.FakeGenesisStore(firstEpoch, validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
 	genesis := genStore.GetGenesis()
 
 	genesis.Rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 	genesis.Rules.Blocks.MaxEmptyBlockSkipPeriod = 0
 
-	store := NewMemStore()
+	mems := memorydb.NewProducer("")
+	dbs := flushable.NewSyncedPool(mems, []byte{0})
+	cfg := LiteStoreConfig()
+	for _, mod := range mods {
+		mod(&cfg)
+	}
+	store := NewStore(dbs, cfg)
+
 	blockProc := DefaultBlockProc(genesis)
 	_, err := store.ApplyGenesis(blockProc, genesis)
 	if err != nil {
