@@ -884,28 +884,29 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	// setup testEnv
 	env := newTestEnv(startEpoch, validatorsNum)
 
-	// 1.create epoch record  e1 manually
-	er1 := ier.LlrIdxFullEpochRecord{Idx: idx.Epoch(startEpoch + 1)}
-	// 3
+	// 1.create epoch record er1 manually
+	er1 := ier.LlrIdxFullEpochRecord{Idx: idx.Epoch(startEpoch) + 1}
+	er1Hash := er1.Hash()
+	// 3. process ER1, the error will be popped up.
 	require.EqualError(t, env.ProcessFullEpochRecord(er1), eventcheck.ErrUndecidedER.Error())
 
 	// 2.create block record manually
 	br1 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	//3
+	br1Hash := br1.Hash()
+	//3. process BR1, the error will popped up
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
 
-	// 4.create less than 1/3W+1 epoch votes, ER still should not be processed
+	// 4.create less than 1/3W+1 epoch votes, ER1 still should not be processed
 	for i := 1; i < 4; i++ {
-		e := fakeEvent(0, 0, i, true)
+		e := fakeEvent(0, 0, 0, i, er1Hash, true)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(t, env.ProcessEpochVote(ev))
 	}
-
 	require.EqualError(t, env.ProcessFullEpochRecord(er1), eventcheck.ErrUndecidedER.Error())
 
-	// 5. add one more epoch vote,so 4 = 1/3W+1 it has to be processed
+	// 5. add one more epoch vote,so 4 = 1/3W+1. Hence, ER1 has to be processed.
 	fmt.Println("adding 4th epoch vote")
-	e := fakeEvent(0, 0, 4, true)
+	e := fakeEvent(0, 0, 0, 4, er1Hash, true)
 	ev := inter.AsSignedEpochVote(e)
 	require.NoError(t, env.ProcessEpochVote(ev))
 	require.NoError(t, env.ProcessFullEpochRecord(er1))
@@ -915,11 +916,10 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	// 7.Get an error that the er has been already processed.
 	require.EqualError(t, env.ProcessFullEpochRecord(er2), eventcheck.ErrAlreadyProcessedER.Error())
 
-	//8. try to process Br1 witho ne vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
-	e = fakeEvent(0, 1, 0, false)
+	//8. try to process Br1 with one vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
+	e = fakeEvent(0, 1, er1.Idx, 0, br1Hash, false)
 	bv := inter.AsSignedBlockVotes(e)
-	// TODO resolve Panics  later
-	//	require.Panics(t, func() {env.ProcessBlockVotes(bv)}) //(*Validators).GetWeightByIdx(...)panic
+	require.Panics(t, func() { env.ProcessBlockVotes(bv) }) //cause there are no validators
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
 
 	//9,10. process er1 and er2. it should yield an ErrAlreadyProcessedER error
@@ -929,33 +929,34 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	//11 add votes < 1/3W+1 for Br1. Record still should not be processed.
 	fmt.Println("adding 3 votes for br1")
 	for i := 5; i < 8; i++ {
-		e := fakeEvent(0, 1, i, true)
+		e := fakeEvent(0, 1, 0, i, br1Hash, true)
 		bv := inter.AsSignedBlockVotes(e)
 		require.NoError(t, env.ProcessBlockVotes(bv))
 	}
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
 
-	//12 add one vote for br1, br1 has to be processed
+	//12 add one vote for br1, then we have 1/3W+1 votes
 	fmt.Println("adding 4th block vote to make up to match 1/3W+1")
-	e = fakeEvent(0, 1, 8, true)
+	e = fakeEvent(0, 1, 0, 8, br1Hash, true)
 	bv = inter.AsSignedBlockVotes(e)
 	require.NoError(t, env.ProcessBlockVotes(bv))
-	// TODO fix block record hash mismatch error
+
+	// 13. create one more record of the same block, but different.
+	br2 := ibr.LlrIdxFullBlockRecord{LlrFullBlockRecord: ibr.LlrFullBlockRecord{GasUsed: 100505}, Idx: idx.Block(2)}
+
+	// 14. process br2. It should output an error, that block record hash is mismatched.
+	require.EqualError(t, env.ProcessFullBlockRecord(br2), errors.New("block record hash mismatch").Error())
+
+	// 15 process br1
 	require.NoError(t, env.ProcessFullBlockRecord(br1))
 
-	// TODO make somet test cases for  record hash mismatch error
-
-	// 13. create one more record of the same block , but dufferent br2. The error should pop up that br1
-	br2 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	require.EqualError(t, env.ProcessFullBlockRecord(br2), eventcheck.ErrAlreadyProcessedBR.Error())
-
-	//14. process BR1, nestikovka
-	// TODO fix block record hash mismatch error
+	//16 process br1 and br2, they should yield an error that they have been already processed
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrAlreadyProcessedBR.Error())
+	require.EqualError(t, env.ProcessFullBlockRecord(br2), eventcheck.ErrAlreadyProcessedBR.Error())
 }
 
 // can not import it from inter package (((
-func fakeEvent(txsNum, bvsNum int, valID int, ersNum bool) *inter.EventPayload {
+func fakeEvent(txsNum, bvsNum int, blockVoteEpoch idx.Epoch, valID int, recordHash hash.Hash, ersNum bool) *inter.EventPayload {
 	r := rand.New(rand.NewSource(int64(0)))
 	random := &inter.MutableEventPayload{}
 	random.SetVersion(1)
@@ -1024,19 +1025,24 @@ func fakeEvent(txsNum, bvsNum int, valID int, ersNum bool) *inter.EventPayload {
 	bvs := inter.LlrBlockVotes{}
 	if bvsNum > 0 {
 		bvs.Start = 2
-		bvs.Epoch = 1
-		random.SetEpoch(1)
+		switch {
+		case blockVoteEpoch > 0:
+			bvs.Epoch = blockVoteEpoch
+			random.SetEpoch(blockVoteEpoch)
+		default:
+			bvs.Epoch = 1
+			random.SetEpoch(1)
+		}
 	}
 
-	v := hash.HexToHash("0x11")
 	for i := 0; i < bvsNum; i++ {
-		bvs.Votes = append(bvs.Votes, v)
+		bvs.Votes = append(bvs.Votes, recordHash)
 	}
 
 	ev := inter.LlrEpochVote{}
 	if ersNum {
 		ev.Epoch = 2
-		ev.Vote = hash.HexToHash("0x12")
+		ev.Vote = recordHash
 	}
 
 	random.SetTxs(txs)

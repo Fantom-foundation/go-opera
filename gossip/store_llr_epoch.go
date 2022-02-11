@@ -38,8 +38,6 @@ func (s *Store) AddLlrEpochVoteWeight(epoch idx.Epoch, ev hash.Hash, val idx.Val
 }
 
 func (s *Store) SetLlrEpochResult(epoch idx.Epoch, ev hash.Hash) {
-	//key epoch
-	//val ev epoch vote hash
 	err := s.table.LlrEpochResults.Put(epoch.Bytes(), ev.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
