@@ -30,6 +30,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
 	"github.com/status-im/keycard-go/hexutils"
 )
@@ -898,7 +899,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	// 4.create less than 1/3W+1 epoch votes, ER1 still should not be processed
 	for i := 1; i < 4; i++ {
-		e := fakeEvent(0, 0, 0, i, er1Hash, true)
+		e := fakeEvent(0, 0, 0, 2, i, er1Hash, true)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(t, env.ProcessEpochVote(ev))
 	}
@@ -906,7 +907,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	// 5. add one more epoch vote,so 4 = 1/3W+1. Hence, ER1 has to be processed.
 	fmt.Println("adding 4th epoch vote")
-	e := fakeEvent(0, 0, 0, 4, er1Hash, true)
+	e := fakeEvent(0, 0, 0, 2, 4, er1Hash, true)
 	ev := inter.AsSignedEpochVote(e)
 	require.NoError(t, env.ProcessEpochVote(ev))
 	require.NoError(t, env.ProcessFullEpochRecord(er1))
@@ -917,7 +918,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	require.EqualError(t, env.ProcessFullEpochRecord(er2), eventcheck.ErrAlreadyProcessedER.Error())
 
 	//8. try to process Br1 with one vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
-	e = fakeEvent(0, 1, er1.Idx, 0, br1Hash, false)
+	e = fakeEvent(0, 1, er1.Idx, 2, 0, br1Hash, false)
 	bv := inter.AsSignedBlockVotes(e)
 	require.Panics(t, func() { env.ProcessBlockVotes(bv) }) //cause there are no validators
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
@@ -929,7 +930,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	//11 add votes < 1/3W+1 for Br1. Record still should not be processed.
 	fmt.Println("adding 3 votes for br1")
 	for i := 5; i < 8; i++ {
-		e := fakeEvent(0, 1, 0, i, br1Hash, true)
+		e := fakeEvent(0, 1, 0, 2, i, br1Hash, true)
 		bv := inter.AsSignedBlockVotes(e)
 		require.NoError(t, env.ProcessBlockVotes(bv))
 	}
@@ -937,7 +938,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	//12 add one vote for br1, then we have 1/3W+1 votes
 	fmt.Println("adding 4th block vote to make up to match 1/3W+1")
-	e = fakeEvent(0, 1, 0, 8, br1Hash, true)
+	e = fakeEvent(0, 1, 0, 2, 8, br1Hash, true)
 	bv = inter.AsSignedBlockVotes(e)
 	require.NoError(t, env.ProcessBlockVotes(bv))
 
@@ -956,7 +957,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 }
 
 // can not import it from inter package (((
-func fakeEvent(txsNum, bvsNum int, blockVoteEpoch idx.Epoch, valID int, recordHash hash.Hash, ersNum bool) *inter.EventPayload {
+func fakeEvent(txsNum, bvsNum int, bvEpoch, evEpoch idx.Epoch, valID int, recordHash hash.Hash, ersNum bool) *inter.EventPayload {
 	r := rand.New(rand.NewSource(int64(0)))
 	random := &inter.MutableEventPayload{}
 	random.SetVersion(1)
@@ -1026,9 +1027,9 @@ func fakeEvent(txsNum, bvsNum int, blockVoteEpoch idx.Epoch, valID int, recordHa
 	if bvsNum > 0 {
 		bvs.Start = 2
 		switch {
-		case blockVoteEpoch > 0:
-			bvs.Epoch = blockVoteEpoch
-			random.SetEpoch(blockVoteEpoch)
+		case bvEpoch > 0:
+			bvs.Epoch = bvEpoch
+			random.SetEpoch(bvEpoch)
 		default:
 			bvs.Epoch = 1
 			random.SetEpoch(1)
@@ -1041,7 +1042,7 @@ func fakeEvent(txsNum, bvsNum int, blockVoteEpoch idx.Epoch, valID int, recordHa
 
 	ev := inter.LlrEpochVote{}
 	if ersNum {
-		ev.Epoch = 2
+		ev.Epoch = evEpoch
 		ev.Vote = recordHash
 	}
 
@@ -1095,4 +1096,74 @@ func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
 		}
 	}
 	return accessList
+}
+
+
+func TestEpochRecordWithDiffValidators(t *testing.T){
+	const (
+		validatorsNum = 10
+		startEpoch    = 2
+	)
+	require := require.New(t)
+	// setup testEnv
+	env := newTestEnv(startEpoch, validatorsNum)
+	
+	// Стартвые валидаторы имеют равномерные веса, стартовая эпоха - 2
+	bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
+
+	// get new validators with different votes
+	newVals := func() *pos.Validators {
+		builder := pos.NewBuilder()
+		defaultWeight := pos.Weight(111022302)
+		for i := idx.ValidatorID(1); i <= 10; i++ {
+			w := defaultWeight
+			if i%2 == 0 {
+				w -= 10021567
+			} else {
+				w+= 10021567
+			}
+			builder.Set(i, w)
+		}
+		return builder.Build()
+	}()
+
+	// save new validators to state of epoch 2
+	esCopy := es.Copy()
+	esCopy.Validators = newVals
+	
+	// process ER of 3rd epoch
+	er := ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
+		Idx: idx.Epoch(startEpoch + 1),
+	}
+	erHash := er.Hash()
+
+	for i := 1; i <= 4; i++ {
+		e := fakeEvent(0, 0, 0, startEpoch+1, i, erHash, true)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
+
+	require.NoError(env.ProcessFullEpochRecord(er))
+
+	// process ER of 4th epoch
+
+	// get bs and es of 3rd apoch
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch+1)
+
+	// put es and bs of 3rd apoch at LlrIdxFullEpochRecord of epoch 4
+	er = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx: idx.Epoch(startEpoch + 2)}
+	erHash = er.Hash()
+
+	// confirm with votes
+	for i := 1; i <= 5; i++ {
+		e := fakeEvent(0, 0, 0, startEpoch+2, i, erHash, true)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
+
+	// process ER of epoch 4
+	require.NoError(env.ProcessFullEpochRecord(er))
 }
