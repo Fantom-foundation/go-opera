@@ -613,7 +613,6 @@ func (r repeater) compareLogsByFilterCriteria() {
 		},
 		{"block range 1-1000 and first topic",
 			func() {
-				require.NoError(r.t, err)
 				crit = defaultCrit
 				crit.Topics = [][]common.Hash{{firstTopic}}
 			},
