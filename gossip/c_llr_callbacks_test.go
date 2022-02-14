@@ -29,8 +29,8 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 
 	"github.com/status-im/keycard-go/hexutils"
 )
@@ -1097,8 +1097,7 @@ func randAccessList(r *rand.Rand, maxAddrs, maxKeys int) types.AccessList {
 	return accessList
 }
 
-
-func TestEpochRecordWithDiffValidators(t *testing.T){
+func TestEpochRecordWithDiffValidators(t *testing.T) {
 	const (
 		validatorsNum = 10
 		startEpoch    = 2
@@ -1106,7 +1105,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T){
 	require := require.New(t)
 	// setup testEnv
 	env := newTestEnv(startEpoch, validatorsNum)
-	
+
 	// Стартвые валидаторы имеют равномерные веса, стартовая эпоха - 2
 	bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
 
@@ -1119,7 +1118,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T){
 			if i%2 == 0 {
 				w -= 10021567
 			} else {
-				w+= 10021567
+				w += 10021567
 			}
 			builder.Set(i, w)
 		}
@@ -1129,34 +1128,35 @@ func TestEpochRecordWithDiffValidators(t *testing.T){
 	// save new validators to state of epoch 2
 	esCopy := es.Copy()
 	esCopy.Validators = newVals
-	
+
 	// process ER of 3rd epoch
 	er := ier.LlrIdxFullEpochRecord{
 		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
-		Idx: idx.Epoch(startEpoch + 1),
+		Idx:                idx.Epoch(startEpoch + 1),
 	}
 	erHash := er.Hash()
 
 	for i := 1; i <= 4; i++ {
 		e := fakeEvent(0, 0, 0, startEpoch+1, i, erHash, true)
 		ev := inter.AsSignedEpochVote(e)
+		// process validators with equal weights
 		require.NoError(env.ProcessEpochVote(ev))
 	}
 
 	require.NoError(env.ProcessFullEpochRecord(er))
 
-	// process ER of 4th epoch
+	// process ER of 4th epoch with validators with different weights
 
 	// get bs and es of 3rd apoch
-	bs, es = env.store.GetHistoryBlockEpochState(startEpoch+1)
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 1)
 
 	// put es and bs of 3rd apoch at LlrIdxFullEpochRecord of epoch 4
 	er = ier.LlrIdxFullEpochRecord{
 		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
-		Idx: idx.Epoch(startEpoch + 2)}
+		Idx:                idx.Epoch(startEpoch + 2)}
 	erHash = er.Hash()
 
-	// confirm with votes
+	// confirm with votes of different weights
 	for i := 1; i <= 5; i++ {
 		e := fakeEvent(0, 0, 0, startEpoch+2, i, erHash, true)
 		ev := inter.AsSignedEpochVote(e)
@@ -1165,4 +1165,70 @@ func TestEpochRecordWithDiffValidators(t *testing.T){
 
 	// process ER of epoch 4
 	require.NoError(env.ProcessFullEpochRecord(er))
+
+	// process ER for epoch 5
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 2)
+
+	// yield validators with unequal weights to process in epoch 6
+	newVals, partialWeight := func() (*pos.Validators, pos.Weight) {
+		builder := pos.NewBuilder()
+		w := pos.Weight(1000)
+
+		// set 7 validators with weight 1000
+		var partialWeight pos.Weight
+		for i := idx.ValidatorID(1); i <= 7; i++ {
+			partialWeight += w
+			builder.Set(i, w)
+		}
+
+		w = pos.Weight(1000000)
+		//set 8th, 9th and 10th validatora with weight 1000000
+		for i := idx.ValidatorID(8); i <= 10; i++ {
+			builder.Set(i, w)
+		}
+
+		return builder.Build(), partialWeight
+	}()
+
+	// save new validators to state
+	esCopy = es.Copy()
+	esCopy.Validators = newVals
+
+	er = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
+		Idx:                idx.Epoch(startEpoch + 3),
+	}
+	erHash = er.Hash()
+
+	for i := 1; i <= 10; i++ {
+		e := fakeEvent(0, 0, 0, startEpoch+3, i, erHash, true)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
+
+	require.NoError(env.ProcessFullEpochRecord(er))
+
+	// process ER with epoch 6
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 3)
+
+	er = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx:                idx.Epoch(startEpoch + 4),
+	}
+	erHash = er.Hash()
+
+	for i := 1; i <= 7; i++ {
+		e := fakeEvent(0, 0, 0, startEpoch+4, i, erHash, true)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
+
+	// process ER for epoch 6
+	// threshold weight is 1002334 = 1/3W+1
+	// 7 validators with total weight 7000 is less than threshold weight
+	// so 7 votes are not enough
+	totalWeight := newVals.TotalWeight()
+	thresholdWeight := pos.Weight(totalWeight/3 + 1)
+	require.Less(partialWeight, thresholdWeight)
+	require.EqualError(env.ProcessFullEpochRecord(er), eventcheck.ErrUndecidedER.Error())
 }
