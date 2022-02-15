@@ -82,6 +82,15 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
+	if err := s.checkers.Basiccheck.ValidateBVs(bvs); err != nil {
+		return err
+	}
+
+	if err := s.checkers.Heavycheck.ValidateBVs(bvs); err != nil {
+		return err
+	}
+
 	err := s.processBlockVotes(bvs)
 	if err == nil {
 		s.mayCommit(false)
@@ -206,6 +215,15 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
+	if err := s.checkers.Basiccheck.ValidateEV(ev); err != nil {
+		return err
+	}
+
+	if err := s.checkers.Heavycheck.ValidateEV(ev); err != nil {
+		return err
+	}
+
 	err := s.processEpochVote(ev)
 	if err == nil {
 		s.mayCommit(false)

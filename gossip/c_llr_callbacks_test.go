@@ -961,7 +961,7 @@ func fakeEvent(txsNum, bvsNum int, bvEpoch, evEpoch idx.Epoch, valID int, record
 	random := &inter.MutableEventPayload{}
 	random.SetVersion(1)
 	random.SetEpoch(2)
-	random.SetNetForkID(uint16(r.Uint32() >> 16))
+	random.SetNetForkID(0)
 	random.SetLamport(idx.Lamport(rand.Intn(100) + 900))
 	random.SetExtra([]byte{byte(r.Uint32())})
 	random.SetSeq(idx.Event(r.Uint32() >> 8))
