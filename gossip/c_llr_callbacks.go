@@ -59,6 +59,11 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
 	}
+    /*
+	if !es.Validators.Exists(vid) {
+		return fmt.Errorf("validator does not exist, id: %d", vid)
+	}
+	*/
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		b := bvs.Val.Start
@@ -82,14 +87,6 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
-
-	if err := s.checkers.Basiccheck.ValidateBVs(bvs); err != nil {
-		return err
-	}
-
-	if err := s.checkers.Heavycheck.ValidateBVs(bvs); err != nil {
-		return err
-	}
 
 	err := s.processBlockVotes(bvs)
 	if err == nil {
@@ -196,6 +193,11 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}
+	/*
+	if !es.Validators.Exists(vid) {
+		return fmt.Errorf("validator does not exist, id: %d", vid)
+	}
+	*/
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		s.processRawEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
@@ -215,14 +217,6 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
-
-	if err := s.checkers.Basiccheck.ValidateEV(ev); err != nil {
-		return err
-	}
-
-	if err := s.checkers.Heavycheck.ValidateEV(ev); err != nil {
-		return err
-	}
 
 	err := s.processEpochVote(ev)
 	if err == nil {
