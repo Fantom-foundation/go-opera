@@ -898,7 +898,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	// 4.create less than 1/3W+1 epoch votes, ER1 still should not be processed
 	for i := 1; i < 4; i++ {
-		e := fakeEvent(0, 0, 0, 2, i, er1Hash, true)
+		e := fakeEvent(0, 0, true, 2, i, er1Hash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(t, env.ProcessEpochVote(ev))
 	}
@@ -906,7 +906,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	// 5. add one more epoch vote,so 4 = 1/3W+1. Hence, ER1 has to be processed.
 	fmt.Println("adding 4th epoch vote")
-	e := fakeEvent(0, 0, 0, 2, 4, er1Hash, true)
+	e := fakeEvent(0, 0, true, 2, 4, er1Hash)
 	ev := inter.AsSignedEpochVote(e)
 	require.NoError(t, env.ProcessEpochVote(ev))
 	require.NoError(t, env.ProcessFullEpochRecord(er1))
@@ -917,7 +917,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	require.EqualError(t, env.ProcessFullEpochRecord(er2), eventcheck.ErrAlreadyProcessedER.Error())
 
 	//8. try to process Br1 with one vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
-	e = fakeEvent(0, 1, er1.Idx, 2, 0, br1Hash, false)
+	e = fakeEvent(1, er1.Idx, false, 0, 0, br1Hash)
 	bv := inter.AsSignedBlockVotes(e)
 	require.EqualError(t, env.ProcessBlockVotes(bv), errValidatorNotExist.Error()) //cause there are no validators
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
@@ -929,7 +929,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	//11 add votes < 1/3W+1 for Br1. Record still should not be processed.
 	fmt.Println("adding 3 votes for br1")
 	for i := 5; i < 8; i++ {
-		e := fakeEvent(0, 1, 0, 2, i, br1Hash, true)
+		e := fakeEvent(1, 0, false, 0, i, br1Hash)
 		bv := inter.AsSignedBlockVotes(e)
 		require.NoError(t, env.ProcessBlockVotes(bv))
 	}
@@ -937,7 +937,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 
 	//12 add one vote for br1, then we have 1/3W+1 votes
 	fmt.Println("adding 4th block vote to make up to match 1/3W+1")
-	e = fakeEvent(0, 1, 0, 2, 8, br1Hash, true)
+	e = fakeEvent(1, 0, true, 2, 8, br1Hash)
 	bv = inter.AsSignedBlockVotes(e)
 	require.NoError(t, env.ProcessBlockVotes(bv))
 
@@ -956,9 +956,10 @@ func TestBlockAndEpochRecords(t *testing.T) {
 }
 
 // can not import it from inter package (((
-func fakeEvent(txsNum, bvsNum int, bvEpoch, evEpoch idx.Epoch, valID int, recordHash hash.Hash, ersNum bool) *inter.EventPayload {
-	r := rand.New(rand.NewSource(int64(0)))
+
+func fakeEvent(bvsNum int, bvEpoch idx.Epoch, ersNum bool, evEpoch idx.Epoch, valID int, recordHash hash.Hash) *inter.EventPayload {
 	random := &inter.MutableEventPayload{}
+	r := rand.New(rand.NewSource(int64(0)))
 	random.SetVersion(1)
 	random.SetEpoch(2)
 	random.SetNetForkID(0)
@@ -971,56 +972,6 @@ func fakeEvent(txsNum, bvsNum int, bvEpoch, evEpoch idx.Epoch, valID int, record
 	random.SetMedianTime(inter.Timestamp(r.Uint64()))
 	random.SetGasPowerUsed(r.Uint64())
 	random.SetGasPowerLeft(inter.GasPowerLeft{[2]uint64{r.Uint64(), r.Uint64()}})
-	txs := types.Transactions{}
-	for i := 0; i < txsNum; i++ {
-		h := hash.Hash{}
-		r.Read(h[:])
-		if i%3 == 0 {
-			tx := types.NewTx(&types.LegacyTx{
-				Nonce:    r.Uint64(),
-				GasPrice: randBig(r),
-				Gas:      257 + r.Uint64(),
-				To:       nil,
-				Value:    randBig(r),
-				Data:     randBytes(r, r.Intn(300)),
-				V:        big.NewInt(int64(r.Intn(0xffffffff))),
-				R:        h.Big(),
-				S:        h.Big(),
-			})
-			txs = append(txs, tx)
-		} else if i%3 == 1 {
-			tx := types.NewTx(&types.AccessListTx{
-				ChainID:    randBig(r),
-				Nonce:      r.Uint64(),
-				GasPrice:   randBig(r),
-				Gas:        r.Uint64(),
-				To:         randAddrPtr(r),
-				Value:      randBig(r),
-				Data:       randBytes(r, r.Intn(300)),
-				AccessList: randAccessList(r, 300, 300),
-				V:          big.NewInt(int64(r.Intn(0xffffffff))),
-				R:          h.Big(),
-				S:          h.Big(),
-			})
-			txs = append(txs, tx)
-		} else {
-			tx := types.NewTx(&types.DynamicFeeTx{
-				ChainID:    randBig(r),
-				Nonce:      r.Uint64(),
-				GasTipCap:  randBig(r),
-				GasFeeCap:  randBig(r),
-				Gas:        r.Uint64(),
-				To:         randAddrPtr(r),
-				Value:      randBig(r),
-				Data:       randBytes(r, r.Intn(300)),
-				AccessList: randAccessList(r, 300, 300),
-				V:          big.NewInt(int64(r.Intn(0xffffffff))),
-				R:          h.Big(),
-				S:          h.Big(),
-			})
-			txs = append(txs, tx)
-		}
-	}
 
 	bvs := inter.LlrBlockVotes{}
 	if bvsNum > 0 {
@@ -1045,7 +996,6 @@ func fakeEvent(txsNum, bvsNum int, bvEpoch, evEpoch idx.Epoch, valID int, record
 		ev.Vote = recordHash
 	}
 
-	random.SetTxs(txs)
 	random.SetEpochVote(ev)
 	random.SetBlockVotes(bvs)
 	random.SetPayloadHash(inter.CalcPayloadHash(random))
@@ -1137,7 +1087,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T) {
 	erHash := er.Hash()
 
 	for i := 1; i <= 4; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+1, i, erHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+1, i, erHash)
 		ev := inter.AsSignedEpochVote(e)
 		// process validators with equal weights
 		require.NoError(env.ProcessEpochVote(ev))
@@ -1158,7 +1108,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T) {
 
 	// confirm with votes of different weights
 	for i := 1; i <= 5; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+2, i, erHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+2, i, erHash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(env.ProcessEpochVote(ev))
 	}
@@ -1201,7 +1151,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T) {
 	erHash = er.Hash()
 
 	for i := 1; i <= 10; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+3, i, erHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+3, i, erHash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(env.ProcessEpochVote(ev))
 	}
@@ -1218,7 +1168,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T) {
 	erHash = er.Hash()
 
 	for i := 1; i <= 7; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+4, i, erHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+4, i, erHash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(env.ProcessEpochVote(ev))
 	}
@@ -1233,7 +1183,7 @@ func TestEpochRecordWithDiffValidators(t *testing.T) {
 	require.EqualError(env.ProcessFullEpochRecord(er), eventcheck.ErrUndecidedER.Error())
 }
 
-func TestProcessEpochVotesWonErNil( t *testing.T){
+func TestProcessEpochVotesWonErNil(t *testing.T) {
 
 	const (
 		validatorsNum = 10
@@ -1267,45 +1217,43 @@ func TestProcessEpochVotesWonErNil( t *testing.T){
 		}
 
 		return builder.Build(), partialWeight
-	 }()
+	}()
 
-	
+	bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
 
-	 bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
+	esCopy := es.Copy()
+	esCopy.Validators = newVals
 
-	 esCopy := es.Copy()
-	 esCopy.Validators = newVals
+	er := ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
+		Idx:                idx.Epoch(startEpoch + 1),
+	}
+	erHash := er.Hash()
 
-	 er := ier.LlrIdxFullEpochRecord{
-		 LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
-		 Idx:                idx.Epoch(startEpoch + 1),
-	 }
-	 erHash := er.Hash()
+	// process validators with equal weights
+	for i := 1; i <= 4; i++ {
+		e := fakeEvent(0, 0, true, startEpoch+1, i, erHash)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
 
-	 // process validators with equal weights
-	 for i := 1; i <= 4; i++ {
-		 e := fakeEvent(0, 0, 0, startEpoch+1, i, erHash, true)
-		 ev := inter.AsSignedEpochVote(e)
-		 require.NoError(env.ProcessEpochVote(ev))
-	 }
- 
-	 require.NoError(env.ProcessFullEpochRecord(er))
+	require.NoError(env.ProcessFullEpochRecord(er))
 
-	 bs, es = env.store.GetHistoryBlockEpochState(startEpoch+1)
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 1)
 
-	 er = ier.LlrIdxFullEpochRecord{
-		 LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
-		 Idx:                idx.Epoch(startEpoch + 2),
-	 }
-	 erHash = er.Hash()
+	er = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx:                idx.Epoch(startEpoch + 2),
+	}
+	erHash = er.Hash()
 
-	 // process  validators with inequal weighs
-	 // total weights of all validators
-	 for i := 1; i <= 8; i++ {
-		 e := fakeEvent(0, 0, 0, startEpoch+2, i, erHash, true)
-		 ev := inter.AsSignedEpochVote(e)
-		 require.NoError(env.ProcessEpochVote(ev))
-	 }
+	// process  validators with inequal weighs
+	// total weights of all validators
+	for i := 1; i <= 8; i++ {
+		e := fakeEvent(0, 0, true, startEpoch+2, i, erHash)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
 
 	res := env.store.GetLlrEpochResult(startEpoch + 2)
 	require.NotNil(res)
@@ -1313,21 +1261,20 @@ func TestProcessEpochVotesWonErNil( t *testing.T){
 
 	llrs := env.store.GetLlrState()
 	actualLowestEpochToDecide := llrs.LowestEpochToDecide
-	expectedLowestEpochToDecide := idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToDecide), uint64(startEpoch+2), 
-	func(u uint64) bool {return env.store.GetLlrEpochResult(idx.Epoch(u)) !=nil
-	}))
-	require.Equal(actualLowestEpochToDecide, expectedLowestEpochToDecide )
-	
+	expectedLowestEpochToDecide := idx.Epoch(actualizeLowestIndex(uint64(llrs.LowestEpochToDecide), uint64(startEpoch+2),
+		func(u uint64) bool {
+			return env.store.GetLlrEpochResult(idx.Epoch(u)) != nil
+		}))
+	require.Equal(actualLowestEpochToDecide, expectedLowestEpochToDecide)
 
 	totalWeight := newVals.TotalWeight()
 	thresholdWeight := pos.Weight(totalWeight/3 + 1)
 	require.GreaterOrEqual(partialWeight, thresholdWeight)
-	
+
 	require.NoError(env.ProcessFullEpochRecord(er))
 }
 
-
-func TestProcessEpochVotesWonErNotNilDoubleSign( t *testing.T){
+func TestProcessEpochVotesWonErNotNilDoubleSign(t *testing.T) {
 
 	const (
 		validatorsNum = 10
@@ -1358,109 +1305,102 @@ func TestProcessEpochVotesWonErNotNilDoubleSign( t *testing.T){
 		}
 
 		return builder.Build()
-	 }()
+	}()
 
-	
-	 bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
+	bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
 
-	 esCopy := es.Copy()
-	 esCopy.Validators = newVals
+	esCopy := es.Copy()
+	esCopy.Validators = newVals
 
-	 er := ier.LlrIdxFullEpochRecord{
-		 LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
-		 Idx:                idx.Epoch(startEpoch + 1),
-	 }
-	 erHash := er.Hash()
+	er := ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
+		Idx:                idx.Epoch(startEpoch + 1),
+	}
+	erHash := er.Hash()
 
-	 // process validators with equal weights
-	 for i := 1; i <= 4; i++ {
-		 e := fakeEvent(0, 0, 0, startEpoch+1, i, erHash, true)
-		 ev := inter.AsSignedEpochVote(e)
-		 require.NoError(env.ProcessEpochVote(ev))
-	 }
- 
-	 require.NoError(env.ProcessFullEpochRecord(er))
+	// process validators with equal weights
+	for i := 1; i <= 4; i++ {
+		e := fakeEvent(0, 0, true, startEpoch+1, i, erHash)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
+	}
 
+	require.NoError(env.ProcessFullEpochRecord(er))
 
-	bs, es = env.store.GetHistoryBlockEpochState(startEpoch+1)
-	 
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 1)
+
 	er = ier.LlrIdxFullEpochRecord{
-		 LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
-		 Idx:                idx.Epoch(startEpoch + 2),
-	 }
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx:                idx.Epoch(startEpoch + 2),
+	}
 
 	require.Equal(er.Hash().Hex(), erHash.Hex())
 
-
 	// process  validators with inequal weighs
 	for i := 1; i <= 3; i++ {
-		 e := fakeEvent(0, 0, 0, startEpoch+2, i, erHash, true)
-		 ev := inter.AsSignedEpochVote(e)
-		 require.NoError(env.ProcessEpochVote(ev))
+		e := fakeEvent(0, 0, true, startEpoch+2, i, erHash)
+		ev := inter.AsSignedEpochVote(e)
+		require.NoError(env.ProcessEpochVote(ev))
 
 		// output error if an event has been previously processed
-		 require.EqualError(env.ProcessEpochVote(ev), eventcheck.ErrAlreadyProcessedEV.Error())
+		require.EqualError(env.ProcessEpochVote(ev), eventcheck.ErrAlreadyProcessedEV.Error())
 	}
 
-	res1 := env.store.GetLlrEpochResult(startEpoch+2)
+	res1 := env.store.GetLlrEpochResult(startEpoch + 2)
 	require.Equal(res1.Hex(), erHash.Hex())
-
-	
 
 	// Unvoted validators submit their votes for invalid hash record to cause doublesign
 	// the weight of these validators is 3000 that is >= w/3+1
 	invalidHash := hash.HexToHash("0x12")
 	for i := 5; i <= 7; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+2, i, invalidHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+2, i, invalidHash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(env.ProcessEpochVote(ev))
 	}
 
 	// checking double sign
-	wonEr := env.store.GetLlrEpochResult(startEpoch+2) // erHash
-	require.NotNil(wonEr) // wonEr != nil
+	wonEr := env.store.GetLlrEpochResult(startEpoch + 2) // erHash
+	require.NotNil(wonEr)                                // wonEr != nil
 	require.Equal(wonEr.Hex(), erHash.Hex())
-	require.NotEqual(wonEr.Hex(), invalidHash.Hex()) // *wonEr != ev 
+	require.NotEqual(wonEr.Hex(), invalidHash.Hex()) // *wonEr != ev
 
 	// processing an event with incorrect epoch will result in eventcheck.ErrUnknownEpochEV error
 	i := 9
 	invalidEpoch := idx.Epoch(1)
-	e := fakeEvent(0, 0, 0, invalidEpoch, i, erHash, true)
+	e := fakeEvent(0, 0, true, invalidEpoch, i, erHash)
 	require.EqualError(env.ProcessEpochVote(inter.AsSignedEpochVote(e)), eventcheck.ErrUnknownEpochEV.Error())
 
 	// processing an event with incorrect epoch will result in eventcheck.ErrUnknownEpochEV error
 	i = 10
 	invalidEpoch = idx.Epoch(20)
-	e = fakeEvent(0, 0, 0, invalidEpoch, i, erHash, true)
+	e = fakeEvent(0, 0, true, invalidEpoch, i, erHash)
 	require.EqualError(env.ProcessEpochVote(inter.AsSignedEpochVote(e)), eventcheck.ErrUnknownEpochEV.Error())
 
 	require.NoError(env.ProcessFullEpochRecord(er))
 
 	// check that unvoted validators with less weight than 1/3w+1 can not damage LLR
 
-	bs, es = env.store.GetHistoryBlockEpochState(startEpoch+2)
-	 
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 2)
+
 	er = ier.LlrIdxFullEpochRecord{
-		 LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
-		 Idx:                idx.Epoch(startEpoch + 3),
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx:                idx.Epoch(startEpoch + 3),
 	}
 
 	// total weight = 2000, threshold 1/3w+1 is 2733
 	for i := 1; i < 3; i++ {
-		e := fakeEvent(0, 0, 0, startEpoch+3, i, invalidHash, true)
+		e := fakeEvent(0, 0, true, startEpoch+3, i, invalidHash)
 		ev := inter.AsSignedEpochVote(e)
 		require.NoError(env.ProcessEpochVote(ev))
 	}
 
-	wonEr = env.store.GetLlrEpochResult(startEpoch +3)
+	wonEr = env.store.GetLlrEpochResult(startEpoch + 3)
 	require.Nil(wonEr)
 
 	require.EqualError(env.ProcessFullEpochRecord(er), eventcheck.ErrUndecidedER.Error())
 }
 
-
-
-func TestProcessBlockVotesDoubleSign (t *testing.T){
+func TestProcessBlockVotesDoubleSign(t *testing.T) {
 	const (
 		validatorsNum = 10
 		startEpoch    = 1
@@ -1471,14 +1411,12 @@ func TestProcessBlockVotesDoubleSign (t *testing.T){
 	// setup testEnv
 	env := newTestEnv(startEpoch, validatorsNum)
 
-
 	br1 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
 	br1Hash := br1.Hash()
 
-	
 	// adding 4 votes for br1 it excceeds 1/3W+1 since all weights are equal
 	for i := 1; i <= 4; i++ {
-		e := fakeEvent(0, 1, 0, 2, i, br1Hash, true)
+		e := fakeEvent(1, 0, false, 0, i, br1Hash)
 		bv := inter.AsSignedBlockVotes(e)
 		require.NoError(env.ProcessBlockVotes(bv))
 		require.EqualError(env.ProcessBlockVotes(bv), eventcheck.ErrAlreadyProcessedBVs.Error())
@@ -1488,7 +1426,7 @@ func TestProcessBlockVotesDoubleSign (t *testing.T){
 	require.NotNil(wonBr)
 	require.Equal(wonBr.Hex(), br1Hash.Hex())
 
-	// compare llrs.LowestBlockToDecide 
+	// compare llrs.LowestBlockToDecide
 	llrs := env.store.GetLlrState()
 	actualLowestBlockToDecide := llrs.LowestBlockToDecide
 	expectedLowestBlockToDecide := idx.Block(actualizeLowestIndex(uint64(llrs.LowestBlockToDecide), uint64(2), func(u uint64) bool {
@@ -1499,15 +1437,69 @@ func TestProcessBlockVotesDoubleSign (t *testing.T){
 	// doublesign scenario
 	invalidHash := hash.HexToHash("0x12")
 	for i := 1; i <= 4; i++ {
-		e := fakeEvent(0, 1, 0, 2, i, invalidHash, true)
+		e := fakeEvent(1, 0, false, 0, i, invalidHash)
 		bv := inter.AsSignedBlockVotes(e)
 		require.NoError(env.ProcessBlockVotes(bv))
 	}
 
 	wonBr = env.store.GetLlrBlockResult(idx.Block(2)) //br1Hash
 	require.NotNil(wonBr)
-	require.NotEqual(wonBr.Hex(), invalidHash.Hex()) // *wonBr != bv 
+	require.NotEqual(wonBr.Hex(), invalidHash.Hex()) // *wonBr != bv
 }
 
+/*
+
+Blockvotes test cases
+1) hash of block record incorrect, block N does not belong epoch E, block vote for correct/incorrect hash  validators >= 1/3W ,validators <=1/3W -> error anticipated
+2) hash of block record correct, block N does not belong epoch E, block vote for correct/incorrect hash   validators >= 1/3W ,validators <=1/3W -> error anticipated
+3) hash of block record correct, block N belongs epoch E, block vote for correct/incorrect hash validators >= 1/3W ,validators <=1/3W
 
 
+Переменные             Значения
+hash of block record   correct | incorrect
+block N                belongs to epoch E | does not belong to epoch E
+validators             have total weight <= 1/3W | have total weights >= 1/3W | vote for correct/incorrect hash record | vote for correct/ incorrect epoch | have equal weights or not | vote for block N or for incorrect block
+
+vote for a block 
+
+
+type BlockCtx struct {
+	Idx     idx.Block
+	Time    inter.Timestamp
+	Atropos hash.Event
+}
+
+    highestBlock.Idx = blockIdx
+	highestBlock.Atropos = block.Atropos
+	highestBlock.Time = block.Time
+	blockproc.BlockState{
+		LastBlock:             highestBlock,
+
+	}
+
+TODO test with not random validators
+
+*/
+
+func TestBlockVotes1(t *testing.T){
+	const (
+		validatorsNum = 10
+		startEpoch    = 1
+	)
+
+	require := require.New(t)
+
+	// setup testEnv
+	env := newTestEnv(startEpoch, validatorsNum)
+
+	br1 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
+	//br1Hash := br1.Hash()
+
+
+
+	
+
+
+
+
+}
