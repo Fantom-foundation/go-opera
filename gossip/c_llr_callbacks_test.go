@@ -919,7 +919,7 @@ func TestBlockAndEpochRecords(t *testing.T) {
 	//8. try to process Br1 with one vote with the same epoch as er1. it will(*Validators).GetWeightByIdx(...)
 	e = fakeEvent(0, 1, er1.Idx, 2, 0, br1Hash, false)
 	bv := inter.AsSignedBlockVotes(e)
-	require.Panics(t, func() { env.ProcessBlockVotes(bv) }) //cause there are no validators
+	require.EqualError(t, env.ProcessBlockVotes(bv), errValidatorNotExist.Error()) //cause there are no validators
 	require.EqualError(t, env.ProcessFullBlockRecord(br1), eventcheck.ErrUndecidedBR.Error())
 
 	//9,10. process er1 and er2. it should yield an ErrAlreadyProcessedER error
@@ -1458,7 +1458,8 @@ func TestProcessEpochVotesWonErNotNilDoubleSign( t *testing.T){
 	require.EqualError(env.ProcessFullEpochRecord(er), eventcheck.ErrUndecidedER.Error())
 }
 
-// TODO yield validators via fakeEvent in another way
+
+
 func TestProcessBlockVotesDoubleSign (t *testing.T){
 	const (
 		validatorsNum = 10
@@ -1506,13 +1507,7 @@ func TestProcessBlockVotesDoubleSign (t *testing.T){
 	wonBr = env.store.GetLlrBlockResult(idx.Block(2)) //br1Hash
 	require.NotNil(wonBr)
 	require.NotEqual(wonBr.Hex(), invalidHash.Hex()) // *wonBr != bv 
-
 }
-
-
-
-
-
 
 
 

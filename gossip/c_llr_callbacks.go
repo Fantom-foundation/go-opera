@@ -15,6 +15,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
 
+var errValidatorNotExist = errors.New("validator does not exist")
+
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
 	if current == upd {
 		current++
@@ -59,11 +61,10 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
 	}
-    /*
+
 	if !es.Validators.Exists(vid) {
-		return fmt.Errorf("validator does not exist, id: %d", vid)
+		return errValidatorNotExist
 	}
-	*/
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		b := bvs.Val.Start
@@ -193,11 +194,10 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
 	}
-	/*
+
 	if !es.Validators.Exists(vid) {
-		return fmt.Errorf("validator does not exist, id: %d", vid)
+		return errValidatorNotExist
 	}
-	*/
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
 		s.processRawEpochVote(ev.Val.Epoch, ev.Val.Vote, es.Validators.GetIdx(vid), es.Validators, llrs)
