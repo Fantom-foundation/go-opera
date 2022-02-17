@@ -26,7 +26,7 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 
 func (s *Store) migrateData() error {
 	versions := migration.NewKvdbIDStore(s.table.Version)
-	if isEmptyDB(s.mainDB) && isEmptyDB(s.async.mainDB) {
+	if isEmptyDB(s.mainDB) {
 		// short circuit if empty DB
 		versions.SetID(s.migrations().ID())
 		return nil
