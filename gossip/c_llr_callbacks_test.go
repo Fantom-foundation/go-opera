@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
@@ -1450,7 +1451,9 @@ func TestProcessBlockVotesDoubleSign(t *testing.T) {
 /*
 
 Blockvotes test cases
-1) hash of block record incorrect, block N does not belong epoch E, block vote for correct/incorrect hash  validators >= 1/3W ,validators <=1/3W -> error anticipated
+1) hash of block record incorrect, block N does not belong epoch E, 
+block vote for correct/incorrect hash  
+validators from enother epoch
 2) hash of block record correct, block N does not belong epoch E, block vote for correct/incorrect hash   validators >= 1/3W ,validators <=1/3W -> error anticipated
 3) hash of block record correct, block N belongs epoch E, block vote for correct/incorrect hash validators >= 1/3W ,validators <=1/3W
 
@@ -1481,7 +1484,7 @@ TODO test with not random validators
 
 */
 
-func TestBlockVotes1(t *testing.T){
+func TestBlockVotesTests(t *testing.T){
 	const (
 		validatorsNum = 10
 		startEpoch    = 1
@@ -1492,14 +1495,87 @@ func TestBlockVotes1(t *testing.T){
 	// setup testEnv
 	env := newTestEnv(startEpoch, validatorsNum)
 
-	br1 := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	//br1Hash := br1.Hash()
+	bs, es := env.store.GetHistoryBlockEpochState(startEpoch)
+
+	newVals := func() *pos.Validators {
+		builder := pos.NewBuilder()
+		w := pos.Weight(1000)
+
+		//thresholdweight totalWeight(8200)/3 +1 = 2734
+		// set 8 validators with weight 1000
+
+		for i := idx.ValidatorID(1); i <= 8; i++ {
+			//partialWeight += w
+			builder.Set(i, w)
+		}
+
+		w = pos.Weight(100)
+		//set 9th and 10th validatora with weight 100
+		for i := idx.ValidatorID(9); i <= 10; i++ {
+			builder.Set(i, w)
+		}
+
+		return builder.Build()
+	}()
+
+	// save new validators to state of epoch 2
+	esCopy := es.Copy()
+	esCopy.Validators = newVals
+
+	// process ER of 3rd epoch
+	er := ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, esCopy},
+		Idx:                idx.Epoch(startEpoch + 1),
+	}
+	erHash := er.Hash()
+
+	incorrectValEvent := fakeEvent(0, 0, true, startEpoch+1, validatorsNum+1, erHash)
+	ev := inter.AsSignedEpochVote(incorrectValEvent)
+	require.NoError(env.checkers.Basiccheck.ValidateEV(ev))
+	require.EqualError(env.checkers.Heavycheck.ValidateEV(ev), epochcheck.ErrAuth.Error())
+	require.EqualError(env.ProcessEpochVote(ev), errValidatorNotExist.Error())
 
 
+	for i := 1; i <= 4; i++ {
+		e := fakeEvent(0, 0, true, startEpoch+1, i, erHash)
+		ev := inter.AsSignedEpochVote(e)
+		// process validators with equal weights
+		require.NoError(env.checkers.Basiccheck.ValidateEV(ev))
+// TODO debug it require.NoError(env.checkers.Heavycheck.ValidateEV(ev))
+		require.NoError(env.ProcessEpochVote(ev))
+	}
 
-	
+	require.NoError(env.ProcessFullEpochRecord(er))
 
+	bs, es = env.store.GetHistoryBlockEpochState(startEpoch + 1)
 
+	er = ier.LlrIdxFullEpochRecord{
+		LlrFullEpochRecord: ier.LlrFullEpochRecord{*bs, *es},
+		Idx:                idx.Epoch(startEpoch + 2)}
+	erHash = er.Hash()
 
+	br := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
+	brHash := br.Hash()
 
+	//we can votr for validators with the different weights
+	incorrectBVEpoch := idx.Epoch(3)
+	e := fakeEvent(1, incorrectBVEpoch, false, 0, 1, brHash)
+	bvs := inter.AsSignedBlockVotes(e)
+	require.NoError(env.checkers.Basiccheck.ValidateBVs(bvs))
+//	require.NoError(env.checkers.Heavycheck.ValidateBVs(bvs)) debug it event has whone signature
+	require.EqualError(env.ProcessBlockVotes(bvs), eventcheck.ErrUnknownEpochBVs.Error())
+
+	// ьфлу туц е
+
+	//require.EqualError(env.ProcessBlockVotes(bvs), eventcheck.ErrAlreadyProcessedBVs.Error())
+
+	/*
+	for i := 5; i < 8; i++ {
+		e := fakeEvent(20, 0, false, 0, i, brHash)
+		bvs := inter.AsSignedBlockVotes(e)
+		require.NoError(env.checkers.Basiccheck.ValidateBVs(bvs))
+		require.NoError(env.checkers.Heavycheck.ValidateBVs(bvs))
+		require.NoError(env.ProcessBlockVotes(bvs))
+	}
+	*/
 }
