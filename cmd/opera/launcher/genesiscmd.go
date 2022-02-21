@@ -128,7 +128,7 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 	if gdb.GetHighestLamport() != 0 {
-		log.Crit("Genesis export is possible only in a beginning of an epoch")
+		log.Warn("Attempting genesis export not in a beginning of an epoch. Genesis file output may contain excessive data.")
 	}
 	defer gdb.Close()
 
