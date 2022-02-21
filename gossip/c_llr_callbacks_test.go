@@ -1579,7 +1579,7 @@ func TestBlockVotesTests(t *testing.T) {
 	*/
 }
 
-func fakeEventWithBvLamport(bv inter.LlrBlockVotes, lamport idx.Lamport) *inter.EventPayload {
+func fakeEventWithLamport(bv inter.LlrBlockVotes, ev inter.LlrEpochVote, lamport idx.Lamport) *inter.EventPayload {
 	me := &inter.MutableEventPayload{}
 	me.SetVersion(1)
 	me.SetEpoch(2)
@@ -1587,25 +1587,88 @@ func fakeEventWithBvLamport(bv inter.LlrBlockVotes, lamport idx.Lamport) *inter.
 	me.SetLamport(lamport)
 	me.SetCreator(idx.ValidatorID(1))
 	me.SetBlockVotes(bv)
+	me.SetEpochVote(ev)
 	me.SetPayloadHash(inter.CalcPayloadHash(me))
 	return me.Build()
 }
 
-func getBv(start idx.Block, epoch idx.Epoch, vote hash.Hash, bvNum int) inter.LlrBlockVotes {
-	bv := inter.LlrBlockVotes{
-		Start: start,
-		Epoch: epoch,
+func TestProcessBlockVotesOneValidatorMultipleBvs(t *testing.T) {
+	const (
+		validatorsNum = 10
+		startEpoch    = 2
+	)
+
+	br := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
+	brHash := br.Hash()
+
+	require := require.New(t)
+
+	getBv := func(start idx.Block, epoch idx.Epoch, vote hash.Hash, bvNum int) inter.LlrBlockVotes {
+		bv := inter.LlrBlockVotes{
+			Start: start,
+			Epoch: epoch,
+		}
+
+		for i := 0; i < bvNum; i++ {
+			bv.Votes = append(bv.Votes, vote)
+		}
+
+		return bv
 	}
 
-	for i := 0; i < bvNum; i++ {
-		bv.Votes = append(bv.Votes, vote)
+	testCases := []struct {
+		name    string
+		pretest func(*testEnv)
+	}{
+		{
+			"bv with different Start",
+			func(env *testEnv) {
+				EventWithBvCorrectStart := fakeEventWithLamport(getBv(2, 2, brHash, 1), inter.LlrEpochVote{}, idx.Lamport(rand.Intn(100)))
+				require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(EventWithBvCorrectStart)))
+
+				randLamport := idx.Lamport(rand.Intn(100))
+				for i := 0; i < 9; i++ {
+					bv := getBv(idx.Block(i+1), 2, brHash, 1)
+					e := fakeEventWithLamport(bv, inter.LlrEpochVote{}, randLamport)
+					require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
+				}
+			},
+		},
+		{
+			"bv with different votes",
+			func(env *testEnv) {
+				randLamport := idx.Lamport(rand.Intn(100))
+				for i := 0; i < 10; i++ {
+					bv := getBv(2, 2, brHash, i)
+					e := fakeEventWithLamport(bv, inter.LlrEpochVote{}, randLamport)
+					require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
+				}
+			},
+		},
+		{
+			"bv with different Lamport",
+			func(env *testEnv) {
+				bv := getBv(2, 2, brHash, 1)
+				for i := 0; i < 9; i++ {
+					randLamport := idx.Lamport(rand.Intn(1000))
+					e := fakeEventWithLamport(bv, inter.LlrEpochVote{}, randLamport)
+					require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
+				}
+			},
+		},
 	}
 
-	return bv
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTestEnv(startEpoch, validatorsNum)
+			tc.pretest(env)
+			require.EqualError(env.ProcessFullBlockRecord(br), eventcheck.ErrUndecidedBR.Error())
+		})
+	}
 }
 
-func TestProcessBlockVotesOnevalidatorMultipleBvsDiffStart(t *testing.T) {
-
+func TestProcessEpochVotesOneValidatorMultipleEvsDiffLamport(t *testing.T) {
 	const (
 		validatorsNum = 10
 		startEpoch    = 2
@@ -1613,71 +1676,23 @@ func TestProcessBlockVotesOnevalidatorMultipleBvsDiffStart(t *testing.T) {
 
 	require := require.New(t)
 
-	// setup testEnv
-	env := newTestEnv(startEpoch, validatorsNum)
-
-	br := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	brHash := br.Hash()
-
-	EventWithBvCorrectStart := fakeEventWithBvLamport(getBv(2, 2, brHash, 1), idx.Lamport(rand.Intn(100)))
-	require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(EventWithBvCorrectStart)))
-
-	randLamport := idx.Lamport(rand.Intn(100))
-	for i := 0; i < 9; i++ {
-		bv := getBv(idx.Block(i+1), 2, brHash, 1)
-		e := fakeEventWithBvLamport(bv, randLamport)
-		require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
+	getEv := func(epoch idx.Epoch, vote hash.Hash) inter.LlrEpochVote {
+		return inter.LlrEpochVote{
+			Epoch: epoch,
+			Vote:  vote,
+		}
 	}
 
-	require.EqualError(env.ProcessFullBlockRecord(br), eventcheck.ErrUndecidedBR.Error())
-}
-
-func TestProcessBlockVotesOnevalidatorMultipleBvsDiffLamport(t *testing.T) {
-
-	const (
-		validatorsNum = 10
-		startEpoch    = 2
-	)
-
-	require := require.New(t)
-
-	// setup testEnv
 	env := newTestEnv(startEpoch, validatorsNum)
 
-	br := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	brHash := br.Hash()
+	er := ier.LlrIdxFullEpochRecord{Idx: idx.Epoch(startEpoch) + 1}
+	erHash := er.Hash()
 
-
-	bv := getBv(2, 2, brHash, 1)
-	for i := 0; i < 9; i++ {
-		randLamport := idx.Lamport(rand.Intn(1000))
-		e := fakeEventWithBvLamport(bv, randLamport)
-		require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
-	}
-
-	require.EqualError(env.ProcessFullBlockRecord(br), eventcheck.ErrUndecidedBR.Error())
-}
-
-func TestProcessBlockVotesOneValidatorBvNumIsDiff(t *testing.T) {
-	const (
-		validatorsNum = 10
-		startEpoch    = 2
-	)
-
-	require := require.New(t)
-
-	// setup testEnv
-	env := newTestEnv(startEpoch, validatorsNum)
-
-	br := ibr.LlrIdxFullBlockRecord{Idx: idx.Block(2)}
-	brHash := br.Hash()
-
-	randLamport := idx.Lamport(rand.Intn(100))
 	for i := 0; i < 10; i++ {
-		bv := getBv(2, 2, brHash, i)
-		e := fakeEventWithBvLamport(bv, randLamport)
-		require.NoError(env.ProcessBlockVotes(inter.AsSignedBlockVotes(e)))
+		randLamport := idx.Lamport(rand.Intn(1000))
+		e := fakeEventWithLamport(inter.LlrBlockVotes{}, getEv(startEpoch+1, erHash), randLamport)
+		require.NoError(env.ProcessEpochVote(inter.AsSignedEpochVote(e)))
 	}
 
-	require.EqualError(env.ProcessFullBlockRecord(br), eventcheck.ErrUndecidedBR.Error())
+	require.EqualError(env.ProcessFullEpochRecord(er), eventcheck.ErrUndecidedER.Error())
 }
