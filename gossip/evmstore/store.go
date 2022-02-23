@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
@@ -20,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -134,6 +132,31 @@ func (s *Store) IsEvmSnapshotPaused() bool {
 	return rawdb.ReadSnapshotDisabled(s.table.Evm)
 }
 
+// CleanCommit clean old state trie and commit changes.
+func (s *Store) CleanCommit(block iblockproc.BlockState) error {
+	// Don't need to reference the current state root
+	// due to it already be referenced on `Commit()` function
+	triedb := s.EvmState.TrieDB()
+	stateRoot := common.Hash(block.FinalizedStateRoot)
+	current := uint64(block.LastBlock.Idx)
+	// Garbage collect all below the current block
+	for !s.triegc.Empty() {
+		root, number := s.triegc.Pop()
+		if uint64(-number) >= current {
+			s.triegc.Push(root, number)
+			break
+		}
+		s.Log.Debug("Clean up the state trie", "root", root.(common.Hash))
+		triedb.Dereference(root.(common.Hash))
+	}
+	// commit the state trie after clean up
+	err := triedb.Commit(stateRoot, false, nil)
+	if err != nil {
+		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
+	}
+	return err
+}
+
 // Commit changes.
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()
@@ -176,7 +199,7 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	}
 }
 
-func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
+func (s *Store) Flush(block iblockproc.BlockState) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
 	if s.Snaps != nil {
@@ -186,23 +209,12 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 		}
 	}
 	// Ensure the state of a recent block is also stored to disk before exiting.
-	// We're writing three different states to catch different restart scenarios:
-	//  - HEAD:     So we don't need to reprocess any blocks in the general case
-	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
-	//  - HEAD-31:  So we have a hard limit on the number of blocks reexecuted
 	if !s.cfg.Cache.TrieDirtyDisabled {
 		triedb := s.EvmState.TrieDB()
-
-		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
-			if number := uint64(block.LastBlock.Idx); number > offset {
-				recent := getBlock(idx.Block(number - offset))
-				if recent == nil || recent.Root == hash.Zero {
-					break
-				}
-				s.Log.Info("Writing cached state to disk", "block", number-offset, "root", recent.Root)
-				if err := triedb.Commit(common.Hash(recent.Root), true, nil); err != nil {
-					s.Log.Error("Failed to commit recent state trie", "err", err)
-				}
+		if number := uint64(block.LastBlock.Idx); number > 0 {
+			s.Log.Info("Writing cached state to disk", "block", number, "root", block.FinalizedStateRoot)
+			if err := triedb.Commit(common.Hash(block.FinalizedStateRoot), true, nil); err != nil {
+				s.Log.Error("Failed to commit recent state trie", "err", err)
 			}
 		}
 		if snapBase != (common.Hash{}) {

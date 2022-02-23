@@ -182,6 +182,14 @@ func (s *Store) commitEVM(flush bool) {
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
 
+func (s *Store) cleanCommitEVM() {
+	err := s.evm.CleanCommit(s.GetBlockState())
+	if err != nil {
+		s.Log.Crit("Failed to commit EVM storage", "err", err)
+	}
+	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
+}
+
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 	err = s.generateSnapshotAt(s.evm, root, true, async)
 	if err != nil {
