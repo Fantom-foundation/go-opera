@@ -182,18 +182,6 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 			if nodes > limit || imgs > 4*1024*1024 {
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
-			// Find the next state trie we need to commit
-			chosen := current - TriesInMemory
-
-			// Garbage collect anything below our required write retention
-			for !s.triegc.Empty() {
-				root, number := s.triegc.Pop()
-				if uint64(-number) > chosen {
-					s.triegc.Push(root, number)
-					break
-				}
-				triedb.Dereference(root.(common.Hash))
-			}
 		}
 		return nil
 	}
