@@ -26,7 +26,7 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 
 func (s *Store) migrateData() error {
 	versions := migration.NewKvdbIDStore(s.table.Version)
-	if isEmptyDB(s.mainDB) && isEmptyDB(s.async.mainDB) {
+	if isEmptyDB(s.mainDB) {
 		// short circuit if empty DB
 		versions.SetID(s.migrations().ID())
 		return nil
@@ -44,7 +44,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("DAG heads recovery", s.recoverHeadsStorage).
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState).
-		Next("LlrState recovery", s.recoverLlrState)
+		Next("LlrState recovery", s.recoverLlrState).
+		Next("erase gossip-async db", s.eraseGossipAsyncDB)
 }
 
 func unsupportedMigration() error {
@@ -355,6 +356,18 @@ func (s *Store) recoverLlrState() error {
 		LowestBlockToFill:   block,
 	})
 	s.FlushLlrState()
+
+	return nil
+}
+
+func (s *Store) eraseGossipAsyncDB() error {
+	asyncDB, err := s.dbs.OpenDB("gossip-async")
+	if err != nil {
+		return fmt.Errorf("failed to open gossip-async to drop: %v", err)
+	}
+
+	_ = asyncDB.Close()
+	asyncDB.Drop()
 
 	return nil
 }
