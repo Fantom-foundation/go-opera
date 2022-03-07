@@ -2,6 +2,8 @@ package snap2kvdb
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/devnulldb"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Adapter struct {
@@ -15,12 +17,12 @@ func Wrap(v kvdb.Snapshot) *Adapter {
 }
 
 func (db *Adapter) Put(key []byte, value []byte) error {
-	panic("called Put on snapshot")
+	log.Warn("called Put on snapshot")
 	return nil
 }
 
 func (db *Adapter) Delete(key []byte) error {
-	panic("called Delete on snapshot")
+	log.Warn("called Delete on snapshot")
 	return nil
 }
 
@@ -29,8 +31,8 @@ func (db *Adapter) GetSnapshot() (kvdb.Snapshot, error) {
 }
 
 func (db *Adapter) NewBatch() kvdb.Batch {
-	panic("called NewBatch on snapshot")
-	return nil
+	log.Warn("called NewBatch on snapshot")
+	return devnulldb.New().NewBatch()
 }
 
 func (db *Adapter) Compact(start []byte, limit []byte) error {
