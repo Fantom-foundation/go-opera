@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -37,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
@@ -48,6 +51,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+)
+
+const (
+	// defaultTraceTimeout is the amount of time a single transaction can execute
+	// by default before being forcefully aborted.
+	defaultTraceTimeout = 5 * time.Second
 )
 
 var (
@@ -1964,6 +1973,303 @@ func (api *PublicDebugAPI) BlocksTransactionTimes(ctx context.Context, untilBloc
 	}
 
 	return times, nil
+}
+
+// TraceConfig holds extra parameters to trace functions.
+type TraceConfig struct {
+	*vm.LogConfig
+	Tracer  *string
+	Timeout *string
+	Reexec  *uint64
+}
+
+// TraceTransaction returns the structured logs created during the execution of EVM
+// and returns them as a JSON object.
+func (api *PublicDebugAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
+	tx, blockNumber, index, err := api.b.GetTransaction(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if tx == nil {
+		return nil, fmt.Errorf("transaction %s not found", hash.Hex())
+	}
+
+	// It shouldn't happen in practice.
+	if blockNumber == 0 {
+		return nil, errors.New("genesis is not traceable")
+	}
+
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if err != nil {
+		return nil, errors.New("cannot get block from db")
+	}
+
+	msg, vmctx, statedb, err := api.stateAtTransaction(ctx, block, int(index))
+	if err != nil {
+		return nil, err
+	}
+
+	txctx := &tracers.Context{
+		BlockHash: block.Hash,
+		TxIndex:   int(index),
+		TxHash:    hash,
+	}
+
+	return api.traceTx(ctx, msg, txctx, vmctx, statedb, config)
+}
+
+// traceTx configures a new tracer according to the provided configuration, and
+// executes the given message in the provided environment. The return value will
+// be tracer dependent.
+func (api *PublicDebugAPI) traceTx(ctx context.Context, message evmcore.Message, txctx *tracers.Context, vmctx vm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+	// Assemble the structured logger or the JavaScript tracer
+	var (
+		tracer    vm.Tracer
+		err       error
+		txContext = evmcore.NewEVMTxContext(message)
+	)
+
+	switch {
+	case config == nil:
+		tracer = vm.NewStructLogger(nil)
+	case config.Tracer != nil:
+		// Define a meaningful timeout of a single transaction trace
+		timeout := defaultTraceTimeout
+		if config.Timeout != nil {
+			if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+				return nil, err
+			}
+		}
+		if t, err := tracers.New(*config.Tracer, txctx); err != nil {
+			return nil, err
+		} else {
+			deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+			go func() {
+				<-deadlineCtx.Done()
+				if errors.Is(deadlineCtx.Err(), context.DeadlineExceeded) {
+					t.Stop(errors.New("execution timeout"))
+				}
+			}()
+			defer cancel()
+			tracer = t
+		}
+	default:
+		tracer = vm.NewStructLogger(config.LogConfig)
+	}
+
+	// Run the transaction with tracing enabled.
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.b.ChainConfig(), vm.Config{Debug: true, Tracer: tracer, NoBaseFee: true})
+
+	// Call Prepare to clear out the statedb access list
+	statedb.Prepare(txctx.TxHash, txctx.TxIndex)
+
+	result, err := evmcore.ApplyMessage(vmenv, message, new(evmcore.GasPool).AddGas(message.Gas()))
+	if err != nil {
+		return nil, fmt.Errorf("tracing failed: %w", err)
+	}
+
+	// Depending on the tracer type, format and return the output.
+	switch tracer := tracer.(type) {
+	case *vm.StructLogger:
+		// If the result contains a revert reason, return it.
+		returnVal := fmt.Sprintf("%x", result.Return())
+		if len(result.Revert()) > 0 {
+			returnVal = fmt.Sprintf("%x", result.Revert())
+		}
+		return &ExecutionResult{
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: returnVal,
+			StructLogs:  FormatLogs(tracer.StructLogs()),
+		}, nil
+
+	case *tracers.Tracer:
+		return tracer.GetResult()
+
+	default:
+		panic(fmt.Sprintf("bad tracer type %T", tracer))
+	}
+}
+
+// txTraceResult is the result of a single transaction trace.
+type txTraceResult struct {
+	Result interface{} `json:"result,omitempty"` // Trace results produced by the tracer
+	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
+}
+
+// txTraceTask represents a single transaction trace task when an entire block
+// is being traced.
+type txTraceTask struct {
+	statedb *state.StateDB // Intermediate state prepped for tracing
+	index   int            // Transaction offset in the block
+}
+
+// TraceBlockByNumber returns the structured logs created during the execution of
+// EVM and returns them as a JSON object.
+func (api *PublicDebugAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *TraceConfig) ([]*txTraceResult, error) {
+	block, err := api.blockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	return api.traceBlock(ctx, block, config)
+}
+
+// TraceBlockByHash returns the structured logs created during the execution of
+// EVM and returns them as a JSON object.
+func (api *PublicDebugAPI) TraceBlockByHash(ctx context.Context, hash common.Hash, config *TraceConfig) ([]*txTraceResult, error) {
+	block, err := api.blockByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	return api.traceBlock(ctx, block, config)
+}
+
+// blockByNumber is the wrapper of the chain access function offered by the backend.
+// It will return an error if the block is not found.
+func (api *PublicDebugAPI) blockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+	block, err := api.b.BlockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, fmt.Errorf("block #%d not found", number)
+	}
+	return block, nil
+}
+
+// blockByHash is the wrapper of the chain access function offered by the backend.
+// It will return an error if the block is not found.
+func (api *PublicDebugAPI) blockByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmBlock, error) {
+	block, err := api.b.BlockByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, fmt.Errorf("block %s not found", hash.Hex())
+	}
+	return block, nil
+}
+
+// traceBlock configures a new tracer according to the provided configuration, and
+// executes all the transactions contained within. The return value will be one item
+// per transaction, dependent on the requestd tracer.
+func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlock, config *TraceConfig) ([]*txTraceResult, error) {
+	if block.NumberU64() == 0 {
+		return nil, errors.New("genesis is not traceable")
+	}
+	parent, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(block.NumberU64()-1))
+	if err != nil {
+		return nil, err
+	}
+	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(parent.NumberU64())))
+	if err != nil {
+		return nil, err
+	}
+	// Execute all the transaction contained within the block concurrently
+	var (
+		signer  = types.MakeSigner(api.b.ChainConfig(), block.Number)
+		txs     = block.Transactions
+		results = make([]*txTraceResult, len(txs))
+
+		pend = new(sync.WaitGroup)
+		jobs = make(chan *txTraceTask, len(txs))
+	)
+	threads := runtime.NumCPU()
+	if threads > len(txs) {
+		threads = len(txs)
+	}
+	blockCtx := evmcore.NewEVMBlockContext(block.Header(), nil, nil)
+	blockHash := block.Hash
+	for th := 0; th < threads; th++ {
+		pend.Add(1)
+		go func() {
+			defer pend.Done()
+			// Fetch and execute the next transaction trace tasks
+			for task := range jobs {
+				msg, _ := txs[task.index].AsMessage(signer, block.BaseFee)
+				txctx := &tracers.Context{
+					BlockHash: blockHash,
+					TxIndex:   task.index,
+					TxHash:    txs[task.index].Hash(),
+				}
+				res, err := api.traceTx(ctx, msg, txctx, blockCtx, task.statedb, config)
+				if err != nil {
+					results[task.index] = &txTraceResult{Error: err.Error()}
+					continue
+				}
+				results[task.index] = &txTraceResult{Result: res}
+			}
+		}()
+	}
+	// Feed the transactions into the tracers and return
+	var failed error
+	for i, tx := range txs {
+		// Send the trace task over for execution
+		jobs <- &txTraceTask{statedb: statedb.Copy(), index: i}
+
+		// Generate the next state snapshot fast without tracing
+		msg, _ := tx.AsMessage(signer, block.BaseFee)
+		statedb.Prepare(tx.Hash(), i)
+		vmenv := vm.NewEVM(blockCtx, evmcore.NewEVMTxContext(msg), statedb, api.b.ChainConfig(), vm.Config{})
+		if _, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(msg.Gas())); err != nil {
+			failed = err
+			break
+		}
+		// Finalize the state so any modifications are written to the trie
+		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
+		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number))
+	}
+	close(jobs)
+	pend.Wait()
+
+	// If execution failed in between, abort
+	if failed != nil {
+		return nil, failed
+	}
+	return results, nil
+}
+
+// stateAtTransaction returns the execution environment of a certain transaction.
+func (api *PublicDebugAPI) stateAtTransaction(ctx context.Context, block *evmcore.EvmBlock, txIndex int) (evmcore.Message, vm.BlockContext, *state.StateDB, error) {
+	// Short circuit if it's genesis block.
+	if block.NumberU64() == 0 {
+		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
+	}
+	// Create the parent state database
+	parent, err := api.b.BlockByHash(ctx, block.ParentHash)
+	if parent == nil || err != nil {
+		return nil, vm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.ParentHash)
+	}
+	// Lookup the statedb of parent block from the live database,
+	// otherwise regenerate it on the flight.
+	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(parent.NumberU64())))
+	if err != nil {
+		return nil, vm.BlockContext{}, nil, err
+	}
+	if txIndex == 0 && len(block.Transactions) == 0 {
+		return nil, vm.BlockContext{}, statedb, nil
+	}
+	// Recompute transactions up to the target index.
+	signer := gsignercache.Wrap(types.MakeSigner(api.b.ChainConfig(), block.Number))
+	for idx, tx := range block.Transactions {
+		// Assemble the transaction call message and return if the requested offset
+		msg, _ := tx.AsMessage(signer, block.BaseFee)
+		txContext := evmcore.NewEVMTxContext(msg)
+		context := evmcore.NewEVMBlockContext(block.Header(), nil, nil)
+		if idx == txIndex {
+			return msg, context, statedb, nil
+		}
+		// Not yet the searched for transaction, execute on top of the current state
+		vmenv := vm.NewEVM(context, txContext, statedb, api.b.ChainConfig(), vm.Config{})
+		statedb.Prepare(tx.Hash(), idx)
+		if _, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(tx.Gas())); err != nil {
+			return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+		}
+		// Ensure any modifications are committed to the state
+		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
+		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number))
+	}
+	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash)
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
