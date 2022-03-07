@@ -367,8 +367,11 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		cfg.Emitter = emitter.FakeConfig(num)
+		setBootnodes(ctx, []string{}, &cfg.Node)
 	} else {
-		setBootnodes(ctx, Bootnodes, &cfg.Node)
+		// "asDefault" means set network defaults
+		cfg.Node.P2P.BootstrapNodes = asDefault
+		cfg.Node.P2P.BootstrapNodesV5 = asDefault
 	}
 
 	// Load config file (medium priority)
