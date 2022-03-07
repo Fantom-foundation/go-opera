@@ -281,8 +281,6 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
-	stack := makeConfigNode(ctx, &cfg.Node)
-
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
@@ -297,6 +295,24 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		_ = genesisStore.Close()
 	}
 	metrics.SetDataDir(cfg.Node.DataDir)
+
+	// substitute default bootnodes if requested
+	networkName := ""
+	if gdb.HasBlockEpochState() {
+		networkName = gdb.GetRules().Name
+	}
+	if len(networkName) == 0 && genesisStore != nil {
+		networkName = genesisStore.Header().NetworkName
+	}
+	if len(cfg.Node.P2P.BootstrapNodes) == len(asDefault) && cfg.Node.P2P.BootstrapNodes[0] == asDefault[0] {
+		bootnodes := Bootnodes[networkName]
+		if bootnodes == nil {
+			bootnodes = []string{}
+		}
+		setBootnodes(ctx, bootnodes, &cfg.Node)
+	}
+
+	stack := makeConfigNode(ctx, &cfg.Node)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Emitter.Validator.PubKey
