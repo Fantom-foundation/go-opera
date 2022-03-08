@@ -88,6 +88,7 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
 		Journal:   cfg.Cache.TrieCleanJournal,
 		Preimages: cfg.EnablePreimageRecording,
+		GreedyGC:  !cfg.Cache.TrieDirtyDisabled,
 	})
 	s.EvmLogs = topicsdb.New(s.table.Logs)
 
