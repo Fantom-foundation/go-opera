@@ -146,6 +146,11 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
 
+	// wait until snapshot generation is complete
+	for srv.EvmSnapshotGeneration() {
+		time.Sleep(100 * time.Millisecond)
+	}
+
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
 	if err != nil {
