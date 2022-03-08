@@ -136,7 +136,7 @@ type config struct {
 	Lachesis      abft.Config
 	LachesisStore abft.StoreConfig
 	VectorClock   vecmt.IndexConfig
-	Cachescale    cachescale.Func
+	cachescale    cachescale.Func
 }
 
 func (c *config) AppConfigs() integration.Configs {
@@ -244,8 +244,6 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", num))
-	default:
-		cfg.DataDir = defaultDataDir
 	}
 }
 
@@ -358,7 +356,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
-		Cachescale:    cacheRatio,
+		cachescale:    cacheRatio,
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {

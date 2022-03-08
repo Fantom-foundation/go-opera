@@ -20,6 +20,7 @@ type syncStatus struct {
 const (
 	ssUnknown syncStage = iota
 	ssSnaps
+	ssEvmSnapGen
 	ssEvents
 )
 
@@ -52,6 +53,10 @@ func (ss *syncStatus) MarkMaybeSynced() {
 
 func (ss *syncStatus) AcceptEvents() bool {
 	return ss.Is(ssEvents)
+}
+
+func (ss *syncStatus) AcceptBlockRecords() bool {
+	return !ss.Is(ssEvents)
 }
 
 func (ss *syncStatus) AcceptTxs() bool {
@@ -150,14 +155,22 @@ func (h *handler) txsyncLoop() {
 }
 
 func (h *handler) updateSnapsyncStage() {
-	fullsyncPossible := h.store.evm.HasStateDB(h.store.GetBlockState().FinalizedStateRoot)
+	// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
+	snapGenOngoing, _ := h.store.evm.Snaps.Generating()
+	fullsyncPossibleEver := h.store.evm.HasStateDB(h.store.GetBlockState().FinalizedStateRoot)
+	fullsyncPossibleNow := fullsyncPossibleEver && !snapGenOngoing
 	// never allow to stop fullsync as it may lead to a race condition due to overwritten EVM snapshot by snapsync
-	snapsyncPossible := h.config.AllowSnapsync && !h.syncStatus.Is(ssEvents)
-	snapsyncNeeded := !fullsyncPossible || time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
+	snapsyncPossible := h.config.AllowSnapsync && (h.syncStatus.Is(ssUnknown) || h.syncStatus.Is(ssSnaps))
+	snapsyncNeeded := !fullsyncPossibleEver || time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
 
 	if snapsyncPossible && snapsyncNeeded {
 		h.syncStatus.Set(ssSnaps)
-	} else if fullsyncPossible {
+	} else if snapGenOngoing {
+		h.syncStatus.Set(ssEvmSnapGen)
+	} else if fullsyncPossibleNow {
+		if !h.syncStatus.Is(ssEvents) {
+			h.Log.Info("Start/Switch to fullsync mode...")
+		}
 		h.syncStatus.Set(ssEvents)
 	}
 }
@@ -196,7 +209,8 @@ func (h *handler) snapsyncStageTick() {
 				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
 			} else {
 				h.Log.Info("Snapsync is finalized at", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
-				h.syncStatus.Set(ssEvents)
+				// switch state to non-snapsync and thus not allow ssSnaps ever again
+				h.syncStatus.Set(ssEvmSnapGen)
 			}
 		}
 	}
@@ -216,8 +230,10 @@ func (h *handler) snapsyncStageTick() {
 	// resume events downloading if events sync is enabled
 	if h.syncStatus.Is(ssEvents) {
 		h.dagLeecher.Resume()
+		h.brLeecher.Pause()
 	} else {
 		h.dagLeecher.Pause()
+		h.brLeecher.Resume()
 	}
 }
 
@@ -235,6 +251,16 @@ func (h *handler) snapsyncStageLoop() {
 	}
 }
 
+// mayCancel cancels existing snapsync process if any
+func (ss *snapsyncState) mayCancel() error {
+	if ss.cancel != nil {
+		err := ss.cancel()
+		ss.cancel = nil
+		return err
+	}
+	return nil
+}
+
 func (h *handler) snapsyncStateLoop() {
 	defer h.loopsWg.Done()
 	for {
@@ -247,11 +273,7 @@ func (h *handler) snapsyncStateLoop() {
 					continue
 				}
 				h.snapState.epoch = upd.epoch
-				// cancel existing snapsync state
-				if h.snapState.cancel != nil {
-					_ = h.snapState.cancel()
-					h.snapState.cancel = nil
-				}
+				_ = h.snapState.mayCancel()
 				// start new snapsync state
 				h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
 				h.process.PauseEvmSnapshot()
@@ -259,14 +281,11 @@ func (h *handler) snapsyncStateLoop() {
 				h.snapState.cancel = ss.Cancel
 			}
 			if cmd.snapsyncCancelCmd != nil {
-				// cancel existing snapsync state
-				if h.snapState.cancel != nil {
-					_ = h.snapState.cancel()
-					h.snapState.cancel = nil
-				}
+				_ = h.snapState.mayCancel()
 				cmd.snapsyncCancelCmd.done <- struct{}{}
 			}
 		case <-h.snapState.quit:
+			_ = h.snapState.mayCancel()
 			return
 		}
 	}

@@ -32,6 +32,13 @@ func (pk *PubKey) Bytes() []byte {
 	return append([]byte{pk.Type}, pk.Raw...)
 }
 
+func (pk PubKey) Copy() PubKey {
+	return PubKey{
+		Type: pk.Type,
+		Raw:  common.CopyBytes(pk.Raw),
+	}
+}
+
 func FromString(str string) (PubKey, error) {
 	return FromBytes(common.FromHex(str))
 }

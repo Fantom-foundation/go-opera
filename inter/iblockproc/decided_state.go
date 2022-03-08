@@ -63,10 +63,10 @@ func (bs BlockState) Copy() BlockState {
 	copy(cp.EpochCheaters, bs.EpochCheaters)
 	cp.ValidatorStates = make([]ValidatorBlockState, len(bs.ValidatorStates))
 	copy(cp.ValidatorStates, bs.ValidatorStates)
-	cp.NextValidatorProfiles = make(ValidatorProfiles, len(bs.NextValidatorProfiles))
-	for k, v := range bs.NextValidatorProfiles {
-		cp.NextValidatorProfiles[k] = v
+	for i := range cp.ValidatorStates {
+		cp.ValidatorStates[i].Originated = new(big.Int).Set(cp.ValidatorStates[i].Originated)
 	}
+	cp.NextValidatorProfiles = bs.NextValidatorProfiles.Copy()
 	if bs.DirtyRules != nil {
 		rules := bs.DirtyRules.Copy()
 		cp.DirtyRules = &rules
@@ -146,10 +146,7 @@ func (es EpochState) Copy() EpochState {
 	cp := es
 	cp.ValidatorStates = make([]ValidatorEpochState, len(es.ValidatorStates))
 	copy(cp.ValidatorStates, es.ValidatorStates)
-	cp.ValidatorProfiles = make(ValidatorProfiles, len(es.ValidatorProfiles))
-	for k, v := range es.ValidatorProfiles {
-		cp.ValidatorProfiles[k] = v
-	}
+	cp.ValidatorProfiles = es.ValidatorProfiles.Copy()
 	cp.Rules = es.Rules.Copy()
 	return cp
 }

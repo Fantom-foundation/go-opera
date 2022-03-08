@@ -25,6 +25,7 @@ var (
 	errWrongEpochHash   = errors.New("wrong event epoch hash")
 	errNonExistingEpoch = errors.New("epoch doesn't exist")
 	errSameEpoch        = errors.New("epoch hasn't changed")
+	errDirtyEvmSnap     = errors.New("EVM snapshot is dirty")
 )
 
 func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) error {
@@ -173,10 +174,10 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	if s.stopped {
 		return errStopped
 	}
-	if s.store.evm.IsEvmSnapshotPaused() {
-		root := s.store.GetBlockState().FinalizedStateRoot
-		s.Log.Warn("Rebuilding state snapshot after a pause", "root", root)
-		s.store.evm.RebuildEvmSnapshot(common.Hash(root))
+	if gen, err := s.store.evm.Snaps.Generating(); gen || err != nil {
+		// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
+		s.Log.Warn("EVM snapshot is not ready during event processing", "gen", gen, "err", err)
+		return errDirtyEvmSnap
 	}
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
 	defer atomic.StoreUint32(&s.eventBusyFlag, 0)
@@ -201,11 +202,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	// Process LLR votes
-	err := s.ProcessBlockVotes(inter.AsSignedBlockVotes(e))
+	err := s.processBlockVotes(inter.AsSignedBlockVotes(e))
 	if err != nil && err != eventcheck.ErrAlreadyProcessedBVs {
 		return err
 	}
-	err = s.ProcessEpochVote(inter.AsSignedEpochVote(e))
+	err = s.processEpochVote(inter.AsSignedEpochVote(e))
 	if err != nil && err != eventcheck.ErrAlreadyProcessedEV {
 		return err
 	}
