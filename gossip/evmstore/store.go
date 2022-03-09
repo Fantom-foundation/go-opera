@@ -66,7 +66,7 @@ type Store struct {
 }
 
 const (
-	TriesInMemory = 32
+	TriesInMemory = 128
 )
 
 // NewStore creates store over key-value db.
@@ -132,11 +132,11 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 	// due to it already be referenced on `Commit()` function
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
-	current := uint64(block.LastBlock.Idx)
+	chosen := uint64(block.LastBlock.Idx) - TriesInMemory
 	// Garbage collect all below the current block
 	for !s.triegc.Empty() {
 		root, number := s.triegc.Pop()
-		if uint64(-number) >= current {
+		if uint64(-number) >= chosen {
 			s.triegc.Push(root, number)
 			break
 		}
