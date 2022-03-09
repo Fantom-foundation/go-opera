@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -181,6 +182,7 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 				limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit)
 			)
 			if nodes > limit || imgs > 4*1024*1024 {
+				log.Warn("(Cap) If we exceeded our memory allowance, flush matured singleton nodes to disk")
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
 		}
