@@ -95,9 +95,10 @@ var (
 		Value: "full",
 	}
 
-	GCModeFlag = cli.BoolFlag{
+	GCModeFlag = cli.StringFlag{
 		Name:  "gcmode",
-		Usage: `Enable garbage collection mode`,
+		Usage: `Blockchain garbage collection mode ("light", "full", "archive")`,
+		Value: "archive",
 	}
 
 	AllowedOperaGenesisHashes = map[uint64]hash.Hash{
@@ -314,9 +315,11 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 
 func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossip.StoreConfig, error) {
 	cfg := src
-	if ctx.GlobalBool(utils.GCModeFlag.Name) {
-		cfg.EVM.Cache.TrieDirtyDisabled = false
+	if gcmode := ctx.GlobalString(utils.GCModeFlag.Name); gcmode != "light" && gcmode != "full" && gcmode != "archive" {
+		utils.Fatalf("--%s must be 'light', 'full' or 'archive'", GCModeFlag.Name)
 	}
+	cfg.EVM.Cache.TrieDirtyDisabled = ctx.GlobalString(utils.GCModeFlag.Name) == "archive"
+	cfg.EVM.Cache.GreedyGC = ctx.GlobalString(utils.GCModeFlag.Name) == "full"
 	return cfg, nil
 }
 
