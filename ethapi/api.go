@@ -998,7 +998,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {
 		state, _, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if state == nil || err != nil {
 			return 0, err
 		}
 		balance := state.GetBalance(*args.From) // from can't be nil
@@ -1547,7 +1547,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, has
 	}
 	if tx != nil {
 		header, err := s.b.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-		if err != nil {
+		if header == nil || err != nil {
 			return nil, err
 		}
 		return newRPCTransaction(tx, header.Hash, blockNumber, index, header.BaseFee), nil
@@ -1947,14 +1947,14 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 func (api *PublicDebugAPI) BlocksTransactionTimes(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64) (map[hexutil.Uint64]hexutil.Uint, error) {
 
 	until, err := api.b.HeaderByNumber(ctx, untilBlock)
-	if err != nil {
+	if until == nil || err != nil {
 		return nil, err
 	}
 	untilN := until.Number.Uint64()
 	times := map[hexutil.Uint64]hexutil.Uint{}
 	for i := untilN; i >= 1 && i+uint64(maxBlocks) > untilN; i-- {
 		b, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(i))
-		if err != nil {
+		if b == nil || err != nil {
 			return nil, err
 		}
 		if b.Transactions.Len() == 0 {

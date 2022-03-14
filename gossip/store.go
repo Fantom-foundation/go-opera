@@ -28,8 +28,6 @@ type Store struct {
 	dbs kvdb.FlushableDBProducer
 	cfg StoreConfig
 
-	async *asyncStore
-
 	mainDB       kvdb.Store
 	snapshotedDB *switchable.Snapshot
 	evm          *evmstore.Store
@@ -111,16 +109,11 @@ func NewMemStore() *Store {
 func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	mainDB, err := dbs.OpenDB("gossip")
 	if err != nil {
-		log.Crit("Filed to open DB", "name", "gossip", "err", err)
-	}
-	asyncDB, err := dbs.OpenDB("gossip-async")
-	if err != nil {
-		log.Crit("Filed to open DB", "name", "gossip-async", "err", err)
+		log.Crit("Failed to open DB", "name", "gossip", "err", err)
 	}
 	s := &Store{
 		dbs:           dbs,
 		cfg:           cfg,
-		async:         newAsyncStore(asyncDB),
 		mainDB:        mainDB,
 		Instance:      logger.New("gossip-store"),
 		prevFlushTime: time.Now(),
@@ -170,7 +163,6 @@ func (s *Store) Close() {
 	table.MigrateCaches(&s.cache, setnil)
 
 	_ = s.mainDB.Close()
-	s.async.Close()
 	s.sfcapi.Close()
 	if s.txtrace != nil {
 		s.txtrace.Close()

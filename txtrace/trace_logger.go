@@ -6,12 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/txtrace"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
+
+	"github.com/Fantom-foundation/go-opera/gossip/txtrace"
 )
 
 // TraceStructLogger is a transaction trace creator
@@ -248,6 +249,10 @@ func (tr *TraceStructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Du
 	}
 	tr.output = output
 }
+
+func (*TraceStructLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {}
+
+func (*TraceStructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.

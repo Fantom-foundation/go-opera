@@ -282,7 +282,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.Cachescale), genesis, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), genesis, cfg.AppConfigs())
 	_ = genesis.Close()
 	metrics.SetDataDir(cfg.Node.DataDir)
 

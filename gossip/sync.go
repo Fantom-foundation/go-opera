@@ -251,6 +251,16 @@ func (h *handler) snapsyncStageLoop() {
 	}
 }
 
+// mayCancel cancels existing snapsync process if any
+func (ss *snapsyncState) mayCancel() error {
+	if ss.cancel != nil {
+		err := ss.cancel()
+		ss.cancel = nil
+		return err
+	}
+	return nil
+}
+
 func (h *handler) snapsyncStateLoop() {
 	defer h.loopsWg.Done()
 	for {
@@ -263,11 +273,7 @@ func (h *handler) snapsyncStateLoop() {
 					continue
 				}
 				h.snapState.epoch = upd.epoch
-				// cancel existing snapsync state
-				if h.snapState.cancel != nil {
-					_ = h.snapState.cancel()
-					h.snapState.cancel = nil
-				}
+				_ = h.snapState.mayCancel()
 				// start new snapsync state
 				h.Log.Info("Update snapsync epoch", "epoch", upd.epoch, "root", upd.root)
 				h.process.PauseEvmSnapshot()
@@ -275,14 +281,11 @@ func (h *handler) snapsyncStateLoop() {
 				h.snapState.cancel = ss.Cancel
 			}
 			if cmd.snapsyncCancelCmd != nil {
-				// cancel existing snapsync state
-				if h.snapState.cancel != nil {
-					_ = h.snapState.cancel()
-					h.snapState.cancel = nil
-				}
+				_ = h.snapState.mayCancel()
 				cmd.snapsyncCancelCmd.done <- struct{}{}
 			}
 		case <-h.snapState.quit:
+			_ = h.snapState.mayCancel()
 			return
 		}
 	}
