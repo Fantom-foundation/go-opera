@@ -217,12 +217,14 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	newEpoch := s.store.GetEpoch()
+	// epochSealed means that it had ended and a next epoch has started
+	epochSealed := newEpoch != oldEpoch
 
 	// index DAG heads and last events
 	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
 	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
 	// update highest Lamport
-	if newEpoch != oldEpoch {
+	if epochSealed {
 		s.store.SetHighestLamport(0)
 	} else if e.Lamport() > s.store.GetHighestLamport() {
 		s.store.SetHighestLamport(e.Lamport())
@@ -232,11 +234,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		em.OnEventConnected(e)
 	}
 
-	if newEpoch != oldEpoch {
+	if epochSealed {
 		s.switchEpochTo(newEpoch)
 	}
 
-	s.mayCommit(newEpoch != oldEpoch)
+	s.mayCommit(epochSealed)
 	return nil
 }
 

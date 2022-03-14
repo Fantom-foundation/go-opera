@@ -110,8 +110,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 	now := time.Now()
 	for _, tx := range txs {
-		_, ok := em.txTime.Get(tx.Hash())
-		if !ok {
+		if _, ok := em.txTime.Get(tx.Hash()); !ok {
 			em.txTime.Add(tx.Hash(), now)
 		}
 	}

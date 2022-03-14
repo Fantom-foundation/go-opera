@@ -37,21 +37,16 @@ func (em *Emitter) writeLastEmittedEventID(id hash.Event) {
 }
 
 func (em *Emitter) readLastEmittedEventID() *hash.Event {
-	if em.emittedEventFile == nil {
+	buf := readFile(em.emittedEventFile, 32, "Failed to read event file", em.config.PrevEmittedEventFile.Path)
+	if buf == nil {
 		return nil
 	}
-	buf := make([]byte, 32)
-	_, err := em.emittedEventFile.ReadAt(buf, 0)
-	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
-		log.Crit("Failed to read event file", "file", em.config.PrevEmittedEventFile.Path, "err", err)
-	}
+
 	v := hash.BytesToEvent(buf)
 	return &v
 }
 
+// TODO declare write func
 func (em *Emitter) writeLastEmittedBlockVotes(b idx.Block) {
 	if em.emittedBvsFile == nil {
 		return
@@ -63,17 +58,11 @@ func (em *Emitter) writeLastEmittedBlockVotes(b idx.Block) {
 }
 
 func (em *Emitter) readLastBlockVotes() *idx.Block {
-	if em.emittedBvsFile == nil {
+	buf := readFile(em.emittedBvsFile, 8, "Failed to read BVs file", em.config.PrevBlockVotesFile.Path)
+	if buf == nil {
 		return nil
 	}
-	buf := make([]byte, 8)
-	_, err := em.emittedBvsFile.ReadAt(buf, 0)
-	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
-		log.Crit("Failed to read BVs file", "file", em.config.PrevBlockVotesFile.Path, "err", err)
-	}
+
 	v := idx.BytesToBlock(buf)
 	return &v
 }
@@ -82,24 +71,35 @@ func (em *Emitter) writeLastEmittedEpochVote(e idx.Epoch) {
 	if em.emittedEvFile == nil {
 		return
 	}
-	_, err := em.emittedEvFile.WriteAt(e.Bytes(), 0)
-	if err != nil {
+	if _, err := em.emittedEvFile.WriteAt(e.Bytes(), 0); err != nil {
 		log.Crit("Failed to write BVs file", "file", em.config.PrevEpochVoteFile.Path, "err", err)
 	}
 }
 
 func (em *Emitter) readLastEpochVote() *idx.Epoch {
-	if em.emittedEvFile == nil {
+	buf := readFile(em.emittedEvFile, 4, "Failed to read EV file", em.config.PrevEpochVoteFile.Path)
+	if buf == nil {
 		return nil
 	}
-	buf := make([]byte, 4)
-	_, err := em.emittedEvFile.ReadAt(buf, 0)
-	if err != nil {
+
+	v := idx.BytesToEpoch(buf)
+	return &v
+}
+
+// should we put logger on *Emitter?
+func readFile(file *os.File, bufLen uint8, errMsg, path string) []byte {
+	if file == nil {
+		return nil
+	}
+
+	buf := make([]byte, bufLen)
+	if _, err := file.ReadAt(buf, 0); err != nil {
 		if err == io.EOF {
 			return nil
 		}
-		log.Crit("Failed to read EV file", "file", em.config.PrevEpochVoteFile.Path, "err", err)
+
+		log.Crit(errMsg, "file", path, "err", err)
 	}
-	v := idx.BytesToEpoch(buf)
-	return &v
+
+	return buf
 }
