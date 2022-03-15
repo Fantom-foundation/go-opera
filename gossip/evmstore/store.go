@@ -132,15 +132,14 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 	// due to it already be referenced on `Commit()` function
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
-	chosen := uint64(block.LastBlock.Idx) - TriesInMemory
+	current := uint64(block.LastBlock.Idx)
 	// Garbage collect all below the current block
 	for !s.triegc.Empty() {
 		root, number := s.triegc.Pop()
-		if uint64(-number) >= chosen {
+		if uint64(-number) >= current {
 			s.triegc.Push(root, number)
 			break
 		}
-		s.Log.Debug("Clean up the state trie", "root", root.(common.Hash))
 		triedb.Dereference(root.(common.Hash))
 	}
 	// commit the state trie after clean up
