@@ -2178,7 +2178,8 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 	if threads > len(txs) {
 		threads = len(txs)
 	}
-	blockCtx := evmcore.NewEVMBlockContext(block.Header(), nil, nil)
+
+	blockCtx := api.b.GetBlockContext(block.Header())
 	blockHash := block.Hash
 	for th := 0; th < threads; th++ {
 		pend.Add(1)

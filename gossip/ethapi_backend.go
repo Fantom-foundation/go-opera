@@ -309,6 +309,10 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *
 	return vm.NewEVM(context, txContext, state, config, *vmConfig), vmError, nil
 }
 
+func (b *EthAPIBackend) GetBlockContext(header *evmcore.EvmHeader) vm.BlockContext {
+	return evmcore.NewEVMBlockContext(header, b.state, nil)
+}
+
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	err := b.svc.txpool.AddLocal(signedTx)
 	if err == nil {
