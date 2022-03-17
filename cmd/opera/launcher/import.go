@@ -148,7 +148,12 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 
 	// wait until snapshot generation is complete
 	for srv.EvmSnapshotGeneration() {
-		time.Sleep(100 * time.Millisecond)
+		select {
+		case <-interrupt:
+			return fmt.Errorf("interrupted")
+		case <-time.After(100 * time.Millisecond):
+		    continue
+		}
 	}
 
 	// Open the file handle and potentially unwrap the gzip stream
