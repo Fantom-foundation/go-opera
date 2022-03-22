@@ -2058,7 +2058,11 @@ func (api *PublicDebugAPI) traceTx(ctx context.Context, message evmcore.Message,
 	}
 
 	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.b.ChainConfig(), vm.Config{Debug: true, Tracer: tracer, NoBaseFee: true})
+	evmconfig := opera.DefaultVMConfig
+	evmconfig.Tracer = tracer
+	evmconfig.Debug = true
+	evmconfig.NoBaseFee = true
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.b.ChainConfig(), evmconfig)
 
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.TxHash, txctx.TxIndex)
@@ -2157,11 +2161,7 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 	if block.NumberU64() == 0 {
 		return nil, errors.New("genesis is not traceable")
 	}
-	parent, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(block.NumberU64()-1))
-	if err != nil {
-		return nil, err
-	}
-	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(parent.NumberU64())))
+	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithHash(block.ParentHash, false))
 	if err != nil {
 		return nil, err
 	}
@@ -2211,14 +2211,13 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 		// Generate the next state snapshot fast without tracing
 		msg, _ := tx.AsMessage(signer, block.BaseFee)
 		statedb.Prepare(tx.Hash(), i)
-		vmenv := vm.NewEVM(blockCtx, evmcore.NewEVMTxContext(msg), statedb, api.b.ChainConfig(), vm.Config{})
+		vmenv := vm.NewEVM(blockCtx, evmcore.NewEVMTxContext(msg), statedb, api.b.ChainConfig(), opera.DefaultVMConfig)
 		if _, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(msg.Gas())); err != nil {
 			failed = err
 			break
 		}
 		// Finalize the state so any modifications are written to the trie
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
-		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number))
+		statedb.Finalise(vmenv.ChainConfig().IsByzantium(block.Number) || vmenv.ChainConfig().IsEIP158(block.Number))
 	}
 	close(jobs)
 	pend.Wait()
@@ -2236,14 +2235,9 @@ func (api *PublicDebugAPI) stateAtTransaction(ctx context.Context, block *evmcor
 	if block.NumberU64() == 0 {
 		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
 	}
-	// Create the parent state database
-	parent, err := api.b.BlockByHash(ctx, block.ParentHash)
-	if parent == nil || err != nil {
-		return nil, vm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.ParentHash)
-	}
 	// Lookup the statedb of parent block from the live database,
 	// otherwise regenerate it on the flight.
-	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(parent.NumberU64())))
+	statedb, _, err := api.b.StateAndHeaderByNumberOrHash(ctx, rpc.BlockNumberOrHashWithHash(block.ParentHash, false))
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
 	}
@@ -2256,19 +2250,18 @@ func (api *PublicDebugAPI) stateAtTransaction(ctx context.Context, block *evmcor
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer, block.BaseFee)
 		txContext := evmcore.NewEVMTxContext(msg)
-		context := evmcore.NewEVMBlockContext(block.Header(), nil, nil)
+		context := api.b.GetBlockContext(block.Header())
 		if idx == txIndex {
 			return msg, context, statedb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, txContext, statedb, api.b.ChainConfig(), vm.Config{})
+		vmenv := vm.NewEVM(context, txContext, statedb, api.b.ChainConfig(), opera.DefaultVMConfig)
 		statedb.Prepare(tx.Hash(), idx)
 		if _, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
-		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number))
+		statedb.Finalise(vmenv.ChainConfig().IsByzantium(block.Number) || vmenv.ChainConfig().IsEIP158(block.Number))
 	}
 	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash)
 }
