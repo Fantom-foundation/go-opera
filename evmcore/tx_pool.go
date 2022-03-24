@@ -1294,11 +1294,11 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	}
 	statedb, err := pool.chain.StateAt(newHead.Root)
 	if err != nil && pool.currentState == nil {
-		log.Debug("Failed to access EVM state", "err", err)
+		log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
 		statedb, err = pool.chain.StateAt(common.Hash{})
 	}
 	if err != nil {
-		log.Error("Failed to reset txpool state", "err", err)
+		log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
 		return
 	}
 	pool.currentState = statedb
