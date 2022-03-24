@@ -163,8 +163,7 @@ func pruneState(ctx *cli.Context) error {
 	}
 
 	if gdb.GetGenesisID() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 
 	tmpDir := path.Join(cfg.Node.DataDir, "tmp")
@@ -233,8 +232,7 @@ func verifyState(ctx *cli.Context) error {
 
 	genesis := gdb.GetGenesisID()
 	if genesis == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 
 	evmStore := gdb.EvmStore()
@@ -277,8 +275,7 @@ func traverseState(ctx *cli.Context) error {
 	}
 
 	if gdb.GetGenesisID() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
 
@@ -370,8 +367,7 @@ func traverseRawState(ctx *cli.Context) error {
 	}
 
 	if gdb.GetGenesisID() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
 
