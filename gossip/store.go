@@ -27,10 +27,9 @@ type Store struct {
 	dbs kvdb.FlushableDBProducer
 	cfg StoreConfig
 
-	mainDB       kvdb.Store
-	snapshotedDB *switchable.Snapshot
-	evm          *evmstore.Store
-	table        struct {
+	snapshotedEVMDB *switchable.Snapshot
+	evm             *evmstore.Store
+	table           struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
@@ -106,23 +105,21 @@ func NewMemStore() *Store {
 
 // NewStore creates store over key-value db.
 func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
-	mainDB, err := dbs.OpenDB("gossip")
-	if err != nil {
-		log.Crit("Failed to open DB", "name", "gossip", "err", err)
-	}
 	s := &Store{
 		dbs:           dbs,
 		cfg:           cfg,
-		mainDB:        mainDB,
 		Instance:      logger.New("gossip-store"),
 		prevFlushTime: time.Now(),
 		rlp:           rlpstore.Helper{logger.New("rlp")},
 	}
 
-	table.MigrateTables(&s.table, s.mainDB)
+	err := table.OpenTables(&s.table, dbs, "gossip")
+	if err != nil {
+		log.Crit("Failed to open DB", "name", "gossip", "err", err)
+	}
 
 	s.initCache()
-	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+	s.evm = evmstore.NewStore(dbs, cfg.EVM)
 
 	if err := s.migrateData(); err != nil {
 		s.Log.Crit("Failed to migrate Gossip DB", "err", err)
@@ -159,11 +156,12 @@ func (s *Store) Close() {
 		return nil
 	}
 
+	_ = table.CloseTables(&s.table)
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
 
-	_ = s.mainDB.Close()
 	_ = s.closeEpochStore()
+	s.evm.Close()
 }
 
 func (s *Store) IsCommitNeeded() bool {
@@ -242,27 +240,28 @@ func (s *Store) CaptureEvmKvdbSnapshot() {
 	}
 	gen, err := s.evm.Snaps.Generating()
 	if err != nil {
-		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
+		s.Log.Error("Failed to check EVM snapshot generation", "err", err)
 		return
 	}
 	if gen {
 		return
 	}
-	newKvdbSnap, err := s.mainDB.GetSnapshot()
+	newEvmKvdbSnap, err := s.evm.EVMDB().GetSnapshot()
 	if err != nil {
 		s.Log.Error("Failed to initialize frozen KVDB", "err", err)
 		return
 	}
-	if s.snapshotedDB == nil {
-		s.snapshotedDB = switchable.Wrap(newKvdbSnap)
+	if s.snapshotedEVMDB == nil {
+		s.snapshotedEVMDB = switchable.Wrap(newEvmKvdbSnap)
 	} else {
-		old := s.snapshotedDB.SwitchTo(newKvdbSnap)
+		old := s.snapshotedEVMDB.SwitchTo(newEvmKvdbSnap)
 		// release only after DB is atomically switched
 		if old != nil {
 			old.Release()
 		}
 	}
-	newStore := evmstore.NewStore(snap2kvdb.Wrap(s.snapshotedDB), evmstore.LiteStoreConfig())
+	newStore := s.evm.ResetWithEVMDB(snap2kvdb.Wrap(s.snapshotedEVMDB))
+	newStore.Snaps = nil
 	root := s.GetBlockState().FinalizedStateRoot
 	err = s.generateSnapshotAt(newStore, common.Hash(root), false, false)
 	if err != nil {

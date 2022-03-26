@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"fmt"
-	"path"
 	"strings"
 	"time"
 
@@ -42,7 +41,7 @@ func fixDirty(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 
 	log.Info("Opening databases")
-	producer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
+	producer := makeRawDbsProducer(cfg)
 
 	// reverts the gossip database state
 	epochState, err := fixDirtyGossipDb(producer, cfg)
@@ -66,7 +65,7 @@ func fixDirty(ctx *cli.Context) error {
 	// prepare consensus database from epochState
 	log.Info("Recreating lachesis db")
 	cMainDb = mustOpenDB(producer, "lachesis")
-	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
+	cGetEpochDB := func(epoch idx.Epoch) kvdb.Store {
 		return mustOpenDB(producer, fmt.Sprintf("lachesis-%d", epoch))
 	}
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), cfg.LachesisStore)
@@ -184,7 +183,7 @@ func clearDirtyFlags(rawProducer kvdb.IterableDBProducer) error {
 	return nil
 }
 
-func mustOpenDB(producer kvdb.DBProducer, name string) kvdb.DropableStore {
+func mustOpenDB(producer kvdb.DBProducer, name string) kvdb.Store {
 	db, err := producer.OpenDB(name)
 	if err != nil {
 		utils.Fatalf("Failed to open '%s' database: %v", name, err)

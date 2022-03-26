@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -40,8 +40,8 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	rawDbs := makeRawDbsProducer(cfg)
+	gdb, err := makeRawGossipStore(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -93,30 +93,25 @@ func exportEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func checkStateInitialized(rawProducer kvdb.IterableDBProducer) error {
-	names := rawProducer.Names()
-	if len(names) == 0 {
-		return errors.New("datadir is not initialized")
-	}
+func checkStateInitialized(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer) error {
 	// if flushID is not written, then previous genesis processing attempt was interrupted
-	for _, name := range names {
-		db, err := rawProducer.OpenDB(name)
-		if err != nil {
-			return err
-		}
-		flushID, _ := db.Get(integration.FlushIDKey)
-		_ = db.Close()
-		if flushID != nil {
-			return nil
+	for _, rawProducer := range rawProducers {
+		for _, name := range rawProducer.Names() {
+			db, err := rawProducer.OpenDB(name)
+			if err != nil {
+				return err
+			}
+			flushID, _ := db.Get(integration.FlushIDKey)
+			_ = db.Close()
+			if flushID != nil {
+				return nil
+			}
 		}
 	}
 	return errors.New("datadir is not initialized")
 }
 
 func makeRawGossipStore(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, error) {
-	if err := checkStateInitialized(rawProducer); err != nil {
-		return nil, err
-	}
 	dbs := &integration.DummyFlushableProducer{rawProducer}
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	return gdb, nil

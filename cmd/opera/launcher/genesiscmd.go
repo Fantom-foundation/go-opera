@@ -20,7 +20,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
@@ -208,8 +207,8 @@ func exportGenesis(ctx *cli.Context) error {
 	_ = os.RemoveAll(tmpPath)
 	defer os.RemoveAll(tmpPath)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	rawDbs := makeRawDbsProducer(cfg)
+	gdb, err := makeRawGossipStore(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}

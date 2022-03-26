@@ -6,7 +6,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -22,7 +21,7 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 
 func (s *Store) migrateData() error {
 	versions := migration.NewKvdbIDStore(s.table.Version)
-	if isEmptyDB(s.mainDB) {
+	if isEmptyDB(s.table.Version) {
 		// short circuit if empty DB
 		versions.SetID(s.migrations().ID())
 		return nil
@@ -94,7 +93,7 @@ func (s *Store) recoverLlrState() error {
 }
 
 func (s *Store) eraseSfcApiTable() error {
-	sfcapiTable := table.New(s.mainDB, []byte("S"))
+	sfcapiTable, _ := s.dbs.OpenDB("gossip/S")
 	it := sfcapiTable.NewIterator(nil, nil)
 	defer it.Release()
 	for it.Next() {

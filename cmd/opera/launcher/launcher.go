@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -284,16 +283,13 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
-	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
-	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
-		utils.Fatalf("Failed to create chaindata directory: %v", err)
-	}
 	var g *genesis.Genesis
 	if genesisStore != nil {
 		gv := genesisStore.Genesis()
 		g = &gv
 	}
-	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+
+	engine, dagIndex, gdb, cdb, blockProc, closeDBs := integration.MakeEngine(path.Join(cfg.Node.DataDir, "chaindata"), g, cfg.AppConfigs())
 	if genesisStore != nil {
 		_ = genesisStore.Close()
 	}
@@ -373,6 +369,9 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		_ = stack.Close()
 		gdb.Close()
 		_ = cdb.Close()
+		if closeDBs != nil {
+			closeDBs()
+		}
 	}
 }
 

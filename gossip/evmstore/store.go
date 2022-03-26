@@ -2,7 +2,6 @@ package evmstore
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -33,8 +32,7 @@ const nominalSize uint = 1
 type Store struct {
 	cfg StoreConfig
 
-	mainDB kvdb.Store
-	table  struct {
+	table struct {
 		Evm  kvdb.Store `table:"M"`
 		Logs kvdb.Store `table:"L"`
 		// API-only tables
@@ -54,10 +52,6 @@ type Store struct {
 		EvmBlocks   *wlru.Cache `cache:"-"` // store by pointer
 	}
 
-	mutex struct {
-		Inc sync.Mutex
-	}
-
 	rlp rlpstore.Helper
 
 	triegc *prque.Prque // Priority queue mapping block numbers to tries to gc
@@ -70,38 +64,66 @@ const (
 )
 
 // NewStore creates store over key-value db.
-func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
+func NewStore(dbs kvdb.DBProducer, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
-		mainDB:   mainDB,
 		Instance: logger.New("evm-store"),
 		rlp:      rlpstore.Helper{logger.New("rlp")},
 		triegc:   prque.New(nil),
 	}
 
-	table.MigrateTables(&s.table, s.mainDB)
+	err := table.OpenTables(&s.table, dbs, "evm")
+	if err != nil {
+		s.Log.Crit("Failed to open tables", "err", err)
+	}
 
-	s.EvmDb = rawdb.NewDatabase(
-		kvdb2ethdb.Wrap(
-			nokeyiserr.Wrap(
-				s.table.Evm)))
-	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
-		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
-		Journal:   cfg.Cache.TrieCleanJournal,
-		Preimages: cfg.EnablePreimageRecording,
-		GreedyGC:  cfg.Cache.GreedyGC,
-	})
+	s.initEVMDB()
 	s.EvmLogs = topicsdb.New(s.table.Logs)
-
 	s.initCache()
 
 	return s
+}
+
+// Close closes underlying database.
+func (s *Store) Close() {
+	setnil := func() interface{} {
+		return nil
+	}
+
+	_ = table.CloseTables(&s.table)
+	table.MigrateTables(&s.table, nil)
+	table.MigrateCaches(&s.cache, setnil)
 }
 
 func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.Cache.ReceiptsSize, s.cfg.Cache.ReceiptsBlocks)
 	s.cache.TxPositions = s.makeCache(nominalSize*uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
+}
+
+func (s *Store) initEVMDB() {
+	s.EvmDb = rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				s.table.Evm)))
+	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
+		Cache:     s.cfg.Cache.EvmDatabase / opt.MiB,
+		Journal:   s.cfg.Cache.TrieCleanJournal,
+		Preimages: s.cfg.EnablePreimageRecording,
+		GreedyGC:  s.cfg.Cache.GreedyGC,
+	})
+}
+
+func (s *Store) ResetWithEVMDB(evmStore kvdb.Store) *Store {
+	cp := *s
+	cp.table.Evm = evmStore
+	cp.initEVMDB()
+	cp.Snaps = nil
+	return &cp
+}
+
+func (s *Store) EVMDB() kvdb.Store {
+	return s.table.Evm
 }
 
 func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {

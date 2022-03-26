@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -14,6 +16,34 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
+func makeRawDbsProducers(cfg *config) map[multidb.TypeName]kvdb.IterableDBProducer {
+	dbsList, err := integration.SupportedDBs(path.Join(cfg.Node.DataDir, "chaindata"), cfg.DBs.RuntimeCache)
+	if err != nil {
+		utils.Fatalf("Failed to initialize DB producers: %v", err)
+	}
+	if err := checkStateInitialized(dbsList); err != nil {
+		utils.Fatalf(err.Error())
+	}
+	return dbsList
+}
+
+func makeMultiRawDbsProducer(dbsList map[multidb.TypeName]kvdb.IterableDBProducer, cfg *config) kvdb.FullDBProducer {
+	multiRawDbs, err := integration.MakeRawMultiProducer(dbsList, cfg.DBs.Routing)
+	if err != nil {
+		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
+	}
+	return multiRawDbs
+}
+
+func makeRawDbsProducer(cfg *config) kvdb.FullDBProducer {
+	dbsList := makeRawDbsProducers(cfg)
+	multiRawDbs, err := integration.MakeRawMultiProducer(dbsList, cfg.DBs.Routing)
+	if err != nil {
+		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
+	}
+	return multiRawDbs
+}
+
 func checkEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) != 0 {
 		utils.Fatalf("This command doesn't require an argument.")
@@ -21,8 +51,8 @@ func checkEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	rawDbs := makeRawDbsProducer(cfg)
+	gdb, err := makeRawGossipStore(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}

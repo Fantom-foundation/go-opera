@@ -31,7 +31,7 @@ import (
 )
 
 type GenesisBuilder struct {
-	tmpDB kvdb.Store
+	dbs kvdb.DBProducer
 
 	tmpEvmStore *evmstore.Store
 	tmpStateDB  *state.StateDB
@@ -65,7 +65,7 @@ func DefaultBlockProc() BlockProc {
 
 func (b *GenesisBuilder) GetStateDB() *state.StateDB {
 	if b.tmpStateDB == nil {
-		tmpEvmStore := evmstore.NewStore(b.tmpDB, evmstore.LiteStoreConfig())
+		tmpEvmStore := evmstore.NewStore(b.dbs, evmstore.LiteStoreConfig())
 		b.tmpStateDB, _ = tmpEvmStore.StateDB(hash.Zero)
 	}
 	return b.tmpStateDB
@@ -109,11 +109,11 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 	return er.Hash()
 }
 
-func NewGenesisBuilder(tmpDb kvdb.Store) *GenesisBuilder {
-	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
+func NewGenesisBuilder(dbs kvdb.DBProducer) *GenesisBuilder {
+	tmpEvmStore := evmstore.NewStore(dbs, evmstore.LiteStoreConfig())
 	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
 	return &GenesisBuilder{
-		tmpDB:       tmpDb,
+		dbs:         dbs,
 		tmpEvmStore: tmpEvmStore,
 		tmpStateDB:  statedb,
 		totalSupply: new(big.Int),
