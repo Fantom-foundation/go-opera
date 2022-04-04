@@ -52,7 +52,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmBlocksSize:     scale.U(6 * opt.MiB),
 			TrieDirtyDisabled: true,
 			GreedyGC:          false,
-			TrieDirtyLimit:    scale.U(400 * opt.MiB),
+			TrieDirtyLimit:    scale.U(512 * opt.MiB),
 		},
 		EnablePreimageRecording: true,
 	}

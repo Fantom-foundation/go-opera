@@ -165,7 +165,7 @@ func (s *Store) IsCommitNeeded() bool {
 
 func (s *Store) isCommitNeeded(sc, tc int) bool {
 	period := s.cfg.MaxNonFlushedPeriod * time.Duration(sc) / 100
-	size := (s.cfg.MaxNonFlushedSize / 2) * tc / 100
+	size := (int(s.cfg.EVM.Cache.TrieDirtyLimit) / 2) * tc / 100
 	return time.Since(s.prevFlushTime) > period ||
 		s.dbs.NotFlushedSizeEst() > size
 }
@@ -176,7 +176,7 @@ func (s *Store) commitEVM(flush bool) {
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
-	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
+	s.evm.Cap()
 }
 
 func (s *Store) cleanCommitEVM() {
@@ -184,7 +184,7 @@ func (s *Store) cleanCommitEVM() {
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
-	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
+	s.evm.Cap()
 }
 
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {

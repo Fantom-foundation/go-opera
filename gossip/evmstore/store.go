@@ -176,14 +176,7 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 
 		if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
-			var (
-				nodes, imgs = triedb.Size()
-				limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit)
-			)
-			if nodes > limit || imgs > 4*1024*1024 {
-				log.Warn("(Cap) If we exceeded our memory allowance, flush matured singleton nodes to disk")
-				triedb.Cap(limit - ethdb.IdealBatchSize)
-			}
+			s.Cap()
 		}
 		return nil
 	}
@@ -223,12 +216,16 @@ func (s *Store) Flush(block iblockproc.BlockState) {
 	}
 }
 
-func (s *Store) Cap(max, min int) {
-	maxSize := common.StorageSize(max)
-	minSize := common.StorageSize(min)
-	size, preimagesSize := s.EvmState.TrieDB().Size()
-	if size >= maxSize || preimagesSize >= maxSize {
-		_ = s.EvmState.TrieDB().Cap(minSize)
+// Cap flush matured singleton nodes to disk
+func (s *Store) Cap() {
+	triedb := s.EvmState.TrieDB()
+	var (
+		nodes, imgs = triedb.Size()
+		limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit)
+	)
+	if nodes > limit || imgs > 4*1024*1024 {
+		log.Warn("(Cap) If we exceeded our memory allowance, flush matured singleton nodes to disk")
+		triedb.Cap(limit - ethdb.IdealBatchSize)
 	}
 }
 
