@@ -2179,12 +2179,14 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 		threads = len(txs)
 	}
 
-	blockCtx := api.b.GetBlockContext(block.Header())
+	blockHeader := block.Header()
 	blockHash := block.Hash
 	for th := 0; th < threads; th++ {
 		pend.Add(1)
 		go func() {
 			defer pend.Done()
+			blockCtx := api.b.GetBlockContext(blockHeader)
+
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
 				msg, _ := txs[task.index].AsMessage(signer, block.BaseFee)
@@ -2203,6 +2205,7 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 		}()
 	}
 	// Feed the transactions into the tracers and return
+	blockCtx := api.b.GetBlockContext(blockHeader)
 	var failed error
 	for i, tx := range txs {
 		// Send the trace task over for execution
