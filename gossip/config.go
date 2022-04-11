@@ -124,6 +124,7 @@ type (
 		Cache StoreCacheConfig
 		// EVM is EVM store config
 		EVM                 evmstore.StoreConfig
+		MaxNonFlushedSize   int
 		MaxNonFlushedPeriod time.Duration
 	}
 )
@@ -271,6 +272,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			BlockEpochStateNum: scale.I(8),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),
+		MaxNonFlushedSize:   17*opt.MiB + scale.I(5*opt.MiB),
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
