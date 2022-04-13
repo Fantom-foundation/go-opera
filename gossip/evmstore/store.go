@@ -135,7 +135,7 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 	if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
 		// Find the next state trie we need to commit
 		chosen := current - TriesInMemory
-		// Garbage collect all below the current block
+		// Garbage collect all below the chosen block
 		for !s.triegc.Empty() {
 			root, number := s.triegc.Pop()
 			if uint64(-number) > chosen {
@@ -180,6 +180,19 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 		if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			s.Cap()
+
+			// Find the next state trie we need to commit
+			chosen := current - TriesInMemory
+
+			// Garbage collect all below the chosen block
+			for !s.triegc.Empty() {
+				root, number := s.triegc.Pop()
+				if uint64(-number) > chosen {
+					s.triegc.Push(root, number)
+					break
+				}
+				triedb.Dereference(root.(common.Hash))
+			}
 		}
 		return nil
 	}
