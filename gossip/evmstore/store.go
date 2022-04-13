@@ -66,7 +66,7 @@ type Store struct {
 }
 
 const (
-	TriesInMemory = 8
+	TriesInMemory = 16
 )
 
 // NewStore creates store over key-value db.
