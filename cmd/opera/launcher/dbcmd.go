@@ -51,7 +51,7 @@ func compact(ctx *cli.Context) error {
 		log.Info("Stats before compaction")
 		showLeveldbStats(db)
 		for b := byte(0); b < 255; b++ {
-			log.Info("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
+			log.Trace("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
 			if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
 				log.Error("Database compaction failed", "err", err)
 				return err
