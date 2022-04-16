@@ -48,8 +48,11 @@ func compact(ctx *cli.Context) error {
 			log.Error("Cannot open db or db does not exists", "db", name)
 			return err
 		}
-		log.Info("Stats before compaction")
+
+		log.Info("Stats before compaction", "db", name)
 		showLeveldbStats(db)
+
+		log.Info("Triggering compaction", "db", name)
 		for b := byte(0); b < 255; b++ {
 			log.Trace("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
 			if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
@@ -57,7 +60,8 @@ func compact(ctx *cli.Context) error {
 				return err
 			}
 		}
-		log.Info("Stats after compaction")
+
+		log.Info("Stats after compaction", "db", name)
 		showLeveldbStats(db)
 	}
 
