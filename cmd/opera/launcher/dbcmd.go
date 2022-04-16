@@ -1,10 +1,12 @@
 package launcher
 
 import (
+	"fmt"
 	"path"
 
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -41,10 +43,15 @@ func compact(ctx *cli.Context) error {
 	for _, name := range rawProducer.Names() {
 		db, err := rawProducer.OpenDB(name)
 		if err != nil {
+			log.Error("Cannot open db or db does not exists", "db", name)
 			return err
 		}
-		if err := db.Compact(nil, nil); err != nil {
-			return err
+		for b := byte(0); b < 255; b++ {
+			log.Info("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
+			if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
+				log.Error("Database compaction failed", "err", err)
+				return err
+			}
 		}
 	}
 
