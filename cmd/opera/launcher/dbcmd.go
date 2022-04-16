@@ -42,6 +42,7 @@ func compact(ctx *cli.Context) error {
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
 	for _, name := range rawProducer.Names() {
 		db, err := rawProducer.OpenDB(name)
+		defer db.Close()
 		if err != nil {
 			log.Error("Cannot open db or db does not exists", "db", name)
 			return err
