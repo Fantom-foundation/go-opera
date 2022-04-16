@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -20,7 +21,7 @@ var (
 			{
 				Name:      "compact",
 				Usage:     "Compact whole leveldb databases under chaindata",
-				ArgsUsage: "<root>",
+				ArgsUsage: "",
 				Action:    utils.MigrateFlags(compact),
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
@@ -47,6 +48,8 @@ func compact(ctx *cli.Context) error {
 			log.Error("Cannot open db or db does not exists", "db", name)
 			return err
 		}
+		log.Info("Stats before compaction")
+		showLeveldbStats(db)
 		for b := byte(0); b < 255; b++ {
 			log.Info("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
 			if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
@@ -54,7 +57,22 @@ func compact(ctx *cli.Context) error {
 				return err
 			}
 		}
+		log.Info("Stats after compaction")
+		showLeveldbStats(db)
 	}
 
 	return nil
+}
+
+func showLeveldbStats(db ethdb.Stater) {
+	if stats, err := db.Stat("leveldb.stats"); err != nil {
+		log.Warn("Failed to read database stats", "error", err)
+	} else {
+		fmt.Println(stats)
+	}
+	if ioStats, err := db.Stat("leveldb.iostats"); err != nil {
+		log.Warn("Failed to read database iostats", "error", err)
+	} else {
+		fmt.Println(ioStats)
+	}
 }
