@@ -50,10 +50,9 @@ var (
 	snapshotStorageReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/storage/reads", nil)
 	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
 
-	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
-	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
-	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
-	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
+	blockInsertTimer    = metrics.GetOrRegisterTimer("chain/inserts", nil)
+	blockExecutionTimer = metrics.GetOrRegisterTimer("chain/execution", nil)
+	blockWriteTimer     = metrics.GetOrRegisterTimer("chain/write", nil)
 
 	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
 	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
@@ -401,7 +400,6 @@ func consensusCallbackBeginBlockFn(
 					// Update the metrics touched during block validation
 					accountHashTimer.Update(statedb.AccountHashes)
 					storageHashTimer.Update(statedb.StorageHashes)
-					blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
 					// Update the metrics touched by new block
 					headBlockGauge.Update(int64(blockCtx.Idx))
 					headHeaderGauge.Update(int64(blockCtx.Idx))
