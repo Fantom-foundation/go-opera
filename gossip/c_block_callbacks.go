@@ -257,7 +257,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
-				substart := time.Now()
+				startOfBlockExecution := time.Now()
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -310,6 +310,8 @@ func consensusCallbackBeginBlockFn(
 
 					_ = evmProcessor.Execute(txs, false)
 
+					startOfBlockWriting := time.Now()
+
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs
 					block.Root = hash.Hash(evmBlock.Root)
@@ -325,8 +327,7 @@ func consensusCallbackBeginBlockFn(
 					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
 					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
 					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
-					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
-					substart = time.Now()
+					blockExecutionTimer.Update(time.Since(startOfBlockExecution) - trieproc - triehash)
 
 					// memorize event position of each tx
 					txPositions := make(map[common.Hash]ExtendedTxPosition)
@@ -424,7 +425,7 @@ func consensusCallbackBeginBlockFn(
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)
 					snapshotCommitTimer.Update(statedb.SnapshotCommits)
-					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(startOfBlockWriting) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()

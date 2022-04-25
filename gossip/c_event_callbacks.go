@@ -87,16 +87,14 @@ func (s *Service) processSavedEvent(ctx context.Context, e *inter.EventPayload, 
 		return errWrongMedianTime
 	}
 
-	finish := time.Now()
+	begin := ctx.Value("startOfValidation").(time.Time)
+	blockValidationTimer.Update(time.Since(begin))
 
 	// aBFT processing
 	err = s.engine.Process(e)
 	if err != nil {
 		return err
 	}
-
-	begin := ctx.Value("begin").(time.Time)
-	blockValidationTimer.Update(finish.Sub(begin))
 
 	return nil
 }
@@ -199,7 +197,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
 	defer atomic.StoreUint32(&s.eventBusyFlag, 0)
 
-	ctx := context.WithValue(context.Background(), "begin", time.Now())
+	ctx := context.WithValue(context.Background(), "startOfValidation", time.Now())
 
 	// repeat the checks under the mutex which may depend on volatile data
 	if s.store.HasEvent(e.ID()) {
