@@ -315,6 +315,19 @@ func consensusCallbackBeginBlockFn(
 					block.Root = hash.Hash(evmBlock.Root)
 					block.GasUsed = evmBlock.GasUsed
 
+					// Update the metrics touched during block processing
+					accountReadTimer.Update(statedb.AccountReads)
+					storageReadTimer.Update(statedb.StorageReads)
+					accountUpdateTimer.Update(statedb.AccountUpdates)
+					storageUpdateTimer.Update(statedb.StorageUpdates)
+					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
+					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
+					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
+					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
+					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
+					substart = time.Now()
+
 					// memorize event position of each tx
 					txPositions := make(map[common.Hash]ExtendedTxPosition)
 					for _, e := range blockEvents {
@@ -386,17 +399,6 @@ func consensusCallbackBeginBlockFn(
 					updateLowestBlockToFill(blockCtx.Idx, store)
 					updateLowestEpochToFill(es.Epoch, store)
 
-					// Update the metrics touched during block processing
-					accountReadTimer.Update(statedb.AccountReads)
-					storageReadTimer.Update(statedb.StorageReads)
-					accountUpdateTimer.Update(statedb.AccountUpdates)
-					storageUpdateTimer.Update(statedb.StorageUpdates)
-					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
-					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
-					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
-					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
-					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
-					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
 					// Update the metrics touched during block validation
 					accountHashTimer.Update(statedb.AccountHashes)
 					storageHashTimer.Update(statedb.StorageHashes)
