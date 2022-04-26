@@ -108,7 +108,7 @@ func stackPosFromEnd(stackData []uint256.Int, pos int) *big.Int {
 func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
 
 	// When going back from inner call
-	if lastState(tr.state).level == depth {
+	for lastState(tr.state).level >= depth {
 		result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
 		if lastState(tr.state).create && result != nil {
 			if len(scope.Stack.Data()) > 0 {
@@ -120,6 +120,9 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		tr.traceAddress = removeTraceAddressLevel(tr.traceAddress, depth)
 		tr.state = tr.state[:len(tr.state)-1]
 		tr.rootTrace.Stack = tr.rootTrace.Stack[:len(tr.rootTrace.Stack)-1]
+		if lastState(tr.state).level == depth {
+			break
+		}
 	}
 
 	// Match processed instruction and create trace based on it
@@ -188,7 +191,7 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		tr.state = append(tr.state, depthState{depth, false})
 
 	case vm.RETURN, vm.STOP:
-		if !tr.reverted {
+		if tr != nil {
 			result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
 			if result != nil {
 				var data []byte
@@ -250,7 +253,8 @@ func (tr *TraceStructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Du
 	tr.output = output
 }
 
-func (*TraceStructLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {}
+func (*TraceStructLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+}
 
 func (*TraceStructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}
 
