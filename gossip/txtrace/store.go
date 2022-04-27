@@ -44,3 +44,13 @@ func (s *Store) GetTx(txID common.Hash) []byte {
 	}
 	return buf
 }
+
+// RemoveTxTrace removes key and []byte representation of transaction traces.
+func (s *Store) RemoveTxTrace(txID common.Hash) error {
+	return s.mainDB.Delete(txID.Bytes())
+}
+
+// HasTxTrace stores []byte representation of transaction traces.
+func (s *Store) HasTxTrace(txID common.Hash) (bool, error) {
+	return s.mainDB.Has(txID.Bytes())
+}
