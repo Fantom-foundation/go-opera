@@ -117,7 +117,7 @@ func deleteTxTraces(ctx *cli.Context) error {
 
 	from := idx.Block(1)
 	if len(ctx.Args()) > 0 {
-		n, err := strconv.ParseUint(ctx.Args().Get(1), 10, 64)
+		n, err := strconv.ParseUint(ctx.Args().Get(0), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func deleteTxTraces(ctx *cli.Context) error {
 	}
 	to := gdb.GetLatestBlockIndex()
 	if len(ctx.Args()) > 1 {
-		n, err := strconv.ParseUint(ctx.Args().Get(2), 10, 64)
+		n, err := strconv.ParseUint(ctx.Args().Get(1), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -213,8 +213,13 @@ func makeRawGossipStoreTrace(rawProducer kvdb.IterableDBProducer, cfg *config) (
 	return gdb, nil
 }
 
-// exportTraceTo writer the active chain.
+// exportTraceTo writes the active chain
 func exportTraceTo(w io.Writer, gdb *gossip.Store, from, to idx.Block) (err error) {
+
+	if from == 1 && to == gdb.GetLatestBlockIndex() {
+		exportAllTraceTo(w, gdb)
+		return
+	}
 	start, reported := time.Now(), time.Now()
 
 	var (
@@ -241,6 +246,28 @@ func exportTraceTo(w io.Writer, gdb *gossip.Store, from, to idx.Block) (err erro
 	return
 }
 
+// exportAllTraceTo writes all transaction traces of the active chain
+func exportAllTraceTo(w io.Writer, gdb *gossip.Store) (err error) {
+	start, reported := time.Now(), time.Now()
+	var counter int
+
+	gdb.TxTraceStore().ForEachTxtrace(func(key common.Hash, traces []byte) bool {
+		counter++
+		err = rlp.Encode(w, TracePayload{key, traces})
+		if err != nil {
+			return false
+		}
+		if time.Since(reported) >= statsReportLimit {
+			log.Info("Exporting all transaction traces", "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+			reported = time.Now()
+		}
+		return true
+	})
+	log.Info("Exported all transaction traces", "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+
+	return
+}
+
 // deleteTraces removes transaction traces for specified block range
 func deleteTraces(gdb *gossip.Store, from, to idx.Block) (err error) {
 	start, reported := time.Now(), time.Now()
@@ -252,7 +279,6 @@ func deleteTraces(gdb *gossip.Store, from, to idx.Block) (err error) {
 	for i := from; i <= to; i++ {
 		for _, tx := range gdb.GetBlockTxs(i, gdb.GetBlock(i)) {
 			ok, err := gdb.TxTraceStore().HasTxTrace(tx.Hash())
-			fmt.Println("jd", tx.Hash(), ok, err)
 			if ok && err == nil {
 				counter++
 				gdb.TxTraceStore().RemoveTxTrace(tx.Hash())
