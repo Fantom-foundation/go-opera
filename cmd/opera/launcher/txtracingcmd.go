@@ -92,7 +92,7 @@ func importTxTraces(ctx *cli.Context) error {
 		} else {
 			gdb.TxTraceStore().SetTxTrace(e.Key, e.Traces)
 			counter++
-			if counter%100 == 1 && time.Since(reported) >= statsReportLimit {
+			if time.Since(reported) >= statsReportLimit {
 				log.Info("Importing transaction traces", "imported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 				reported = time.Now()
 			}
@@ -235,7 +235,7 @@ func exportTraceTo(w io.Writer, gdb *gossip.Store, from, to idx.Block) (err erro
 				counter++
 				rlp.Encode(w, TracePayload{tx.Hash(), traces})
 			}
-			if counter%100 == 1 && time.Since(reported) >= statsReportLimit {
+			if time.Since(reported) >= statsReportLimit {
 				log.Info("Exporting transaction traces", "at block", i, "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 				reported = time.Now()
 			}
@@ -282,7 +282,7 @@ func deleteTraces(gdb *gossip.Store, from, to idx.Block) (err error) {
 			if ok && err == nil {
 				counter++
 				gdb.TxTraceStore().RemoveTxTrace(tx.Hash())
-				if counter%100 == 1 && time.Since(reported) >= statsReportLimit {
+				if time.Since(reported) >= statsReportLimit {
 					log.Info("Deleting traces", "deleted", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 					reported = time.Now()
 				}
