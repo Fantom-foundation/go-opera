@@ -44,14 +44,12 @@ type mptIterator struct {
 }
 
 func (it mptIterator) Next() bool {
-	first := true
-	for first || !evmstore.IsMptKey(it.Key()) {
-		if !it.Iterator.Next() {
-			return false
+	for it.Iterator.Next() {
+		if evmstore.IsMptKey(it.Key()) {
+			return true
 		}
-		first = false
 	}
-	return true
+	return false
 }
 
 type mptAndPreimageIterator struct {
@@ -59,14 +57,12 @@ type mptAndPreimageIterator struct {
 }
 
 func (it mptAndPreimageIterator) Next() bool {
-	first := true
-	for first || !(evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key())) {
-		if !it.Iterator.Next() {
-			return false
+	for it.Iterator.Next() {
+		if evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key()) {
+			return true
 		}
-		first = false
 	}
-	return true
+	return false
 }
 
 func wrapIntoHashFile(backend *zip.Writer, tmpDirPath, name string) *fileshash.Writer {
