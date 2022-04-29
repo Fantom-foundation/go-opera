@@ -3,7 +3,6 @@ package makefakegenesis
 import (
 	"crypto/ecdsa"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
@@ -40,14 +40,7 @@ var (
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	reader := rand.New(rand.NewSource(int64(n)))
-
-	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
-	if err != nil {
-		panic(err)
-	}
-
-	return key
+	return evmcore.FakeKey(int(n))
 }
 
 func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
