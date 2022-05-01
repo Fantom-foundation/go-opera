@@ -43,31 +43,32 @@ type mptIterator struct {
 	kvdb.Iterator
 }
 
+
 func (it mptIterator) Next() bool {
-	first := true
-	for first || !evmstore.IsMptKey(it.Key()) {
-		if !it.Iterator.Next() {
+	for it.Iterator.Next() {
+		if !evmstore.IsMptKey(it.Key()) {
 			return false
 		}
-		first = false
 	}
 	return true
 }
+
 
 type mptAndPreimageIterator struct {
 	kvdb.Iterator
 }
 
-func (it mptAndPreimageIterator) Next() bool {
-	first := true
-	for first || !(evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key())) {
-		if !it.Iterator.Next() {
-			return false
+
+func (it mptAndPreimageIterator) Next() bool  {
+	for it.Iterator.Next() {
+		if evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key()) {
+			return true
 		}
-		first = false
 	}
-	return true
+
+	return false
 }
+
 
 func wrapIntoHashFile(backend *zip.Writer, tmpDirPath, name string) *fileshash.Writer {
 	zWriter, err := backend.Create(name)

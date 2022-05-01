@@ -215,6 +215,8 @@ func init() {
 		checkCommand,
 		// See snapshot.go
 		snapshotCommand,
+		//see erigoncmd.go
+		erigonCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

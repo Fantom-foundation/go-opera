@@ -54,6 +54,7 @@ The import command imports EVM storage (trie nodes, code, preimages) from files.
 		Name:     "export",
 		Usage:    "Export blockchain",
 		Category: "MISCELLANEOUS COMMANDS",
+		
 
 		Subcommands: []cli.Command{
 			{
@@ -115,4 +116,17 @@ Checks EVM storage roots and code hashes
 			},
 		},
 	}
+	erigonCommand = cli.Command{
+		Name:     "erigon",
+		Usage:    "Writes EVM data into Erigon tables",
+		Category: "MISCELLANEOUS COMMANDS",
+		Action: utils.MigrateFlags(erigon),
+		Description: `
+		opera erigon
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
+
+	
+	}
+	
 )
