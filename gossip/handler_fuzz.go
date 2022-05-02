@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	_ "github.com/dvyukov/go-fuzz/go-fuzz-defs"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 )
 
 const (
@@ -85,25 +87,28 @@ func makeFuzzedHandler() (h *handler, err error) {
 
 	mu := new(sync.RWMutex)
 	feed := new(ServiceFeed)
-	checkers := makeCheckers(config.HeavyCheck, network.EvmChainConfig().ChainID, &heavyCheckReader, &gasPowerCheckReader, store)
-	processEvent := func(e *inter.EventPayload) error {
-		return nil
-	}
+	net := store.GetRules()
+	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
+	checkers := makeCheckers(config.HeavyCheck, txSigner, &heavyCheckReader, &gasPowerCheckReader, store)
 
-	txpool := evmcore.NewTxPool(config.TxPool, network.EvmChainConfig(), &EvmStateReader{
+	txpool := evmcore.NewTxPool(evmcore.DefaultTxPoolConfig, network.EvmChainConfig(), &EvmStateReader{
 		ServiceFeed: feed,
 		store:       store,
 	})
 
 	h, err = newHandler(
 		handlerConfig{
-			config:       config,
-			notifier:     feed,
-			txpool:       txpool,
-			engineMu:     mu,
-			checkers:     checkers,
-			s:            store,
-			processEvent: processEvent,
+			config:   config,
+			notifier: feed,
+			txpool:   txpool,
+			engineMu: mu,
+			checkers: checkers,
+			s:        store,
+			process: processCallback{
+				Event: func(event *inter.EventPayload) error {
+					return nil
+				},
+			},
 		})
 	if err != nil {
 		return
