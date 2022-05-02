@@ -310,13 +310,6 @@ func consensusCallbackBeginBlockFn(
 
 					_ = evmProcessor.Execute(txs, false)
 
-					startOfBlockWriting := time.Now()
-
-					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
-					block.SkippedTxs = skippedTxs
-					block.Root = hash.Hash(evmBlock.Root)
-					block.GasUsed = evmBlock.GasUsed
-
 					// Update the metrics touched during block processing
 					accountReadTimer.Update(statedb.AccountReads)
 					storageReadTimer.Update(statedb.StorageReads)
@@ -328,6 +321,13 @@ func consensusCallbackBeginBlockFn(
 					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
 					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
 					blockExecutionTimer.Update(time.Since(startOfBlockExecution) - trieproc - triehash)
+
+					startOfBlockWriting := time.Now()
+
+					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
+					block.SkippedTxs = skippedTxs
+					block.Root = hash.Hash(evmBlock.Root)
+					block.GasUsed = evmBlock.GasUsed
 
 					// memorize event position of each tx
 					txPositions := make(map[common.Hash]ExtendedTxPosition)
