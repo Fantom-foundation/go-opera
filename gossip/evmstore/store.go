@@ -239,9 +239,9 @@ func (s *Store) Cap() {
 		nodes, imgs = triedb.Size()
 		limit       = common.StorageSize(s.cfg.Cache.TrieDirtyLimit)
 	)
-	if nodes > limit || imgs > 4*1024*1024 {
-		log.Warn("(Cap) If we exceeded our memory allowance, flush matured singleton nodes to disk")
-		triedb.Cap(limit - ethdb.IdealBatchSize)
+	if nodes > limit+ethdb.IdealBatchSize || imgs > 4*1024*1024 {
+		log.Warn("If we exceeded our memory allowance, flush matured singleton nodes to disk")
+		triedb.Cap(limit)
 	}
 }
 
