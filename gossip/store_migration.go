@@ -45,7 +45,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState).
 		Next("LlrState recovery", s.recoverLlrState).
-		Next("erase gossip-async db", s.eraseGossipAsyncDB)
+		Next("erase gossip-async db", s.eraseGossipAsyncDB).
+		Next("calculate upgrade heights", s.calculateUpgradeHeights)
 }
 
 func unsupportedMigration() error {
@@ -369,5 +370,14 @@ func (s *Store) eraseGossipAsyncDB() error {
 	_ = asyncDB.Close()
 	asyncDB.Drop()
 
+	return nil
+}
+
+func (s *Store) calculateUpgradeHeights() error {
+	var prevEs *iblockproc.EpochState
+	s.ForEachHistoryBlockEpochState(func(bs iblockproc.BlockState, es iblockproc.EpochState) bool {
+		s.WriteUpgradeHeight(bs, es, prevEs)
+		return true
+	})
 	return nil
 }

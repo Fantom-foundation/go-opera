@@ -11,8 +11,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
@@ -211,6 +213,20 @@ func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	return err
 }
 
+func (s *Store) WriteFullEpochRecord(er ier.LlrIdxFullEpochRecord) {
+	s.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
+	s.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
+}
+
+func (s *Store) WriteUpgradeHeight(bs iblockproc.BlockState, es iblockproc.EpochState, prevEs *iblockproc.EpochState) {
+	if prevEs == nil || es.Rules.Upgrades != prevEs.Rules.Upgrades {
+		s.AddUpgradeHeight(opera.UpgradeHeight{
+			Upgrades: es.Rules.Upgrades,
+			Height:   bs.LastBlock.Idx + 1,
+		})
+	}
+}
+
 func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	// engineMu should NOT be locked here
 	if s.store.HasHistoryBlockEpochState(er.Idx) {
@@ -229,6 +245,8 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 
 	s.store.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
 	s.store.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
+	s.store.WriteFullEpochRecord(er)
+	s.store.WriteUpgradeHeight(er.BlockState, er.EpochState, s.store.GetHistoryEpochState(er.EpochState.Epoch-1))
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)
