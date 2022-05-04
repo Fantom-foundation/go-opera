@@ -1260,6 +1260,7 @@ type extBlockApi struct {
 func RPCMarshalHeader(head *evmcore.EvmHeader, ext extBlockApi) map[string]interface{} {
 	result := map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
+		"epoch":            hexutil.Uint64(hash.Event(head.Hash).Epoch()),
 		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
 		"parentHash":       head.ParentHash,
 		"nonce":            types.BlockNonce{},
