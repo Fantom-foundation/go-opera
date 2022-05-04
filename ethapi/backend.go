@@ -35,6 +35,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 )
 
 // PeerProgress is synchronization status of a peer
@@ -96,6 +97,7 @@ type Backend interface {
 	SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp)
 
 	// Lachesis aBFT API
+	GetEpochState(ctx context.Context, epoch rpc.BlockNumber) (*iblockproc.EpochState, error)
 	GetDowntime(ctx context.Context, vid idx.ValidatorID) (idx.Block, inter.Timestamp, error)
 	GetUptime(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
 	GetOriginatedFee(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
