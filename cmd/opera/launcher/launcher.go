@@ -211,6 +211,7 @@ func init() {
 		importCommand,
 		exportCommand,
 		checkCommand,
+		deleteCommand,
 		// See snapshot.go
 		snapshotCommand,
 	}

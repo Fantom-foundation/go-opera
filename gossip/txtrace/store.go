@@ -44,3 +44,24 @@ func (s *Store) GetTx(txID common.Hash) []byte {
 	}
 	return buf
 }
+
+// RemoveTxTrace removes key and []byte representation of transaction traces.
+func (s *Store) RemoveTxTrace(txID common.Hash) error {
+	return s.mainDB.Delete(txID.Bytes())
+}
+
+// HasTxTrace stores []byte representation of transaction traces.
+func (s *Store) HasTxTrace(txID common.Hash) (bool, error) {
+	return s.mainDB.Has(txID.Bytes())
+}
+
+// ForEachTxtrace returns iterator for all transaction traces in db
+func (s *Store) ForEachTxtrace(onEvent func(key common.Hash, traces []byte) bool) {
+	it := s.mainDB.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		if !onEvent(common.BytesToHash(it.Key()), it.Value()) {
+			return
+		}
+	}
+}

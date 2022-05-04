@@ -230,6 +230,10 @@ func (s *Store) EvmStore() *evmstore.Store {
 	return s.evm
 }
 
+func (s *Store) TxTraceStore() *txtrace.Store {
+	return s.txtrace
+}
+
 func (s *Store) CaptureEvmKvdbSnapshot() {
 	if s.evm.Snaps == nil {
 		return
