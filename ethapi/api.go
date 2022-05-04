@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -678,6 +679,18 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 // CurrentEpoch returns current epoch number.
 func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 	return hexutil.Uint64(s.b.CurrentEpoch(ctx))
+}
+
+// GetRules returns network rules for an epoch
+func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (interface{}, error) {
+	es, err := s.b.GetEpochState(ctx, epoch)
+	if err != nil {
+		return nil, err
+	}
+	if es == nil {
+		return nil, nil
+	}
+	return es.Rules, nil
 }
 
 // ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
