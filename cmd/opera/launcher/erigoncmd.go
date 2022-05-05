@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	//"fmt"
+	"fmt"
 
 	"gopkg.in/urfave/cli.v1"
-	//"github.com/holiman/uint256"
+	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -23,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 
-	//"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -32,91 +31,11 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	elog "github.com/ledgerwatch/log/v3"
 	//estate "github.com/ledgerwatch/erigon/core/state"
-	//eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
-	//ecommon "github.com/ledgerwatch/erigon/common"
-	//"github.com/ledgerwatch/erigon/crypto"
+	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
+	ecommon "github.com/ledgerwatch/erigon/common"
+	"github.com/ledgerwatch/erigon/common/dbutils"
+	"github.com/ledgerwatch/erigon/crypto"
 )
-
-/*
-Data model
-TBD use state.Account instead of erigon accounts.Account (have different format)
-
-kv.Plainstate
-erigon
-key - address (unhashed)
-value - account encoded for storage
-my impl
-[]byte          
-key account.Hash 
-value account in bytes (TODO encoding for storage)
-
-erigon 
-kv.HashedAccounts
-// key - address hash
-// value - account encoded for storage
-kv.HashedStorage
-//key - address hash + incarnation + storage key hash
-//value - storage value(common.hash)
-
-TrieOfAccounts and TrieOfStorage
-hasState,groups - mark prefixes existing in hashed_account table
-hasTree - mark prefixes existing in trie_account table (not related with branchNodes)
-hasHash - mark prefixes which hashes are saved in current trie_account record (actually only hashes of branchNodes can be saved)
-@see UnmarshalTrieNode
-@see integrity.Trie
-
-+-----------------------------------------------------------------------------------------------------+
-| DB record: 0x0B, hasState: 0b1011, hasTree: 0b1001, hasHash: 0b1001, hashes: [x,x]                  |
-+-----------------------------------------------------------------------------------------------------+
-                |                                           |                               |
-                v                                           |                               v
-+---------------------------------------------+             |            +--------------------------------------+
-| DB record: 0x0B00, hasState: 0b10001        |             |            | DB record: 0x0B03, hasState: 0b10010 |
-| hasTree: 0, hasHash: 0b10000, hashes: [x]   |             |            | hasTree: 0, hasHash: 0, hashes: []   |
-+---------------------------------------------+             |            +--------------------------------------+
-        |                    |                              |                         |                  |
-        v                    v                              v                         v                  v
-+------------------+    +----------------------+     +---------------+        +---------------+  +---------------+
-| Account:         |    | BranchNode: 0x0B0004 |     | Account:      |        | Account:      |  | Account:      |
-| 0x0B0000...      |    | has no record in     |     | 0x0B01...     |        | 0x0B0301...   |  | 0x0B0304...   |
-| in HashedAccount |    |     TrieAccount      |     |               |        |               |  |               |
-+------------------+    +----------------------+     +---------------+        +---------------+  +---------------+
-                           |                |
-                           v                v
-		           +---------------+  +---------------+
-		           | Account:      |  | Account:      |
-		           | 0x0B000400... |  | 0x0B000401... |
-		           +---------------+  +---------------+
-Invariants:
-- hasTree is subset of hasState
-- hasHash is subset of hasState
-- first level in account_trie always exists if hasState>0
-- TrieStorage record of account.root (length=40) must have +1 hash - it's account.root
-- each record in TrieAccount table must have parent (may be not direct) and this parent must have correct bit in hasTree bitmap
-- if hasState has bit - then HashedAccount table must have record according to this bit
-- each TrieAccount record must cover some state (means hasState is always > 0)
-- TrieAccount records with length=1 can satisfy (hasBranch==0&&hasHash==0) condition
-- Other records in TrieAccount and TrieStorage must (hasTree!=0 || hasHash!=0)
-
-
-
-erigon
-Physical layout:
-PlainState and HashedStorage utilises DupSort feature of MDBX (store multiple values inside 1 key).
--------------------------------------------------------------
-	   key              |            value
--------------------------------------------------------------
-[acc_hash]              | [acc_value]
-[acc_hash]+[inc]        | [storage1_hash]+[storage1_value]
-                        | [storage2_hash]+[storage2_value] // this value has no own key. it's 2nd value of [acc_hash]+[inc] key.
-                        | [storage3_hash]+[storage3_value]
-                        | ...
-[acc_hash]+[old_inc]    | [storage1_hash]+[storage1_value]
-                        | ...
-[acc2_hash]             | [acc2_value]
-
-
-*/
 
 func erigon(ctx *cli.Context) error {
 	
@@ -151,21 +70,24 @@ func erigon(ctx *cli.Context) error {
 	)
 	accIter := trie.NewIterator(t.NodeIterator(nil))
 
-	accKV, err := mdbx.NewMDBX(elog.New()).
+	db, err := mdbx.NewMDBX(elog.New()).
 			Path(filepath.Join(os.TempDir(), "lmdb")).
 			WithTablessCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 				return kv.TableCfg{
 					kv.PlainState: kv.TableCfgItem{},
-					kv.Code: kv.TableCfgItem{},
-		            }
+					kv.TrieOfAccounts: kv.TableCfgItem{},
+					kv.TrieOfStorage: kv.TableCfgItem{},
+					kv.HashedStorage: kv.TableCfgItem{},
+					kv.HashedAccounts: kv.TableCfgItem{},
+		        }
 			}).Open()
 	if err != nil {
 		return err
 	}
-	defer accKV.Close()
+	defer db.Close()
 
 
-	/*
+
 	transformAccToErigon := func(account state.Account) (eAccount eaccounts.Account) {
 		bal, overflow := uint256.FromBig(account.Balance)
 		if overflow {
@@ -178,7 +100,8 @@ func erigon(ctx *cli.Context) error {
 
 		return 
 	}
-	*/
+
+
 
 	/*
 	TODO fill in
@@ -188,54 +111,53 @@ func erigon(ctx *cli.Context) error {
 
 
 
+    erigon.RegenerateIntermediateHashes (from first block)
+
 	kv.TrieOfAccounts, 
 	kv.TrieOfStorage, 
 	kv.HashedStorage
-    tables to call CalcTrieRoot to compute state root
-	https://github.com/ledgerwatch/erigon/blob/devel/turbo/trie/trie_root.go#L197
+	kv.HashedAccounts
+
+    Plan
+	0. PlainState
+	func (w *PlainStateWriter) UpdateAccountData(address common.Address  
+	func (w *PlainStateWriter) WriteAccountStorage(address common.Address)
+	1. load all accounts into buckets kv.HashedAccounts, kv.HashedStorage using HashState stage
+
+    
 
 
-	c, err := tx.Cursor(kv.PlainState)
-			if err != nil {
-				return nil, nil, err
-			}
-			h := common.NewHasher()
-			defer common.ReturnHasherToPool(h)
-			for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
-				if err != nil {
-					return nil, nil, fmt.Errorf("interate over plain state: %w", err)
-				}
-				var newK []byte
-				if len(k) == common.AddressLength {
-					newK = make([]byte, common.HashLength)
-				} else {
-					newK = make([]byte, common.HashLength*2+common.IncarnationLength)
-				}
-				h.Sha.Reset()
-				//nolint:errcheck
-				h.Sha.Write(k[:common.AddressLength])
-				//nolint:errcheck
-				h.Sha.Read(newK[:common.HashLength])
-				if len(k) > common.AddressLength {
-					copy(newK[common.HashLength:], k[common.AddressLength:common.AddressLength+common.IncarnationLength])
-					h.Sha.Reset()
-					//nolint:errcheck
-					h.Sha.Write(k[common.AddressLength+common.IncarnationLength:])
-					//nolint:errcheck
-					h.Sha.Read(newK[common.HashLength+common.IncarnationLength:])
-					if err = tx.Put(kv.HashedStorage, newK, common.CopyBytes(v)); err != nil {
-						return nil, nil, fmt.Errorf("insert hashed key: %w", err)
-					}
-				} else {
-					if err = tx.Put(kv.HashedAccounts, newK, common.CopyBytes(v)); err != nil {
-						return nil, nil, fmt.Errorf("insert hashed key: %w", err)
-					}
-				}
+	HashStorage
+	incarnation := uint64(1)
+	hash3 := common.HexToHash("0xB041000000000000000000000000000000000000000000000000000000000000")
+	assert.Nil(t, addTestAccount(tx, hash3, 2*params.Ether, incarnation))
 
-			}
+	loc1 := common.HexToHash("0x1200000000000000000000000000000000000000000000000000000000000000")
+	loc2 := common.HexToHash("0x1400000000000000000000000000000000000000000000000000000000000000")
+	loc3 := common.HexToHash("0x3000000000000000000000000000000000000000000000000000000000E00000")
+	loc4 := common.HexToHash("0x3000000000000000000000000000000000000000000000000000000000E00001")
+
+	val1 := common.FromHex("0x42")
+	val2 := common.FromHex("0x01")
+	val3 := common.FromHex("0x127a89")
+	val4 := common.FromHex("0x05")
+
+	assert.Nil(t, tx.Put(kv.HashedStorage, dbutils.GenerateCompositeStorageKey(hash3, incarnation, loc1), val1))
+	2. transform state.Account to erigon account or not 
+	    +    |   -
+		       it can lead to to secp256k1 problems (duplicated symbol, cause c libraries have the same namespace)
+	3. find out where to take 
 
 
-	*/
+	erigon.incrementIntermediateHashes
+	additionally to above buckers
+	kv.Plainstate
+	kv.AccountChangeset, 
+	kv.StorageChangeSet
+*/
+	
+	
+  
 
 	for accIter.Next() {
 		accounts += 1
@@ -246,16 +168,37 @@ func erigon(ctx *cli.Context) error {
 			return err
 		}
 
-		// Writing account into LMDB kv.Plainstate table
-		if err := accKV.Update(context.Background(), func(tx kv.RwTx) error {
-			// TODO add EncodeForStorage for state.Account
-			key := common.BytesToHash(accIter.Value)
-			return tx.Put(kv.PlainState, key.Bytes(), accIter.Value)
-		}); err != nil {
-			return err
+		eAccount := transformAccToErigon(acc)
+		addr := randomAddr()
+
+
+	
+		switch {
+		// EOA
+		case acc.Root == types.EmptyRootHash && bytes.Equal(acc.CodeHash, evmstore.EmptyCode):
+			if err := writeAccountData(db, eAccount, addr); err != nil {
+				return err
+			}
+        
+		// contract account
+		case acc.Root != types.EmptyRootHash && !bytes.Equal(acc.CodeHash, evmstore.EmptyCode):
+			
+			if err := writeAccountStorage(db, eAccount, addr, acc.CodeHash); err != nil {
+				return err
+			}
+
+		// TODO ADDRESS OTHER CASES 
 		}
+	
+    
 
+		
 
+		// Writing account into LMDB kv.Plainstate table
+
+		// TODO consider to update it through IntraBlockState
+
+	
 		if acc.Root != types.EmptyRootHash {
 			storageTrie, err := trie.NewSecure(acc.Root, triedb)
 			if err != nil {
@@ -278,21 +221,8 @@ func erigon(ctx *cli.Context) error {
 				log.Error("Code is missing", "hash", common.BytesToHash(acc.CodeHash))
 				return errors.New("missing code")
 			}
-			// Writing contract code into LMDB kv.Code table
-			if err := accKV.Update(context.Background(), func(tx kv.RwTx) error {
-				//eAccount := transformAccToErigon(acc)
-				//value := make([]byte, eAccount.EncodingLengthForStorage())
-				//eAccount.EncodeForStorage(value)
-				key := common.BytesToHash(acc.CodeHash)
-				return tx.Put(kv.Code, key.Bytes(), acc.CodeHash[:])
-			}); err != nil {
-				return err
-			}
-
-
-
-
-
+		
+	
 			codes += 1
 		} 
 
@@ -310,6 +240,32 @@ func erigon(ctx *cli.Context) error {
 	log.Info("State is complete", "accounts", accounts, "slots", slots, "codes", codes, "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
 }
+
+
+func writeAccountData(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+	return db.Update(context.Background(), func(tx kv.RwTx) error {
+		value := make([]byte, acc.EncodingLengthForStorage())
+		acc.EncodeForStorage(value)
+		return tx.Put(kv.PlainState, addr[:], value)
+	})
+}
+
+
+func writeAccountStorage(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address, value []byte ) error {
+	compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
+	return db.Update(context.Background(), func(tx kv.RwTx) error {
+		return tx.Put(kv.PlainState, compositeKey, value)
+	})
+}
+
+
+
+func randomAddr() ecommon.Address {
+	key, _ := crypto.GenerateKey()
+	addr := ecommon.Address(crypto.PubkeyToAddress(key.PublicKey))
+	return addr
+}
+
 
 /* TODO reimplement it for state.Account
 func EncodeForStorage(a state.Account, buffer []byte) {
