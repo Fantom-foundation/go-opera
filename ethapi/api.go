@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -49,8 +50,10 @@ import (
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
 )
 
 const (
@@ -91,6 +94,103 @@ func (s *PublicEthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.
 		return nil, err
 	}
 	return (*hexutil.Big)(tipcap), err
+}
+
+type feeHistoryResult struct {
+	OldestBlock  *hexutil.Big     `json:"oldestBlock"`
+	Reward       [][]*hexutil.Big `json:"reward,omitempty"`
+	BaseFee      []*hexutil.Big   `json:"baseFeePerGas,omitempty"`
+	GasUsedRatio []float64        `json:"gasUsedRatio"`
+}
+
+func scaleGasTip(tip, baseFee *big.Int, ratio uint64) *big.Int {
+	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
+	min := baseFee
+	est := new(big.Int).Set(tip)
+	est.Add(est, min)
+	est.Mul(est, new(big.Int).SetUint64(ratio))
+	est.Div(est, gasprice.DecimalUnitBn)
+	est.Sub(est, min)
+	if est.Sign() < 0 {
+		return new(big.Int)
+	}
+
+	return est
+}
+
+var tipScaleRatio = piecefunc.NewFunc([]piecefunc.Dot{
+	{
+		X: 0,
+		Y: 0.7 * gasprice.DecimalUnit,
+	},
+	{
+		X: 0.2 * gasprice.DecimalUnit,
+		Y: 1.0 * gasprice.DecimalUnit,
+	},
+	{
+		X: 0.8 * gasprice.DecimalUnit,
+		Y: 1.2 * gasprice.DecimalUnit,
+	},
+	{
+		X: 1.0 * gasprice.DecimalUnit,
+		Y: 2.0 * gasprice.DecimalUnit,
+	},
+})
+
+var errInvalidPercentile = errors.New("invalid reward percentile")
+
+func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.DecimalOrHex, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*feeHistoryResult, error) {
+	res := &feeHistoryResult{}
+	res.Reward = make([][]*hexutil.Big, 0, blockCount)
+	res.BaseFee = make([]*hexutil.Big, 0, blockCount)
+	res.GasUsedRatio = make([]float64, 0, blockCount)
+	res.OldestBlock = (*hexutil.Big)(new(big.Int))
+
+	// validate input parameters
+	if blockCount == 0 {
+		return res, nil
+	}
+	if blockCount > 1024 {
+		blockCount = 1024
+	}
+	for i, p := range rewardPercentiles {
+		if p < 0 || p > 100 {
+			return nil, fmt.Errorf("%w: %f", errInvalidPercentile, p)
+		}
+		if i > 0 && p < rewardPercentiles[i-1] {
+			return nil, fmt.Errorf("%w: #%d:%f > #%d:%f", errInvalidPercentile, i-1, rewardPercentiles[i-1], i, p)
+		}
+	}
+	last, err := s.b.ResolveRpcBlockNumberOrHash(ctx, rpc.BlockNumberOrHash{BlockNumber: &lastBlock})
+	if err != nil {
+		return nil, err
+	}
+	oldest := last
+	if oldest > idx.Block(blockCount) {
+		oldest -= idx.Block(blockCount - 1)
+	} else {
+		oldest = 0
+	}
+
+	baseFee := s.b.MinGasPrice()
+	goldTip, err := s.b.SuggestGasTipCap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tips := make([]*hexutil.Big, 0, len(rewardPercentiles))
+	for _, p := range rewardPercentiles {
+		ratio := tipScaleRatio(uint64(gasprice.DecimalUnit * p / 100.0))
+		scaledTip := scaleGasTip(goldTip, baseFee, ratio)
+		tips = append(tips, (*hexutil.Big)(scaledTip))
+	}
+	res.OldestBlock.ToInt().SetUint64(uint64(oldest))
+	for i := uint64(0); i < uint64(last-oldest+1); i++ {
+		res.Reward = append(res.Reward, tips)
+		res.BaseFee = append(res.BaseFee, (*hexutil.Big)(baseFee))
+		res.GasUsedRatio = append(res.GasUsedRatio, 0.99)
+	}
+	return res, nil
 }
 
 // Syncing returns true if node is syncing
