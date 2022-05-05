@@ -51,6 +51,25 @@ func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
 	return b.state.CurrentBlock()
 }
 
+func (b *EthAPIBackend) ResolveRpcBlockNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (idx.Block, error) {
+	latest := b.svc.store.GetLatestBlockIndex()
+	if number, ok := blockNrOrHash.Number(); ok && (number == rpc.LatestBlockNumber || number == rpc.PendingBlockNumber) {
+		return latest, nil
+	} else if number, ok := blockNrOrHash.Number(); ok {
+		if idx.Block(number) > latest {
+			return 0, errors.New("block not found")
+		}
+		return idx.Block(number), nil
+	} else if h, ok := blockNrOrHash.Hash(); ok {
+		index := b.svc.store.GetBlockIndex(hash.Event(h))
+		if index == nil {
+			return 0, errors.New("block not found")
+		}
+		return *index, nil
+	}
+	return 0, errors.New("unknown header selector")
+}
+
 // HeaderByNumber returns evm block header by its number, or nil if not exists.
 func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error) {
 	blk, err := b.BlockByNumber(ctx, number)

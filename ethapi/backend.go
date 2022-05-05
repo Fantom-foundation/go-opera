@@ -68,7 +68,7 @@ type Backend interface {
 	HeaderByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmHeader, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *evmcore.EvmHeader, error)
-	//GetHeader(ctx context.Context, hash common.Hash) *evmcore.EvmHeader
+	ResolveRpcBlockNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (idx.Block, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmBlock, error)
 	GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
