@@ -13,7 +13,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -90,8 +89,6 @@ type (
 
 		// Gas Price Oracle options
 		GPO gasprice.Config
-
-		VersionWatcher verwatcher.Config
 
 		// RPCGasCap is the global gas cap for eth-call variants.
 		RPCGasCap uint64 `toml:",omitempty"`
@@ -210,10 +207,6 @@ func DefaultConfig(scale cachescale.Func) Config {
 			GasPowerWallRatio:           big.NewInt(0.05 * gasprice.DecimalUnit),
 		},
 
-		VersionWatcher: verwatcher.Config{
-			ShutDownIfNotUpgraded:     false,
-			WarningIfNotUpgradedEvery: 5 * time.Second,
-		},
 		RPCBlockExt: true,
 
 		RPCGasCap:   50000000,
