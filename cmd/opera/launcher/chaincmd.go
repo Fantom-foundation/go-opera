@@ -120,7 +120,7 @@ Checks EVM storage roots and code hashes
 		Name:     "erigon",
 		Usage:    "Writes EVM data into Erigon tables",
 		Category: "MISCELLANEOUS COMMANDS",
-		Action: utils.MigrateFlags(erigon),
+		Action: utils.MigrateFlags(writeEVMToErigon),
 		Description: `
 		opera erigon
 	

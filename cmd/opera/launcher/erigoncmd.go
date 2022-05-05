@@ -18,10 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	//"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+	"github.com/Fantom-foundation/go-opera/gossip/erigon"
 
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -31,16 +32,14 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 
 	elog "github.com/ledgerwatch/log/v3"
-	//estate "github.com/ledgerwatch/erigon/core/state"
 	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
 	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/crypto"
+
 )
 
-
-
-func erigon(ctx *cli.Context) error {
+func writeEVMToErigon(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
@@ -73,8 +72,10 @@ func erigon(ctx *cli.Context) error {
 	)
 	accIter := trie.NewIterator(t.NodeIterator(nil))
 
+	tmpDir := filepath.Join(os.TempDir(), "lmdb")
+
 	db, err := mdbx.NewMDBX(elog.New()).
-			Path(filepath.Join(os.TempDir(), "lmdb")).
+			Path(tmpDir).
 			WithTablessCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 				return kv.TableCfg{
 					kv.PlainState: kv.TableCfgItem{},
@@ -113,7 +114,7 @@ func erigon(ctx *cli.Context) error {
 		})
 	}
 
-	// ask about how to write more efficient using Cursor or tx.Put
+	// ask about how to write in more efficient way using RwCursor 
 	writeAccountStorage := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
 		return db.Update(context.Background(), func(tx kv.RwTx) error {
 			compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
@@ -128,62 +129,7 @@ func erigon(ctx *cli.Context) error {
 		return addr
 	}
 
-
-
-	/*
-	TODO fill in
-	kv.HashedAccounts, 
-	hash1 := common.HexToHash("0x30af561000000000000000000000000000000000000000000000000000000000")
-	assert.Nil(t, tx.Put(kv.HashedAccounts, hash1[:], encoded))
-
-
-
-    erigon.RegenerateIntermediateHashes (from first block)
-
-	kv.TrieOfAccounts, 
-	kv.TrieOfStorage, 
-	kv.HashedStorage
-	kv.HashedAccounts
-
-    Plan
-	0. PlainState
-	func (w *PlainStateWriter) UpdateAccountData(address common.Address  
-	func (w *PlainStateWriter) WriteAccountStorage(address common.Address)
-	1. load all accounts into buckets kv.HashedAcMadrid to delete themcounts, kv.HashedStorage using HashState stage
-
-    
-
-
-	HashStorage
-	incarnation := uint64(1)
-	hash3 := common.HexToHash("0xB041000000000000000000000000000000000000000000000000000000000000")
-	assert.Nil(t, addTestAccount(tx, hash3, 2*params.Ether, incarnation))
-
-	loc1 := common.HexToHash("0x1200000000000000000000000000000000000000000000000000000000000000")
-	loc2 := common.HexToHash("0x1400000000000000000000000000000000000000000000000000000000000000")
-	loc3 := common.HexToHash("0x3000000000000000000000000000000000000000000000000000000000E00000")
-	loc4 := common.HexToHash("0x3000000000000000000000000000000000000000000000000000000000E00001")
-
-	val1 := common.FromHex("0x42")
-	val2 := common.FromHex("0x01")
-	val3 := common.FromHex("0x127a89")
-	val4 := common.FromHex("0x05")
-
-	assert.Nil(t, tx.Put(kv.HashedStorage, dbutils.GenerateCompositeStorageKey(hash3, incarnation, loc1), val1))
-	2. transform state.Account to erigon account or not +
-
-	3. find out where to take 
-
-
-	erigon.incrementIntermediateHashes
-	additionally to above buckers
-	kv.Plainstate
-	kv.AccountChangeset, 
-	kv.StorageChangeSet
-*/
-
-
-
+   // generate PlainState
 	for accIter.Next() {
 		accounts += 1
 		var acc state.Account
@@ -214,19 +160,6 @@ func erigon(ctx *cli.Context) error {
 
 		// TODO ADDRESS OTHER CASES If they are
 		}
-
-		// write to kv.HashedAccounts and kv.HashedStorae
-		
-    
-
-		
-
-
-
-
-		// TODO consider to update it through IntraBlockState
-
-
 
 	
 		if acc.Root != types.EmptyRootHash {
@@ -268,5 +201,41 @@ func erigon(ctx *cli.Context) error {
 	}
 
 	log.Info("State is complete", "accounts", accounts, "slots", slots, "codes", codes, "elapsed", common.PrettyDuration(time.Since(start)))
+	
+	log.Info("Generate Hash State...")
+	if err := erigon.GenerateHashedState("HashedState", db, tmpDir, context.Background()); err != nil {
+		log.Error("GenerateHashedState error: ", err)
+		return err
+	}
+
+	/*
+	if err := generateHashState2(db); err != nil {
+		// insert log.Error
+		return err
+	}
+	*/
+	// TODO insert timer
+	log.Info("Generate Hash State is complete")
+	log.Info("Calculating State Root...")
+	trieCfg := erigon.StageTrieCfg(db, true, true, "", nil)
+	hash, err := erigon.GenerateStateRoot("Intermediate Hashes", db, trieCfg)
+	if err != nil {
+		log.Error("GenerateIntermediateHashes error: ", err)
+		return err
+	}
+
+	log.Info(fmt.Sprintf("[%s] Trie root", "GenerateStateRoot"), "hash", hash.Hex())
+	/*
+	root, err = CalcTrieRoot2(db)
+	if err  != nil {
+		log.Error("Failed to calculate state root", "root", root, "err", accIter.Err)
+	}
+	*/
+
+	log.Info("Calculation of State Root Complete")
+
+
 	return nil
 }
+
+

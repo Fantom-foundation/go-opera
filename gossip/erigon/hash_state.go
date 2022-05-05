@@ -1,28 +1,29 @@
 package erigon
 
 import (
-	"time"
-	"runtime"
 	"encoding/binary"
 	"fmt"
+	"runtime"
+	"time"
 
 	"context"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/etl"
+	"github.com/ledgerwatch/erigon-lib/kv"
 
-	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon-lib/common/length"
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
+	"github.com/ledgerwatch/erigon/turbo/trie"
 	"github.com/ledgerwatch/log/v3"
 )
 
-// SpawnHashState extracts data from kv.Plainstate and writes to kv.HashedAccounts and kv.HashedStorage
-func SpawnHashState(logPrefix string, db kv.RwDB, tmpDir string, ctx context.Context) error  {
+// GenerateHashState extracts data from kv.Plainstate and writes to kv.HashedAccounts and kv.HashedStorage
+func GenerateHashedState(logPrefix string, db kv.RwDB, tmpDir string, ctx context.Context) error {
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
-			return err
+		return err
 	}
 	defer tx.Rollback()
 
@@ -36,18 +37,11 @@ func SpawnHashState(logPrefix string, db kv.RwDB, tmpDir string, ctx context.Con
 		return err
 	}
 
-
-   // ?
-   /*
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-  */
-
-	return nil
-
+	return tx.Commit()
 }
 
+// TODO write tests
+// readPlainStateOnce reads kv.Plainstate and then loads data into kv.HashedAccounts and kv.HashedStorage
 func readPlainStateOnce(
 	logPrefix string,
 	db kv.RwTx,
@@ -99,11 +93,10 @@ func readPlainStateOnce(
 		if e != nil {
 			return e
 		}
-		
+
 		if err := libcommon.Stopped(quit); err != nil {
 			return err
 		}
-	
 
 		if len(k) == 20 {
 			newK, err := convertAccFunc(k)
@@ -149,4 +142,71 @@ func readPlainStateOnce(
 	}
 
 	return nil
+}
+
+// not stable method to generate HashState
+func GenerateHashState2(db kv.RwDB) error {
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	c, err := tx.RwCursor(kv.PlainState)
+	if err != nil {
+		return err
+	}
+	h := common.NewHasher()
+
+	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+		if err != nil {
+			return fmt.Errorf("interate over plain state: %w", err)
+		}
+		var newK []byte
+		if len(k) == common.AddressLength {
+			newK = make([]byte, common.HashLength)
+		} else {
+			newK = make([]byte, common.HashLength*2+common.IncarnationLength)
+		}
+		h.Sha.Reset()                         //?
+		h.Sha.Write(k[:common.AddressLength]) //?
+		h.Sha.Read(newK[:common.HashLength])  //?
+		if len(k) > common.AddressLength {
+			copy(newK[common.HashLength:], k[common.AddressLength:common.AddressLength+common.IncarnationLength])
+			h.Sha.Reset()
+			h.Sha.Write(k[common.AddressLength+common.IncarnationLength:])
+			h.Sha.Read(newK[common.HashLength+common.IncarnationLength:])
+			if err = tx.Put(kv.HashedStorage, newK, common.CopyBytes(v)); err != nil {
+				return fmt.Errorf("insert hashed key: %w", err)
+			}
+		} else {
+			if err = tx.Put(kv.HashedAccounts, newK, common.CopyBytes(v)); err != nil {
+				return fmt.Errorf("insert hashed key: %w", err)
+			}
+		}
+	}
+	c.Close()
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// not stable method to generate trie root
+func CalcTrieRoot2(db kv.RwDB) (common.Hash, error) {
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	root, err := trie.CalcRoot("", tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return root, nil
 }
