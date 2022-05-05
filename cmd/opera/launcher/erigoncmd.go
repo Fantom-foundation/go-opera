@@ -29,6 +29,7 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
+
 	elog "github.com/ledgerwatch/log/v3"
 	//estate "github.com/ledgerwatch/erigon/core/state"
 	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
@@ -37,8 +38,10 @@ import (
 	"github.com/ledgerwatch/erigon/crypto"
 )
 
+
+
 func erigon(ctx *cli.Context) error {
-	
+
 	cfg := makeAllConfigs(ctx)
 
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
@@ -87,8 +90,8 @@ func erigon(ctx *cli.Context) error {
 	defer db.Close()
 
 
-
-	transformAccToErigon := func(account state.Account) (eAccount eaccounts.Account) {
+  
+	transformStateAccount := func(account state.Account) (eAccount eaccounts.Account) {
 		bal, overflow := uint256.FromBig(account.Balance)
 		if overflow {
 			panic(fmt.Sprintf("overflow occured while converting from account.Balance"))
@@ -99,6 +102,30 @@ func erigon(ctx *cli.Context) error {
 		eAccount.CodeHash = crypto.Keccak256Hash(account.CodeHash)
 
 		return 
+	}
+
+	// TODO rewrite it using c.RWCursor(PlainState) its faster
+    writeAccountData := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+		return db.Update(context.Background(), func(tx kv.RwTx) error {
+			value := make([]byte, acc.EncodingLengthForStorage())
+			acc.EncodeForStorage(value)
+			return tx.Put(kv.PlainState, addr[:], value)
+		})
+	}
+
+	// ask about how to write more efficient using Cursor or tx.Put
+	writeAccountStorage := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+		return db.Update(context.Background(), func(tx kv.RwTx) error {
+			compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
+			value := acc.CodeHash.Bytes()
+			return tx.Put(kv.PlainState, compositeKey, value)
+		})
+	}
+
+	randomAddr := func() ecommon.Address {
+		key, _ := crypto.GenerateKey()
+		addr := ecommon.Address(crypto.PubkeyToAddress(key.PublicKey))
+		return addr
 	}
 
 
@@ -122,7 +149,7 @@ func erigon(ctx *cli.Context) error {
 	0. PlainState
 	func (w *PlainStateWriter) UpdateAccountData(address common.Address  
 	func (w *PlainStateWriter) WriteAccountStorage(address common.Address)
-	1. load all accounts into buckets kv.HashedAccounts, kv.HashedStorage using HashState stage
+	1. load all accounts into buckets kv.HashedAcMadrid to delete themcounts, kv.HashedStorage using HashState stage
 
     
 
@@ -143,9 +170,8 @@ func erigon(ctx *cli.Context) error {
 	val4 := common.FromHex("0x05")
 
 	assert.Nil(t, tx.Put(kv.HashedStorage, dbutils.GenerateCompositeStorageKey(hash3, incarnation, loc1), val1))
-	2. transform state.Account to erigon account or not 
-	    +    |   -
-		       it can lead to to secp256k1 problems (duplicated symbol, cause c libraries have the same namespace)
+	2. transform state.Account to erigon account or not +
+
 	3. find out where to take 
 
 
@@ -155,9 +181,8 @@ func erigon(ctx *cli.Context) error {
 	kv.AccountChangeset, 
 	kv.StorageChangeSet
 */
-	
-	
-  
+
+
 
 	for accIter.Next() {
 		accounts += 1
@@ -168,35 +193,40 @@ func erigon(ctx *cli.Context) error {
 			return err
 		}
 
-		eAccount := transformAccToErigon(acc)
+		eAccount := transformStateAccount(acc)
+		// TODO replace random accs 
 		addr := randomAddr()
 
-
-	
 		switch {
-		// EOA
+		// EOA non contract accounts
 		case acc.Root == types.EmptyRootHash && bytes.Equal(acc.CodeHash, evmstore.EmptyCode):
+			// write non-contract accounts to kv.PlainState
 			if err := writeAccountData(db, eAccount, addr); err != nil {
 				return err
 			}
         
 		// contract account
 		case acc.Root != types.EmptyRootHash && !bytes.Equal(acc.CodeHash, evmstore.EmptyCode):
-			
-			if err := writeAccountStorage(db, eAccount, addr, acc.CodeHash); err != nil {
+			// write contract accounts to kv.PlainState
+			if err := writeAccountStorage(db, eAccount, addr); err != nil {
 				return err
 			}
 
-		// TODO ADDRESS OTHER CASES 
+		// TODO ADDRESS OTHER CASES If they are
 		}
-	
+
+		// write to kv.HashedAccounts and kv.HashedStorae
+		
     
 
 		
 
-		// Writing account into LMDB kv.Plainstate table
+
+
 
 		// TODO consider to update it through IntraBlockState
+
+
 
 	
 		if acc.Root != types.EmptyRootHash {
@@ -240,80 +270,3 @@ func erigon(ctx *cli.Context) error {
 	log.Info("State is complete", "accounts", accounts, "slots", slots, "codes", codes, "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
 }
-
-
-func writeAccountData(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
-	return db.Update(context.Background(), func(tx kv.RwTx) error {
-		value := make([]byte, acc.EncodingLengthForStorage())
-		acc.EncodeForStorage(value)
-		return tx.Put(kv.PlainState, addr[:], value)
-	})
-}
-
-
-func writeAccountStorage(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address, value []byte ) error {
-	compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
-	return db.Update(context.Background(), func(tx kv.RwTx) error {
-		return tx.Put(kv.PlainState, compositeKey, value)
-	})
-}
-
-
-
-func randomAddr() ecommon.Address {
-	key, _ := crypto.GenerateKey()
-	addr := ecommon.Address(crypto.PubkeyToAddress(key.PublicKey))
-	return addr
-}
-
-
-/* TODO reimplement it for state.Account
-func EncodeForStorage(a state.Account, buffer []byte) {
-	var fieldSet = 0 // start with first bit set to 0
-	var pos = 1
-	if a.Nonce > 0 {
-		fieldSet = 1
-		nonceBytes := (bits.Len64(a.Nonce) + 7) / 8
-		buffer[pos] = byte(nonceBytes)
-		var nonce = a.Nonce
-		for i := nonceBytes; i > 0; i-- {
-			buffer[pos+i] = byte(nonce)
-			nonce >>= 8
-		}
-		pos += nonceBytes + 1
-	}
-
-	// Encoding balance
-	if !a.Balance.IsZero() {
-		fieldSet |= 2
-		balanceBytes := a.Balance.ByteLen()
-		buffer[pos] = byte(balanceBytes)
-		pos++
-		a.Balance.WriteToSlice(buffer[pos : pos+balanceBytes])
-		pos += balanceBytes
-	}
-
-	if a.Incarnation > 0 {
-		fieldSet |= 4
-		incarnationBytes := (bits.Len64(a.Incarnation) + 7) / 8
-		buffer[pos] = byte(incarnationBytes)
-		var incarnation = a.Incarnation
-		for i := incarnationBytes; i > 0; i-- {
-			buffer[pos+i] = byte(incarnation)
-			incarnation >>= 8
-		}
-		pos += incarnationBytes + 1
-	}
-
-	// Encoding CodeHash
-	if !a.IsEmptyCodeHash() {
-		fieldSet |= 8
-		buffer[pos] = 32
-		copy(buffer[pos+1:], a.CodeHash.Bytes())
-		//pos += 33
-	}
-
-	buffer[0] = byte(fieldSet)
-}
-*/
-
