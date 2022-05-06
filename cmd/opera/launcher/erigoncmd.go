@@ -114,6 +114,8 @@ func writeEVMToErigon(ctx *cli.Context) error {
 		})
 	}
 
+	// TODO add incarnation to contract based accounts
+	// TODO fix contract sotrage
 	// ask about how to write in more efficient way using RwCursor 
 	writeAccountStorage := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
 		return db.Update(context.Background(), func(tx kv.RwTx) error {
