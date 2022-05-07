@@ -16,6 +16,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
 
+var errValidatorNotExist = errors.New("validator does not exist")
+
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
 	if current == upd {
 		current++
@@ -53,11 +55,16 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	done := s.procLogger.BlockVotesConnectionStarted(bvs)
 	defer done()
 	vid := bvs.Signed.Locator.Creator
+
 	// get the validators group
 	epoch := bvs.Signed.Locator.Epoch
 	es := s.store.GetHistoryEpochState(epoch)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
+	}
+
+	if !es.Validators.Exists(vid) {
+		return errValidatorNotExist
 	}
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
@@ -82,6 +89,7 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
 	err := s.processBlockVotes(bvs)
 	if err == nil {
 		s.mayCommit(false)
@@ -188,10 +196,15 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	done := s.procLogger.EpochVoteConnectionStarted(ev)
 	defer done()
 	vid := ev.Signed.Locator.Creator
+
 	// get the validators group
 	es := s.store.GetHistoryEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
+	}
+
+	if !es.Validators.Exists(vid) {
+		return errValidatorNotExist
 	}
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
@@ -212,6 +225,7 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
 	err := s.processEpochVote(ev)
 	if err == nil {
 		s.mayCommit(false)
@@ -231,6 +245,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	}
 	done := s.procLogger.EpochRecordConnectionStarted(er)
 	defer done()
+
 	res := s.store.GetLlrEpochResult(er.Idx)
 	if res == nil {
 		return eventcheck.ErrUndecidedER

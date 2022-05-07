@@ -100,7 +100,7 @@ func (d *Leecher) selectSessionPeerCandidates() []string {
 	if start >= d.callback.MaxEpochToFetch() {
 		return nil
 	}
-	for p, _ := range d.Peers {
+	for p := range d.Peers {
 		epoch := d.callback.PeerEpoch(p)
 		if epoch >= start {
 			knowledgeablePeers = append(knowledgeablePeers, p)

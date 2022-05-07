@@ -117,7 +117,7 @@ func (d *Leecher) selectSessionPeerCandidates() []string {
 	if start >= d.callback.MaxBlockToFill() {
 		return nil
 	}
-	for p, _ := range d.Peers {
+	for p := range d.Peers {
 		block := d.callback.PeerBlock(p)
 		if block >= start {
 			knowledgeablePeers = append(knowledgeablePeers, p)
