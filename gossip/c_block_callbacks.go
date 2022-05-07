@@ -22,7 +22,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -242,7 +241,6 @@ func consensusCallbackBeginBlockFn(
 					if verWatcher != nil {
 						verWatcher.OnNewLog(l)
 					}
-					sfcapi.OnNewLog(store.sfcapi, l)
 				}
 
 				// skip LLR block/epoch deciding if not activated
@@ -262,7 +260,7 @@ func consensusCallbackBeginBlockFn(
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true)
+				preInternalReceipts := evmProcessor.Execute(preInternalTxs)
 				bs = txListener.Finalize()
 				for _, r := range preInternalReceipts {
 					if r.Status == 0 {
@@ -283,7 +281,7 @@ func consensusCallbackBeginBlockFn(
 				blockFn := func() {
 					// Execute post-internal transactions
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-					internalReceipts := evmProcessor.Execute(internalTxs, true)
+					internalReceipts := evmProcessor.Execute(internalTxs)
 					for _, r := range internalReceipts {
 						if r.Status == 0 {
 							log.Warn("Internal transaction reverted", "txid", r.TxHash.String())
@@ -300,7 +298,7 @@ func consensusCallbackBeginBlockFn(
 						Events:  hash.Events(confirmedEvents),
 					}
 					for _, tx := range append(preInternalTxs, internalTxs...) {
-						block.InternalTxs = append(block.InternalTxs, tx.Hash())
+						block.Txs = append(block.Txs, tx.Hash())
 					}
 
 					block, blockEvents := spillBlockEvents(store, block, es.Rules)
@@ -309,7 +307,7 @@ func consensusCallbackBeginBlockFn(
 						txs = append(txs, e.Txs()...)
 					}
 
-					_ = evmProcessor.Execute(txs, false)
+					_ = evmProcessor.Execute(txs)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 					block.SkippedTxs = skippedTxs

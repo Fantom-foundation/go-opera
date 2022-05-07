@@ -49,8 +49,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
 
 var (
@@ -1374,7 +1375,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	} else {
 		signer = gsignercache.Wrap(types.HomesteadSigner{})
 	}
-	from, _ := types.Sender(signer, tx)
+	from, _ := internaltx.Sender(signer, tx)
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),
@@ -1706,7 +1707,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	// Derive the sender.
 	bigblock := new(big.Int).SetUint64(blockNumber)
 	signer := gsignercache.Wrap(types.MakeSigner(s.b.ChainConfig(), bigblock))
-	from, _ := types.Sender(signer, tx)
+	from, _ := internaltx.Sender(signer, tx)
 
 	fields := map[string]interface{}{
 		"blockHash":         header.Hash,
@@ -1924,7 +1925,7 @@ func (s *PublicTransactionPoolAPI) PendingTransactions() ([]*RPCTransaction, err
 	}
 	transactions := make([]*RPCTransaction, 0, len(pending))
 	for _, tx := range pending {
-		from, _ := types.Sender(s.signer, tx)
+		from, _ := internaltx.Sender(s.signer, tx)
 		if _, exists := accounts[from]; exists {
 			transactions = append(transactions, newRPCPendingTransaction(tx, s.b.MinGasPrice()))
 		}

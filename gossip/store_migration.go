@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -45,7 +46,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState).
 		Next("LlrState recovery", s.recoverLlrState).
-		Next("erase gossip-async db", s.eraseGossipAsyncDB)
+		Next("erase gossip-async db", s.eraseGossipAsyncDB).
+		Next("erase SFC API table", s.eraseSfcApiTable)
 }
 
 func unsupportedMigration() error {
@@ -356,7 +358,27 @@ func (s *Store) recoverLlrState() error {
 		LowestBlockToFill:   block,
 	})
 	s.FlushLlrState()
+	return nil
+}
 
+func (s *Store) eraseSfcApiTable() error {
+	sfcapiTable := table.New(s.mainDB, []byte("S"))
+	it := sfcapiTable.NewIterator(nil, nil)
+	defer it.Release()
+	i := 0
+	for it.Next() {
+		err := sfcapiTable.Delete(it.Key())
+		if err != nil {
+			return err
+		}
+		i++
+		if i%1000 == 0 && s.IsCommitNeeded() {
+			err := s.Commit()
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

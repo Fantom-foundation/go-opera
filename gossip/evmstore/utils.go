@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -69,13 +70,21 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 
 	log.Info("Checking presence of every node")
 	var (
-		visitedHashes   = make([]common.Hash, 0, 100000)
-		checkedCache, _ = simplewlru.New(1000000, 1000000)
+		visitedHashes   = make([]common.Hash, 0, 1000000)
+		visitedI        = 0
+		checkedCache, _ = simplewlru.New(100000000, 100000000)
 		cached          = func(h common.Hash) bool {
 			_, ok := checkedCache.Get(h)
 			return ok
 		}
 	)
+	visited := func(h common.Hash, priority int) {
+		base := 100000 * priority
+		if visitedI%(1<<(len(visitedHashes)/base)) == 0 {
+			visitedHashes = append(visitedHashes, h)
+		}
+		visitedI++
+	}
 	forEachState(func(root common.Hash) (found bool, err error) {
 		stateTrie, err := s.EvmState.OpenTrie(root)
 		found = stateTrie != nil && err == nil
@@ -92,7 +101,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 					stateItSkip = true
 					continue
 				}
-				visitedHashes = append(visitedHashes, stateIt.Hash())
+				visited(stateIt.Hash(), 2)
 			}
 
 			if stateIt.Leaf() {
@@ -128,7 +137,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 								storageItSkip = true
 								continue
 							}
-							visitedHashes = append(visitedHashes, storageIt.Hash())
+							visited(storageIt.Hash(), 1)
 						}
 					}
 					if storageIt.Error() != nil {
@@ -155,18 +164,43 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 }
 
 func (s *Store) ImportEvm(r io.Reader) error {
-	return iodb.Read(r, &restrictedEvmBatch{s.table.Evm.NewBatch()})
+	it := iodb.NewIterator(r)
+	defer it.Release()
+	batch := &restrictedEvmBatch{s.table.Evm.NewBatch()}
+	defer batch.Reset()
+	for it.Next() {
+		err := batch.Put(it.Key(), it.Value())
+		if err != nil {
+			return err
+		}
+		if batch.ValueSize() > kvdb.IdealBatchSize {
+			err := batch.Write()
+			if err != nil {
+				return err
+			}
+			batch.Reset()
+		}
+	}
+	return batch.Write()
 }
 
 type restrictedEvmBatch struct {
 	kvdb.Batch
 }
 
+func IsMptKey(key []byte) bool {
+	return len(key) == common.HashLength ||
+		(bytes.HasPrefix(key, rawdb.CodePrefix) && len(key) == len(rawdb.CodePrefix)+common.HashLength)
+}
+
+func IsPreimageKey(key []byte) bool {
+	preimagePrefix := []byte("secure-key-")
+	return bytes.HasPrefix(key, preimagePrefix) && len(key) == (len(preimagePrefix)+common.HashLength)
+}
+
 func (v *restrictedEvmBatch) Put(key []byte, value []byte) error {
-	if len(key) != 32 {
-		if !bytes.HasPrefix(key, []byte("secure-key-")) && !bytes.HasPrefix(key, []byte("c")) {
-			return errors.New("not expected prefix for EVM history dump")
-		}
+	if !IsMptKey(key) && !IsPreimageKey(key) {
+		return errors.New("not expected prefix for EVM history dump")
 	}
 	return v.Batch.Put(key, value)
 }

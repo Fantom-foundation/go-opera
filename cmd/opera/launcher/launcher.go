@@ -29,6 +29,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
@@ -103,6 +105,7 @@ func initFlags() {
 	}
 	operaFlags = []cli.Flag{
 		GenesisFlag,
+		ExperimentalGenesisFlag,
 		utils.IdentityFlag,
 		DataDirFlag,
 		utils.MinFreeDiskSpaceFlag,
@@ -262,15 +265,15 @@ func lachesisMain(ctx *cli.Context) error {
 	//defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
-	genesisPath := getOperaGenesis(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesisPath)
+	genesisStore := mayGetGenesisStore(ctx)
+	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service, func()) {
+func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
@@ -281,8 +284,15 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), genesis, cfg.AppConfigs())
-	_ = genesis.Close()
+	var g *genesis.Genesis
+	if genesisStore != nil {
+		gv := genesisStore.Genesis()
+		g = &gv
+	}
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+	if genesisStore != nil {
+		_ = genesisStore.Close()
+	}
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
@@ -329,7 +339,6 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 		_ = stack.Close()
 		gdb.Close()
 		_ = cdb.Close()
-		genesisStore.Close()
 	}
 }
 

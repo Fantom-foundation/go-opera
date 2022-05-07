@@ -23,7 +23,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -35,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -97,22 +95,10 @@ type Backend interface {
 	CurrentEpoch(ctx context.Context) idx.Epoch
 	SealedEpochTiming(ctx context.Context) (start inter.Timestamp, end inter.Timestamp)
 
-	// Lachesis SFC API
-	GetValidators(ctx context.Context) *pos.Validators
-	GetUptime(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error)
-	GetOriginatedFee(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error)
-	GetRewardWeights(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, *big.Int, error)
-	GetStakerPoI(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error)
-	GetDowntime(ctx context.Context, stakerID idx.ValidatorID) (idx.Block, inter.Timestamp, error)
-	GetDelegationClaimedRewards(ctx context.Context, id sfcapi.DelegationID) (*big.Int, error)
-	GetStakerClaimedRewards(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error)
-	GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID idx.ValidatorID) (*big.Int, error)
-	GetStaker(ctx context.Context, stakerID idx.ValidatorID) (*sfcapi.SfcStaker, error)
-	GetStakerID(ctx context.Context, addr common.Address) (idx.ValidatorID, error)
-	GetStakers(ctx context.Context) ([]sfcapi.SfcStakerAndID, error)
-	GetDelegationsOf(ctx context.Context, stakerID idx.ValidatorID) ([]sfcapi.SfcDelegationAndID, error)
-	GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfcapi.SfcDelegationAndID, error)
-	GetDelegation(ctx context.Context, id sfcapi.DelegationID) (*sfcapi.SfcDelegation, error)
+	// Lachesis aBFT API
+	GetDowntime(ctx context.Context, vid idx.ValidatorID) (idx.Block, inter.Timestamp, error)
+	GetUptime(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
+	GetOriginatedFee(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
@@ -161,11 +147,6 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "personal",
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
-			Public:    false,
-		}, {
-			Namespace: "sfc",
-			Version:   "1.0",
-			Service:   NewPublicSfcAPI(apiBackend),
 			Public:    false,
 		}, {
 			Namespace: "abft",

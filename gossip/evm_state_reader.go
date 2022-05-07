@@ -27,6 +27,12 @@ type EvmStateReader struct {
 	gpo   *gasprice.Oracle
 }
 
+func NewEvmStateReader(s *Store) *EvmStateReader {
+	return &EvmStateReader{
+		store: s,
+	}
+}
+
 func (s *Service) GetEvmStateReader() *EvmStateReader {
 	return &EvmStateReader{
 		ServiceFeed: &s.feed,
@@ -120,7 +126,10 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 	var prev hash.Event
 	if n != 0 {
-		prev = r.store.GetBlock(n - 1).Atropos
+		block := r.store.GetBlock(n - 1)
+		if block != nil {
+			prev = block.Atropos
+		}
 	}
 	evmHeader := evmcore.ToEvmHeader(block, n, prev, rules)
 
