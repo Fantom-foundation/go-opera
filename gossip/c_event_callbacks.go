@@ -201,14 +201,6 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		}
 	}
 
-	if err := s.checkers.Heavycheck.ValidateEvent(e); err != nil {
-		return err
-	}
-
-	if err := s.checkers.Basiccheck.Validate(e); err != nil {
-		return err
-	}
-
 	// Process LLR votes
 	err := s.processBlockVotes(inter.AsSignedBlockVotes(e))
 	if err != nil && err != eventcheck.ErrAlreadyProcessedBVs {
