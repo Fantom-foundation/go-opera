@@ -215,6 +215,8 @@ func init() {
 		checkCommand,
 		// See snapshot.go
 		snapshotCommand,
+		// See fixdirty.go
+		fixDirtyCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
