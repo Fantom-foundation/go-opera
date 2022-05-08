@@ -83,7 +83,7 @@ func storageTrieCollector(collector *etl.Collector) trie.StorageHashCollector2 {
 
 
 // RegenerateIntermediateHashes
-func GenerateStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
+func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 	//expectedRootHash common.Hash
 	)  (common.Hash, error) {
 	log.Info(fmt.Sprintf("[%s] Generation of trie hashes started", logPrefix))
