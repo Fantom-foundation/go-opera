@@ -11,6 +11,11 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
+	mptTraversalMode = cli.StringFlag{
+		Name:  "mpt.traversal.mode",
+		Usage: `MPT traversal mode ("mpt" or "snap")`,
+		Value: "mpt",
+	}
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
@@ -121,6 +126,10 @@ Checks EVM storage roots and code hashes
 		Usage:    "Writes EVM data into Erigon tables",
 		Category: "MISCELLANEOUS COMMANDS",
 		Action: utils.MigrateFlags(writeEVMToErigon),
+		Flags: []cli.Flag{
+			mptTraversalMode,
+		},
+
 		Description: `
 		opera erigon
 	

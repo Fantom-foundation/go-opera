@@ -11,19 +11,20 @@ import (
 
 	"fmt"
 
-	"gopkg.in/urfave/cli.v1"
 	"github.com/holiman/uint256"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/ethdb"
 
 	"github.com/Fantom-foundation/go-opera/gossip/erigon"
-
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -31,49 +32,18 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 
-	elog "github.com/ledgerwatch/log/v3"
-	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
 	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
+	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
-
+	erigonDB "github.com/ledgerwatch/erigon/ethdb"
+	elog "github.com/ledgerwatch/log/v3"
 )
 
 func writeEVMToErigon(ctx *cli.Context) error {
 
-	cfg := makeAllConfigs(ctx)
-
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
-	if gdb.GetHighestLamport() != 0 {
-		log.Warn("Attempting genesis export not in a beginning of an epoch. Genesis file output may contain excessive data.")
-	}
-	defer gdb.Close()
-
-	chaindb := gdb.EvmStore().EvmDb
-	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	triedb := trie.NewDatabase(chaindb)
-	t, err := trie.NewSecure(root, triedb)
-	if err != nil {
-		log.Error("Failed to open trie", "root", root, "err", err)
-		return err
-	}
-
-	log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
-	var (
-		accounts   int
-		slots      int
-		codes      int
-		lastReport time.Time
-		start      = time.Now()
-	)
-	accIter := trie.NewIterator(t.NodeIterator(nil))
-
+	// initiate erigon lmdb
 	tmpDir := filepath.Join(os.TempDir(), "lmdb")
-
 	db, err := mdbx.NewMDBX(elog.New()).
 			Path(tmpDir).
 			WithTablessCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
@@ -90,46 +60,67 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	}
 	defer db.Close()
 
+	cfg := makeAllConfigs(ctx)
 
-  
-	transformStateAccount := func(account state.Account) (eAccount eaccounts.Account) {
-		bal, overflow := uint256.FromBig(account.Balance)
-		if overflow {
-			panic(fmt.Sprintf("overflow occured while converting from account.Balance"))
-		}
-		eAccount.Nonce = account.Nonce
-		eAccount.Balance = *bal
-		eAccount.Root = ecommon.Hash(account.Root)
-		eAccount.CodeHash = crypto.Keccak256Hash(account.CodeHash)
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
+	gdb, err := makeRawGossipStore(rawProducer, cfg)
+	if err != nil {
+		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
+	}
+	if gdb.GetHighestLamport() != 0 {
+		log.Warn("Attempting genesis export not in a beginning of an epoch. Genesis file output may contain excessive data.")
+	}
+	defer gdb.Close()
 
-		return 
+	chaindb := gdb.EvmStore().EvmDb
+	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
+
+
+	switch ctx.String(mptTraversalMode.Name) {
+	case "mpt":
+		return traverseMPT()
+	case "snap":
+		return traverseSnap(chaindb, root)
+	default:
+		return errors.New("--mpt.traversal.mode must be one of {mpt, snap}")
+
+	}
+	
+
+	
+	
+
+	triedb := trie.NewDatabase(chaindb)
+
+
+	
+	t, err := trie.NewSecure(root, triedb)
+	if err != nil {
+		log.Error("Failed to open trie", "root", root, "err", err)
+		return err
 	}
 
-	// TODO rewrite it using c.RWCursor(PlainState) its faster
-    writeAccountData := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
-		return db.Update(context.Background(), func(tx kv.RwTx) error {
-			value := make([]byte, acc.EncodingLengthForStorage())
-			acc.EncodeForStorage(value)
-			return tx.Put(kv.PlainState, addr[:], value)
-		})
-	}
+	log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
+	var (
+		accounts   int
+		slots      int
+		codes      int
+		lastReport time.Time
+		start      = time.Now()
+	)
+	accIter := trie.NewIterator(t.NodeIterator(nil))
 
-	// TODO add incarnation to contract based accounts
-	// TODO fix contract sotrage
-	// ask about how to write in more efficient way using RwCursor 
-	writeAccountStorage := func(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
-		return db.Update(context.Background(), func(tx kv.RwTx) error {
-			compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
-			value := acc.CodeHash.Bytes()
-			return tx.Put(kv.PlainState, compositeKey, value)
-		})
-	}
+	
 
+	
+
+	/*
 	randomAddr := func() ecommon.Address {
 		key, _ := crypto.GenerateKey()
 		addr := ecommon.Address(crypto.PubkeyToAddress(key.PublicKey))
 		return addr
 	}
+	*/
 
    // generate PlainState
 	for accIter.Next() {
@@ -143,7 +134,7 @@ func writeEVMToErigon(ctx *cli.Context) error {
 
 		eAccount := transformStateAccount(acc)
 		// TODO replace random accs 
-		addr := randomAddr()
+		//addr := randomAddr()
 
 		switch {
 		// EOA non contract accounts
@@ -238,6 +229,113 @@ func writeEVMToErigon(ctx *cli.Context) error {
 
 
 	return nil
+}
+
+func traverseMPT() error {
+
+	return nil
+}
+
+
+func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash) error {
+	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
+	if err != nil {
+		return err
+	}
+
+	accIt, err := snaptree.AccountIterator(root, common.Hash{})
+	if err != nil {
+		return err
+	}
+	defer accIt.Release()
+
+	log.Info("Snapshot dumping started", "root", root)
+	var (
+		start    = time.Now()
+		logged   = time.Now()
+		accounts uint64
+	)
+
+	for accIt.Next() {
+		account, err := snapshot.FullAccount(accIt.Account())
+		if err != nil {
+			return err
+		}
+
+		da := &state.DumpAccount{
+			Balance:   account.Balance.String(),
+			Nonce:     account.Nonce,
+			Root:      account.Root,
+			CodeHash:  account.CodeHash,
+			SecureKey: accIt.Hash().Bytes(),
+		}
+
+		if len(da.SecureKey) == 0 {
+			log.Info("Unable to find account address")
+		} 
+
+		daRootHash := common.BytesToHash(da.Root)
+		// EOA non contract account
+		if daRootHash == types.EmptyRootHash  && bytes.Equal(da.CodeHash, evmstore.EmptyCode) {
+			
+
+		}
+
+		// contract account
+		if daRootHash != types.EmptyRootHash && !bytes.Equal(da.CodeHash, evmstore.EmptyCode){
+			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
+			if err != nil {
+				return err
+			}
+
+			for stIt.Next() {
+				da.Storage[stIt.Hash()] = common.Bytes2Hex(stIt.Slot())
+			}
+		}
+		accounts++
+
+
+
+
+
+	}
+
+
+
+	return nil
+}
+
+// TODO rewrite it using c.RWCursor(PlainState) its faster
+func writeAccountData(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+	return db.Update(context.Background(), func(tx kv.RwTx) error {
+		value := make([]byte, acc.EncodingLengthForStorage())
+		acc.EncodeForStorage(value)
+		return tx.Put(kv.PlainState, addr[:], value)
+	})
+}
+
+// TODO add incarnation to contract based accounts
+// TODO fix contract sotrage
+// ask about how to write in more efficient way using RwCursor 
+func writeAccountStorage(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+	return db.Update(context.Background(), func(tx kv.RwTx) error {
+		compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), acc.Incarnation, acc.Root.Bytes())
+		value := acc.CodeHash.Bytes()
+		return tx.Put(kv.PlainState, compositeKey, value)
+	})
+}
+
+func transformStateAccount(account state.Account) (eAccount eaccounts.Account) {
+	bal, overflow := uint256.FromBig(account.Balance)
+	if overflow {
+		panic(fmt.Sprintf("overflow occured while converting from account.Balance"))
+	}
+	eAccount.Nonce = account.Nonce
+	eAccount.Balance = *bal
+	eAccount.Root = ecommon.Hash(account.Root)
+	eAccount.CodeHash = crypto.Keccak256Hash(account.CodeHash)
+
+	return 
 }
 
 
