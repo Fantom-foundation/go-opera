@@ -168,6 +168,11 @@ func (s *Service) PauseEvmSnapshot() {
 	}
 }
 
+func (s *Service) EvmSnapshotGeneration() bool {
+	gen, _ := s.store.evm.Snaps.Generating()
+	return gen
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
