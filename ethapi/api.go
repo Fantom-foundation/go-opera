@@ -683,7 +683,7 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 
 // GetRules returns network rules for an epoch
 func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (interface{}, error) {
-	es, err := s.b.GetEpochState(ctx, epoch)
+	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
 	if err != nil {
 		return nil, err
 	}
@@ -691,6 +691,18 @@ func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumbe
 		return nil, nil
 	}
 	return es.Rules, nil
+}
+
+// GetEpochBlock returns block height in a beginning of an epoch
+func (s *PublicBlockChainAPI) GetEpochBlock(ctx context.Context, epoch rpc.BlockNumber) (hexutil.Uint64, error) {
+	bs, _, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return 0, err
+	}
+	if bs == nil {
+		return 0, nil
+	}
+	return hexutil.Uint64(bs.LastBlock.Idx), nil
 }
 
 // ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.

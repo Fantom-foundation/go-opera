@@ -507,14 +507,16 @@ func (b *EthAPIBackend) GetDowntime(ctx context.Context, vid idx.ValidatorID) (i
 	return missedBlocks, missedTime, nil
 }
 
-func (b *EthAPIBackend) GetEpochState(ctx context.Context, epoch rpc.BlockNumber) (*iblockproc.EpochState, error) {
+func (b *EthAPIBackend) GetEpochBlockState(ctx context.Context, epoch rpc.BlockNumber) (*iblockproc.BlockState, *iblockproc.EpochState, error) {
 	if epoch == rpc.PendingBlockNumber {
-		return nil, errors.New("pending epoch request isn't allowed")
+		bs, es := b.svc.store.GetBlockState(), b.svc.store.GetEpochState()
+		return &bs, &es, nil
 	}
 	if epoch == rpc.LatestBlockNumber {
 		epoch = rpc.BlockNumber(b.svc.store.GetEpoch())
 	}
-	return b.svc.store.GetHistoryEpochState(idx.Epoch(epoch)), nil
+	bs, es := b.svc.store.GetHistoryBlockEpochState(idx.Epoch(epoch))
+	return bs, es, nil
 }
 
 func (b *EthAPIBackend) CalcBlockExtApi() bool {

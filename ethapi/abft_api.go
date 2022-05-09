@@ -20,7 +20,7 @@ func NewPublicAbftAPI(b Backend) *PublicAbftAPI {
 }
 
 func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber) (map[hexutil.Uint64]interface{}, error) {
-	es, err := s.b.GetEpochState(ctx, epoch)
+	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
 	if err != nil {
 		return nil, err
 	}
