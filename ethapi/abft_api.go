@@ -20,7 +20,7 @@ func NewPublicAbftAPI(b Backend) *PublicAbftAPI {
 }
 
 func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber) (map[hexutil.Uint64]interface{}, error) {
-	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
+	bs, es, err := s.b.GetEpochBlockState(ctx, epoch)
 	if err != nil {
 		return nil, err
 	}
@@ -29,9 +29,13 @@ func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber
 	}
 	res := map[hexutil.Uint64]interface{}{}
 	for _, vid := range es.Validators.IDs() {
+		profiles := es.ValidatorProfiles
+		if epoch == rpc.PendingBlockNumber {
+			profiles = bs.NextValidatorProfiles
+		}
 		res[hexutil.Uint64(vid)] = map[string]interface{}{
-			"weight": (*hexutil.Big)(es.ValidatorProfiles[vid].Weight),
-			"pubkey": es.ValidatorProfiles[vid].PubKey.String(),
+			"weight": (*hexutil.Big)(profiles[vid].Weight),
+			"pubkey": profiles[vid].PubKey.String(),
 		}
 	}
 	return res, nil
