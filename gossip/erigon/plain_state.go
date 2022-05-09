@@ -94,17 +94,25 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 			return err
 		}
 
+		
+		/*
 		addrBytes := t.GetKey(accIter.Key)
 		if addrBytes == nil {
 			missingPreimages++
 			log.Info("preimage is missing")
 		}
+		*/
 
-		addr := ecommon.BytesToAddress(addrBytes)
+		addr := ecommon.BytesToAddress(accIter.Key)
+		log.Info("Addr", addr.Hex())
+		if len(addr) != 20 {
+			log.Warn("address is invalid")
+		}
 
 		switch {
 		case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// contract accoount
+			log.Info("contract account")
 			codes += 1
 			eAccount := transformStateAccount(stateAccount, true)
 
@@ -131,13 +139,17 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 
 		case stateAccount.Root == types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// non contract account
+			log.Info("non contract account")
 			eAccount := transformStateAccount(stateAccount, false)
 			if err := writeAccountData(db, eAccount, addr); err != nil {
 				return err
 			}
 
 		default:
-			panic(fmt.Sprintf("account is not valid"))
+			// TODO address this case
+			log.Info("default case")
+			continue
+			
 		}
 
 
