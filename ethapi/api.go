@@ -682,7 +682,7 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 }
 
 // GetRules returns network rules for an epoch
-func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (interface{}, error) {
+func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (*opera.Rules, error) {
 	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
 	if err != nil {
 		return nil, err
@@ -690,7 +690,7 @@ func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumbe
 	if es == nil {
 		return nil, nil
 	}
-	return es.Rules, nil
+	return &es.Rules, nil
 }
 
 // GetEpochBlock returns block height in a beginning of an epoch
