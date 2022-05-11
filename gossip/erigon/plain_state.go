@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -217,15 +218,17 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 	defer accIt.Release()
 
-	log.Info("Snapshot traversal started", "root", root)
+	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
 		start    = time.Now()
 		logged   = time.Now()
 		accounts uint64
 		missingAddresses int
+		missingContractCode int
 	)
 
 	for accIt.Next() {
+		accHash := accIt.Hash()
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
 			return err
@@ -250,24 +253,11 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			//log.Info("contract account is valid")
 			eAccount := transformStateAccount(stateAccount, true)
 
-			if err := writeAccountData(db, eAccount, addr); err != nil {
+			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
 				return err
 			}
 
-			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
-			if err != nil {
-				return err
-			}
-
-			for stIt.Next() {
-				// to make sure it is a right way to write storage
-				key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
-				if err := writeAccountStorage(db, eAccount.Incarnation, addr, &key, value); err != nil {
-					return err
-				}
-			}
-
-			stIt.Release()
+		
 		case stateAccount.Root == types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// non contract account
 			//log.Info("non contract account is valid")
@@ -275,10 +265,31 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			if err := writeAccountData(db, eAccount, addr); err != nil {
 				return err
 			}
+		case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+			// root of storage trie is not empty , but codehash is empty 
+			// contract acconunt
+	
+			code := rawdb.ReadCode(diskdb, common.BytesToHash(stateAccount.CodeHash))
+			if len(code) == 0 {
+				missingContractCode++
+				//log.Error("Code is missing", "hash", common.BytesToHash(stateAccount.CodeHash))
+				//return errors.New("missing code")
+			}
+			
 
-		default:
+			eAccount := transformStateAccount(stateAccount, true)
+
+			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
+				return err
+			}
+
+			
+
+		//default:
+			//case4
+            // !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode), stateAccount.Root == types.EmptyRootHash
 			// TODO address this case
-			continue
+		//	defaultaccounts += 1 // 0
 		}
 
 		accounts++
@@ -294,7 +305,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
-		"elapsed", common.PrettyDuration(time.Since(start)))
+		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
 
 	return nil
 }
@@ -315,6 +326,30 @@ func writeAccountStorage(db kv.RwDB, incarnation uint64, addr ecommon.Address, k
 		value := val.Bytes()
 		return tx.Put(kv.PlainState, compositeKey, value)
 	})
+}
+
+func writeAccountDataStorage(eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, db kv.RwDB, root, accHash common.Hash)  error {
+	
+
+	if err := writeAccountData(db, eAccount, addr); err != nil {
+		return err
+	}
+
+	stIt, err := snapTree.StorageIterator(root, accHash, common.Hash{})
+	if err != nil {
+		return err
+	}
+
+	for stIt.Next() {
+		// to make sure it is a right way to write storage
+		key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
+		if err := writeAccountStorage(db, eAccount.Incarnation, addr, &key, value); err != nil {
+			return err
+		}
+	}
+
+	stIt.Release()
+	return nil
 }
 
 

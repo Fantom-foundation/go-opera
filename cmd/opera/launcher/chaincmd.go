@@ -13,8 +13,8 @@ var (
 	}
 	mptTraversalMode = cli.StringFlag{
 		Name:  "mpt.traversal.mode",
-		Usage: `MPT traversal mode ("mpt" or "snap")`,
-		Value: "mpt",
+		Usage: `Traversal mode ("mpt" or "snap")`,
+		Value: "snap",
 	}
 	importCommand = cli.Command{
 		Name:      "import",
