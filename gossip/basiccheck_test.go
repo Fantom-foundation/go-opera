@@ -6,15 +6,14 @@ import (
 	"math/big"
 	"testing"
 
+	lbasiccheck "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-opera/inter"
-	lbasiccheck "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
-
-	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type LLRBasicCheckTestSuite struct {
@@ -901,27 +900,6 @@ func (s *LLRBasicCheckTestSuite) TestBasicCheckValidateBV() {
 
 }
 
-func mutableEventPayloadFromImmutable(e *inter.EventPayload) *inter.MutableEventPayload {
-	me := &inter.MutableEventPayload{}
-	me.SetVersion(e.Version())
-	me.SetNetForkID(e.NetForkID())
-	me.SetCreator(e.Creator())
-	me.SetEpoch(e.Epoch())
-	me.SetCreationTime(e.CreationTime())
-	me.SetMedianTime(e.MedianTime())
-	me.SetPrevEpochHash(e.PrevEpochHash())
-	me.SetExtra(e.Extra())
-	me.SetGasPowerLeft(e.GasPowerLeft())
-	me.SetGasPowerUsed(e.GasPowerUsed())
-	me.SetPayloadHash(e.PayloadHash())
-	me.SetSig(e.Sig())
-	me.SetTxs(e.Txs())
-	me.SetMisbehaviourProofs(e.MisbehaviourProofs())
-	me.SetBlockVotes(e.BlockVotes())
-	me.SetEpochVote(e.EpochVote())
-	return me
-}
-
-func TestIntegrationTestSuite(t *testing.T) {
+func TestBasicCheckIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(LLRBasicCheckTestSuite))
 }
