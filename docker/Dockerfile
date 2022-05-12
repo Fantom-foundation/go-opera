@@ -1,7 +1,0 @@
-FROM fedora:34
-RUN dnf install -y git make gcc gcc-c++ which iproute iputils procps-ng vim-minimal tmux net-tools htop tar jq npm openssl-devel perl rust cargo golang
-
-WORKDIR /go-opera
-COPY . .
-RUN go env | grep GOPROXY
-RUN make opera
