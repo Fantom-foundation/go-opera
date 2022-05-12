@@ -98,6 +98,14 @@ var (
 		Usage: `Blockchain sync mode ("full" or "snap")`,
 		Value: "full",
 	}
+	ExitWhenAgeFlag = cli.DurationFlag{
+		Name:  "exitwhensynced.age",
+		Usage: "Exits after synchronisation reaches the required age",
+	}
+	ExitWhenEpochFlag = cli.Uint64Flag{
+		Name:  "exitwhensynced.epoch",
+		Usage: "Exits after synchronisation reaches the required epoch",
+	}
 )
 
 type GenesisTemplate struct {

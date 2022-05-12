@@ -242,6 +242,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	s.mayCommit(newEpoch != oldEpoch)
+
+	if s.haltCheck != nil && s.haltCheck(oldEpoch, newEpoch, e.MedianTime().Time()) {
+		// halt syncing
+		s.stopped = true
+	}
 	return nil
 }
 
