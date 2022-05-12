@@ -24,7 +24,7 @@ var (
 )
 
 type Reader struct {
-	backend io.ReadCloser
+	backend io.Reader
 
 	size uint64
 	pos  uint64
@@ -41,7 +41,7 @@ type Reader struct {
 	err error
 }
 
-func WrapReader(backend io.ReadCloser, maxMemUsage uint64, root hash.Hash) *Reader {
+func WrapReader(backend io.Reader, maxMemUsage uint64, root hash.Hash) *Reader {
 	return &Reader{
 		backend:         backend,
 		pos:             0,
@@ -206,5 +206,5 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 func (r *Reader) Close() error {
 	r.hashes = nil
 	r.err = ErrClosed
-	return r.backend.Close()
+	return r.backend.(io.Closer).Close()
 }

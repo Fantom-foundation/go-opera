@@ -11,7 +11,7 @@ import (
 )
 
 type Filelog struct {
-	io.ReadCloser
+	io.Reader
 	name     string
 	size     uint64
 	period   time.Duration
@@ -21,7 +21,7 @@ type Filelog struct {
 }
 
 func (f *Filelog) Read(p []byte) (n int, err error) {
-	n, err = f.ReadCloser.Read(p)
+	n, err = f.Reader.Read(p)
 	f.consumed += uint64(n)
 	if f.prevLog.IsZero() {
 		log.Info(fmt.Sprintf("- Reading %s", f.name))
@@ -38,11 +38,11 @@ func (f *Filelog) Read(p []byte) (n int, err error) {
 	return
 }
 
-func Wrap(r io.ReadCloser, name string, size uint64, period time.Duration) *Filelog {
+func Wrap(r io.Reader, name string, size uint64, period time.Duration) *Filelog {
 	return &Filelog{
-		ReadCloser: r,
-		name:       name,
-		size:       size,
-		period:     period,
+		Reader: r,
+		name:   name,
+		size:   size,
+		period: period,
 	}
 }

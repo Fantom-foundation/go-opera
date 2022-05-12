@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileszip"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -73,9 +71,9 @@ var (
 		Value: DefaultCacheSize,
 	}
 	// GenesisFlag specifies network genesis configuration
-	GenesisFlag = cli.StringSliceFlag{
+	GenesisFlag = cli.StringFlag{
 		Name:  "genesis",
-		Usage: "'path to genesis file(s)' - sets the network genesis configuration.",
+		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
 	ExperimentalGenesisFlag = cli.BoolFlag{
 		Name:  "genesis.allowExperimental",
@@ -185,31 +183,13 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		}
 		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
-		genesisPaths := ctx.GlobalStringSlice(GenesisFlag.Name)
-		var files []fileszip.Reader
-		var closers []io.Closer
+		genesisPath := ctx.GlobalString(GenesisFlag.Name)
 
-		for _, gPath := range genesisPaths {
-			f, err := os.Open(gPath)
-			if err != nil {
-				utils.Fatalf("Failed to open genesis file: %v", err)
-			}
-			fi, err := f.Stat()
-			if err != nil {
-				utils.Fatalf("Failed to stat genesis file: %v", err)
-			}
-			files = append(files, fileszip.Reader{
-				Reader: f,
-				Size:   fi.Size(),
-			})
-			closers = append(closers, f)
+		f, err := os.Open(genesisPath)
+		if err != nil {
+			utils.Fatalf("Failed to open genesis file: %v", err)
 		}
-		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(files, func() error {
-			for _, cl := range closers {
-				_ = cl.Close()
-			}
-			return nil
-		})
+		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(f)
 		if err != nil {
 			utils.Fatalf("Failed to read genesis file: %v", err)
 		}

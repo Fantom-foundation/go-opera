@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"math"
 	"math/rand"
 	"os"
 	"testing"
@@ -76,7 +75,7 @@ func testFileHash_ReadWrite(t *testing.T, content []byte, expRoot hash.Hash, pie
 	f, err := ioutil.TempFile(tmpDirPath, "testnet.g")
 	filePath := f.Name()
 	require.NoError(err)
-	writer := WrapWriter(f, pieceSize, 200, func() TmpWriter {
+	writer := WrapWriter(f, pieceSize, func() TmpWriter {
 		tmpFh, err := ioutil.TempFile(tmpDirPath, "genesis.*.dat")
 		require.NoError(err)
 		return dropableFile{
@@ -164,7 +163,7 @@ func testFileHash_ReadWrite(t *testing.T, content []byte, expRoot hash.Hash, pie
 		maliciousReader := WrapReader(f, maxMemUsage, root)
 		data := make([]byte, contentPos+1)
 		err = ioread.ReadAll(maliciousReader, data)
-		require.ErrorIs(err, ErrHashMismatch)
+		require.Contains(err.Error(), ErrHashMismatch.Error())
 		require.NoError(maliciousReader.Close())
 
 		// restore

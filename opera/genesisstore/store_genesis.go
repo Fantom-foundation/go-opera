@@ -69,7 +69,6 @@ func (s Blocks) ForEach(fn func(ibr.LlrIdxFullBlockRecord) bool) {
 				break
 			}
 		}
-		_ = f.Close()
 	}
 }
 
@@ -97,7 +96,6 @@ func (s Epochs) ForEach(fn func(ier.LlrIdxFullEpochRecord) bool) {
 				break
 			}
 		}
-		_ = f.Close()
 	}
 }
 
@@ -120,6 +118,5 @@ func (s RawEvmItems) ForEach(fn func(key, value []byte) bool) {
 		if it.Error() != nil {
 			log.Crit("Failed to decode RawEvmItems genesis section", "err", it.Error())
 		}
-		_ = f.Close()
 	}
 }

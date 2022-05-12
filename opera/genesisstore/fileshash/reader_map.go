@@ -7,11 +7,11 @@ import (
 )
 
 type Map struct {
-	backend func(string) (io.ReadCloser, error)
+	backend func(string) (io.Reader, error)
 }
 
-func Wrap(backend func(string) (io.ReadCloser, error), maxMemoryUsage uint64, roots map[string]hash.Hash) func(string) (io.ReadCloser, error) {
-	return func(name string) (io.ReadCloser, error) {
+func Wrap(backend func(string) (io.Reader, error), maxMemoryUsage uint64, roots map[string]hash.Hash) func(string) (io.Reader, error) {
+	return func(name string) (io.Reader, error) {
 		root, ok := roots[name]
 		if !ok {
 			return nil, ErrRootNotFound

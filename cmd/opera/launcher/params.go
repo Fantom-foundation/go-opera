@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 )
 
 var (
@@ -37,54 +38,52 @@ var (
 			Name:   "Testnet-2457 with pruned MPT",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0x19833ee6780afe4c946f9b3645cae8776be5e040966c431b947b31b9ac495000")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x764a3ae2984127cb1076be6327dd2ae56fa4583deae189b481396d914efdc077")},
-				RawEvmItems: hash.Hashes{hash.HexToHash("0x2756b0c5f69876a2b315ef7940ac6f36463d2bf71d59589534de32672dbb0602")},
+				genesisstore.EpochsSection: hash.HexToHash("0x19833ee6780afe4c946f9b3645cae8776be5e040966c431b947b31b9ac495000"),
+				genesisstore.BlocksSection: hash.HexToHash("0x764a3ae2984127cb1076be6327dd2ae56fa4583deae189b481396d914efdc077"),
+				genesisstore.EvmSection:    hash.HexToHash("0x2756b0c5f69876a2b315ef7940ac6f36463d2bf71d59589534de32672dbb0602"),
 			},
 		},
 		{
 			Name:   "Testnet-2457 with full MPT",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0x19833ee6780afe4c946f9b3645cae8776be5e040966c431b947b31b9ac495000")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x764a3ae2984127cb1076be6327dd2ae56fa4583deae189b481396d914efdc077")},
-				RawEvmItems: hash.Hashes{hash.HexToHash("0x7b263279ff8b76130fdc659578a10995a230d80f180722a9020c9cec9fb9d493")},
+				genesisstore.EpochsSection: hash.HexToHash("0x19833ee6780afe4c946f9b3645cae8776be5e040966c431b947b31b9ac495000"),
+				genesisstore.BlocksSection: hash.HexToHash("0x764a3ae2984127cb1076be6327dd2ae56fa4583deae189b481396d914efdc077"),
+				genesisstore.EvmSection:    hash.HexToHash("0x7b263279ff8b76130fdc659578a10995a230d80f180722a9020c9cec9fb9d493"),
 			},
 		},
 		{
 			Name:   "Testnet-6226 without history",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0xd277c6912f948cfdf29351b9c58b5ee2c5ffe295df217d8cc22658bac7ea6f64")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x99680e633477b012ae01d0eb67eac2edeb2b8146539d079bfdc6de4346e51556")},
-				RawEvmItems: hash.Hashes{},
+				genesisstore.EpochsSection: hash.HexToHash("0xd277c6912f948cfdf29351b9c58b5ee2c5ffe295df217d8cc22658bac7ea6f64"),
+				genesisstore.BlocksSection: hash.HexToHash("0x99680e633477b012ae01d0eb67eac2edeb2b8146539d079bfdc6de4346e51556"),
 			},
 		},
 		{
 			Name:   "Testnet-6226 without MPT",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1")},
-				RawEvmItems: hash.Hashes{},
+				genesisstore.EpochsSection: hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe"),
+				genesisstore.BlocksSection: hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1"),
 			},
 		},
 		{
 			Name:   "Testnet-6226 with pruned MPT",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1")},
-				RawEvmItems: hash.Hashes{hash.HexToHash("0x6e620d8a6655a4dfb88e964a0b1b4fc86452ca2d5bcb8c57cc81ed9ce08e6ddb")},
+				genesisstore.EpochsSection: hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe"),
+				genesisstore.BlocksSection: hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1"),
+				genesisstore.EvmSection:    hash.HexToHash("0x6e620d8a6655a4dfb88e964a0b1b4fc86452ca2d5bcb8c57cc81ed9ce08e6ddb"),
 			},
 		},
 		{
 			Name:   "Testnet-6226 with full MPT",
 			Header: testnetHeader,
 			Hashes: genesis.Hashes{
-				Epochs:      hash.Hashes{hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe")},
-				Blocks:      hash.Hashes{hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1")},
-				RawEvmItems: hash.Hashes{hash.HexToHash("0xe8ddfc1a271d9700f48e788d8fa928e29170805a53289d74fedef2a7bc53fba0")},
+				genesisstore.EpochsSection: hash.HexToHash("0x8f97e4d9906fccd253a4c82e24fa31fcb02bb099946dcebb520972d4d5470efe"),
+				genesisstore.BlocksSection: hash.HexToHash("0x1ebf436f5a9af11d60af99e1f629422bc72f81e57ee2cdc8b1f753d3dae39eb1"),
+				genesisstore.EvmSection:    hash.HexToHash("0xe8ddfc1a271d9700f48e788d8fa928e29170805a53289d74fedef2a7bc53fba0"),
 			},
 		},
 	}
