@@ -1,5 +1,5 @@
 //go:build gofuzz
-// +build gofuzz
+//+build gofuzz
 
 package gossip
 
@@ -16,10 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 )
 
 const (
@@ -67,19 +68,18 @@ func makeFuzzedHandler() (h *handler, err error) {
 		genesisStake   = 2 * 4e6
 	)
 
-	genStore := makegenesis.FakeGenesisStore(2, genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
-	genesis := genStore.GetGenesis()
+	genStore := makefakegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+	genesis := genStore.Genesis()
 
 	config := DefaultConfig(cachescale.Identity)
 	store := NewMemStore()
-	blockProc := DefaultBlockProc(genesis)
-	_, err = store.ApplyGenesis(blockProc, genesis)
+	_, err = store.ApplyGenesis(genesis)
 	if err != nil {
 		return
 	}
 
 	var (
-		network             = genesis.Rules
+		network             = opera.FakeNetRules()
 		heavyCheckReader    HeavyCheckReader
 		gasPowerCheckReader GasPowerCheckReader
 		// TODO: init
