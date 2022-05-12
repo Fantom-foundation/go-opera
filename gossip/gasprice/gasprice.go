@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var DefaultMaxTipCap = big.NewInt(100000 * params.GWei)
+var DefaultMaxTipCap = big.NewInt(10000000 * params.GWei)
 
 var secondBn = big.NewInt(int64(time.Second))
 
