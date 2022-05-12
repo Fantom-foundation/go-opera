@@ -265,7 +265,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
+	svc.verWatcher = verwatcher.New(verwatcher.NewStore(store.table.NetworkVersion))
 	svc.tflusher = svc.makePeriodicFlusher()
 
 	return svc, nil
