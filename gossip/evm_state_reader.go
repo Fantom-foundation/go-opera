@@ -118,7 +118,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 
 	// find block rules
-	epoch := r.store.FindBlockEpoch(n)
+	epoch := block.Atropos.Epoch()
 	es := r.store.GetHistoryEpochState(epoch)
 	var rules opera.Rules
 	if es != nil {

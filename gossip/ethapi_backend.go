@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
@@ -504,6 +505,18 @@ func (b *EthAPIBackend) GetDowntime(ctx context.Context, vid idx.ValidatorID) (i
 		return 0, 0, nil
 	}
 	return missedBlocks, missedTime, nil
+}
+
+func (b *EthAPIBackend) GetEpochBlockState(ctx context.Context, epoch rpc.BlockNumber) (*iblockproc.BlockState, *iblockproc.EpochState, error) {
+	if epoch == rpc.PendingBlockNumber {
+		bs, es := b.svc.store.GetBlockState(), b.svc.store.GetEpochState()
+		return &bs, &es, nil
+	}
+	if epoch == rpc.LatestBlockNumber {
+		epoch = rpc.BlockNumber(b.svc.store.GetEpoch())
+	}
+	bs, es := b.svc.store.GetHistoryBlockEpochState(idx.Epoch(epoch))
+	return bs, es, nil
 }
 
 func (b *EthAPIBackend) CalcBlockExtApi() bool {

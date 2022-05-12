@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -680,6 +681,30 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 	return hexutil.Uint64(s.b.CurrentEpoch(ctx))
 }
 
+// GetRules returns network rules for an epoch
+func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (*opera.Rules, error) {
+	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return nil, err
+	}
+	if es == nil {
+		return nil, nil
+	}
+	return &es.Rules, nil
+}
+
+// GetEpochBlock returns block height in a beginning of an epoch
+func (s *PublicBlockChainAPI) GetEpochBlock(ctx context.Context, epoch rpc.BlockNumber) (hexutil.Uint64, error) {
+	bs, _, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return 0, err
+	}
+	if bs == nil {
+		return 0, nil
+	}
+	return hexutil.Uint64(bs.LastBlock.Idx), nil
+}
+
 // ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
 func (api *PublicBlockChainAPI) ChainId() (*hexutil.Big, error) {
 	// if current block is at or past the EIP-155 replay-protection fork block, return chainID from config
@@ -1260,6 +1285,7 @@ type extBlockApi struct {
 func RPCMarshalHeader(head *evmcore.EvmHeader, ext extBlockApi) map[string]interface{} {
 	result := map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
+		"epoch":            hexutil.Uint64(hash.Event(head.Hash).Epoch()),
 		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
 		"parentHash":       head.ParentHash,
 		"nonce":            types.BlockNonce{},

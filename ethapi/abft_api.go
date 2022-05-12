@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // PublicAbftAPI provides an API to access consensus related information.
@@ -16,6 +17,28 @@ type PublicAbftAPI struct {
 // NewPublicAbftAPI creates a new SFC protocol API.
 func NewPublicAbftAPI(b Backend) *PublicAbftAPI {
 	return &PublicAbftAPI{b}
+}
+
+func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber) (map[hexutil.Uint64]interface{}, error) {
+	bs, es, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return nil, err
+	}
+	if es == nil {
+		return nil, nil
+	}
+	res := map[hexutil.Uint64]interface{}{}
+	for _, vid := range es.Validators.IDs() {
+		profiles := es.ValidatorProfiles
+		if epoch == rpc.PendingBlockNumber {
+			profiles = bs.NextValidatorProfiles
+		}
+		res[hexutil.Uint64(vid)] = map[string]interface{}{
+			"weight": (*hexutil.Big)(profiles[vid].Weight),
+			"pubkey": profiles[vid].PubKey.String(),
+		}
+	}
+	return res, nil
 }
 
 // GetDowntime returns validator's downtime.
