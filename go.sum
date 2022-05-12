@@ -34,8 +34,6 @@ github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbt
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
-github.com/Fantom-foundation/go-ethereum v0.0.0-20220304144144-778b9501ac74 h1:hEvuo/WjnMZFK9nqKxyv4J6iVXsqRYosRaHUSA1xU2A=
-github.com/Fantom-foundation/go-ethereum v0.0.0-20220304144144-778b9501ac74/go.mod h1:IeQDjWCNBj/QiWIPosfF6/kRC6pHPNs7W7LfBzjj+P4=
 github.com/Fantom-foundation/go-ethereum v1.10.8-ftm-rc4 h1:cbRQ6s/5eb/6r4juEm1K/GlzpVNdVYfQAQYp3ZsFnpw=
 github.com/Fantom-foundation/go-ethereum v1.10.8-ftm-rc4/go.mod h1:IeQDjWCNBj/QiWIPosfF6/kRC6pHPNs7W7LfBzjj+P4=
 github.com/Fantom-foundation/lachesis-base v0.0.0-20220103160934-6b4931c60582 h1:gDEbOynFwS7sp19XrtWnA1nEhSIXXO5DuAuT5h/nZgY=
@@ -121,8 +119,6 @@ github.com/docker/docker v1.13.1 h1:IkZjBSIc8hBjLpqeAbeE5mca5mNgeatLHBy3GO78BWo=
 github.com/docker/docker v1.13.1/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498 h1:Y9vTBSsV4hSwPSj4bacAU/eSnV3dAxVpepaghAdhGoQ=
 github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498/go.mod h1:Mw6PkjjMXWbTj+nnj4s3QPXq1jaT0s5pC0iFD4+BOAA=
-github.com/dvyukov/go-fuzz v0.0.0-20201127111758-49e582c6c23d h1:e1v4V9Heb+c4xQCCONROFvlzNs6Gq8aRZRwt+WzSEqY=
-github.com/dvyukov/go-fuzz v0.0.0-20201127111758-49e582c6c23d/go.mod h1:11Gm+ccJnvAhCNLlf5+cS9KjtbaD5I5zaZpFMsTHWTw=
 github.com/eclipse/paho.mqtt.golang v1.2.0/go.mod h1:H9keYFcgq3Qr5OUJm/JZI/i6U7joQ8SYLhZwfeOo6Ts=
 github.com/edsrzf/mmap-go v1.0.0 h1:CEBF7HpRnUCSJgGUb5h1Gm7e3VkmVDrR8lvWVLtrOFw=
 github.com/edsrzf/mmap-go v1.0.0/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
