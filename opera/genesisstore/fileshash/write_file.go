@@ -134,6 +134,15 @@ func (w *Writer) readFromTmpPieceByPiece(destructive bool, fn func([]byte) error
 	return nil
 }
 
+func (w *Writer) Root() hash.Hash {
+	hashes := hash.Hashes{}
+	for _, tmp := range w.tmps {
+		h := hash.BytesToHash(tmp.h.Sum(nil))
+		hashes = append(hashes, h)
+	}
+	return calcHashesRoot(hashes, w.pieceSize, w.size)
+}
+
 func (w *Writer) Flush() (hash.Hash, error) {
 	// write piece
 	_, err := w.backend.Write(bigendian.Uint32ToBytes(uint32(w.pieceSize)))

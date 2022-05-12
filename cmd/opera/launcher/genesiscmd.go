@@ -26,6 +26,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
+	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
 	"github.com/Fantom-foundation/go-opera/utils/iodb"
 )
 
@@ -80,6 +81,13 @@ func newUnitWriter(plain io.WriteSeeker) *unitWriter {
 }
 
 func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error {
+	if w.plain == nil {
+		// dry run
+		w.fileshasher = fileshash.WrapWriter(nil, genesisstore.FilesHashPieceSize, func() fileshash.TmpWriter {
+			return devnullfile.DevNull{}
+		})
+		return nil
+	}
 	// Write unit marker and version
 	_, err := w.plain.Write(append(genesisstore.FileHeader, genesisstore.FileVersion...))
 	if err != nil {
@@ -121,6 +129,9 @@ func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error
 }
 
 func (w *unitWriter) Flush() (hash.Hash, error) {
+	if w.plain == nil {
+		return w.fileshasher.Root(), nil
+	}
 	h, err := w.fileshasher.Flush()
 	if err != nil {
 		return hash.Hash{}, err
@@ -211,11 +222,15 @@ func exportGenesis(ctx *cli.Context) error {
 	fn := ctx.Args().First()
 
 	// Open the file handle
-	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
+	var plain io.WriteSeeker
+	if fn != "dry-run" {
+		fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer fh.Close()
+		plain = fh
 	}
-	defer fh.Close()
 
 	header := genesis.Header{
 		GenesisID:   *gdb.GetGenesisID(),
@@ -237,7 +252,7 @@ func exportGenesis(ctx *cli.Context) error {
 	fromBlock := idx.Block(0)
 	{
 		log.Info("Exporting epochs", "from", from, "to", to)
-		writer := newUnitWriter(fh)
+		writer := newUnitWriter(plain)
 		err := writer.Start(header, genesisstore.EpochsSection, tmpPath)
 		if err != nil {
 			return err
@@ -276,7 +291,7 @@ func exportGenesis(ctx *cli.Context) error {
 	}
 	{
 		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
-		writer := newUnitWriter(fh)
+		writer := newUnitWriter(plain)
 		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
 		if err != nil {
 			return err
@@ -308,7 +323,7 @@ func exportGenesis(ctx *cli.Context) error {
 
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
-		writer := newUnitWriter(fh)
+		writer := newUnitWriter(plain)
 		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
 		if err != nil {
 			return err
