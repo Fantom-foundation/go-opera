@@ -35,6 +35,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err erro
 	var prevEs *iblockproc.EpochState
 	s.ForEachHistoryBlockEpochState(func(bs iblockproc.BlockState, es iblockproc.EpochState) bool {
 		s.WriteUpgradeHeight(bs, es, prevEs)
+		prevEs = &es
 		return true
 	})
 	s.SetBlockEpochState(topEr.BlockState, topEr.EpochState)
