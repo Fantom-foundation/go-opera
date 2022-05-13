@@ -26,7 +26,7 @@ type tmpWriter struct {
 type Writer struct {
 	backend io.Writer
 
-	openTmp    func() TmpWriter
+	openTmp    func(int) TmpWriter
 	tmps       []tmpWriter
 	tmpReadPos uint64
 
@@ -35,7 +35,7 @@ type Writer struct {
 	pieceSize uint64
 }
 
-func WrapWriter(backend io.Writer, pieceSize uint64, openTmp func() TmpWriter) *Writer {
+func WrapWriter(backend io.Writer, pieceSize uint64, openTmp func(int) TmpWriter) *Writer {
 	return &Writer{
 		backend:   backend,
 		openTmp:   openTmp,
@@ -48,8 +48,17 @@ func (w *Writer) writeIntoTmp(p []byte) error {
 		return nil
 	}
 	if w.size/w.pieceSize >= uint64(len(w.tmps)) {
+		tmpI := len(w.tmps)
+		f := w.openTmp(len(w.tmps))
+		if tmpI > 0 {
+			err := w.tmps[tmpI-1].Close()
+			if err != nil {
+				return err
+			}
+			w.tmps[tmpI-1].TmpWriter = nil
+		}
 		w.tmps = append(w.tmps, tmpWriter{
-			TmpWriter: w.openTmp(),
+			TmpWriter: f,
 			h:         sha256.New(),
 		})
 	}
@@ -69,9 +78,11 @@ func (w *Writer) writeIntoTmp(p []byte) error {
 
 func (w *Writer) resetTmpReads() error {
 	for _, tmp := range w.tmps {
-		_, err := tmp.Seek(0, io.SeekStart)
-		if err != nil {
-			return err
+		if tmp.TmpWriter != nil {
+			_, err := tmp.Seek(0, io.SeekStart)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	w.tmpReadPos = 0
@@ -86,6 +97,9 @@ func (w *Writer) readFromTmp(p []byte, destructive bool) error {
 	if tmpI > uint64(len(w.tmps)) {
 		return errors.New("all tmp files are consumed")
 	}
+	if w.tmps[tmpI].TmpWriter == nil {
+		w.tmps[tmpI].TmpWriter = w.openTmp(int(tmpI))
+	}
 	currentPosInTmp := w.tmpReadPos % w.pieceSize
 	maxToRead := w.pieceSize - currentPosInTmp
 	if maxToRead > uint64(len(p)) {
@@ -96,10 +110,12 @@ func (w *Writer) readFromTmp(p []byte, destructive bool) error {
 		return err
 	}
 	w.tmpReadPos += maxToRead
-	if destructive && w.tmpReadPos%w.pieceSize == 0 {
-		// erase tmp data piece to avoid double disk usage
+	if w.tmpReadPos%w.pieceSize == 0 {
 		_ = w.tmps[tmpI].Close()
-		_ = w.tmps[tmpI].Drop()
+		if destructive {
+			_ = w.tmps[tmpI].Drop()
+		}
+		w.tmps[tmpI].TmpWriter = nil
 	}
 	return w.readFromTmp(p[maxToRead:], destructive)
 }

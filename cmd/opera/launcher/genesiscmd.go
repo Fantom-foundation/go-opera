@@ -83,7 +83,7 @@ func newUnitWriter(plain io.WriteSeeker) *unitWriter {
 func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error {
 	if w.plain == nil {
 		// dry run
-		w.fileshasher = fileshash.WrapWriter(nil, genesisstore.FilesHashPieceSize, func() fileshash.TmpWriter {
+		w.fileshasher = fileshash.WrapWriter(nil, genesisstore.FilesHashPieceSize, func(int) fileshash.TmpWriter {
 			return devnullfile.DevNull{}
 		})
 		return nil
@@ -110,12 +110,11 @@ func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error
 
 	w.gziper = gzip.NewWriter(w.plain)
 
-	tmpI := 0
-	w.fileshasher = fileshash.WrapWriter(w.gziper, genesisstore.FilesHashPieceSize, func() fileshash.TmpWriter {
+	w.fileshasher = fileshash.WrapWriter(w.gziper, genesisstore.FilesHashPieceSize, func(tmpI int) fileshash.TmpWriter {
 		tmpI++
 		tmpPath := path.Join(tmpDirPath, fmt.Sprintf("genesis-%s-tmp-%d", name, tmpI))
 		_ = os.MkdirAll(tmpDirPath, os.ModePerm)
-		tmpFh, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		tmpFh, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 		if err != nil {
 			log.Crit("File opening error", "path", tmpPath, "err", err)
 		}
