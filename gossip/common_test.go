@@ -201,6 +201,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 }
 
 func (env *testEnv) Close() {
+	env.verWatcher.Stop()
 	env.store.Close()
 	env.tflusher.Stop()
 }
