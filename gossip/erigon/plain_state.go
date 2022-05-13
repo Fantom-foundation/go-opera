@@ -34,7 +34,7 @@ import (
 	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/crypto"
+	//"github.com/ledgerwatch/erigon/crypto"
 )
 
 func SetupDB() (kv.RwDB, string, error) {
@@ -237,12 +237,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		stateAccount := state.Account{
 			Nonce: snapAccount.Nonce,
 			Balance: snapAccount.Balance,
-			Root: common.Hash(crypto.Keccak256Hash(snapAccount.Root)),
+			Root: common.BytesToHash(snapAccount.Root),
 			CodeHash: snapAccount.CodeHash,
 		}
 			
 		// get account address
-		addr := ecommon.BytesToAddress(accIt.Hash().Bytes())
+		addr := ecommon.BytesToAddress(accHash.Bytes())
 		if len(addr) != 20 {
 			log.Warn("address is invalid")
 			missingAddresses++
@@ -267,7 +267,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			}
 		case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// root of storage trie is not empty , but codehash is empty 
-			// contract acconunt
+			// looks like it is invalid account
 	
 			code := rawdb.ReadCode(diskdb, common.BytesToHash(stateAccount.CodeHash))
 			if len(code) == 0 {
@@ -330,7 +330,6 @@ func writeAccountStorage(db kv.RwDB, incarnation uint64, addr ecommon.Address, k
 
 func writeAccountDataStorage(eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, db kv.RwDB, root, accHash common.Hash)  error {
 	
-
 	if err := writeAccountData(db, eAccount, addr); err != nil {
 		return err
 	}
@@ -362,7 +361,7 @@ func transformStateAccount(account state.Account, isContractAcc bool) (eAccount 
 	eAccount.Nonce = account.Nonce
 	eAccount.Balance = *bal
 	eAccount.Root = ecommon.Hash(account.Root)
-	eAccount.CodeHash = crypto.Keccak256Hash(account.CodeHash)
+	eAccount.CodeHash = ecommon.Hash(common.BytesToHash(account.CodeHash))
 	if isContractAcc {
 		eAccount.Incarnation = 1
 	}
