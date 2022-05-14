@@ -67,6 +67,7 @@ func GeneratePlainState(mptFlag string, root common.Hash, chaindb ethdb.KeyValue
 	return 
 }
 
+// Attention! This function does not work properly.
 func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastBlockIdx idx.Block) error {
 	triedb := trie.NewDatabase(diskdb)
 	t, err := trie.NewSecure(root, triedb)
@@ -225,9 +226,14 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		accounts uint64
 		missingAddresses int
 		missingContractCode int
+		validContractAccounts int
+		validNonContractAccounts int 
+		invalidAccounts1 int
+		invalidAccounts2 int
 	)
 
 	for accIt.Next() {
+		accIt.Account()
 		accHash := accIt.Hash()
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
@@ -251,8 +257,10 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		switch {
 		case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			//log.Info("contract account is valid")
+			validContractAccounts++
 			eAccount := transformStateAccount(stateAccount, true)
 
+			// writing data and storage
 			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
 				return err
 			}
@@ -261,6 +269,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		case stateAccount.Root == types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// non contract account
 			//log.Info("non contract account is valid")
+			validNonContractAccounts++
 			eAccount := transformStateAccount(stateAccount, false)
 			if err := writeAccountData(db, eAccount, addr); err != nil {
 				return err
@@ -268,7 +277,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			// root of storage trie is not empty , but codehash is empty 
 			// looks like it is invalid account
-	
+			// invalidAccounts1  = 0 forget about this case
+			invalidAccounts1++
 			code := rawdb.ReadCode(diskdb, common.BytesToHash(stateAccount.CodeHash))
 			if len(code) == 0 {
 				missingContractCode++
@@ -283,13 +293,18 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				return err
 			}
 
-			
+		
+		case stateAccount.Root == types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+			// invalid accounts2=407
+			// TODO address it https://blog.ethereum.org/2020/07/17/ask-about-geth-snapshot-acceleration/
+			// Self-destructs (and deletions) are special beasts as they need to short circuit diff layer descent.
+            invalidAccounts2++
+			eAccount := transformStateAccount(stateAccount, true)
 
-		//default:
-			//case4
-            // !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode), stateAccount.Root == types.EmptyRootHash
-			// TODO address this case
-		//	defaultaccounts += 1 // 0
+			// writing data and storage
+			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
+				return err
+			}
 		}
 
 		accounts++
@@ -306,6 +321,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
+
+	log.Info("Accounts", "Valid contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
+	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)
 
 	return nil
 }
@@ -354,6 +372,7 @@ func writeAccountDataStorage(eAccount eaccounts.Account, snapTree *snapshot.Tree
 
 
 func transformStateAccount(account state.Account, isContractAcc bool) (eAccount eaccounts.Account) {
+	eAccount.Initialised = true // ?
 	bal, overflow := uint256.FromBig(account.Balance)
 	if overflow {
 		panic(fmt.Sprintf("overflow occured while converting from account.Balance"))
