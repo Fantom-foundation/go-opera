@@ -1,6 +1,6 @@
 package devnullfile
 
-type DevNull struct {}
+type DevNull struct{}
 
 func (d DevNull) Read(pp []byte) (n int, err error) {
 	for i := range pp {

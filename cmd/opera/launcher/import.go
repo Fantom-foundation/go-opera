@@ -153,7 +153,7 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 		case <-interrupt:
 			return fmt.Errorf("interrupted")
 		case <-time.After(100 * time.Millisecond):
-		    continue
+			continue
 		}
 	}
 

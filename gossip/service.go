@@ -149,7 +149,7 @@ type Service struct {
 
 	procLogger *proclogger.Logger
 
-	stopped      bool
+	stopped   bool
 	haltCheck func(oldEpoch, newEpoch idx.Epoch, time time.Time) bool
 
 	tflusher PeriodicFlusher
