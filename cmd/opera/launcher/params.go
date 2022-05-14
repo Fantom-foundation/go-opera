@@ -65,7 +65,7 @@ var (
 			Header: mainnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection: hash.HexToHash("0x71cdb819c2745a4853016bbb9690053b70fac679b168cd9a4999bf2a3dfb5578"),
-				genesisstore.BlocksSection: hash.HexToHash("0xb953154cd8eedd348185e0a4c1c373416400290c21f80e34ee8ef7ca87d9ef32"),
+				genesisstore.BlocksSection: hash.HexToHash("0xb7394f84b73528423a5b634bfb3cec8ab0a015b387bf6cbe70b378b08e9253bd"),
 			},
 		},
 		{
@@ -73,7 +73,7 @@ var (
 			Header: mainnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection: hash.HexToHash("0x71cdb819c2745a4853016bbb9690053b70fac679b168cd9a4999bf2a3dfb5578"),
-				genesisstore.BlocksSection: hash.HexToHash("0xb953154cd8eedd348185e0a4c1c373416400290c21f80e34ee8ef7ca87d9ef32"),
+				genesisstore.BlocksSection: hash.HexToHash("0xb7394f84b73528423a5b634bfb3cec8ab0a015b387bf6cbe70b378b08e9253bd"),
 				genesisstore.EvmSection:    hash.HexToHash("0x617b8c4d74d1598f7d3914ba4c7cd46b7c98d5e044987c6c8d023cc59e849df7"),
 			},
 		},
@@ -82,7 +82,7 @@ var (
 			Header: mainnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection: hash.HexToHash("0x71cdb819c2745a4853016bbb9690053b70fac679b168cd9a4999bf2a3dfb5578"),
-				genesisstore.BlocksSection: hash.HexToHash("0xb953154cd8eedd348185e0a4c1c373416400290c21f80e34ee8ef7ca87d9ef32"),
+				genesisstore.BlocksSection: hash.HexToHash("0xb7394f84b73528423a5b634bfb3cec8ab0a015b387bf6cbe70b378b08e9253bd"),
 				genesisstore.EvmSection:    hash.HexToHash("0xef0e1b833321a8de98aaaa1a3946378c78d66ab16b39eb0ad56636d5f7f9f2c5"),
 			},
 		},
