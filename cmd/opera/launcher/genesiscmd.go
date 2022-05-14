@@ -108,7 +108,7 @@ func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error
 		return err
 	}
 
-	w.gziper = gzip.NewWriter(w.plain)
+	w.gziper, _ = gzip.NewWriterLevel(w.plain, gzip.BestCompression)
 
 	w.fileshasher = fileshash.WrapWriter(w.gziper, genesisstore.FilesHashPieceSize, func(tmpI int) fileshash.TmpWriter {
 		tmpI++
