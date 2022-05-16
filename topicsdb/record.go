@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 
 type (
@@ -39,6 +40,10 @@ func (rec *logrec) fetch(
 	)
 	buf, rec.err = logrecTable.Get(rec.ID.Bytes())
 	if rec.err != nil {
+		return
+	}
+	if buf == nil {
+		rec.err = errors.ErrNotFound
 		return
 	}
 
