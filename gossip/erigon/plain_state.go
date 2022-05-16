@@ -233,7 +233,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	)
 
 	for accIt.Next() {
-		accIt.Account()
+
 		accHash := accIt.Hash()
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {

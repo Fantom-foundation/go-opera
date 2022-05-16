@@ -4,12 +4,32 @@ import (
 	"math/big"
 	"testing"
 	"math/rand"
+	"bytes"
+	
 
 	//"github.com/holiman/uint256"
+	
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	
+)
+
+var (
+	// emptyRoot is the known root hash of an empty trie.
+	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	
+	// emptyCode is the known hash of the empty EVM bytecode.
+	emptyCode = crypto.Keccak256Hash(nil)
+
 )
 
 /*  TestPlan
@@ -292,6 +312,7 @@ func generateStateAccountsWithStorage(t *testing.T, numAccounts int) ([]common.A
 	return addr, accounts, accStorage
 }
 
+/*
 func makeSnapTree()  {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	if err != nil {
@@ -299,7 +320,131 @@ func makeSnapTree()  {
 	}
 
 }
+*/
 
 
+
+func TestCompareLegacyErigonStateRoots(t *testing.T){
+	var (
+		diskdb = memorydb.New()
+		triedb = trie.NewDatabase(diskdb)
+	)
+
+	stTrie, _ := trie.NewSecure(common.Hash{}, triedb)
+	stTrie.Update([]byte("key-1"), []byte("val-1")) // 0x1314700b81afc49f94db3623ef1df38f3ed18b73a1b7ea2f6c095118cf6118a0
+	stTrie.Update([]byte("key-2"), []byte("val-2")) // 0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371
+	stTrie.Update([]byte("key-3"), []byte("val-3")) // 0x51c71a47af0695957647fb68766d0becee77e953df17c29b3c2f25436f055c78
+	stRoot, err := stTrie.Commit(nil)                              // Root: 0xddefcd9376dd029653ef384bd2f0a126bb755fe84fdcc9e7cf421ba454f2bc67
+	require.NoError(t, err)
+
+	stMap := make(map[string]string)
+	stMap["key-1"] = "val-1"
+	stMap["key-2"] = "val-2"
+	stMap["key-3"] = "val-3"
+
+
+	accMap := make(map[string]*snapshot.Account)
+	accTrie, _ := trie.NewSecure(common.Hash{}, triedb)
+	acc := &snapshot.Account{Balance: big.NewInt(1), Root: stTrie.Hash().Bytes(), CodeHash: emptyCode.Bytes()}
+
+	
+	
+	val, _ := rlp.EncodeToBytes(acc)
+	accTrie.Update([]byte("acc-1"), val) // 0x9250573b9c18c664139f3b6a7a8081b7d8f8916a8fcc5d94feec6c29f5fd4e9e
+	accMap[string(val)] = acc
+	rawdb.WriteAccountSnapshot(diskdb, hashData([]byte("acc-1")), val)
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-1")), hashData([]byte("key-1")), []byte("val-1"))
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-1")), hashData([]byte("key-2")), []byte("val-2"))
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-1")), hashData([]byte("key-3")), []byte("val-3"))
+
+	acc = &snapshot.Account{Balance: big.NewInt(2), Root: emptyRoot.Bytes(), CodeHash: emptyCode.Bytes()}
+	val, _ = rlp.EncodeToBytes(acc)
+	t.Log("hashData([]byte(val))", hashData([]byte(val)))
+	accTrie.Update([]byte("acc-2"), val) // 0x65145f923027566669a1ae5ccac66f945b55ff6eaeb17d2ea8e048b7d381f2d7
+	accMap[string(val)] = acc
+	diskdb.Put(hashData([]byte("acc-2")).Bytes(), val)
+	rawdb.WriteAccountSnapshot(diskdb, hashData([]byte("acc-2")), val)
+
+	acc = &snapshot.Account{Balance: big.NewInt(3), Root: stTrie.Hash().Bytes(), CodeHash: emptyCode.Bytes()}
+	val, _ = rlp.EncodeToBytes(acc)
+	accTrie.Update([]byte("acc-3"), val) // 0x50815097425d000edfc8b3a4a13e175fc2bdcfee8bdfbf2d1ff61041d3c235b2
+	accMap[string(val)] = acc
+	rawdb.WriteAccountSnapshot(diskdb, hashData([]byte("acc-3")), val)
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-3")), hashData([]byte("key-1")), []byte("val-1"))
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-3")), hashData([]byte("key-2")), []byte("val-2"))
+	rawdb.WriteStorageSnapshot(diskdb, hashData([]byte("acc-3")), hashData([]byte("key-3")), []byte("val-3"))
+
+	root, _ := accTrie.Commit(nil) // Root: 0xe3712f1a226f3782caca78ca770ccc19ee000552813a9f59d479f8611db9b1fd
+	triedb.Commit(root, false, nil)
+
+	//rawdb.WriteSnapshotRoot(diskdb, root)
+	generateSnapshot(diskdb, triedb, 16, root)
+	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
+	require.NoError(t, err)
+
+
+
+	accIt, err := snaptree.AccountIterator(root, common.Hash{})
+	require.NoError(t, err)
+	defer accIt.Release()
+
+	require.Equal(t, stRoot.Hex(), stTrie.Hash().Hex())
+
+	for accIt.Next() {
+		t.Log("accIt.Hash()", accIt.Hash())
+		t.Log("accIt.Account().Hash()",  hashData(accIt.Account()))
+		key := string(accIt.Account())
+		acc, ok := accMap[key]
+		require.True(t, ok)
+
+		if bytes.Equal(acc.Root, stTrie.Hash().Bytes()) {
+			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
+			//require.Equal(t, accIt.Hash().Hex(), "0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371")
+			require.NoError(t, err)
+			defer stIt.Release()
+			for stIt.Next() {
+				t.Log("stIt.Hash()", stIt.Hash())
+				t.Log("hashData([]byte(key-2))", hashData([]byte("key-2")))
+				t.Log("hashData([]byte(key-2)).Bytes()", string(hashData([]byte("key-2")).Bytes()))
+				t.Log("hashData([]byte(val-2))", hashData([]byte("val-2")))
+				t.Log("stIt.Hash().String()", stIt.Hash())
+				t.Log("stIt.Slot().String()", string(stIt.Slot()))
+				val2, ok := stMap["key-2"]
+				require.True(t, ok)
+				require.Equal(t, val2, string(stIt.Slot()))
+				require.Equal(t, hashData(stIt.Slot()), stIt.Hash())
+			}
+		}
+	}
+
+	/* TODO
+	transform every snapshot.Acc to erigon
+
+	write every account to plain.state, Hash.statew, intemediate hases
+
+
+	*/
+
+
+
+
+}
+
+	
+
+	
+
+
+
+	//base := generateSnapshot(diskdb, triedb, 16, root)
+	//_ = &snapshot.Tree{
+	//	layers: map[common.Hash]snapshot{
+	//		base.root: base,
+	//	},
+	//}
+
+	// TestStorageIteratorTraversalValues
+	// TestGenerateExistentStateWithWrongStorage
+	// TestGenerateExistentStateWithWrongAccounts(t *testing.T) {
 
 

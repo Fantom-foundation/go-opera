@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/Fantom-foundation/lachesis-base v0.0.0-20220103160934-6b4931c60582
+	github.com/VictoriaMetrics/fastcache v1.9.0
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
