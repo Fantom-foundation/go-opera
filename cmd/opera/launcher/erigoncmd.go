@@ -2,10 +2,9 @@ package launcher
 
 import (
 	"context"
-	"path"
 	"fmt"
+	"path"
 	"time"
-
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/erigon"
 	"github.com/Fantom-foundation/go-opera/integration"
 )
-
 
 func writeEVMToErigon(ctx *cli.Context) error {
 
@@ -31,7 +29,7 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	
+
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
@@ -46,7 +44,7 @@ func writeEVMToErigon(ctx *cli.Context) error {
 
 	log.Info("Getting FinalizedStateRoot")
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	
+
 	log.Info("Getting LastBlock")
 	lastBlockIdx := gdb.GetBlockState().LastBlock.Idx
 	mptFlag := ctx.String(mptTraversalMode.Name)
@@ -56,7 +54,7 @@ func writeEVMToErigon(ctx *cli.Context) error {
 		return err
 	}
 	log.Info("Generation of Erigon Plain State is complete")
-	
+
 	log.Info("Generate Erigon Hash State")
 	if err := erigon.GenerateHashedState("HashedState", db, tmpDir, context.Background()); err != nil {
 		log.Error("GenerateHashedState error: ", err)
@@ -64,9 +62,8 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	}
 	log.Info("Generation Hash State is complete")
 
-
 	log.Info("Generate Intermediate Hashes state and compute State Root")
-	trieCfg := erigon.StageTrieCfg(db, true, true, "", nil)
+	trieCfg := erigon.StageTrieCfg(db, true, true, "")
 	hash, err := erigon.ComputeStateRoot("Intermediate Hashes", db, trieCfg)
 	if err != nil {
 		log.Error("GenerateIntermediateHashes error: ", err)
@@ -74,14 +71,8 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	}
 	log.Info(fmt.Sprintf("[%s] Trie root", "GenerateStateRoot"), "hash", hash.Hex())
 	log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
-	
+
 	log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
 
 	return nil
 }
-
-
-
-
-
-

@@ -1,26 +1,31 @@
 package erigon
 
 import (
+	//"bytes"
+	"fmt"
 	"math/big"
-	"testing"
 	"math/rand"
-	"bytes"
-	
+	"testing"
+	"regexp"
 
-	//"github.com/holiman/uint256"
-	
+	"github.com/holiman/uint256"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/trie"
+
+	ecommon "github.com/ledgerwatch/erigon/common"
+	"github.com/ledgerwatch/erigon/core/types/accounts"
+	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
 	
+
 )
 
 var (
@@ -342,10 +347,16 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	stMap["key-2"] = "val-2"
 	stMap["key-3"] = "val-3"
 
+	// init erigon db
+	_, _, err = SetupDB() 
+	require.NoError(t, err )
+
 
 	accMap := make(map[string]*snapshot.Account)
 	accTrie, _ := trie.NewSecure(common.Hash{}, triedb)
 	acc := &snapshot.Account{Balance: big.NewInt(1), Root: stTrie.Hash().Bytes(), CodeHash: emptyCode.Bytes()}
+	_ = transformSnapAccount(acc, false)
+	
 
 	
 	
@@ -391,13 +402,18 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	require.Equal(t, stRoot.Hex(), stTrie.Hash().Hex())
 
 	for accIt.Next() {
+		addr := ecommon.BytesToAddress(accIt.Hash().Bytes()).Hex()
+		t.Log("addr", addr)
+		require.True(t, isValidAddress(addr))
 		t.Log("accIt.Hash()", accIt.Hash())
 		t.Log("accIt.Account().Hash()",  hashData(accIt.Account()))
 		key := string(accIt.Account())
-		acc, ok := accMap[key]
+		_, ok := accMap[key]
 		require.True(t, ok)
 
+		/*
 		if bytes.Equal(acc.Root, stTrie.Hash().Bytes()) {
+			
 			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
 			//require.Equal(t, accIt.Hash().Hex(), "0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371")
 			require.NoError(t, err)
@@ -415,27 +431,27 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 				require.Equal(t, hashData(stIt.Slot()), stIt.Hash())
 			}
 		}
+		*/
 	}
 
 	/* TODO
 	transform every snapshot.Acc to erigon
 
-	write every account to plain.state, Hash.statew, intemediate hases
+	write every account to plain.state, Hash.state, intemediate hases
+
+
 
 
 	*/
 
 
-
-
 }
 
+
+
 	
 
 	
-
-
-
 	//base := generateSnapshot(diskdb, triedb, 16, root)
 	//_ = &snapshot.Tree{
 	//	layers: map[common.Hash]snapshot{
@@ -448,3 +464,25 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	// TestGenerateExistentStateWithWrongAccounts(t *testing.T) {
 
 
+func transformSnapAccount(account *snapshot.Account, isContractAcc bool) eaccounts.Account {
+	eAccount := accounts.NewAccount()
+	eAccount.Initialised = true // ?
+	bal, overflow := uint256.FromBig(account.Balance)
+	if overflow {
+		panic(fmt.Sprintf("overflow occured while converting from account.Balance"))
+	}
+	eAccount.Nonce = account.Nonce
+	eAccount.Balance = *bal
+	eAccount.Root = ecommon.BytesToHash(account.Root) //?
+	eAccount.CodeHash = ecommon.BytesToHash(account.CodeHash)
+	if isContractAcc {
+		eAccount.Incarnation = 1
+	}
+	return eAccount
+}
+
+
+func isValidAddress(v string) bool {
+    re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+    return re.MatchString(v)
+}

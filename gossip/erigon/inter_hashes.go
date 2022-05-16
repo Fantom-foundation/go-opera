@@ -24,13 +24,12 @@ type TrieCfg struct {
 	blockReader       interfaces.FullBlockReader
 }
 
-func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB bool, tmpDir string, blockReader interfaces.FullBlockReader) TrieCfg {
+func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB bool, tmpDir string) TrieCfg {
 	return TrieCfg{
 		db:                db,
 		checkRoot:         checkRoot,
 		saveNewHashesToDB: saveNewHashesToDB,
 		tmpDir:            tmpDir,
-		blockReader:       blockReader,
 	}
 }
 
@@ -82,7 +81,7 @@ func storageTrieCollector(collector *etl.Collector) trie.StorageHashCollector2 {
 
 
 
-// RegenerateIntermediateHashes
+// refactored RegenerateIntermediateHashes
 func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 	//expectedRootHash common.Hash
 	)  (common.Hash, error) {
@@ -139,3 +138,52 @@ func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 	return hash, nil
 
 }
+
+// for test purposes
+func RegenerateIntermediateHashes(logPrefix string, 
+	db kv.RwTx, cfg TrieCfg, 
+	expectedRootHash common.Hash, 
+	quit <-chan struct{}) (common.Hash, error) {
+	log.Info(fmt.Sprintf("[%s] Regeneration trie hashes started", logPrefix))
+	defer log.Info(fmt.Sprintf("[%s] Regeneration ended", logPrefix))
+	_ = db.ClearBucket(kv.TrieOfAccounts)
+	_ = db.ClearBucket(kv.TrieOfStorage)
+
+	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+		etl.NewSortableBuffer(etl.BufferOptimalSize))
+	defer accTrieCollector.Close()
+	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
+
+	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+		etl.NewSortableBuffer(etl.BufferOptimalSize))
+	defer stTrieCollector.Close()
+	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
+
+	loader := trie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(trie.NewRetainList(0), accTrieCollectorFunc, 
+	stTrieCollectorFunc, false); err != nil {
+		return trie.EmptyRoot, err
+	}
+	hash, err := loader.CalcTrieRoot(db, []byte{}, quit)
+	if err != nil {
+		return trie.EmptyRoot, err
+	}
+
+	log.Info("CalcTrieRoot Hash", hash.Hex())
+
+	if cfg.checkRoot && hash != expectedRootHash {
+		return hash, fmt.Errorf("Calculated Hash %s does not match expectedRootHash %s ", hash.Hex(), expectedRootHash.Hex() )
+	}
+	log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
+
+	if err := accTrieCollector.Load(db, kv.TrieOfAccounts, etl.IdentityLoadFunc, 
+		etl.TransformArgs{Quit: quit}); err != nil {
+		return trie.EmptyRoot, err
+	}
+	if err := stTrieCollector.Load(db, kv.TrieOfStorage, etl.IdentityLoadFunc, 
+		etl.TransformArgs{Quit: quit}); err != nil {
+		return trie.EmptyRoot, err
+	}
+	return hash, nil
+}
+
