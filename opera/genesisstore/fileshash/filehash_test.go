@@ -2,10 +2,12 @@ package fileshash
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -75,8 +77,8 @@ func testFileHash_ReadWrite(t *testing.T, content []byte, expRoot hash.Hash, pie
 	f, err := ioutil.TempFile(tmpDirPath, "testnet.g")
 	filePath := f.Name()
 	require.NoError(err)
-	writer := WrapWriter(f, pieceSize, func() TmpWriter {
-		tmpFh, err := ioutil.TempFile(tmpDirPath, "genesis.*.dat")
+	writer := WrapWriter(f, pieceSize, func(i int) TmpWriter {
+		tmpFh, err := os.OpenFile(path.Join(tmpDirPath, fmt.Sprintf("genesis%d.dat", i)), os.O_CREATE|os.O_RDWR, os.ModePerm)
 		require.NoError(err)
 		return dropableFile{
 			ReadWriteSeeker: tmpFh,
