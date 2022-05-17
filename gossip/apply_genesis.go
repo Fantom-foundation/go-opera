@@ -155,7 +155,7 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 	evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, func(l *types.Log) {
 		txListener.OnNewLog(l)
 		sfcapi.OnNewLog(s.sfcapi, l)
-	}, es.Rules)
+	}, es.Rules, s.GetEvmChainConfig())
 
 	// Execute genesis-internal transactions
 	genesisInternalTxs := blockProc.GenesisTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -249,6 +249,12 @@ func (s *Store) applyEpoch1Genesis(blockProc BlockProc, g opera.Genesis) (err er
 
 	// index data for legacy SFC API
 	sfcapi.ApplyGenesis(s.sfcapi, s.evm.EvmLogs)
+
+	var prevEs *iblockproc.EpochState
+	s.ForEachHistoryBlockEpochState(func(bs iblockproc.BlockState, es iblockproc.EpochState) bool {
+		s.WriteUpgradeHeight(bs, es, prevEs)
+		return true
+	})
 
 	return nil
 }
