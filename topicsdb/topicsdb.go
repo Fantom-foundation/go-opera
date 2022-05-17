@@ -3,7 +3,6 @@ package topicsdb
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
@@ -13,10 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const MaxTopicsCount = math.MaxUint8
+const MaxTopicsCount = 5 // count is limited hard to 5 by EVM (see LOG0...LOG4 ops)
 
 var (
-	ErrEmptyTopics = fmt.Errorf("Empty topics")
+	ErrEmptyTopics  = fmt.Errorf("Empty topics")
+	ErrTooBigTopics = fmt.Errorf("Too big topics")
 )
 
 // Index is a specialized indexes for log records storing and fetching.
@@ -147,8 +147,26 @@ func (tt *Index) MustPush(recs ...*types.Log) {
 // Write log record to database.
 func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
+		if len(rec.Topics) > MaxTopicsCount {
+			return ErrTooBigTopics
+		}
+
+		id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
+
+		// write data
+		buf := make([]byte, 0, common.HashLength*len(rec.Topics)+common.HashLength+common.AddressLength+len(rec.Data))
+		for _, topic := range rec.Topics {
+			buf = append(buf, topic.Bytes()...)
+		}
+		buf = append(buf, rec.BlockHash.Bytes()...)
+		buf = append(buf, rec.Address.Bytes()...)
+		buf = append(buf, rec.Data...)
+		if err := tt.table.Logrec.Put(id.Bytes(), buf); err != nil {
+			return err
+		}
+
+		// write index
 		var (
-			id    = NewID(rec.BlockNumber, rec.TxHash, rec.Index)
 			count = posToBytes(uint8(len(rec.Topics)))
 			pos   uint8
 		)
@@ -165,24 +183,12 @@ func (tt *Index) Push(recs ...*types.Log) error {
 			return err
 		}
 
-		buf := make([]byte, 0, common.HashLength*len(rec.Topics)+common.HashLength+common.AddressLength+len(rec.Data))
-		for j, topic := range rec.Topics {
-			if j >= MaxTopicsCount {
-				break // to don't overflow the pos
-			}
+		for _, topic := range rec.Topics {
 			if err := pushIndex(topic); err != nil {
 				return err
 			}
-			buf = append(buf, topic.Bytes()...)
 		}
 
-		buf = append(buf, rec.BlockHash.Bytes()...)
-		buf = append(buf, rec.Address.Bytes()...)
-		buf = append(buf, rec.Data...)
-
-		if err := tt.table.Logrec.Put(id.Bytes(), buf); err != nil {
-			return err
-		}
 	}
 
 	return nil
