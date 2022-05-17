@@ -424,8 +424,12 @@ func (b *EthAPIBackend) TxPoolContentFrom(addr common.Address) (types.Transactio
 	return b.svc.txpool.ContentFrom(addr)
 }
 
-func (b *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	return b.svc.gpo.SuggestTipCap(), nil
+func (b *EthAPIBackend) SuggestGasTipCap(ctx context.Context, certainty uint64) *big.Int {
+	return b.svc.gpo.SuggestTip(certainty)
+}
+
+func (b *EthAPIBackend) EffectiveMinGasPrice(ctx context.Context) *big.Int {
+	return b.svc.gpo.EffectiveMinGasPrice()
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {

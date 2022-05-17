@@ -200,11 +200,9 @@ func DefaultConfig(scale cachescale.Func) Config {
 		},
 
 		GPO: gasprice.Config{
-			MaxTipCap:                   gasprice.DefaultMaxTipCap,
-			MinTipCap:                   new(big.Int),
-			MaxTipCapMultiplierRatio:    big.NewInt(25 * gasprice.DecimalUnit),
-			MiddleTipCapMultiplierRatio: big.NewInt(3.75 * gasprice.DecimalUnit),
-			GasPowerWallRatio:           big.NewInt(0.05 * gasprice.DecimalUnit),
+			MaxGasPrice:      gasprice.DefaultMaxGasPrice,
+			MinGasPrice:      new(big.Int),
+			DefaultCertainty: 0.5 * gasprice.DecimalUnit,
 		},
 
 		RPCBlockExt: true,
