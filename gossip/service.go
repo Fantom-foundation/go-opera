@@ -210,7 +210,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.store.GetLlrState()
 
 	// create GPO
-	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
+	svc.gpo = gasprice.NewOracle(svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
@@ -419,6 +419,7 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
+	s.gpo.Start(&GPOBackend{s.store, s.txpool})
 	// start tflusher before starting snapshots generation
 	s.tflusher.Start()
 	// start snapshots generation
@@ -476,6 +477,7 @@ func (s *Service) Stop() error {
 	s.handler.Stop()
 	s.feed.scope.Close()
 	s.eventMux.Stop()
+	s.gpo.Stop()
 	// it's safe to stop tflusher only before locking engineMu
 	s.tflusher.Stop()
 

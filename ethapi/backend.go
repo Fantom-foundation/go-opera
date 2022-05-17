@@ -53,7 +53,8 @@ type PeerProgress struct {
 type Backend interface {
 	// General Ethereum API
 	Progress() PeerProgress
-	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
+	SuggestGasTipCap(ctx context.Context, certainty uint64) *big.Int
+	EffectiveMinGasPrice(ctx context.Context) *big.Int
 	ChainDb() ethdb.Database
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool

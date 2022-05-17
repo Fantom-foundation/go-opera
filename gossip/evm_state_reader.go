@@ -15,11 +15,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-var (
-	big3 = big.NewInt(3)
-	big5 = big.NewInt(5)
-)
-
 type EvmStateReader struct {
 	*ServiceFeed
 
@@ -46,14 +41,10 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return r.store.GetRules().Economy.MinGasPrice
 }
 
-// RecommendedGasTip returns current soft lower bound for gas tip
-func (r *EvmStateReader) RecommendedGasTip() *big.Int {
-	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
+// EffectiveMinTip returns current soft lower bound for gas tip
+func (r *EvmStateReader) EffectiveMinTip() *big.Int {
 	min := r.MinGasPrice()
-	est := new(big.Int).Set(r.gpo.SuggestTipCap())
-	est.Add(est, min)
-	est.Mul(est, big3)
-	est.Div(est, big5)
+	est := r.gpo.EffectiveMinGasPrice()
 	est.Sub(est, min)
 	if est.Sign() < 0 {
 		return new(big.Int)
