@@ -140,6 +140,10 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 	return res, nil
 }
 
+func (s *PublicEthereumAPI) EffectiveBaseFee(ctx context.Context) *hexutil.Big {
+	return (*hexutil.Big)(s.b.EffectiveMinGasPrice(ctx))
+}
+
 // Syncing returns true if node is syncing
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	progress := s.b.Progress()
