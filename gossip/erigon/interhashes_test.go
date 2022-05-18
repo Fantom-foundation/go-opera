@@ -1,44 +1,79 @@
 package erigon
 
 import (
-	"encoding/binary"
+
+	"math/big"
 	"testing"
 
-	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/params"
-	//"github.com/ledgerwatch/erigon/turbo/snapshotsync"
-	"github.com/ledgerwatch/erigon/turbo/trie"
+
+
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/rlp"
+
 
 	"github.com/stretchr/testify/assert"
+
+	com "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 
-func addTestAccount(tx kv.Putter, hash common.Hash, balance uint64, incarnation uint64) error {
-	acc := accounts.NewAccount()
-	acc.Balance.SetUint64(balance)
-	acc.Incarnation = incarnation
-	if incarnation != 0 {
-		acc.CodeHash = common.HexToHash("0x5be74cad16203c4905c068b012a2e9fb6d19d036c410f16fd177f337541440dd")
-	}
-	encoded := make([]byte, acc.EncodingLengthForStorage())
-	acc.EncodeForStorage(encoded)
-	return tx.Put(kv.HashedAccounts, hash[:], encoded)
+var (
+	key1 = []byte("acc-1")
+	key2 = []byte("acc-2")
+	key3 = []byte("acc-3")
+)
+
+func addSnapTestAccount(balance int64) [] byte{
+	acc := &snapshot.Account{Balance: big.NewInt(1), Root: emptyRoot.Bytes(), CodeHash: emptyCode.Bytes()}
+	val, _ := rlp.EncodeToBytes(acc)
+	return val
 }
 
-func TestAccountAndStorageTrie(t *testing.T) {
+// address Expected nil, but got: &fmt.wrapError{msg:"fail DecodeForStorage: codehash should be 32 bytes long, got 68 instead", err:(*errors.errorString)(0x140003f59e0)}
+func TestCompareEthereumErigonStateRootWithSnaphotAccounts(t *testing.T) {
+	var (
+		diskdb = memorydb.New()
+		triedb = trie.NewDatabase(diskdb)
+	)
+    // compute state root of 3 test snapshot accounts
+	accMap := make(map[string][]byte)
+	tr, _ := trie.NewSecure(com.Hash{}, triedb)
+
+	val := addSnapTestAccount(1)
+	tr.Update(key1, val) // 0xc7a30f39aff471c95d8a837497ad0e49b65be475cc0953540f80cfcdbdcd9074
+	accMap[string(key1)] = val
+
+	val = addSnapTestAccount(2)
+	tr.Update(key2, val) // 0x65145f923027566669a1ae5ccac66f945b55ff6eaeb17d2ea8e048b7d381f2d7
+	accMap[string(key2)] = val
+
+	val = addSnapTestAccount(3)
+	tr.Update(key3, val) // 0x19ead688e907b0fab07176120dceec244a72aff2f0aa51e8b827584e378772f4
+	accMap[string(key3)] = val
+	
+	legacyRoot, err := tr.Commit(nil)         // Root: 0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978
+    assert.NoError(t, err)
+	assert.Equal(t, legacyRoot.Hex(), "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978")
+
+
+	// setup erigon test tx
 	_, tx := memdb.NewTestTx(t)
 
-	hash1 := common.HexToHash("0xB000000000000000000000000000000000000000000000000000000000000000")
-	assert.Nil(t, addTestAccount(tx, hash1, 3*params.Ether, 0))
+	// insert byte representation of 3 snapshot accounts into kv.HashedAccounts bucket
+	assert.Nil(t, tx.Put(kv.HashedAccounts, key1, accMap[string(key1)]))
+	assert.Nil(t, tx.Put(kv.HashedAccounts, key2, accMap[string(key2)]))
+	assert.Nil(t, tx.Put(kv.HashedAccounts, key3, accMap[string(key3)]))
+	
 
-	hash2 := common.HexToHash("0xB040000000000000000000000000000000000000000000000000000000000000")
-	assert.Nil(t, addTestAccount(tx, hash2, 1*params.Ether, 0))
 
+
+	/*
 	incarnation := uint64(1)
 	hash3 := common.HexToHash("0xB041000000000000000000000000000000000000000000000000000000000000")
 	assert.Nil(t, addTestAccount(tx, hash3, 2*params.Ether, incarnation))
@@ -66,16 +101,18 @@ func TestAccountAndStorageTrie(t *testing.T) {
 
 	hash6 := common.HexToHash("0xB340000000000000000000000000000000000000000000000000000000000000")
 	assert.Nil(t, addTestAccount(tx, hash6, 1*params.Ether, 0))
+	*/
 
 	// ----------------------------------------------------------------
 	// Populate account & storage trie DB tables
 	// ----------------------------------------------------------------
 
 	cfg := StageTrieCfg(nil, false, true, t.TempDir())
-	expHash := common.BytesToHash([]byte("ssjj"))
-	hash, err := RegenerateIntermediateHashes("IH", tx, cfg, expHash /* expectedRootHash */, nil /* quit */)
+	//expHash := common.BytesToHash([]byte("ssjj"))
+	hash, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
 	assert.NotNil(t, hash.Hex())
 	assert.Nil(t, err)
+	assert.Equal(t, legacyRoot, hash)
 
 	// ----------------------------------------------------------------
 	// Check account trie
@@ -88,26 +125,29 @@ func TestAccountAndStorageTrie(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	assert.Equal(t, 2, len(accountTrieA))
+	assert.Equal(t, 2, len(accountTrieA)) // error
 
-	hasState1a, hasTree1a, hasHash1a, hashes1a, rootHash1a := trie.UnmarshalTrieNode(accountTrieA[string(common.FromHex("0B"))])
+	/*
+	hasState1a, hasTree1a, hasHash1a, hashes1a, rootHash1a := etrie.UnmarshalTrieNode(accountTrieA[string(common.FromHex("0B"))])
 	assert.Equal(t, uint16(0b1011), hasState1a)
 	assert.Equal(t, uint16(0b0001), hasTree1a)
 	assert.Equal(t, uint16(0b1001), hasHash1a)
 	assert.Equal(t, 2*length.Hash, len(hashes1a))
 	assert.Equal(t, 0, len(rootHash1a))
 
-	hasState2a, hasTree2a, hasHash2a, hashes2a, rootHash2a := trie.UnmarshalTrieNode(accountTrieA[string(common.FromHex("0B00"))])
+	hasState2a, hasTree2a, hasHash2a, hashes2a, rootHash2a := etrie.UnmarshalTrieNode(accountTrieA[string(common.FromHex("0B00"))])
 	assert.Equal(t, uint16(0b10001), hasState2a)
 	assert.Equal(t, uint16(0b00000), hasTree2a)
 	assert.Equal(t, uint16(0b10000), hasHash2a)
 	assert.Equal(t, 1*length.Hash, len(hashes2a))
 	assert.Equal(t, 0, len(rootHash2a))
+	*/
 
 	// ----------------------------------------------------------------
 	// Check storage trie
 	// ----------------------------------------------------------------
 
+	/*
 	storageTrie := make(map[string][]byte)
 	err = tx.ForEach(kv.TrieOfStorage, nil, func(k, v []byte) error {
 		storageTrie[string(k)] = common.CopyBytes(v)
@@ -121,11 +161,64 @@ func TestAccountAndStorageTrie(t *testing.T) {
 	copy(storageKey, hash3.Bytes())
 	binary.BigEndian.PutUint64(storageKey[length.Hash:], incarnation)
 
-	hasState3, hasTree3, hasHash3, hashes3, rootHash3 := trie.UnmarshalTrieNode(storageTrie[string(storageKey)])
+	hasState3, hasTree3, hasHash3, hashes3, rootHash3 := etrie.UnmarshalTrieNode(storageTrie[string(storageKey)])
 	assert.Equal(t, uint16(0b1010), hasState3)
 	assert.Equal(t, uint16(0b0000), hasTree3)
 	assert.Equal(t, uint16(0b0010), hasHash3)
 	assert.Equal(t, 1*length.Hash, len(hashes3))
 	assert.Equal(t, length.Hash, len(rootHash3))
+	*/
+
 }
 
+func addErigonTestAccount(tx kv.Putter, balance uint64, key []byte) ([]byte, error) {
+	acc := new(accounts.Account)
+	acc.Root = common.Hash(emptyRoot)
+	acc.CodeHash = common.Hash(emptyCode)
+	acc.Balance.SetUint64(balance)
+	
+	encoded := make([]byte, acc.EncodingLengthForStorage())
+	acc.EncodeForStorage(encoded)
+	return encoded, tx.Put(kv.HashedAccounts, key, encoded)
+}
+
+func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
+	var (
+		diskdb = memorydb.New()
+		triedb = trie.NewDatabase(diskdb)
+
+		_, tx = memdb.NewTestTx(t)
+	)
+    // compute state root of 3 test snapshot accounts
+	//accMap := make(map[string][]byte)
+	tr, _ := trie.NewSecure(com.Hash{}, triedb)
+
+	val, err := addErigonTestAccount(tx, 1, key1)
+	assert.Nil(t, err)
+	tr.Update(key1, val)
+
+	val, err = addErigonTestAccount(tx, 2, key2)
+	assert.Nil(t, err)
+	tr.Update(key2, val)
+
+	val, err = addErigonTestAccount(tx, 3, key3)
+	assert.Nil(t, err)
+	tr.Update(key3, val)
+
+	// generating ethereum state root
+	// 0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371
+	_, err = tr.Commit(nil) 
+    assert.NoError(t, err)
+	//assert.Equal(t, "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978", legacyRoot.Hex())
+
+
+	// generating erigon state root
+	cfg := StageTrieCfg(nil, false, true, t.TempDir())
+	//expHash := common.BytesToHash([]byte("ssjj"))
+
+	// "0x82fdcfbe8ec608353eeed139e391c89729101a46c4db43ec6ea1688d6c92125a"
+	_, err = RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	
+	//assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
+
+}
