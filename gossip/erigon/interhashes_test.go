@@ -179,7 +179,23 @@ func addErigonTestAccount(tx kv.Putter, balance uint64, key []byte) ([]byte, err
 	
 	encoded := make([]byte, acc.EncodingLengthForStorage())
 	acc.EncodeForStorage(encoded)
-	return encoded, tx.Put(kv.HashedAccounts, key, encoded)
+
+	// hash a key cause trie.NewSecure hashes a key under the hood 
+	/*
+		func (t *SecureTrie) hashKey(key []byte) []byte {
+			h := newHasher(false)
+			h.sha.Reset()
+			h.sha.Write(key)
+			h.sha.Read(t.hashKeyBuf[:])
+			returnHasherToPool(h)
+			return t.hashKeyBuf[:]
+		}
+	*/
+	hashedKey, err := common.HashData(key)
+	if err != nil {
+		return nil, err
+	}
+	return encoded, tx.Put(kv.HashedAccounts, hashedKey[:], encoded)
 }
 
 func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
@@ -207,18 +223,23 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 
 	// generating ethereum state root
 	// 0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371
-	_, err = tr.Commit(nil) 
+	legacyRoot, err := tr.Commit(nil) 
     assert.NoError(t, err)
 	//assert.Equal(t, "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978", legacyRoot.Hex())
 
 
 	// generating erigon state root
+	// checkRoot sets to false
 	cfg := StageTrieCfg(nil, false, true, t.TempDir())
 	//expHash := common.BytesToHash([]byte("ssjj"))
 
-	// "0x82fdcfbe8ec608353eeed139e391c89729101a46c4db43ec6ea1688d6c92125a"
-	_, err = RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	// without hashing every key "0x82fdcfbe8ec608353eeed139e391c89729101a46c4db43ec6ea1688d6c92125a"
+	// with hashing every key "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978"
+	erigonRoot, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
 	
-	//assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
+	// legacy and erigon root still do not match
+	//expected: "0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371"
+	//actual  : "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978"
+	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
 
 }
