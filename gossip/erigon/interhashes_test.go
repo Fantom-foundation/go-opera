@@ -19,7 +19,7 @@ import (
 
 	com "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/ethereum/go-ethereum/trie"
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
 )
 
 
@@ -191,12 +191,15 @@ func addErigonTestAccount(tx kv.Putter, balance uint64, key []byte) ([]byte, err
 			return t.hashKeyBuf[:]
 		}
 	*/
+	
 	hashedKey, err := common.HashData(key)
 	if err != nil {
 		return nil, err
 	}
 	return encoded, tx.Put(kv.HashedAccounts, hashedKey[:], encoded)
 }
+
+
 
 func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 	var (
@@ -207,12 +210,46 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 	)
     // compute state root of 3 test snapshot accounts
 	//accMap := make(map[string][]byte)
-	tr, _ := trie.NewSecure(com.Hash{}, triedb)
+	
+	
+	
+	// 1.make a tree
+	//tr, _ := trie.NewSecure(com.Hash{}, triedb)
+    tr, err := trie.New(com.Hash{}, triedb)
+	assert.NoError(t, err)
+
+
 
 	val, err := addErigonTestAccount(tx, 1, key1)
 	assert.Nil(t, err)
-	tr.Update(key1, val)
 
+
+
+	//replace tr.Update(key1, val) by my implementation below
+
+	// 1. hash a key 
+	/*   I replaced this func by common.HashData (used in Erigon)
+	func (t *SecureTrie) hashKey(key []byte) []byte {
+			h := newHasher(false)
+			h.sha.Reset()
+			h.sha.Write(key)
+			h.sha.Read(t.hashKeyBuf[:])
+			returnHasherToPool(h)
+			return t.hashKeyBuf[:]
+		}
+	*/
+	
+	hk1, err := common.HashData(key1)
+	assert.Nil(t, err)
+	
+	
+
+	assert.Nil(t, tr.TryUpdate(hk1.Bytes(), val))
+	//tr.SetRoot()
+	
+
+
+	/*
 	val, err = addErigonTestAccount(tx, 2, key2)
 	assert.Nil(t, err)
 	tr.Update(key2, val)
@@ -220,6 +257,7 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 	val, err = addErigonTestAccount(tx, 3, key3)
 	assert.Nil(t, err)
 	tr.Update(key3, val)
+	*/
 
 	// generating ethereum state root
 	// 0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371
@@ -243,3 +281,17 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
 
 }
+
+func keybytesToHex(str []byte) []byte {
+	l := len(str)*2 + 1
+	var nibbles = make([]byte, l)
+	for i, b := range str {
+		nibbles[i*2] = b / 16
+		nibbles[i*2+1] = b % 16
+	}
+	nibbles[l-1] = 16
+	return nibbles
+}
+
+
+
