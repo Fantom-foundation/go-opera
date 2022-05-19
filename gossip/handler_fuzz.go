@@ -1,5 +1,5 @@
 //go:build gofuzz
-// +build gofuzz
+//+build gofuzz
 
 package gossip
 
@@ -11,13 +11,16 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	_ "github.com/dvyukov/go-fuzz/go-fuzz-defs"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 )
 
 const (
@@ -65,19 +68,18 @@ func makeFuzzedHandler() (h *handler, err error) {
 		genesisStake   = 2 * 4e6
 	)
 
-	genStore := makegenesis.FakeGenesisStore(2, genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
-	genesis := genStore.GetGenesis()
+	genStore := makefakegenesis.FakeGenesisStore(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+	genesis := genStore.Genesis()
 
 	config := DefaultConfig(cachescale.Identity)
 	store := NewMemStore()
-	blockProc := DefaultBlockProc(genesis)
-	_, err = store.ApplyGenesis(blockProc, genesis)
+	_, err = store.ApplyGenesis(genesis)
 	if err != nil {
 		return
 	}
 
 	var (
-		network             = genesis.Rules
+		network             = opera.FakeNetRules()
 		heavyCheckReader    HeavyCheckReader
 		gasPowerCheckReader GasPowerCheckReader
 		// TODO: init
@@ -85,25 +87,28 @@ func makeFuzzedHandler() (h *handler, err error) {
 
 	mu := new(sync.RWMutex)
 	feed := new(ServiceFeed)
-	checkers := makeCheckers(config.HeavyCheck, network.EvmChainConfig().ChainID, &heavyCheckReader, &gasPowerCheckReader, store)
-	processEvent := func(e *inter.EventPayload) error {
-		return nil
-	}
+	net := store.GetRules()
+	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
+	checkers := makeCheckers(config.HeavyCheck, txSigner, &heavyCheckReader, &gasPowerCheckReader, store)
 
-	txpool := evmcore.NewTxPool(config.TxPool, network.EvmChainConfig(), &EvmStateReader{
+	txpool := evmcore.NewTxPool(evmcore.DefaultTxPoolConfig, network.EvmChainConfig(), &EvmStateReader{
 		ServiceFeed: feed,
 		store:       store,
 	})
 
 	h, err = newHandler(
 		handlerConfig{
-			config:       config,
-			notifier:     feed,
-			txpool:       txpool,
-			engineMu:     mu,
-			checkers:     checkers,
-			s:            store,
-			processEvent: processEvent,
+			config:   config,
+			notifier: feed,
+			txpool:   txpool,
+			engineMu: mu,
+			checkers: checkers,
+			s:        store,
+			process: processCallback{
+				Event: func(event *inter.EventPayload) error {
+					return nil
+				},
+			},
 		})
 	if err != nil {
 		return
