@@ -1,7 +1,7 @@
 package launcher
 
 import (
-	"archive/zip"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -10,13 +10,13 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -26,6 +26,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
+	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
 	"github.com/Fantom-foundation/go-opera/utils/iodb"
 )
 
@@ -65,17 +66,55 @@ func (it mptAndPreimageIterator) Next() bool {
 	return false
 }
 
-func wrapIntoHashFile(backend *zip.Writer, tmpDirPath, name string) *fileshash.Writer {
-	zWriter, err := backend.Create(name)
-	if err != nil {
-		log.Crit("Zip file creation error", "err", err)
+type unitWriter struct {
+	plain            io.WriteSeeker
+	gziper           *gzip.Writer
+	fileshasher      *fileshash.Writer
+	dataStartPos     int64
+	uncompressedSize uint64
+}
+
+func newUnitWriter(plain io.WriteSeeker) *unitWriter {
+	return &unitWriter{
+		plain: plain,
 	}
-	tmpI := 0
-	return fileshash.WrapWriter(zWriter, genesisstore.FilesHashPieceSize, 64*opt.GiB, func() fileshash.TmpWriter {
+}
+
+func (w *unitWriter) Start(header genesis.Header, name, tmpDirPath string) error {
+	if w.plain == nil {
+		// dry run
+		w.fileshasher = fileshash.WrapWriter(nil, genesisstore.FilesHashPieceSize, func(int) fileshash.TmpWriter {
+			return devnullfile.DevNull{}
+		})
+		return nil
+	}
+	// Write unit marker and version
+	_, err := w.plain.Write(append(genesisstore.FileHeader, genesisstore.FileVersion...))
+	if err != nil {
+		return err
+	}
+
+	// write genesis header
+	err = rlp.Encode(w.plain, genesisstore.Unit{
+		UnitName: name,
+		Header:   header,
+	})
+	if err != nil {
+		return err
+	}
+
+	w.dataStartPos, err = w.plain.Seek(8+8+32, io.SeekCurrent)
+	if err != nil {
+		return err
+	}
+
+	w.gziper, _ = gzip.NewWriterLevel(w.plain, gzip.BestCompression)
+
+	w.fileshasher = fileshash.WrapWriter(w.gziper, genesisstore.FilesHashPieceSize, func(tmpI int) fileshash.TmpWriter {
 		tmpI++
 		tmpPath := path.Join(tmpDirPath, fmt.Sprintf("genesis-%s-tmp-%d", name, tmpI))
 		_ = os.MkdirAll(tmpDirPath, os.ModePerm)
-		tmpFh, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		tmpFh, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_RDWR, os.ModePerm)
 		if err != nil {
 			log.Crit("File opening error", "path", tmpPath, "err", err)
 		}
@@ -85,6 +124,57 @@ func wrapIntoHashFile(backend *zip.Writer, tmpDirPath, name string) *fileshash.W
 			path:            tmpPath,
 		}
 	})
+	return nil
+}
+
+func (w *unitWriter) Flush() (hash.Hash, error) {
+	if w.plain == nil {
+		return w.fileshasher.Root(), nil
+	}
+	h, err := w.fileshasher.Flush()
+	if err != nil {
+		return hash.Hash{}, err
+	}
+
+	err = w.gziper.Close()
+	if err != nil {
+		return hash.Hash{}, err
+	}
+
+	endPos, err := w.plain.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return hash.Hash{}, err
+	}
+
+	_, err = w.plain.Seek(w.dataStartPos-(8+8+32), io.SeekStart)
+	if err != nil {
+		return hash.Hash{}, err
+	}
+
+	_, err = w.plain.Write(h.Bytes())
+	if err != nil {
+		return hash.Hash{}, err
+	}
+	_, err = w.plain.Write(bigendian.Uint64ToBytes(uint64(endPos - w.dataStartPos)))
+	if err != nil {
+		return hash.Hash{}, err
+	}
+	_, err = w.plain.Write(bigendian.Uint64ToBytes(w.uncompressedSize))
+	if err != nil {
+		return hash.Hash{}, err
+	}
+
+	_, err = w.plain.Seek(0, io.SeekEnd)
+	if err != nil {
+		return hash.Hash{}, err
+	}
+	return h, nil
+}
+
+func (w *unitWriter) Write(b []byte) (n int, err error) {
+	n, err = w.fileshasher.Write(b)
+	w.uncompressedSize += uint64(n)
+	return
 }
 
 func exportGenesis(ctx *cli.Context) error {
@@ -131,51 +221,24 @@ func exportGenesis(ctx *cli.Context) error {
 	fn := ctx.Args().First()
 
 	// Open the file handle
-	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer fh.Close()
-
-	// Write file header and version
-	_, err = fh.Write(append(genesisstore.FileHeader, genesisstore.FileVersion...))
-	if err != nil {
-		return err
+	var plain io.WriteSeeker
+	if fn != "dry-run" {
+		fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer fh.Close()
+		plain = fh
 	}
 
-	log.Info("Exporting genesis header")
-	err = rlp.Encode(fh, genesis.Header{
+	header := genesis.Header{
 		GenesisID:   *gdb.GetGenesisID(),
 		NetworkID:   gdb.GetEpochState().Rules.NetworkID,
 		NetworkName: gdb.GetEpochState().Rules.Name,
-	})
-	if err != nil {
-		return err
 	}
-	// write dummy genesis hashes
-	hashesFilePos, err := fh.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return err
-	}
-	dummy := genesis.Hashes{
-		Blocks:      hash.Hashes{hash.Zero},
-		Epochs:      hash.Hashes{hash.Zero},
-		RawEvmItems: hash.Hashes{hash.Zero},
-	}
-	if mode == "none" {
-		dummy.RawEvmItems = hash.Hashes{}
-	}
-	b, _ := rlp.EncodeToBytes(dummy)
-	hashesFileLen := len(b)
-	_, err = fh.Write(b)
-	if err != nil {
-		return err
-	}
-	hashes := genesis.Hashes{}
-
-	// Create the zip archive
-	z := zip.NewWriter(fh)
-	defer z.Close()
+	var epochsHash hash.Hash
+	var blocksHash hash.Hash
+	var evmHash hash.Hash
 
 	if from < 1 {
 		// avoid underflow
@@ -188,7 +251,11 @@ func exportGenesis(ctx *cli.Context) error {
 	fromBlock := idx.Block(0)
 	{
 		log.Info("Exporting epochs", "from", from, "to", to)
-		writer := wrapIntoHashFile(z, tmpPath, genesisstore.EpochsSection)
+		writer := newUnitWriter(plain)
+		err := writer.Start(header, genesisstore.EpochsSection, tmpPath)
+		if err != nil {
+			return err
+		}
 		for i := to; i >= from; i-- {
 			er := gdb.GetFullEpochRecord(i)
 			if er == nil {
@@ -210,15 +277,11 @@ func exportGenesis(ctx *cli.Context) error {
 				toBlock = er.BlockState.LastBlock.Idx
 			}
 		}
-		sectionRoot, err := writer.Flush()
+		epochsHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
-		hashes.Epochs.Add(sectionRoot)
-		err = z.Flush()
-		if err != nil {
-			return err
-		}
+		log.Info("Exported epochs", "hash", epochsHash.String())
 	}
 
 	if fromBlock < 1 {
@@ -227,7 +290,11 @@ func exportGenesis(ctx *cli.Context) error {
 	}
 	{
 		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
-		writer := wrapIntoHashFile(z, tmpPath, genesisstore.BlocksSection)
+		writer := newUnitWriter(plain)
+		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		if err != nil {
+			return err
+		}
 		for i := toBlock; i >= fromBlock; i-- {
 			br := gdb.GetFullBlockRecord(i)
 			if br == nil {
@@ -246,20 +313,20 @@ func exportGenesis(ctx *cli.Context) error {
 				return err
 			}
 		}
-		sectionRoot, err := writer.Flush()
+		blocksHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
-		hashes.Blocks.Add(sectionRoot)
-		err = z.Flush()
-		if err != nil {
-			return err
-		}
+		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
 	if mode != "none" {
-		log.Info("Exporting EVM storage")
-		writer := wrapIntoHashFile(z, tmpPath, genesisstore.EvmSection)
+		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
+		writer := newUnitWriter(plain)
+		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		if err != nil {
+			return err
+		}
 		it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
 		if mode == "mpt" {
 			// iterate only over MPT data
@@ -273,38 +340,16 @@ func exportGenesis(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		sectionRoot, err := writer.Flush()
+		evmHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
-		hashes.RawEvmItems.Add(sectionRoot)
-		err = z.Flush()
-		if err != nil {
-			return err
-		}
+		log.Info("Exported EVM data", "hash", evmHash.String())
 	}
 
-	// write real file hashes after they were calculated
-	_, err = fh.Seek(hashesFilePos, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	b, _ = rlp.EncodeToBytes(hashes)
-	if len(b) != hashesFileLen {
-		return fmt.Errorf("real hashes length doesn't match to dummy hashes length: %d!=%d", len(b), hashesFileLen)
-	}
-	_, err = fh.Write(b)
-	if err != nil {
-		return err
-	}
-	_, err = fh.Seek(0, io.SeekEnd)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("- Epochs hashes: %v \n", hashes.Epochs)
-	fmt.Printf("- Blocks hashes: %v \n", hashes.Blocks)
-	fmt.Printf("- EVM hashes: %v \n", hashes.RawEvmItems)
+	fmt.Printf("- Epochs hash: %v \n", epochsHash.String())
+	fmt.Printf("- Blocks hash: %v \n", blocksHash.String())
+	fmt.Printf("- EVM hash: %v \n", evmHash.String())
 
 	return nil
 }

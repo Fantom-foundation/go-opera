@@ -76,7 +76,7 @@ be gzipped
 			{
 				Name:      "genesis",
 				Usage:     "Export current state into a genesis file",
-				ArgsUsage: "<filename> [<epochFrom> <epochTo>] [--export.evm.mode=none]",
+				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=none]",
 				Action:    utils.MigrateFlags(exportGenesis),
 				Flags: []cli.Flag{
 					DataDirFlag,
@@ -89,6 +89,7 @@ Export current state into a genesis file.
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
 last epoch to write.
+Pass dry-run instead of filename for calculation of hashes without exporting data.
 EVM export mode is configured with --export.evm.mode.
 `,
 			},

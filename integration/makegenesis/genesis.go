@@ -225,7 +225,7 @@ func (f *memFile) Close() error {
 }
 
 func (b *GenesisBuilder) Build(head genesis.Header) *genesisstore.Store {
-	return genesisstore.NewStore(func(name string) (io.ReadCloser, error) {
+	return genesisstore.NewStore(func(name string) (io.Reader, error) {
 		buf := &memFile{bytes.NewBuffer(nil)}
 		if name == genesisstore.BlocksSection {
 			for i := len(b.blocks) - 1; i >= 0; i-- {
