@@ -47,7 +47,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("BlockState recovery", s.recoverBlockState).
 		Next("LlrState recovery", s.recoverLlrState).
 		Next("erase gossip-async db", s.eraseGossipAsyncDB).
-		Next("erase SFC API table", s.eraseSfcApiTable)
+		Next("erase SFC API table", s.eraseSfcApiTable).
+		Next("erase legacy genesis DB", s.eraseGenesisDB)
 }
 
 func unsupportedMigration() error {
@@ -390,6 +391,19 @@ func (s *Store) eraseGossipAsyncDB() error {
 
 	_ = asyncDB.Close()
 	asyncDB.Drop()
+
+	return nil
+}
+
+func (s *Store) eraseGenesisDB() error {
+	gossipDB, err := s.dbs.OpenDB("genesis")
+	if err != nil {
+		// doesn't exist
+		return nil
+	}
+
+	_ = gossipDB.Close()
+	gossipDB.Drop()
 
 	return nil
 }
