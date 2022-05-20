@@ -396,14 +396,14 @@ func (s *Store) eraseGossipAsyncDB() error {
 }
 
 func (s *Store) eraseGenesisDB() error {
-	gossipDB, err := s.dbs.OpenDB("genesis")
+	genesisDB, err := s.dbs.OpenDB("genesis")
 	if err != nil {
 		// doesn't exist
 		return nil
 	}
 
-	_ = gossipDB.Close()
-	gossipDB.Drop()
+	_ = genesisDB.Close()
+	genesisDB.Drop()
 
 	return nil
 }
