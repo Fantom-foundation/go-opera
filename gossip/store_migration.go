@@ -398,7 +398,6 @@ func (s *Store) eraseGossipAsyncDB() error {
 func (s *Store) eraseGenesisDB() error {
 	genesisDB, err := s.dbs.OpenDB("genesis")
 	if err != nil {
-		// doesn't exist
 		return nil
 	}
 
