@@ -169,6 +169,7 @@ func GenStructStep(
 						return nil, nil, nil, err
 					}
 				} else {
+					fmt.Println("GenStructStep case GenStructStepAccountData accountLeafHash")
 					if err := e.accountLeafHash(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet); err != nil {
 						return nil, nil, nil, err
 					}

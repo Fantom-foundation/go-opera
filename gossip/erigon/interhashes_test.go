@@ -208,17 +208,17 @@ func addErigonTestAccount(tx kv.Putter, balance uint64) ([]byte, error) {
 }
 
 
-
-func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
+// legacy and erigon state roots do not match cause they use different serializiation protocols by computing state roots
+// legacy implementation applies RLP encoding to serialize trie node and hash serialized data using keccak256 afterwards.
+// On an other hand, erigon uses more sophisticated technique in hb.completeLeafHash. THat's why state roots are different.
+func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
 		triedb = trie.NewDatabase(diskdb)
 
 		_, tx = memdb.NewTestTx(t)
 	)
-    // compute state root of 3 test snapshot accounts
-	//accMap := make(map[string][]byte)
-	
+
 	
 	
 	// 1.make a tree
@@ -286,31 +286,17 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 	//assert.Equal(t, "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978", legacyRoot.Hex())
 
 
-	// generating erigon state root
-	// checkRoot sets to false
-	cfg := StageTrieCfg(nil, false, true, t.TempDir())
-	//expHash := common.BytesToHash([]byte("ssjj"))
 
-	// without hashing every key "0x82fdcfbe8ec608353eeed139e391c89729101a46c4db43ec6ea1688d6c92125a"
-	// with hashing every key "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978"
+	cfg := StageTrieCfg(nil, false, true, t.TempDir())
+
+
+
 	erigonRoot, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
 	
-	// legacy and erigon root still do not match
-	//expected: "0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371"
-	//actual  : "0xa04693ea110a31037fb5ee814308a6f1d76bdab0b11676bdf4541d2de55ba978"
+
+	//legacy: "0xe1a85473f43bee6e19dc51a178326327eb61edea2fe1ab6cc5b90c814b1eb371"
+	//erigon  : "0x7ed8e10e694f87e13ac1db95f0ebdea4a4644203edcd6b2b9f6c27e31bf1353f"
 	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
-
-}
-
-func keybytesToHex(str []byte) []byte {
-	l := len(str)*2 + 1
-	var nibbles = make([]byte, l)
-	for i, b := range str {
-		nibbles[i*2] = b / 16
-		nibbles[i*2+1] = b % 16
-	}
-	nibbles[l-1] = 16
-	return nibbles
 }
 
 

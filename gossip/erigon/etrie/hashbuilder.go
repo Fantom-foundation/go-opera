@@ -88,7 +88,6 @@ func (hb *HashBuilder) leaf(length int, keyHex []byte, val rlphacks.RlpSerializa
 
 // To be called internally
 func (hb *HashBuilder) leafHashWithKeyVal(key []byte, val rlphacks.RlpSerializable) error {
-	fmt.Println("leafHashWithKeyVal")
 	// Compute the total length of binary representation
 	var kp, kl int
 	// Write key
@@ -123,19 +122,10 @@ func (hb *HashBuilder) leafHashWithKeyVal(key []byte, val rlphacks.RlpSerializab
 		return err
 	}
 	//fmt.Printf("leafHashWithKeyVal [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
-	/*
 
-	func (hb *HashBuilder) topHash() []byte {
-	fmt.Println("TopHash len(hashStack)", len(hb.hashStack))
-	fmt.Println("TopHash hashStack index", len(hb.hashStack)-hashStackStride+1)
-	return hb.hashStack[len(hb.hashStack)-hashStackStride+1:]
-}
-	*/
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
-	var hash common.Hash
-	copy(hash[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
-	fmt.Println("leafHashWithKeyVal hash.Hex()", hash.Hex())
 
+	
 	if len(hb.hashStack) > hashStackStride*len(hb.nodeStack) {
 		hb.nodeStack = append(hb.nodeStack, nil)
 	}
@@ -143,7 +133,7 @@ func (hb *HashBuilder) leafHashWithKeyVal(key []byte, val rlphacks.RlpSerializab
 }
 
 func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, compact0 byte, ni int, val rlphacks.RlpSerializable) error {
-	fmt.Println("completeLeafHash")
+
 	totalLen := kp + kl + val.DoubleRLPLen()
 	pt := rlphacks.GenerateStructLen(hb.lenPrefix[:], totalLen)
 
@@ -155,6 +145,7 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		hb.byteArrayWriter.Setup(hb.hashBuf[:], 0)
 		writer = hb.byteArrayWriter
 	} else {
+		fmt.Println("completeLeafHash not an embedded node")
 		hb.sha.Reset()
 		writer = hb.sha
 		reader = hb.sha
@@ -204,7 +195,6 @@ func (hb *HashBuilder) leafHash(length int, keyHex []byte, val rlphacks.RlpSeria
 }
 
 func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldSet uint32, accountCodeSize int) (err error) {
-	fmt.Println("accountLeaf")
 	if hb.trace {
 		fmt.Printf("ACCOUNTLEAF %d (%b)\n", length, fieldSet)
 	}
@@ -269,7 +259,9 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, balance *uint256.I
 	return nil
 }
 
+//called from GenStructStep case GenStructStepAccountData
 func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldSet uint32) (err error) {
+	fmt.Println("accountLeafHash")
 	if hb.trace {
 		fmt.Printf("ACCOUNTLEAFHASH %d (%b)\n", length, fieldSet)
 	}
@@ -332,23 +324,36 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	hb.acc.EncodeForHashing(hb.valBuf[:])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
 
-	hashedVal, err := common.HashData(val)
-	if err != nil {
-		return err
-	}
-	fmt.Println("accountLeafHashWithKey val", hashedVal.Hex())
+
+	encoded := make([]byte, hb.acc.EncodingLengthForStorage())
+	hb.acc.EncodeForStorage(encoded)
+	hashedVal, _ := common.HashData(encoded)
+	fmt.Println("accountLeafHashWithKey hashedVal", hashedVal.Hex())
 	fmt.Println("accountLeafHashWithKey common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
 	
-	err = hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
+
+	
+	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
 	}
+	
+
 	if popped > 0 {
+		fmt.Println("accountLeafHashWithKey popped > 0")
 		hb.hashStack = hb.hashStack[:len(hb.hashStack)-popped*hashStackStride]
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
 	}
 	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
+	
+	
+	var stateRoot common.Hash
+	copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
+	fmt.Println("accountLeafHashWithKey hashStack index", len(hb.hashStack)-hashStackStride+1)
+	fmt.Println("accountLeafHashWithKey stateRoot.Hex()", stateRoot.Hex())
+	
+
 	hb.nodeStack = append(hb.nodeStack, nil)
 	if hb.trace {
 		fmt.Printf("Stack depth: %d\n", len(hb.nodeStack))

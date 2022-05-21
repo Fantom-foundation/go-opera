@@ -184,6 +184,7 @@ func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
 
 // hashData hashes the provided data
 func (h *hasher) hashData(data []byte) hashNode {
+	fmt.Println("(h *hasher) hashData")
 	n := make(hashNode, 32)
 	h.sha.Reset()
 	h.sha.Write(data)
