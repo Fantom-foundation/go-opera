@@ -18,6 +18,7 @@ package trie
 
 import (
 	"sync"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -73,7 +74,7 @@ func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
 	// Trie not processed yet, walk the children
 	switch n := n.(type) {
 	case *shortNode:
-		
+		fmt.Println("(h *hasher) hash case shortNode")
 		collapsed, cached := h.hashShortNodeChildren(n)
 		hashed := h.shortnodeToHash(collapsed, force)
 		// We need to retain the possibly _not_ hashed node, in case it was too
@@ -162,6 +163,7 @@ func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	if len(h.tmp) < 32 && !force {
 		return n // Nodes smaller than 32 bytes are stored inside their parent
 	}
+	fmt.Println("(h *hasher) shortnodeToHash")
 	return h.hashData(h.tmp)
 }
 

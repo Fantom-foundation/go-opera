@@ -26,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+
+	ecommon "github.com/ledgerwatch/erigon/common"
 )
 
 var (
@@ -258,6 +260,7 @@ func (t *Trie) Update(key, value []byte) {
 func (t *Trie) TryUpdate(key, value []byte) error {
 	t.unhashed++
 	k := keybytesToHex(key)
+	fmt.Println("TryUpdate common.Bytes2Hex(hexToKeybytes(k)):", ecommon.Bytes2Hex(hexToKeybytes(k)))
 	if len(value) != 0 {
 		_, n, err := t.insert(t.root, nil, k, valueNode(value))
 		if err != nil {
@@ -295,6 +298,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 			if !dirty || err != nil {
 				return false, n, err
 			}
+	
 			return true, &shortNode{n.Key, nn, t.newFlag()}, nil
 		}
 		// Otherwise branch out at the index where they differ.
@@ -313,6 +317,8 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 			return true, branch, nil
 		}
 		// Otherwise, replace it with a short node leading up to the branch.
+		
+		
 		return true, &shortNode{key[:matchlen], branch, t.newFlag()}, nil
 
 	case *fullNode:
@@ -326,7 +332,9 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 		return true, n, nil
 
 	case nil:
-		fmt.Println("insert -> shortNode")
+		fmt.Println("insert case nil -> shortNode")
+		fmt.Println("insert ecommon.Bytes2Hex(hexToKeybytes(key)", ecommon.Bytes2Hex(hexToKeybytes(key)))
+
 		return true, &shortNode{key, value, t.newFlag()}, nil
 
 	case hashNode:
@@ -530,6 +538,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	// Derive the hash for all dirty nodes first. We hold the assumption
 	// in the following procedure that all nodes are hashed.
 	rootHash := t.Hash()
+	fmt.Println("(t *Trie) Commit rootHash", rootHash.Hex())
 	h := newCommitter()
 	defer returnCommitterToPool(h)
 

@@ -1,17 +1,19 @@
 package erigon
 
 import (
+	"context"
 	"fmt"
 	"math/bits"
-	"context"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/etl"
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
+	
 	"github.com/ledgerwatch/erigon-lib/common/length"
+	"github.com/ledgerwatch/erigon-lib/etl"
+	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/interfaces"
-	"github.com/ledgerwatch/erigon/turbo/trie"
 	"github.com/ledgerwatch/erigon/common"
+
 
 	"github.com/ledgerwatch/log/v3"
 )
@@ -39,7 +41,7 @@ func assertSubset(a, b uint16) {
 	}
 }
 
-func accountTrieCollector(collector *etl.Collector) trie.HashCollector2 {
+func accountTrieCollector(collector *etl.Collector) etrie.HashCollector2 {
 	newV := make([]byte, 0, 1024)
 	return func(keyHex []byte, hasState, hasTree, hasHash uint16, hashes, _ []byte) error {
 		if len(keyHex) == 0 {
@@ -53,12 +55,12 @@ func accountTrieCollector(collector *etl.Collector) trie.HashCollector2 {
 		}
 		assertSubset(hasTree, hasState)
 		assertSubset(hasHash, hasState)
-		newV = trie.MarshalTrieNode(hasState, hasTree, hasHash, hashes, nil, newV)
+		newV = etrie.MarshalTrieNode(hasState, hasTree, hasHash, hashes, nil, newV)
 		return collector.Collect(keyHex, newV)
 	}
 }
 
-func storageTrieCollector(collector *etl.Collector) trie.StorageHashCollector2 {
+func storageTrieCollector(collector *etl.Collector) etrie.StorageHashCollector2 {
 	newK := make([]byte, 0, 128)
 	newV := make([]byte, 0, 1024)
 	return func(accWithInc []byte, keyHex []byte, hasState, hasTree, hasHash uint16, hashes, rootHash []byte) error {
@@ -74,116 +76,114 @@ func storageTrieCollector(collector *etl.Collector) trie.StorageHashCollector2 {
 		}
 		assertSubset(hasTree, hasState)
 		assertSubset(hasHash, hasState)
-		newV = trie.MarshalTrieNode(hasState, hasTree, hasHash, hashes, rootHash, newV)
+		newV = etrie.MarshalTrieNode(hasState, hasTree, hasHash, hashes, rootHash, newV)
 		return collector.Collect(newK, newV)
 	}
 }
 
-
-
 // refactored RegenerateIntermediateHashes
 func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
-	//expectedRootHash common.Hash
-	)  (common.Hash, error) {
+
+//expectedRootHash common.Hash
+) (common.Hash, error) {
 	log.Info(fmt.Sprintf("[%s] Generation of trie hashes started", logPrefix))
 	defer log.Info(fmt.Sprintf("[%s] Generation ended", logPrefix))
 
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 	_ = tx.ClearBucket(kv.TrieOfAccounts)
 	_ = tx.ClearBucket(kv.TrieOfStorage)
 
-	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer accTrieCollector.Close()
 	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
 
-	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(trie.NewRetainList(0), accTrieCollectorFunc, 
-	stTrieCollectorFunc, false); err != nil {
-		return trie.EmptyRoot, err
+	loader := etrie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
+		stTrieCollectorFunc, false); err != nil {
+		return etrie.EmptyRoot, err
 	}
 	hash, err := loader.CalcTrieRoot(tx, []byte{}, nil)
 	if err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 
 	/*
-	if cfg.checkRoot && hash != expectedRootHash {
-		return hash, nil
-	}
+		if cfg.checkRoot && hash != expectedRootHash {
+			return hash, nil
+		}
 	*/
 	//log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
 
-	if err := accTrieCollector.Load(tx, kv.TrieOfAccounts, etl.IdentityLoadFunc, 
+	if err := accTrieCollector.Load(tx, kv.TrieOfAccounts, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: nil}); err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
-	if err := stTrieCollector.Load(tx, kv.TrieOfStorage, etl.IdentityLoadFunc, 
+	if err := stTrieCollector.Load(tx, kv.TrieOfStorage, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: nil}); err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 
 	// ?
 	if err := tx.Commit(); err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 	return hash, nil
 
 }
 
 // for test purposes
-func RegenerateIntermediateHashes(logPrefix string, 
-	db kv.RwTx, cfg TrieCfg, 
-	expectedRootHash common.Hash, 
+func RegenerateIntermediateHashes(logPrefix string,
+	db kv.RwTx, cfg TrieCfg,
+	expectedRootHash common.Hash,
 	quit <-chan struct{}) (common.Hash, error) {
 	log.Info(fmt.Sprintf("[%s] Regeneration trie hashes started", logPrefix))
 	defer log.Info(fmt.Sprintf("[%s] Regeneration ended", logPrefix))
 	_ = db.ClearBucket(kv.TrieOfAccounts)
 	_ = db.ClearBucket(kv.TrieOfStorage)
 
-	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer accTrieCollector.Close()
 	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
 
-	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, 
+	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(trie.NewRetainList(0), accTrieCollectorFunc, 
-	stTrieCollectorFunc, false); err != nil {
-		return trie.EmptyRoot, err
+	loader := etrie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
+		stTrieCollectorFunc, false); err != nil {
+		return etrie.EmptyRoot, err
 	}
 	hash, err := loader.CalcTrieRoot(db, []byte{}, quit)
 	if err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 
 	log.Info("CalcTrieRoot Hash", hash.Hex())
 
 	if cfg.checkRoot && hash != expectedRootHash {
-		return hash, fmt.Errorf("Calculated Hash %s does not match expectedRootHash %s ", hash.Hex(), expectedRootHash.Hex() )
+		return hash, fmt.Errorf("Calculated Hash %s does not match expectedRootHash %s ", hash.Hex(), expectedRootHash.Hex())
 	}
 	log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
 
-	if err := accTrieCollector.Load(db, kv.TrieOfAccounts, etl.IdentityLoadFunc, 
+	if err := accTrieCollector.Load(db, kv.TrieOfAccounts, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: quit}); err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
-	if err := stTrieCollector.Load(db, kv.TrieOfStorage, etl.IdentityLoadFunc, 
+	if err := stTrieCollector.Load(db, kv.TrieOfStorage, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: quit}); err != nil {
-		return trie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 	return hash, nil
 }
-

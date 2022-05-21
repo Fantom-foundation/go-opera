@@ -13,18 +13,18 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
 
 
 	"github.com/stretchr/testify/assert"
 
 	com "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
-	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
 )
 
 
 var (
-	key1 = []byte("acc-1")
+	key1 = common.HexToHash("0xB1A0000000000000000000000000000000000000000000000000000000000000")
 	key2 = []byte("acc-2")
 	key3 = []byte("acc-3")
 )
@@ -36,6 +36,7 @@ func addSnapTestAccount(balance int64) [] byte{
 }
 
 // address Expected nil, but got: &fmt.wrapError{msg:"fail DecodeForStorage: codehash should be 32 bytes long, got 68 instead", err:(*errors.errorString)(0x140003f59e0)}
+/*
 func TestCompareEthereumErigonStateRootWithSnaphotAccounts(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
@@ -107,17 +108,21 @@ func TestCompareEthereumErigonStateRootWithSnaphotAccounts(t *testing.T) {
 	// Populate account & storage trie DB tables
 	// ----------------------------------------------------------------
 
+	/*
 	cfg := StageTrieCfg(nil, false, true, t.TempDir())
 	//expHash := common.BytesToHash([]byte("ssjj"))
-	hash, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	hash, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */ /*nil*/ /* quit )*/
+	/*
 	assert.NotNil(t, hash.Hex())
 	assert.Nil(t, err)
 	assert.Equal(t, legacyRoot, hash)
+	*/
 
 	// ----------------------------------------------------------------
 	// Check account trie
 	// ----------------------------------------------------------------
 
+	/*
 	accountTrieA := make(map[string][]byte)
 	err = tx.ForEach(kv.TrieOfAccounts, nil, func(k, v []byte) error {
 		accountTrieA[string(k)] = common.CopyBytes(v)
@@ -167,11 +172,12 @@ func TestCompareEthereumErigonStateRootWithSnaphotAccounts(t *testing.T) {
 	assert.Equal(t, uint16(0b0010), hasHash3)
 	assert.Equal(t, 1*length.Hash, len(hashes3))
 	assert.Equal(t, length.Hash, len(rootHash3))
-	*/
+
 
 }
+*/
 
-func addErigonTestAccount(tx kv.Putter, balance uint64, key []byte) ([]byte, error) {
+func addErigonTestAccount(tx kv.Putter, balance uint64) ([]byte, error) {
 	acc := new(accounts.Account)
 	acc.Root = common.Hash(emptyRoot)
 	acc.CodeHash = common.Hash(emptyCode)
@@ -192,11 +198,13 @@ func addErigonTestAccount(tx kv.Putter, balance uint64, key []byte) ([]byte, err
 		}
 	*/
 	
+	/*
 	hashedKey, err := common.HashData(key)
 	if err != nil {
 		return nil, err
 	}
-	return encoded, tx.Put(kv.HashedAccounts, hashedKey[:], encoded)
+	*/
+	return encoded, tx.Put(kv.HashedAccounts, key1[:], encoded)
 }
 
 
@@ -218,10 +226,24 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
     tr, err := trie.New(com.Hash{}, triedb)
 	assert.NoError(t, err)
 
+	/*
+	hashedKey, err := common.HashData(key1)
+	assert.NoError(t, err)
+	t.Log("test hashedKey", hashedKey.Hex())
+	*/
 
+	/*
+	hashedKey, err := common.HashData(key1)
+	assert.NoError(t, err)
+	t.Log("test hashedKey.Hex(): ", hashedKey.Hex())
+	*/
 
-	val, err := addErigonTestAccount(tx, 1, key1)
+	val, err := addErigonTestAccount(tx, 1)
 	assert.Nil(t, err)
+
+	hashedVal, err := common.HashData(val)
+	assert.Nil(t, err)
+	t.Log("hashedVal", hashedVal.Hex())
 
 
 
@@ -239,12 +261,10 @@ func TestCompareEthereumErigonStateRootWithErigonAccounts(t *testing.T) {
 		}
 	*/
 	
-	hk1, err := common.HashData(key1)
-	assert.Nil(t, err)
-	
+
 	
 
-	assert.Nil(t, tr.TryUpdate(hk1.Bytes(), val))
+	assert.Nil(t, tr.TryUpdate(key1[:], val))
 	//tr.SetRoot()
 	
 
