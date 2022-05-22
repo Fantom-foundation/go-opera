@@ -44,6 +44,7 @@ func assertSubset(a, b uint16) {
 func accountTrieCollector(collector *etl.Collector) etrie.HashCollector2 {
 	newV := make([]byte, 0, 1024)
 	return func(keyHex []byte, hasState, hasTree, hasHash uint16, hashes, _ []byte) error {
+		fmt.Println("accountTrieCollector")
 		if len(keyHex) == 0 {
 			return nil
 		}
@@ -64,6 +65,7 @@ func storageTrieCollector(collector *etl.Collector) etrie.StorageHashCollector2 
 	newK := make([]byte, 0, 128)
 	newV := make([]byte, 0, 1024)
 	return func(accWithInc []byte, keyHex []byte, hasState, hasTree, hasHash uint16, hashes, rootHash []byte) error {
+		fmt.Println("storageTrieCollector")
 		newK = append(append(newK[:0], accWithInc...), keyHex...)
 		if hasState == 0 {
 			return collector.Collect(newK, nil)

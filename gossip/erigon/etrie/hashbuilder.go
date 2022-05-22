@@ -62,6 +62,7 @@ func (hb *HashBuilder) Reset() {
 }
 
 func (hb *HashBuilder) leaf(length int, keyHex []byte, val rlphacks.RlpSerializable) error {
+	fmt.Println("(hb *HashBuilder) leaf")
 	if hb.trace {
 		fmt.Printf("LEAF %d\n", length)
 	}
@@ -133,7 +134,7 @@ func (hb *HashBuilder) leafHashWithKeyVal(key []byte, val rlphacks.RlpSerializab
 }
 
 func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, compact0 byte, ni int, val rlphacks.RlpSerializable) error {
-
+	fmt.Println("completeLeafHash")
 	totalLen := kp + kl + val.DoubleRLPLen()
 	pt := rlphacks.GenerateStructLen(hb.lenPrefix[:], totalLen)
 
@@ -261,7 +262,7 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, balance *uint256.I
 
 //called from GenStructStep case GenStructStepAccountData
 func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldSet uint32) (err error) {
-	fmt.Println("accountLeafHash")
+	fmt.Println("(hb *HashBuilder) accountLeafHash")
 	if hb.trace {
 		fmt.Printf("ACCOUNTLEAFHASH %d (%b)\n", length, fieldSet)
 	}
@@ -328,16 +329,14 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	encoded := make([]byte, hb.acc.EncodingLengthForStorage())
 	hb.acc.EncodeForStorage(encoded)
 	hashedVal, _ := common.HashData(encoded)
-	fmt.Println("accountLeafHashWithKey hashedVal", hashedVal.Hex())
-	fmt.Println("accountLeafHashWithKey common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
-	
-
+	fmt.Println("accountLeafHashWithKey original val hashedVal", hashedVal.Hex())
+	fmt.Println("accountLeafHashWithKey original key common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
 	
 	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
 	}
-	
+
 
 	if popped > 0 {
 		fmt.Println("accountLeafHashWithKey popped > 0")

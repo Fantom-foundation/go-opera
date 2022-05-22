@@ -264,6 +264,7 @@ func (t *Trie) UpdateAccount(key []byte, acc *accounts.Account) {
 
 	var newnode *accountNode
 	if value.Root == EmptyRoot || value.Root == (common.Hash{}) {
+		fmt.Println("Update account first case")
 		newnode = &accountNode{*value, nil, true, nil, codeSizeUncached}
 	} else {
 		newnode = &accountNode{*value, hashNode{hash: value.Root[:]}, true, nil, codeSizeUncached}

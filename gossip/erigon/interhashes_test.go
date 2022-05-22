@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
+	//"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
 
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ var (
 	key2 = []byte("acc-2")
 	key3 = []byte("acc-3")
 )
+
 
 func addSnapTestAccount(balance int64) [] byte{
 	acc := &snapshot.Account{Balance: big.NewInt(1), Root: emptyRoot.Bytes(), CodeHash: emptyCode.Bytes()}
@@ -243,26 +245,10 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 
 	hashedVal, err := common.HashData(val)
 	assert.Nil(t, err)
-	t.Log("hashedVal", hashedVal.Hex())
+	t.Log("hashed value of serialized account", hashedVal.Hex())
 
 
 
-	//replace tr.Update(key1, val) by my implementation below
-
-	// 1. hash a key 
-	/*   I replaced this func by common.HashData (used in Erigon)
-	func (t *SecureTrie) hashKey(key []byte) []byte {
-			h := newHasher(false)
-			h.sha.Reset()
-			h.sha.Write(key)
-			h.sha.Read(t.hashKeyBuf[:])
-			returnHasherToPool(h)
-			return t.hashKeyBuf[:]
-		}
-	*/
-	
-
-	
 
 	assert.Nil(t, tr.TryUpdate(key1[:], val))
 	//tr.SetRoot()
@@ -298,6 +284,264 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	//erigon  : "0x7ed8e10e694f87e13ac1db95f0ebdea4a4644203edcd6b2b9f6c27e31bf1353f"
 	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
 }
+
+
+
+/*
+func TestHashTree(t *testing.T) {
+
+	eTrie := etrie.New(common.Hash{})
+
+	acc := new(accounts.Account)
+	acc.Root = common.Hash(emptyRoot)
+	acc.CodeHash = common.Hash(emptyCode)
+	acc.Balance.SetUint64(1)
+
+	eTrie.UpdateAccount(key1[:], acc)
+	expHash := eTrie.Hash()
+
+
+	diskdb := memorydb.New()
+	triedb := trie.NewDatabase(diskdb)
+	tr, err := trie.New(com.Hash{}, triedb)
+	assert.NoError(t, err)
+
+	val := make([]byte, acc.EncodingLengthForStorage())
+	acc.EncodeForStorage(val)
+	assert.Nil(t, tr.TryUpdate(key1[:], val))
+	actualHash, err := tr.Commit(nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, actualHash.Hex(), expHash.Hex())
+}
+*/
+
+
+/*
+func TestHashWithModificationsNoChanges(t *testing.T) {
+	tr := New(common.Hash{})
+	// Populate the trie
+	var preimage [4]byte
+	var keys []string
+	for b := uint32(0); b < 10; b++ {
+		binary.BigEndian.PutUint32(preimage[:], b)
+		key := crypto.Keccak256(preimage[:])
+		keys = append(keys, string(key))
+	}
+	sort.Strings(keys)
+	for i, key := range keys {
+		if i > 0 && keys[i-1] == key {
+			fmt.Printf("Duplicate!\n")
+		}
+	}
+	var a0, a1 accounts.Account
+	a0.Balance.SetUint64(100000)
+	a0.Root = EmptyRoot
+	a0.CodeHash = emptyState
+	a0.Initialised = true
+	a1.Balance.SetUint64(200000)
+	a1.Root = EmptyRoot
+	a1.CodeHash = emptyState
+	a1.Initialised = true
+	v := []byte("VALUE")
+	for i, key := range keys {
+		if i%2 == 0 {
+			tr.UpdateAccount([]byte(key), &a0)
+		} else {
+			tr.UpdateAccount([]byte(key), &a1)
+			// Add storage items too
+			for _, storageKey := range keys {
+				tr.Update([]byte(key+storageKey), v)
+			}
+		}
+	}
+	expectedHash := tr.Hash()
+	// Build the root
+	var stream Stream
+	hb := NewHashBuilder(false)
+	rootHash, err := HashWithModifications(
+		tr,
+		common.Hashes{}, []*accounts.Account{}, [][]byte{},
+		common.StorageKeys{}, [][]byte{},
+		40,
+		&stream, // Streams that will be reused for old and new stream
+		hb,      // HashBuilder will be reused
+		false,
+	)
+	if err != nil {
+		t.Errorf("Could not compute hash with modification: %v", err)
+	}
+	if rootHash != expectedHash {
+		t.Errorf("Expected %x, got: %x", expectedHash, rootHash)
+	}
+}
+
+func TestHashWithModificationsChanges(t *testing.T) {
+	tr := New(common.Hash{})
+	// Populate the trie
+	var preimage [4]byte
+	var keys []string
+	for b := uint32(0); b < 10; b++ {
+		binary.BigEndian.PutUint32(preimage[:], b)
+		key := crypto.Keccak256(preimage[:])
+		keys = append(keys, string(key))
+	}
+	sort.Strings(keys)
+	for i, key := range keys {
+		if i > 0 && keys[i-1] == key {
+			fmt.Printf("Duplicate!\n")
+		}
+	}
+	var a0, a1 accounts.Account
+	a0.Balance.SetUint64(100000)
+	a0.Root = EmptyRoot
+	a0.CodeHash = emptyState
+	a0.Initialised = true
+	a1.Balance.SetUint64(200000)
+	a1.Root = EmptyRoot
+	a1.CodeHash = emptyState
+	a1.Initialised = true
+	v := []byte("VALUE")
+	for i, key := range keys {
+		if i%2 == 0 {
+			tr.UpdateAccount([]byte(key), &a0)
+		} else {
+			tr.UpdateAccount([]byte(key), &a1)
+			// Add storage items too
+			for _, storageKey := range keys {
+				tr.Update([]byte(key+storageKey), v)
+			}
+		}
+	}
+	tr.Hash()
+	// Generate account change
+	binary.BigEndian.PutUint32(preimage[:], 5000000)
+	var insertKey common.Hash
+	copy(insertKey[:], crypto.Keccak256(preimage[:]))
+	var insertA accounts.Account
+	insertA.Balance.SetUint64(300000)
+	insertA.Root = etrie.EmptyRoot
+	insertA.CodeHash = emptyState
+	insertA.Initialised = true
+
+	// Build the root
+	var stream etrie.Stream
+	hb := etrie.NewHashBuilder(false)
+	rootHash, err := etrie.HashWithModifications(
+		tr,
+		common.Hashes{insertKey}, []*accounts.Account{&insertA}, [][]byte{nil},
+		common.StorageKeys{}, [][]byte{},
+		40,
+		&stream, // Streams that will be reused for old and new stream
+		hb,      // HashBuilder will be reused
+		false,
+	)
+	if err != nil {
+		t.Errorf("Could not compute hash with modification: %v", err)
+	}
+	tr.UpdateAccount(insertKey[:], &insertA)
+	expectedHash := tr.Hash()
+	if rootHash != expectedHash {
+		t.Errorf("Expected %x, got: %x", expectedHash, rootHash)
+	}
+}
+
+func TestIHCursor(t *testing.T) {
+	_, tx := memdb.NewTestTx(t)
+	require := require.New(t)
+	hash := common.HexToHash(fmt.Sprintf("%064d", 0))
+
+	newV := make([]byte, 0, 1024)
+	put := func(ks string, hasState, hasTree, hasHash uint16, hashes []common.Hash) {
+		k := common.FromHex(ks)
+		integrity.AssertSubset(k, hasTree, hasState)
+		integrity.AssertSubset(k, hasHash, hasState)
+		_ = tx.Put(kv.TrieOfAccounts, k, common.CopyBytes(trie.MarshalTrieNodeTyped(hasState, hasTree, hasHash, hashes, newV)))
+	}
+
+	put("00", 0b0000000000000010, 0b0000000000000000, 0b0000000000000010, []common.Hash{hash})
+	put("01", 0b0000000000000111, 0b0000000000000010, 0b0000000000000111, []common.Hash{hash, hash, hash})
+	put("0101", 0b0000000000000111, 0b0000000000000000, 0b0000000000000111, []common.Hash{hash, hash, hash})
+	put("02", 0b1000000000000000, 0b0000000000000000, 0b1000000000000000, []common.Hash{hash})
+	put("03", 0b0000000000000001, 0b0000000000000001, 0b0000000000000000, []common.Hash{})
+	put("030000", 0b0000000000000001, 0b0000000000000000, 0b0000000000000001, []common.Hash{hash})
+	put("03000e", 0b0000000000000001, 0b0000000000000001, 0b0000000000000001, []common.Hash{hash})
+	put("03000e000000", 0b0000000000000100, 0b0000000000000000, 0b0000000000000100, []common.Hash{hash})
+	put("03000e00000e", 0b0000000000000100, 0b0000000000000000, 0b0000000000000100, []common.Hash{hash})
+	put("05", 0b0000000000000001, 0b0000000000000001, 0b0000000000000001, []common.Hash{hash})
+	put("050001", 0b0000000000000001, 0b0000000000000000, 0b0000000000000001, []common.Hash{hash})
+	put("05000f", 0b0000000000000001, 0b0000000000000000, 0b0000000000000001, []common.Hash{hash})
+	put("06", 0b0000000000000001, 0b0000000000000000, 0b0000000000000001, []common.Hash{hash})
+
+	integrity.Trie(tx, false, context.Background())
+
+	cursor, err := tx.Cursor(kv.TrieOfAccounts)
+	require.NoError(err)
+	rl := trie.NewRetainList(0)
+	rl.AddHex(common.FromHex("01"))
+	rl.AddHex(common.FromHex("0101"))
+	rl.AddHex(common.FromHex("030000"))
+	rl.AddHex(common.FromHex("03000e"))
+	rl.AddHex(common.FromHex("03000e00"))
+	rl.AddHex(common.FromHex("0500"))
+	var canUse = func(prefix []byte) (bool, []byte) {
+		retain, nextCreated := rl.RetainWithMarker(prefix)
+		return !retain, nextCreated
+	}
+	ih := trie.AccTrie(canUse, func(keyHex []byte, _, _, _ uint16, hashes, rootHash []byte) error {
+		return nil
+	}, cursor, nil)
+	k, _, _, _ := ih.AtPrefix([]byte{})
+	require.Equal(common.FromHex("0001"), k)
+	require.True(ih.SkipState)
+	require.Equal([]byte{}, ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("0100"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("02"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("010100"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("010101"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("010102"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("1120"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("0102"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("1130"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("020f"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("13"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("03000000"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("03000e00000002"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("3001"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("03000e00000e02"), k)
+	require.True(ih.SkipState)
+	require.Equal(common.FromHex("30e00030"), ih.FirstNotCoveredPrefix())
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("05000100"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("05000f00"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	require.Equal(common.FromHex("0600"), k)
+	require.True(ih.SkipState)
+	k, _, _, _ = ih.Next()
+	assert.Nil(t, k)
+}
+*/
+
 
 
 

@@ -110,7 +110,11 @@ func GenStructStep(
 	hasHash []uint16,
 	trace bool,
 ) ([]uint16, []uint16, []uint16, error) {
+	fmt.Println("GenStructStep")
+	i := 0
 	for precLen, buildExtensions := calcPrecLen(groups), false; precLen >= 0; precLen, buildExtensions = calcPrecLen(groups), true {
+		i++
+		fmt.Println("GenStructStep for loop called: ", i, "times")
 		var precExists = len(groups) > 0
 		// Calculate the prefix of the smallest prefix group containing curr
 		var precLen int
