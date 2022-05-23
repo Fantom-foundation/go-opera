@@ -14,7 +14,8 @@ import (
 const (
 	percentilesPerStat = 40
 	statUpdatePeriod   = time.Second
-	statsBuffer        = (8 * time.Second) / statUpdatePeriod // 10
+	statsBuffer        = (8 * time.Second) / statUpdatePeriod
+	maxGasToIndex      = 50000000
 )
 
 type txpoolStat struct {
@@ -96,7 +97,9 @@ func (c *circularTxpoolStats) calcAvg() txpoolStat {
 		nonZero++
 		avg.totalGas += s.totalGas
 		for p := range s.percentiles {
-			avg.percentiles[p].Add(avg.percentiles[p], s.percentiles[p])
+			if s.percentiles[p] != nil {
+				avg.percentiles[p].Add(avg.percentiles[p], s.percentiles[p])
+			}
 		}
 	}
 	if nonZero == 0 {
@@ -120,13 +123,13 @@ func (c *circularTxpoolStats) getGasPriceForGasAbove(gas uint64) *big.Int {
 	if avg.totalGas == 0 {
 		return new(big.Int)
 	}
-	if gas > avg.totalGas {
-		// special case if pool is half-empty, extrapolate linearly
-		v := new(big.Int).Mul(avg.percentiles[len(avg.percentiles)-1], new(big.Int).SetUint64(avg.totalGas))
+	if gas > maxGasToIndex {
+		// extrapolate linearly
+		v := new(big.Int).Mul(avg.percentiles[len(avg.percentiles)-1], new(big.Int).SetUint64(maxGasToIndex))
 		v.Div(v, new(big.Int).SetUint64(gas+1))
 		return v
 	}
-	p := gas * uint64(len(avg.percentiles)) / avg.totalGas
+	p := gas * uint64(len(avg.percentiles)) / maxGasToIndex
 	if p >= uint64(len(avg.percentiles)) {
 		p = uint64(len(avg.percentiles)) - 1
 	}
@@ -153,7 +156,6 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 	}
 	// don't index more transactions than needed for GPO purposes
 	const maxTxsToIndex = 400
-	const maxGasToIndex = 50000000
 
 	minGasPrice := gpo.backend.GetRules().Economy.MinGasPrice
 	// txs are sorted from large price to small
@@ -183,7 +185,7 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 	p := uint64(0)
 	for _, tx := range sortedDown {
 		gasCounter += tx.Gas()
-		for p < uint64(len(s.percentiles)) && gasCounter >= p*s.totalGas/uint64(len(s.percentiles)) {
+		for p < uint64(len(s.percentiles)) && gasCounter >= p*maxGasToIndex/uint64(len(s.percentiles)) {
 			s.percentiles[p] = tx.EffectiveGasTipValue(minGasPrice)
 			if s.percentiles[p].Sign() < 0 {
 				s.percentiles[p] = minGasPrice
