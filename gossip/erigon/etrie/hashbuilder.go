@@ -325,30 +325,40 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	hb.acc.EncodeForHashing(hb.valBuf[:])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
 
+	hashedRlpEncodedVal, err := common.HashData(val)
+	fmt.Println("accountLeafHashWithKey hashedRlpEncodedVal", hashedRlpEncodedVal.Hex())
 
-	encoded := make([]byte, hb.acc.EncodingLengthForStorage())
-	hb.acc.EncodeForStorage(encoded)
-	hashedVal, _ := common.HashData(encoded)
+
+	// recover original key in Hex and hash of value
+	encodedVal := make([]byte, hb.acc.EncodingLengthForStorage())
+	hb.acc.EncodeForStorage(encodedVal)
+	hashedVal, _ := common.HashData(encodedVal)
+	// hash of value matches one from the test hashed value of serialized account 0x34f1102f7b71cdad313e5bb55aaaaeaed82783000e0744d997ee9d223ef907ef
 	fmt.Println("accountLeafHashWithKey original val hashedVal", hashedVal.Hex())
-	fmt.Println("accountLeafHashWithKey original key common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
+	// key in hex is b1a0000000000000000000000000000000000000000000000000000000000000
+	//fmt.Println("accountLeafHashWithKey original key common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
+	hashedKey, _ := common.HashData(key)
+	fmt.Println("accountLeafHashWithKey originay hashed Key", hashedKey.Hex())
+	//compute legacy geth trie root
 	
-	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
+	err = hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
 	}
-
 
 	if popped > 0 {
 		fmt.Println("accountLeafHashWithKey popped > 0")
 		hb.hashStack = hb.hashStack[:len(hb.hashStack)-popped*hashStackStride]
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
 	}
+
+
 	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
 	
 	
 	var stateRoot common.Hash
-	copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
+    copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
 	fmt.Println("accountLeafHashWithKey hashStack index", len(hb.hashStack)-hashStackStride+1)
 	fmt.Println("accountLeafHashWithKey stateRoot.Hex()", stateRoot.Hex())
 	
@@ -359,6 +369,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	}
 	return nil
 }
+
 
 func (hb *HashBuilder) extension(key []byte) error {
 	if hb.trace {

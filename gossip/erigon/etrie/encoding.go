@@ -18,6 +18,7 @@ package etrie
 
 import (
 	"io"
+	"fmt"
 
 	"github.com/ledgerwatch/erigon/rlp"
 )
@@ -59,6 +60,7 @@ func hexToCompact(hex []byte) []byte {
 }
 
 func compactToHex(compact []byte) []byte {
+	fmt.Println("compactToHex calls keybytesToHex")
 	if len(compact) == 0 {
 		return compact
 	}
@@ -156,6 +158,7 @@ func (x *Keybytes) DecodeRLP(s *rlp.Stream) error {
 }
 
 func keybytesToHex(str []byte) []byte {
+	fmt.Println("keybytesToHex")
 	l := len(str)*2 + 1
 	var nibbles = make([]byte, l)
 	for i, b := range str {

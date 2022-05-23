@@ -243,6 +243,10 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	val, err := addErigonTestAccount(tx, 1)
 	assert.Nil(t, err)
 
+	hashedKey, _ := common.HashData(key1.Bytes())
+	assert.Nil(t, err)
+	t.Log("hashed value of accountKey", hashedKey.Hex())
+
 	hashedVal, err := common.HashData(val)
 	assert.Nil(t, err)
 	t.Log("hashed value of serialized account", hashedVal.Hex())

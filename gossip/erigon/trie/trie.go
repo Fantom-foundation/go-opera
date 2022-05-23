@@ -257,11 +257,12 @@ func (t *Trie) Update(key, value []byte) {
 // stored in the trie.
 //
 // If a node was not found in the database, a MissingNodeError is returned.
-func (t *Trie) TryUpdate(key, value []byte) error {
+func (t *Trie) TryUpdate(k, value []byte) error {
 	t.unhashed++
-	k := keybytesToHex(key)
-	fmt.Println("TryUpdate common.Bytes2Hex(hexToKeybytes(k)):", ecommon.Bytes2Hex(hexToKeybytes(k)))
+	//k := keybytesToHex(key) cause the key is already hashed
+	//fmt.Println("TryUpdate common.Bytes2Hex(hexToKeybytes(k)):", ecommon.Bytes2Hex(hexToKeybytes(k)))
 	if len(value) != 0 {
+		fmt.Println("TryUpdate len(value) != 0")
 		_, n, err := t.insert(t.root, nil, k, valueNode(value))
 		if err != nil {
 			return err
@@ -333,8 +334,9 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 
 	case nil:
 		fmt.Println("insert case nil -> shortNode")
-		fmt.Println("insert ecommon.Bytes2Hex(hexToKeybytes(key)", ecommon.Bytes2Hex(hexToKeybytes(key)))
-
+		//fmt.Println("insert ecommon.Bytes2Hex(hexToKeybytes(key)", ecommon.Bytes2Hex(hexToKeybytes(key)))
+		fmt.Println("insert case nil key", ecommon.Bytes2Hex(key))
+		//fmt.Println("insert case nil keybytesToHex(key)", ecommon.Bytes2Hex(keybytesToHex(key)))
 		return true, &shortNode{key, value, t.newFlag()}, nil
 
 	case hashNode:

@@ -792,6 +792,7 @@ func HashWithModifications(
 	hb *HashBuilder, // HashBuilder will be reused
 	trace bool,
 ) (common.Hash, error) {
+	fmt.Println("HashWithModifications")
 	keyCount := len(aKeys) + len(sKeys)
 	var stream = Stream{
 		keyBytes:  make([]byte, len(aKeys)*(2*common.HashLength)+len(sKeys)*(4*common.HashLength+2*common.IncarnationLength)),

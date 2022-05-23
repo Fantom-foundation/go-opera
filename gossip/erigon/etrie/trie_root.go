@@ -419,7 +419,9 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(true, hasTree, storageValue, hash)
 	case AccountStreamItem:
-		fmt.Println("RootHashAggregator Receive case AccountStreamItem", "common.Bytes2Hex(hexToKeybytes(accountKey)): ", common.Bytes2Hex(hexToKeybytes(accountKey)))
+		hashedKey , _ := common.HashData(accountKey)
+		fmt.Println("RootHashAggregator Receive case AccountStreamItem hashed accountKey", hashedKey.Hex())
+		//fmt.Println("RootHashAggregator Receive case AccountStreamItem", "accountKey in Hex", common.Bytes2Hex(accountKey))
 		r.advanceKeysAccount(accountKey, true /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
 			fmt.Println("case AccountStreamItem  r.curr.Len() > 0 && !r.wasIH  ")
