@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	percentilesPerStat = 40
-	statUpdatePeriod   = time.Second
-	statsBuffer        = (8 * time.Second) / statUpdatePeriod
-	maxGasToIndex      = 50000000
+	percentilesPerStat = 20
+	statUpdatePeriod   = 1 * time.Second
+	statsBuffer        = (12 * time.Second) / statUpdatePeriod
+	maxGasToIndex      = 40000000
 )
 
 type txpoolStat struct {
@@ -30,18 +30,18 @@ type circularTxpoolStats struct {
 	avg       atomic.Value
 }
 
-var certaintyToTtf = piecefunc.NewFunc([]piecefunc.Dot{
+var certaintyToGasAbove = piecefunc.NewFunc([]piecefunc.Dot{
 	{
 		X: 0,
-		Y: 10000 * uint64(time.Millisecond),
+		Y: 50000000,
 	},
 	{
 		X: 0.2 * DecimalUnit,
-		Y: 4000 * uint64(time.Millisecond),
+		Y: 20000000,
 	},
 	{
 		X: 0.5 * DecimalUnit,
-		Y: 1500 * uint64(time.Millisecond),
+		Y: 10000000,
 	},
 	{
 		X: DecimalUnit,
@@ -50,12 +50,9 @@ var certaintyToTtf = piecefunc.NewFunc([]piecefunc.Dot{
 })
 
 func (gpo *Oracle) reactiveGasPrice(certainty uint64) *big.Int {
-	allocPerSec := gpo.backend.GetRules().Economy.LongGasPower.AllocPerSec
-	targetTtf := certaintyToTtf(certainty)
+	gasAbove := certaintyToGasAbove(certainty)
 
-	ttfAllocGasBn := new(big.Int).Mul(new(big.Int).SetUint64(allocPerSec), new(big.Int).SetUint64(targetTtf))
-	ttfAllocGasBn.Div(ttfAllocGasBn, secondBn)
-	return gpo.c.getGasPriceForGasAbove(ttfAllocGasBn.Uint64())
+	return gpo.c.getGasPriceForGasAbove(gasAbove)
 }
 
 func (gpo *Oracle) txpoolStatsTick() {
