@@ -259,7 +259,9 @@ func (t *Trie) Update(key, value []byte) {
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *Trie) TryUpdate(k, value []byte) error {
 	t.unhashed++
-	//k := keybytesToHex(key) cause the key is already hashed
+	fmt.Printf("TryUpdate k before keybytesToHex: %x\n", k)
+	k = keybytesToHex(k)
+	fmt.Printf("TryUpdate k after keybytesToHex: %x\n", k)
 	//fmt.Println("TryUpdate common.Bytes2Hex(hexToKeybytes(k)):", ecommon.Bytes2Hex(hexToKeybytes(k)))
 	if len(value) != 0 {
 		fmt.Println("TryUpdate len(value) != 0")

@@ -1,7 +1,7 @@
 package erigon
 
 import (
-
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -243,13 +243,8 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	val, err := addErigonTestAccount(tx, 1)
 	assert.Nil(t, err)
 
-	hashedKey, _ := common.HashData(key1.Bytes())
-	assert.Nil(t, err)
-	t.Log("hashed value of accountKey", hashedKey.Hex())
-
-	hashedVal, err := common.HashData(val)
-	assert.Nil(t, err)
-	t.Log("hashed value of serialized account", hashedVal.Hex())
+	fmt.Printf("hex value of accountKey: %x\n" , key1.Bytes())
+	fmt.Printf("hex value of serialized account: %x\n", val)
 
 
 

@@ -111,6 +111,8 @@ func GenStructStep(
 	trace bool,
 ) ([]uint16, []uint16, []uint16, error) {
 	fmt.Println("GenStructStep")
+	fmt.Printf("GenStructStep curr %x\n", curr)
+	fmt.Printf("GenStructStep succ %x\n", succ)
 	i := 0
 	for precLen, buildExtensions := calcPrecLen(groups), false; precLen >= 0; precLen, buildExtensions = calcPrecLen(groups), true {
 		i++
@@ -173,7 +175,7 @@ func GenStructStep(
 						return nil, nil, nil, err
 					}
 				} else {
-					fmt.Println("GenStructStep case GenStructStepAccountData accountLeafHash")
+					fmt.Printf("GenStructStep case GenStructStepAccountData accountLeafHash curr %x\n", curr)
 					if err := e.accountLeafHash(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet); err != nil {
 						return nil, nil, nil, err
 					}

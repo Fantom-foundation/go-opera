@@ -67,6 +67,7 @@ func Visual(t *Trie, w io.Writer, opts *VisualOpts) {
 
 func visualNode(nd node, hex []byte, w io.Writer, highlights [][]byte, opts *VisualOpts,
 	leaves map[string]struct{}, hashes map[string]struct{}) {
+	fmt.Println("visual node")
 	switch n := nd.(type) {
 	case nil:
 	case *shortNode:

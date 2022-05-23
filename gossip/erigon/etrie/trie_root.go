@@ -254,12 +254,11 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			if err = l.accountValue.DecodeForStorage(v); err != nil {
 				return EmptyRoot, fmt.Errorf("fail DecodeForStorage: %w", err)
 			}
-			fmt.Println("accs.Seek l.receiver.Receive Before")
+
 			if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
 				return EmptyRoot, err
 			}
-
-			fmt.Println("accs.Seek l.receiver.Receive Done")
+			
 			if l.accountValue.Incarnation == 0 {
 				fmt.Println("accs.Seek l.accountValue.Incarnation == 0 for loop")
 				continue
@@ -419,8 +418,8 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(true, hasTree, storageValue, hash)
 	case AccountStreamItem:
-		hashedKey , _ := common.HashData(accountKey)
-		fmt.Println("RootHashAggregator Receive case AccountStreamItem hashed accountKey", hashedKey.Hex())
+		fmt.Println("RootHashAggregator Receive case AccountStreamItem")
+		fmt.Printf("case AccountStreamItem accountKey %x\n", accountKey)
 		//fmt.Println("RootHashAggregator Receive case AccountStreamItem", "accountKey in Hex", common.Bytes2Hex(accountKey))
 		r.advanceKeysAccount(accountKey, true /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
@@ -486,9 +485,11 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 	case CutoffStreamItem:
 		fmt.Println("RootHashAggregator Receive case CutoffStreamItem")
+		fmt.Println("case CutoffStreamItemr.curr %x\n", r.curr.Bytes())
 		if r.trace {
 			fmt.Printf("storage cuttoff %d\n", cutoff)
 		}
+
 		r.cutoffKeysAccount(cutoff)
 		if r.curr.Len() > 0 && !r.wasIH {
 			fmt.Println("CutoffStreamItem case r.curr.Len() > 0 && !r.wasIH")
@@ -626,13 +627,18 @@ func (r *RootHashAggregator) saveValueStorage(isIH, hasTree bool, v, h []byte) {
 }
 
 func (r *RootHashAggregator) advanceKeysAccount(k []byte, terminator bool) {
+	fmt.Println("advanceKeysAccount resetting r.curr")
 	r.curr.Reset()
+	fmt.Println("writing r.succ into r.curr")
 	r.curr.Write(r.succ.Bytes())
 	r.succ.Reset()
+	fmt.Println("writing accountKey into r.succ")
 	r.succ.Write(k)
 	if terminator {
+		fmt.Println("writing 16 into r.succ")
 		r.succ.WriteByte(16)
 	}
+	fmt.Printf("r.succ %x\n", r.succ.Bytes())
 }
 
 func (r *RootHashAggregator) cutoffKeysAccount(cutoff int) {
@@ -1421,8 +1427,9 @@ func (c *StateCursor) Seek(seek []byte) ([]byte, []byte, []byte, error) {
 	if err != nil {
 		return []byte{}, nil, nil, err
 	}
-
+	fmt.Printf("stateCursor.Seek() k before DecompressNibbles: %x\n", k)
 	hexutil.DecompressNibbles(k, &c.kHex)
+	fmt.Printf("stateCursor.Seek() c.kHex after DecompressNibbles: %x\n", c.kHex)
 	return k, c.kHex, v, nil
 }
 

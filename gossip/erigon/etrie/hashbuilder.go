@@ -151,14 +151,17 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		writer = hb.sha
 		reader = hb.sha
 	}
-
+	fmt.Printf("completeLeafHash hb.lenPrefix[:pt]: %x\n", []byte(hb.lenPrefix[:pt]))
 	if _, err := writer.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
+
+	fmt.Printf("completeLeafHash hb.keyPrefix[:kp]: %x\n", []byte(hb.keyPrefix[:kp]))
 	if _, err := writer.Write(hb.keyPrefix[:kp]); err != nil {
 		return err
 	}
 	hb.b[0] = compact0
+	fmt.Printf("completeLeafHash hb.b[:]: %x\n", hb.b[:])
 	if _, err := writer.Write(hb.b[:]); err != nil {
 		return err
 	}
@@ -267,6 +270,7 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 		fmt.Printf("ACCOUNTLEAFHASH %d (%b)\n", length, fieldSet)
 	}
 	key := keyHex[len(keyHex)-length:]
+	//fmt.Printf("accountLeafHash key with diff len: x%\n", []byte(key))
 	hb.acc.Nonce = nonce
 	hb.acc.Balance.Set(balance)
 	hb.acc.Initialised = true
@@ -293,6 +297,8 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 // To be called internally
 func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	fmt.Println("accountLeafHashWithKey")
+	fmt.Println("accountLeafHashWithKey popped", popped)
+	fmt.Printf("accountLeafHashWithKey key: %x\n", key)
 	// Compute the total length of binary representation
 	var kp, kl int
 	// Write key
@@ -325,23 +331,17 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	hb.acc.EncodeForHashing(hb.valBuf[:])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
 
-	hashedRlpEncodedVal, err := common.HashData(val)
-	fmt.Println("accountLeafHashWithKey hashedRlpEncodedVal", hashedRlpEncodedVal.Hex())
+	fmt.Printf("accountLeafHashWithKey hashedRlpEncodedVal: %x\n", hb.valBuf[:valLen])
 
 
-	// recover original key in Hex and hash of value
+	// recover original key in Hex and hash of value, for test purposes
 	encodedVal := make([]byte, hb.acc.EncodingLengthForStorage())
 	hb.acc.EncodeForStorage(encodedVal)
-	hashedVal, _ := common.HashData(encodedVal)
-	// hash of value matches one from the test hashed value of serialized account 0x34f1102f7b71cdad313e5bb55aaaaeaed82783000e0744d997ee9d223ef907ef
-	fmt.Println("accountLeafHashWithKey original val hashedVal", hashedVal.Hex())
-	// key in hex is b1a0000000000000000000000000000000000000000000000000000000000000
-	//fmt.Println("accountLeafHashWithKey original key common.Bytes2Hex(hexToKeybytes(key))", common.Bytes2Hex(hexToKeybytes(key)))
-	hashedKey, _ := common.HashData(key)
-	fmt.Println("accountLeafHashWithKey originay hashed Key", hashedKey.Hex())
+	fmt.Printf("accountLeafHashWithKey original val: %x\n", encodedVal)
+	fmt.Printf("accountLeafHashWithKey key: %x\n", key)
 	//compute legacy geth trie root
 	
-	err = hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
+	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
 	}
@@ -352,15 +352,15 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
 	}
 
-
+	fmt.Printf("hb.hashStack before appending hashBuf: %x\n", hb.hashStack)
 	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
-	
+	fmt.Printf("hb.hashStack after appending hashBuf: %x\n", hb.hashStack)
 	
 	var stateRoot common.Hash
     copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
 	fmt.Println("accountLeafHashWithKey hashStack index", len(hb.hashStack)-hashStackStride+1)
-	fmt.Println("accountLeafHashWithKey stateRoot.Hex()", stateRoot.Hex())
+	fmt.Printf("accountLeafHashWithKey stateRoot: %x\n", stateRoot)
 	
 
 	hb.nodeStack = append(hb.nodeStack, nil)
