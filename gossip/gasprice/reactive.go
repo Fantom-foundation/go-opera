@@ -41,7 +41,7 @@ var certaintyToGasAbove = piecefunc.NewFunc([]piecefunc.Dot{
 	},
 	{
 		X: 0.5 * DecimalUnit,
-		Y: 10000000,
+		Y: 8000000,
 	},
 	{
 		X: DecimalUnit,
@@ -126,11 +126,28 @@ func (c *circularTxpoolStats) getGasPriceForGasAbove(gas uint64) *big.Int {
 		v.Div(v, new(big.Int).SetUint64(gas+1))
 		return v
 	}
-	p := gas * uint64(len(avg.percentiles)) / maxGasToIndex
-	if p >= uint64(len(avg.percentiles)) {
-		p = uint64(len(avg.percentiles)) - 1
+	p0 := gas * uint64(len(avg.percentiles)) / maxGasToIndex
+	if p0 >= uint64(len(avg.percentiles))-1 {
+		return avg.percentiles[len(avg.percentiles)-1]
 	}
-	return avg.percentiles[p]
+	// interpolate linearly
+	p1 := p0 + 1
+	x := gas
+	x0, x1 := p0*maxGasToIndex/uint64(len(avg.percentiles)), p1*maxGasToIndex/uint64(len(avg.percentiles))
+	y0, y1 := avg.percentiles[p0], avg.percentiles[p1]
+	return div64I(addBigI(mul64N(y0, x1-x), mul64N(y1, x-x0)), x1-x0)
+}
+
+func mul64N(a *big.Int, b uint64) *big.Int {
+	return new(big.Int).Mul(a, new(big.Int).SetUint64(b))
+}
+
+func div64I(a *big.Int, b uint64) *big.Int {
+	return a.Div(a, new(big.Int).SetUint64(b))
+}
+
+func addBigI(a, b *big.Int) *big.Int {
+	return a.Add(a, b)
 }
 
 func (c *circularTxpoolStats) totalGas() uint64 {
@@ -181,7 +198,6 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 	gasCounter := uint64(0)
 	p := uint64(0)
 	for _, tx := range sortedDown {
-		gasCounter += tx.Gas()
 		for p < uint64(len(s.percentiles)) && gasCounter >= p*maxGasToIndex/uint64(len(s.percentiles)) {
 			s.percentiles[p] = tx.EffectiveGasTipValue(minGasPrice)
 			if s.percentiles[p].Sign() < 0 {
@@ -191,6 +207,7 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 			}
 			p++
 		}
+		gasCounter += tx.Gas()
 	}
 
 	return s
