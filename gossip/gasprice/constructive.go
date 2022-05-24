@@ -77,14 +77,6 @@ func (gpo *Oracle) constructiveGasPriceOf(freeRatio uint64, adjustedMinPrice *bi
 	multiplier := new(big.Int).SetUint64(freeRatioToConstructiveGasRatio(freeRatio))
 
 	// gas price = multiplier * adjustedMinPrice
-	tip := multiplier.Mul(multiplier, adjustedMinPrice)
-	tip.Div(tip, DecimalUnitBn)
-
-	if tip.Cmp(gpo.cfg.MinGasPrice) < 0 {
-		return gpo.cfg.MinGasPrice
-	}
-	if tip.Cmp(gpo.cfg.MaxGasPrice) > 0 {
-		return gpo.cfg.MaxGasPrice
-	}
-	return tip
+	price := multiplier.Mul(multiplier, adjustedMinPrice)
+	return price.Div(price, DecimalUnitBn)
 }

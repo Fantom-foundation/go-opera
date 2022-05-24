@@ -139,6 +139,12 @@ func (gpo *Oracle) suggestTip(certainty uint64) *big.Int {
 	constructive := gpo.constructiveGasPrice(gpo.c.totalGas(), 0.005*DecimalUnit+certainty/25, adjustedMinGasPrice)
 
 	combined := math.BigMax(reactive, constructive)
+	if combined.Cmp(gpo.cfg.MinGasPrice) < 0 {
+		combined = gpo.cfg.MinGasPrice
+	}
+	if combined.Cmp(gpo.cfg.MaxGasPrice) > 0 {
+		combined = gpo.cfg.MaxGasPrice
+	}
 
 	tip := new(big.Int).Sub(combined, minPrice)
 	if tip.Sign() < 0 {
