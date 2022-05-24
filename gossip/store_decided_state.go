@@ -69,6 +69,11 @@ func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {
 	return has
 }
 
+func (s *Store) HasBlockEpochState() bool {
+	has, _ := s.table.BlockEpochState.Has([]byte(sKey))
+	return has
+}
+
 // SetBlockEpochState stores the latest block and epoch state in memory
 func (s *Store) SetBlockEpochState(bs iblockproc.BlockState, es iblockproc.EpochState) {
 	bs, es = bs.Copy(), es.Copy()
