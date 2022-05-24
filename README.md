@@ -20,21 +20,12 @@ on how you can run your own `opera` instance.
 
 ### Launching a network
 
-Before first launching of your mainnet node you will need appropriate genesis file:
-
-```shell
-wget https://opera.fantom.network/mainnet.g
-```
-
-Or for testnet node:
-```shell
-wget https://opera.fantom.network/testnet.g
-```
+You will need a genesis file to join a network, which may be found in https://github.com/Fantom-foundation/lachesis_launch
 
 Launching `opera` readonly (non-validator) node for network specified by the genesis file:
 
 ```shell
-$ opera --genesis mainnet.g
+$ opera --genesis file.g
 ```
 
 ### Configuration
