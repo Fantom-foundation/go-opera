@@ -93,7 +93,7 @@ func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
 	}
-	msg, err := tx.AsMessage(types.MakeSigner(b.config, b.header.Number), b.header.BaseFee)
+	msg, err := TxAsMessage(tx, types.MakeSigner(b.config, b.header.Number), b.header.BaseFee)
 	if err != nil {
 		panic(err)
 	}

@@ -20,15 +20,15 @@ var Types = struct {
 	Secp256k1: 0xc0,
 }
 
-func (pk *PubKey) Empty() bool {
+func (pk PubKey) Empty() bool {
 	return len(pk.Raw) == 0 && pk.Type == 0
 }
 
-func (pk *PubKey) String() string {
+func (pk PubKey) String() string {
 	return "0x" + common.Bytes2Hex(pk.Bytes())
 }
 
-func (pk *PubKey) Bytes() []byte {
+func (pk PubKey) Bytes() []byte {
 	return append([]byte{pk.Type}, pk.Raw...)
 }
 

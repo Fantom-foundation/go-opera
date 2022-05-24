@@ -168,11 +168,19 @@ func (s *Service) PauseEvmSnapshot() {
 	}
 }
 
+func (s *Service) EvmSnapshotGeneration() bool {
+	gen, _ := s.store.evm.Snaps.Generating()
+	return gen
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
 	if s.stopped {
 		return errStopped
+	}
+	if err := s.verWatcher.Pause(); err != nil {
+		return err
 	}
 	if gen, err := s.store.evm.Snaps.Generating(); gen || err != nil {
 		// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
@@ -237,6 +245,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	}
 
 	s.mayCommit(newEpoch != oldEpoch)
+
+	if s.haltCheck != nil && s.haltCheck(oldEpoch, newEpoch, e.MedianTime().Time()) {
+		// halt syncing
+		s.stopped = true
+	}
 	return nil
 }
 

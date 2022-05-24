@@ -1,7 +1,6 @@
 package launcher
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -29,6 +29,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
@@ -103,13 +105,15 @@ func initFlags() {
 	}
 	operaFlags = []cli.Flag{
 		GenesisFlag,
+		ExperimentalGenesisFlag,
 		utils.IdentityFlag,
 		DataDirFlag,
 		utils.MinFreeDiskSpaceFlag,
 		utils.KeyStoreDirFlag,
 		utils.USBFlag,
 		utils.SmartCardDaemonPathFlag,
-		utils.ExitWhenSyncedFlag,
+		ExitWhenAgeFlag,
+		ExitWhenEpochFlag,
 		utils.LightKDFFlag,
 		configFileFlag,
 		validatorIDFlag,
@@ -214,6 +218,8 @@ func init() {
 		deleteCommand,
 		// See snapshot.go
 		snapshotCommand,
+		// See fixdirty.go
+		fixDirtyCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
@@ -264,28 +270,51 @@ func lachesisMain(ctx *cli.Context) error {
 	//defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
-	genesisPath := getOperaGenesis(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesisPath)
+	genesisStore := mayGetGenesisStore(ctx)
+	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (*node.Node, *gossip.Service, func()) {
+func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
-
-	stack := makeConfigNode(ctx, &cfg.Node)
 
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
 	}
-	engine, dagIndex, gdb, cdb, genesisStore, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), genesis, cfg.AppConfigs())
-	_ = genesis.Close()
+	var g *genesis.Genesis
+	if genesisStore != nil {
+		gv := genesisStore.Genesis()
+		g = &gv
+	}
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+	if genesisStore != nil {
+		_ = genesisStore.Close()
+	}
 	metrics.SetDataDir(cfg.Node.DataDir)
+
+	// substitute default bootnodes if requested
+	networkName := ""
+	if gdb.HasBlockEpochState() {
+		networkName = gdb.GetRules().Name
+	}
+	if len(networkName) == 0 && genesisStore != nil {
+		networkName = genesisStore.Header().NetworkName
+	}
+	if len(cfg.Node.P2P.BootstrapNodes) == len(asDefault) && cfg.Node.P2P.BootstrapNodes[0] == asDefault[0] {
+		bootnodes := Bootnodes[networkName]
+		if bootnodes == nil {
+			bootnodes = []string{}
+		}
+		setBootnodes(ctx, bootnodes, &cfg.Node)
+	}
+
+	stack := makeConfigNode(ctx, &cfg.Node)
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Emitter.Validator.PubKey
@@ -311,7 +340,19 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 		}
 		return evmcore.NewTxPool(cfg.TxPool, reader.Config(), reader)
 	}
-	svc, err := gossip.NewService(stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool)
+	haltCheck := func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool {
+		stop := ctx.GlobalIsSet(ExitWhenAgeFlag.Name) && ctx.GlobalDuration(ExitWhenAgeFlag.Name) >= time.Since(age)
+		stop = stop || ctx.GlobalIsSet(ExitWhenEpochFlag.Name) && idx.Epoch(ctx.GlobalUint64(ExitWhenEpochFlag.Name)) <= newEpoch
+		if stop {
+			go func() {
+				// do it in a separate thread to avoid deadlock
+				_ = stack.Close()
+			}()
+			return true
+		}
+		return false
+	}
+	svc, err := gossip.NewService(stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
@@ -331,7 +372,6 @@ func makeNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis) (
 		_ = stack.Close()
 		gdb.Close()
 		_ = cdb.Close()
-		genesisStore.Close()
 	}
 }
 
@@ -397,34 +437,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
-
-	// Spawn a standalone goroutine for status synchronization monitoring,
-	// close the node when synchronization is complete if user required.
-	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) {
-		go func() {
-			for first := true; ; first = false {
-				// Call ftm_syncing until it returns false
-				time.Sleep(5 * time.Second)
-
-				var syncing bool
-				err := rpcClient.CallContext(context.TODO(), &syncing, "ftm_syncing")
-				if err != nil {
-					continue
-				}
-				if !syncing {
-					if !first {
-						time.Sleep(time.Minute)
-					}
-					log.Info("Synchronisation completed. Exiting due to exitwhensynced flag.")
-					err = stack.Close()
-					if err != nil {
-						continue
-					}
-					return
-				}
-			}
-		}()
-	}
 }
 
 // unlockAccounts unlocks any account specifically requested.

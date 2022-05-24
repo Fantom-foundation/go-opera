@@ -47,7 +47,7 @@ Make sure you backup your keys regularly.`,
 				Usage:  "Create a new validator key",
 				Action: utils.MigrateFlags(validatorKeyCreate),
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.KeyStoreDirFlag,
 					utils.PasswordFileFlag,
 				},
@@ -71,7 +71,7 @@ password to file or expose in any other way.
 				Usage:  "Convert an account key to a validator key",
 				Action: utils.MigrateFlags(validatorKeyConvert),
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.KeyStoreDirFlag,
 				},
 				ArgsUsage: "<account address> <validator pubkey>",

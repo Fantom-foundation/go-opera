@@ -33,9 +33,9 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/sfc"
 	"github.com/Fantom-foundation/go-opera/txtrace"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 )
 
 // PublicTxTraceAPI provides an API to access transaction tracing.

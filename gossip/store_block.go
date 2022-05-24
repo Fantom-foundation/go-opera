@@ -12,7 +12,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
-func (s *Store) GetGenesisHash() *hash.Hash {
+func (s *Store) GetGenesisID() *hash.Hash {
 	valBytes, err := s.table.Genesis.Get([]byte("g"))
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -24,7 +24,7 @@ func (s *Store) GetGenesisHash() *hash.Hash {
 	return &val
 }
 
-func (s *Store) SetGenesisHash(val hash.Hash) {
+func (s *Store) SetGenesisID(val hash.Hash) {
 	err := s.table.Genesis.Put([]byte("g"), val.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)

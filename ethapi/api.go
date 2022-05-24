@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
@@ -52,8 +53,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
-	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
 
 const (
@@ -79,21 +80,15 @@ func NewPublicEthereumAPI(b Backend) *PublicEthereumAPI {
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
 func (s *PublicEthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
-	tipcap, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
+	tipcap := s.b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
 	tipcap.Add(tipcap, s.b.MinGasPrice())
 	return (*hexutil.Big)(tipcap), nil
 }
 
 // MaxPriorityFeePerGas returns a suggestion for a gas tip cap for dynamic fee transactions.
 func (s *PublicEthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, error) {
-	tipcap, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return (*hexutil.Big)(tipcap), err
+	tipcap := s.b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
+	return (*hexutil.Big)(tipcap), nil
 }
 
 type feeHistoryResult struct {
@@ -102,40 +97,6 @@ type feeHistoryResult struct {
 	BaseFee      []*hexutil.Big   `json:"baseFeePerGas,omitempty"`
 	GasUsedRatio []float64        `json:"gasUsedRatio"`
 }
-
-func scaleGasTip(tip, baseFee *big.Int, ratio uint64) *big.Int {
-	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
-	min := baseFee
-	est := new(big.Int).Set(tip)
-	est.Add(est, min)
-	est.Mul(est, new(big.Int).SetUint64(ratio))
-	est.Div(est, gasprice.DecimalUnitBn)
-	est.Sub(est, min)
-	if est.Sign() < 0 {
-		return new(big.Int)
-	}
-
-	return est
-}
-
-var tipScaleRatio = piecefunc.NewFunc([]piecefunc.Dot{
-	{
-		X: 0,
-		Y: 0.7 * gasprice.DecimalUnit,
-	},
-	{
-		X: 0.2 * gasprice.DecimalUnit,
-		Y: 1.0 * gasprice.DecimalUnit,
-	},
-	{
-		X: 0.8 * gasprice.DecimalUnit,
-		Y: 1.2 * gasprice.DecimalUnit,
-	},
-	{
-		X: 1.0 * gasprice.DecimalUnit,
-		Y: 2.0 * gasprice.DecimalUnit,
-	},
-})
 
 var errInvalidPercentile = errors.New("invalid reward percentile")
 
@@ -173,16 +134,11 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 	}
 
 	baseFee := s.b.MinGasPrice()
-	goldTip, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	tips := make([]*hexutil.Big, 0, len(rewardPercentiles))
 	for _, p := range rewardPercentiles {
-		ratio := tipScaleRatio(uint64(gasprice.DecimalUnit * p / 100.0))
-		scaledTip := scaleGasTip(goldTip, baseFee, ratio)
-		tips = append(tips, (*hexutil.Big)(scaledTip))
+		tip := s.b.SuggestGasTipCap(ctx, uint64(gasprice.DecimalUnit*p/100.0))
+		tips = append(tips, (*hexutil.Big)(tip))
 	}
 	res.OldestBlock.ToInt().SetUint64(uint64(oldest))
 	for i := uint64(0); i < uint64(last-oldest+1); i++ {
@@ -191,6 +147,10 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 		res.GasUsedRatio = append(res.GasUsedRatio, 0.99)
 	}
 	return res, nil
+}
+
+func (s *PublicEthereumAPI) EffectiveBaseFee(ctx context.Context) *hexutil.Big {
+	return (*hexutil.Big)(s.b.EffectiveMinGasPrice(ctx))
 }
 
 // Syncing returns true if node is syncing
@@ -686,6 +646,30 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 // CurrentEpoch returns current epoch number.
 func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 	return hexutil.Uint64(s.b.CurrentEpoch(ctx))
+}
+
+// GetRules returns network rules for an epoch
+func (s *PublicBlockChainAPI) GetRules(ctx context.Context, epoch rpc.BlockNumber) (*opera.Rules, error) {
+	_, es, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return nil, err
+	}
+	if es == nil {
+		return nil, nil
+	}
+	return &es.Rules, nil
+}
+
+// GetEpochBlock returns block height in a beginning of an epoch
+func (s *PublicBlockChainAPI) GetEpochBlock(ctx context.Context, epoch rpc.BlockNumber) (hexutil.Uint64, error) {
+	bs, _, err := s.b.GetEpochBlockState(ctx, epoch)
+	if err != nil {
+		return 0, err
+	}
+	if bs == nil {
+		return 0, nil
+	}
+	return hexutil.Uint64(bs.LastBlock.Idx), nil
 }
 
 // ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
@@ -1268,6 +1252,7 @@ type extBlockApi struct {
 func RPCMarshalHeader(head *evmcore.EvmHeader, ext extBlockApi) map[string]interface{} {
 	result := map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
+		"epoch":            hexutil.Uint64(hash.Event(head.Hash).Epoch()),
 		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
 		"parentHash":       head.ParentHash,
 		"nonce":            types.BlockNonce{},
@@ -1383,7 +1368,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	} else {
 		signer = gsignercache.Wrap(types.HomesteadSigner{})
 	}
-	from, _ := types.Sender(signer, tx)
+	from, _ := internaltx.Sender(signer, tx)
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		Type:     hexutil.Uint64(tx.Type()),
@@ -1715,7 +1700,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	// Derive the sender.
 	bigblock := new(big.Int).SetUint64(blockNumber)
 	signer := gsignercache.Wrap(types.MakeSigner(s.b.ChainConfig(), bigblock))
-	from, _ := types.Sender(signer, tx)
+	from, _ := internaltx.Sender(signer, tx)
 
 	fields := map[string]interface{}{
 		"blockHash":         header.Hash,
@@ -1933,7 +1918,7 @@ func (s *PublicTransactionPoolAPI) PendingTransactions() ([]*RPCTransaction, err
 	}
 	transactions := make([]*RPCTransaction, 0, len(pending))
 	for _, tx := range pending {
-		from, _ := types.Sender(s.signer, tx)
+		from, _ := internaltx.Sender(s.signer, tx)
 		if _, exists := accounts[from]; exists {
 			transactions = append(transactions, newRPCPendingTransaction(tx, s.b.MinGasPrice()))
 		}

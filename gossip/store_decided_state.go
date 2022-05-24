@@ -16,6 +16,7 @@ type BlockEpochState struct {
 	EpochState *iblockproc.EpochState
 }
 
+// TODO propose to pass bs, es arguments by pointer
 func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockState, es iblockproc.EpochState) {
 	bs, es = bs.Copy(), es.Copy()
 	bes := &BlockEpochState{
@@ -65,6 +66,11 @@ func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
 
 func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {
 	has, _ := s.table.BlockEpochStateHistory.Has(epoch.Bytes())
+	return has
+}
+
+func (s *Store) HasBlockEpochState() bool {
+	has, _ := s.table.BlockEpochState.Has([]byte(sKey))
 	return has
 }
 

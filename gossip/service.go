@@ -49,8 +49,7 @@ import (
 	snapsync "github.com/Fantom-foundation/go-opera/gossip/protocols/snap"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -60,7 +59,6 @@ type ServiceFeed struct {
 	scope notify.SubscriptionScope
 
 	newEpoch        notify.Feed
-	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
 	newLogs         notify.Feed
@@ -83,24 +81,22 @@ func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscripti
 }
 
 type BlockProc struct {
-	SealerModule        blockproc.SealerModule
-	TxListenerModule    blockproc.TxListenerModule
-	GenesisTxTransactor blockproc.TxTransactor
-	PreTxTransactor     blockproc.TxTransactor
-	PostTxTransactor    blockproc.TxTransactor
-	EventsModule        blockproc.ConfirmedEventsModule
-	EVMModule           blockproc.EVM
+	SealerModule     blockproc.SealerModule
+	TxListenerModule blockproc.TxListenerModule
+	PreTxTransactor  blockproc.TxTransactor
+	PostTxTransactor blockproc.TxTransactor
+	EventsModule     blockproc.ConfirmedEventsModule
+	EVMModule        blockproc.EVM
 }
 
-func DefaultBlockProc(g opera.Genesis) BlockProc {
+func DefaultBlockProc() BlockProc {
 	return BlockProc{
-		SealerModule:        sealmodule.New(),
-		TxListenerModule:    drivermodule.NewDriverTxListenerModule(),
-		GenesisTxTransactor: drivermodule.NewDriverTxGenesisTransactor(g),
-		PreTxTransactor:     drivermodule.NewDriverTxPreTransactor(),
-		PostTxTransactor:    drivermodule.NewDriverTxTransactor(),
-		EventsModule:        eventmodule.New(),
-		EVMModule:           evmmodule.New(),
+		SealerModule:     sealmodule.New(),
+		TxListenerModule: drivermodule.NewDriverTxListenerModule(),
+		PreTxTransactor:  drivermodule.NewDriverTxPreTransactor(),
+		PostTxTransactor: drivermodule.NewDriverTxTransactor(),
+		EventsModule:     eventmodule.New(),
+		EVMModule:        evmmodule.New(),
 	}
 }
 
@@ -153,14 +149,17 @@ type Service struct {
 
 	procLogger *proclogger.Logger
 
-	stopped bool
+	stopped   bool
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, time time.Time) bool
 
 	tflusher PeriodicFlusher
 
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc,
+	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -175,6 +174,7 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	svc.eventMux = stack.EventMux()
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
+	svc.haltCheck = haltCheck
 
 	return svc, nil
 }
@@ -210,7 +210,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.store.GetLlrState()
 
 	// create GPO
-	svc.gpo = gasprice.NewOracle(&GPOBackend{store}, svc.config.GPO)
+	svc.gpo = gasprice.NewOracle(svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
@@ -265,7 +265,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.verWatcher = verwatcher.New(config.VersionWatcher, verwatcher.NewStore(store.table.NetworkVersion))
+	svc.verWatcher = verwatcher.New(verwatcher.NewStore(store.table.NetworkVersion))
 	svc.tflusher = svc.makePeriodicFlusher()
 
 	return svc, nil
@@ -359,8 +359,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 				default:
 					backend.wg.Add(1)
 					defer backend.wg.Done()
-					err := backend.handle(peer)
-					return err
+					return backend.handle(peer)
 				}
 			},
 			NodeInfo: func() interface{} {
@@ -420,6 +419,7 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start() error {
+	s.gpo.Start(&GPOBackend{s.store, s.txpool})
 	// start tflusher before starting snapshots generation
 	s.tflusher.Start()
 	// start snapshots generation
@@ -449,6 +449,11 @@ func (s *Service) Start() error {
 
 	s.verWatcher.Start()
 
+	if s.haltCheck != nil && s.haltCheck(s.store.GetEpoch(), s.store.GetEpoch(), s.store.GetBlockState().LastBlock.Time.Time()) {
+		// halt syncing
+		s.stopped = true
+	}
+
 	return nil
 }
 
@@ -472,6 +477,7 @@ func (s *Service) Stop() error {
 	s.handler.Stop()
 	s.feed.scope.Close()
 	s.eventMux.Stop()
+	s.gpo.Stop()
 	// it's safe to stop tflusher only before locking engineMu
 	s.tflusher.Stop()
 

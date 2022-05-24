@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 )
 
 const (
@@ -139,7 +139,7 @@ type StateReader interface {
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
 	MinGasPrice() *big.Int
-	RecommendedGasTip() *big.Int
+	EffectiveMinTip() *big.Int
 	MaxGasLimit() uint64
 	SubscribeNewBlock(ch chan<- ChainHeadNotify) notify.Subscription
 	Config() *params.ChainConfig
@@ -555,6 +555,17 @@ func (pool *TxPool) Pending(enforceTips bool) (map[common.Address]types.Transact
 	return pending, nil
 }
 
+func (pool *TxPool) PendingSlice() types.Transactions {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	pending := make(types.Transactions, 0, 1000)
+	for _, list := range pool.pending {
+		pending = append(pending, list.Flatten()...)
+	}
+	return pending
+}
+
 func (pool *TxPool) SampleHashes(max int) []common.Hash {
 	return pool.all.SampleHashes(max)
 }
@@ -629,7 +640,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrUnderpriced
 	}
 	// Ensure Opera-specific hard bounds
-	if recommendedGasTip, minPrice := pool.chain.RecommendedGasTip(), pool.chain.MinGasPrice(); recommendedGasTip != nil && minPrice != nil {
+	if recommendedGasTip, minPrice := pool.chain.EffectiveMinTip(), pool.chain.MinGasPrice(); recommendedGasTip != nil && minPrice != nil {
 		if tx.GasTipCapIntCmp(recommendedGasTip) < 0 {
 			return ErrUnderpriced
 		}
@@ -1293,8 +1304,12 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
 	statedb, err := pool.chain.StateAt(newHead.Root)
+	if err != nil && pool.currentState == nil {
+		log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
+		statedb, err = pool.chain.StateAt(common.Hash{})
+	}
 	if err != nil {
-		log.Error("Failed to reset txpool state", "err", err)
+		log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
 		return
 	}
 	pool.currentState = statedb

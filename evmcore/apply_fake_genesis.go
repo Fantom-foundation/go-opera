@@ -17,50 +17,35 @@
 package evmcore
 
 import (
+	"crypto/ecdsa"
 	"math"
 	"math/big"
+	"math/rand"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
-// ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(statedb *state.StateDB, g opera.Genesis, maxMemoryUsage int) (*EvmBlock, error) {
-	mem := 0
-	capEvm := func(usage int) {
-		mem += usage
-		if mem > maxMemoryUsage {
-			_, _ = statedb.Commit(true)
-			_ = statedb.Database().TrieDB().Cap(common.StorageSize(maxMemoryUsage / 8))
-			mem = 0
-		}
+var FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
+
+// ApplyFakeGenesis writes or updates the genesis block in db.
+func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map[common.Address]*big.Int) (*EvmBlock, error) {
+	for acc, balance := range balances {
+		statedb.SetBalance(acc, balance)
 	}
-	g.Accounts.ForEach(func(addr common.Address, account genesis.Account) {
-		if account.SelfDestruct {
-			statedb.Suicide(addr)
-			_, _ = statedb.Commit(true)
-		}
-		statedb.SetBalance(addr, account.Balance)
-		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
-		capEvm(1024 + len(account.Code))
-	})
-	g.Storage.ForEach(func(addr common.Address, key common.Hash, value common.Hash) {
-		statedb.SetState(addr, key, value)
-		capEvm(512)
-	})
 
 	// initial block
 	root, err := flush(statedb, true)
 	if err != nil {
 		return nil, err
 	}
-	block := genesisBlock(g, root)
+	block := genesisBlock(time, root)
 
 	return block, nil
 }
@@ -83,26 +68,37 @@ func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
 }
 
 // genesisBlock makes genesis block with pretty hash.
-func genesisBlock(g opera.Genesis, root common.Hash) *EvmBlock {
+func genesisBlock(time inter.Timestamp, root common.Hash) *EvmBlock {
 	block := &EvmBlock{
 		EvmHeader: EvmHeader{
 			Number:   big.NewInt(0),
-			Time:     g.Time,
+			Time:     time,
 			GasLimit: math.MaxUint64,
 			Root:     root,
 			TxHash:   types.EmptyRootHash,
-			BaseFee:  g.Rules.Economy.MinGasPrice,
 		},
 	}
 
 	return block
 }
 
-// MustApplyGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyGenesis(g opera.Genesis, statedb *state.StateDB, maxMemoryUsage int) *EvmBlock {
-	block, err := ApplyGenesis(statedb, g, maxMemoryUsage)
+// MustApplyFakeGenesis writes the genesis block and state to db, panicking on error.
+func MustApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map[common.Address]*big.Int) *EvmBlock {
+	block, err := ApplyFakeGenesis(statedb, time, balances)
 	if err != nil {
-		log.Crit("ApplyGenesis", "err", err)
+		log.Crit("ApplyFakeGenesis", "err", err)
 	}
 	return block
+}
+
+// FakeKey gets n-th fake private key.
+func FakeKey(n int) *ecdsa.PrivateKey {
+	reader := rand.New(rand.NewSource(int64(n)))
+
+	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
+	if err != nil {
+		panic(err)
+	}
+
+	return key
 }

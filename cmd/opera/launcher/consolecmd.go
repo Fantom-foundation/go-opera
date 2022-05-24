@@ -50,7 +50,7 @@ See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
 		Name:      "attach",
 		Usage:     "Start an interactive JavaScript environment (connect to node)",
 		ArgsUsage: "[endpoint]",
-		Flags:     append(consoleFlags, utils.DataDirFlag),
+		Flags:     append(consoleFlags, DataDirFlag),
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The opera console is an interactive shell for the JavaScript runtime environment
@@ -77,8 +77,8 @@ JavaScript API. See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Cons
 func localConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	cfg := makeAllConfigs(ctx)
-	genesis := getOperaGenesis(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesis)
+	genesisStore := mayGetGenesisStore(ctx)
+	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	startNode(ctx, node)
 	defer nodeClose()
 
@@ -119,8 +119,8 @@ func remoteConsole(ctx *cli.Context) error {
 	endpoint := ctx.Args().First()
 	if endpoint == "" {
 		path := DefaultDataDir()
-		if ctx.GlobalIsSet(utils.DataDirFlag.Name) {
-			path = ctx.GlobalString(utils.DataDirFlag.Name)
+		if ctx.GlobalIsSet(DataDirFlag.Name) {
+			path = ctx.GlobalString(DataDirFlag.Name)
 		}
 		endpoint = fmt.Sprintf("%s/opera.ipc", path)
 	}
@@ -172,8 +172,8 @@ func dialRPC(endpoint string) (*rpc.Client, error) {
 func ephemeralConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
 	cfg := makeAllConfigs(ctx)
-	genesis := getOperaGenesis(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesis)
+	genesisStore := mayGetGenesisStore(ctx)
+	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	startNode(ctx, node)
 	defer nodeClose()
 

@@ -29,7 +29,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/txtrace"
 
-	"github.com/Fantom-foundation/go-opera/utils/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -57,7 +58,7 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(
-	block *EvmBlock, statedb *state.StateDB, cfg vm.Config, usedGas *uint64, internal bool, onNewLog func(*types.Log, *state.StateDB),
+	block *EvmBlock, statedb *state.StateDB, cfg vm.Config, usedGas *uint64, onNewLog func(*types.Log, *state.StateDB),
 ) (
 	receipts types.Receipts, allLogs []*types.Log, skipped []uint32, err error,
 ) {
@@ -71,17 +72,13 @@ func (p *StateProcessor) Process(
 		vmenv        = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
 		blockHash    = block.Hash
 		blockNumber  = block.Number
+		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number))
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
-		var msg types.Message
-		if !internal {
-			msg, err = tx.AsMessage(gsignercache.Wrap(types.MakeSigner(p.config, header.Number)), header.BaseFee)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
-			}
-		} else {
-			msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
+		msg, err := TxAsMessage(tx, signer, header.BaseFee)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 
 		statedb.Prepare(tx.Hash(), i)
@@ -188,4 +185,13 @@ func applyTransaction(
 	}
 
 	return receipt, result.UsedGas, false, err
+}
+
+func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (types.Message, error) {
+	if !internaltx.IsInternal(tx) {
+		return tx.AsMessage(signer, baseFee)
+	} else {
+		msg := types.NewMessage(internaltx.InternalSender(tx), tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
+		return msg, nil
+	}
 }

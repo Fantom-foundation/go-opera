@@ -90,6 +90,9 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	if r.BitsR.View(2) == 0 {
 		r.BitsR.Read(2)
 		version = r.U8()
+		if version == 0 {
+			return cser.ErrNonCanonicalEncoding
+		}
 	}
 	if version > MaxSerializationVersion {
 		return ErrUnknownVersion

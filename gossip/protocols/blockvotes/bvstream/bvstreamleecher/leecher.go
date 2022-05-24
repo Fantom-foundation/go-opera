@@ -109,7 +109,7 @@ func (d *Leecher) selectSessionPeerCandidates() []string {
 	if startEpoch >= endEpoch {
 		return nil
 	}
-	for p, _ := range d.Peers {
+	for p := range d.Peers {
 		block := d.callback.PeerBlock(p)
 		if block >= startBlock {
 			knowledgeablePeers = append(knowledgeablePeers, p)

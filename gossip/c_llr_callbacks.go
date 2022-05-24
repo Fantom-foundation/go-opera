@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -14,6 +15,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 )
+
+var errValidatorNotExist = errors.New("validator does not exist")
 
 func actualizeLowestIndex(current, upd uint64, exists func(uint64) bool) uint64 {
 	if current == upd {
@@ -52,11 +55,16 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	done := s.procLogger.BlockVotesConnectionStarted(bvs)
 	defer done()
 	vid := bvs.Signed.Locator.Creator
+
 	// get the validators group
 	epoch := bvs.Signed.Locator.Epoch
 	es := s.store.GetHistoryEpochState(epoch)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochBVs
+	}
+
+	if !es.Validators.Exists(vid) {
+		return errValidatorNotExist
 	}
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
@@ -81,11 +89,51 @@ func (s *Service) processBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
 	err := s.processBlockVotes(bvs)
 	if err == nil {
 		s.mayCommit(false)
 	}
 	return err
+}
+
+func indexRawReceipts(s *Store, receiptsForStorage []*types.ReceiptForStorage, txs types.Transactions, blockIdx idx.Block, atropos hash.Event) {
+	s.evm.SetRawReceipts(blockIdx, receiptsForStorage)
+	receipts, _ := evmstore.UnwrapStorageReceipts(receiptsForStorage, blockIdx, nil, common.Hash(atropos), txs)
+	for _, r := range receipts {
+		s.evm.IndexLogs(r.Logs...)
+	}
+}
+
+func (s *Store) WriteFullBlockRecord(br ibr.LlrIdxFullBlockRecord) {
+	txHashes := make([]common.Hash, 0, len(br.Txs))
+	for _, tx := range br.Txs {
+		txHashes = append(txHashes, tx.Hash())
+		s.EvmStore().SetTx(tx.Hash(), tx)
+	}
+
+	if len(br.Receipts) != 0 {
+		// Note: it's possible for receipts to get indexed twice by BR and block processing
+		indexRawReceipts(s, br.Receipts, br.Txs, br.Idx, br.Atropos)
+	}
+	for i, tx := range br.Txs {
+		s.EvmStore().SetTx(tx.Hash(), tx)
+		s.EvmStore().SetTxPosition(tx.Hash(), evmstore.TxPosition{
+			Block:       br.Idx,
+			BlockOffset: uint32(i),
+		})
+	}
+	s.SetBlock(br.Idx, &inter.Block{
+		Time:        br.Time,
+		Atropos:     br.Atropos,
+		Events:      hash.Events{},
+		Txs:         txHashes,
+		InternalTxs: []common.Hash{},
+		SkippedTxs:  []uint32{},
+		GasUsed:     br.GasUsed,
+		Root:        br.Root,
+	})
+	s.SetBlockIndex(br.Atropos, br.Idx)
 }
 
 func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
@@ -104,39 +152,7 @@ func (s *Service) ProcessFullBlockRecord(br ibr.LlrIdxFullBlockRecord) error {
 		return errors.New("block record hash mismatch")
 	}
 
-	txHashes := make([]common.Hash, 0, len(br.Txs))
-	internalTxHashes := make([]common.Hash, 0, 2)
-	for _, tx := range br.Txs {
-		if tx.GasPrice().Sign() == 0 {
-			internalTxHashes = append(internalTxHashes, tx.Hash())
-		} else {
-			txHashes = append(txHashes, tx.Hash())
-		}
-		s.store.EvmStore().SetTx(tx.Hash(), tx)
-	}
-
-	if len(br.Receipts) != 0 {
-		// Note: it's possible for receipts to get indexed twice by BR and block processing
-		indexRawReceipts(s.store, br.Receipts, br.Txs, br.Idx, br.Atropos)
-	}
-	for i, tx := range br.Txs {
-		s.store.EvmStore().SetTx(tx.Hash(), tx)
-		s.store.EvmStore().SetTxPosition(tx.Hash(), evmstore.TxPosition{
-			Block:       br.Idx,
-			BlockOffset: uint32(i),
-		})
-	}
-	s.store.SetBlock(br.Idx, &inter.Block{
-		Time:        br.Time,
-		Atropos:     br.Atropos,
-		Events:      hash.Events{},
-		Txs:         txHashes,
-		InternalTxs: internalTxHashes,
-		SkippedTxs:  []uint32{},
-		GasUsed:     br.GasUsed,
-		Root:        br.Root,
-	})
-	s.store.SetBlockIndex(br.Atropos, br.Idx)
+	s.store.WriteFullBlockRecord(br)
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	if s.verWatcher != nil {
@@ -180,10 +196,15 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 	done := s.procLogger.EpochVoteConnectionStarted(ev)
 	defer done()
 	vid := ev.Signed.Locator.Creator
+
 	// get the validators group
 	es := s.store.GetHistoryEpochState(ev.Val.Epoch - 1)
 	if es == nil {
 		return eventcheck.ErrUnknownEpochEV
+	}
+
+	if !es.Validators.Exists(vid) {
+		return errValidatorNotExist
 	}
 
 	s.store.ModifyLlrState(func(llrs *LlrState) {
@@ -204,11 +225,17 @@ func (s *Service) processEpochVote(ev inter.LlrSignedEpochVote) error {
 func (s *Service) ProcessEpochVote(ev inter.LlrSignedEpochVote) error {
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+
 	err := s.processEpochVote(ev)
 	if err == nil {
 		s.mayCommit(false)
 	}
 	return err
+}
+
+func (s *Store) WriteFullEpochRecord(er ier.LlrIdxFullEpochRecord) {
+	s.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
+	s.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
 }
 
 func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
@@ -218,6 +245,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 	}
 	done := s.procLogger.EpochRecordConnectionStarted(er)
 	defer done()
+
 	res := s.store.GetLlrEpochResult(er.Idx)
 	if res == nil {
 		return eventcheck.ErrUndecidedER
@@ -227,8 +255,7 @@ func (s *Service) ProcessFullEpochRecord(er ier.LlrIdxFullEpochRecord) error {
 		return errors.New("epoch record hash mismatch")
 	}
 
-	s.store.SetHistoryBlockEpochState(er.Idx, er.BlockState, er.EpochState)
-	s.store.SetEpochBlock(er.BlockState.LastBlock.Idx+1, er.Idx)
+	s.store.WriteFullEpochRecord(er)
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
 	updateLowestEpochToFill(er.Idx, s.store)

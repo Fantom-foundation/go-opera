@@ -1,4 +1,4 @@
-pragma solidity >=0.4.22 <0.7.0;
+pragma solidity >=0.4.22;
 
 /// @title Voting with delegation.
 contract Ballot {
@@ -27,6 +27,9 @@ contract Ballot {
     // A dynamically-sized array of `Proposal` structs.
     Proposal[] public proposals;
 
+    // Emit event 
+    event NewProposal(address indexed from, bytes32 name, uint voteCount);
+
     /// Create a new ballot to choose one of `proposalNames`.
     constructor(bytes32[] memory proposalNames) public {
         chairperson = msg.sender;
@@ -43,6 +46,8 @@ contract Ballot {
                 name: proposalNames[i],
                 voteCount: 0
             }));
+
+            emit NewProposal(msg.sender, proposalNames[i], 0);
         }
     }
 
