@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/txtrace"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Fantom-foundation/go-opera/txtrace"
 )
 
 func TestTxTracing(t *testing.T) {
@@ -55,7 +56,7 @@ func TestTxTracing(t *testing.T) {
 	cliConsole.InputLine("testContract.deploy.sendTransaction({from:ftm.accounts[1]})")
 	cliConsoleOutput = *cliConsole.GetOutDataTillCursor()
 	txHashDeploy := cliConsoleOutput[strings.Index(cliConsoleOutput, "0x") : len(cliConsoleOutput)-3]
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	// Close node console
 	cliConsole.InputLine("exit")
