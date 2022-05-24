@@ -8,9 +8,9 @@ import (
 
 	"github.com/holiman/uint256"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 )
 
 type StarkStatsBuilder struct {

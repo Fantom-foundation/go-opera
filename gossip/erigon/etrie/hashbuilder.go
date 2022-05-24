@@ -9,11 +9,11 @@ import (
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/rlp"
-	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 )
 
 const hashStackStride = common.HashLength + 1 // + 1 byte for RLP encoding
@@ -126,7 +126,6 @@ func (hb *HashBuilder) leafHashWithKeyVal(key []byte, val rlphacks.RlpSerializab
 
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
 
-	
 	if len(hb.hashStack) > hashStackStride*len(hb.nodeStack) {
 		hb.nodeStack = append(hb.nodeStack, nil)
 	}
@@ -161,18 +160,19 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		return err
 	}
 	hb.b[0] = compact0
-	fmt.Printf("completeLeafHash hb.b[:]: %x\n", hb.b[:])
+	fmt.Printf("completeLeafHash writing1 hb.b[:]: %x\n", hb.b[:])
 	if _, err := writer.Write(hb.b[:]); err != nil {
 		return err
 	}
 	for i := 1; i < compactLen; i++ {
 		hb.b[0] = key[ni]*16 + key[ni+1]
+		fmt.Printf("completeLeafHash writing2 hb.b[:]: %x, %d times\n", hb.b[:], i)
 		if _, err := writer.Write(hb.b[:]); err != nil {
 			return err
 		}
 		ni += 2
 	}
-
+	fmt.Printf("completeLeafHash write val: %x\n", []byte(val))
 	if err := val.ToDoubleRLP(writer, hb.prefixBuf[:]); err != nil {
 		return err
 	}
@@ -333,14 +333,13 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 
 	fmt.Printf("accountLeafHashWithKey hashedRlpEncodedVal: %x\n", hb.valBuf[:valLen])
 
-
 	// recover original key in Hex and hash of value, for test purposes
 	encodedVal := make([]byte, hb.acc.EncodingLengthForStorage())
 	hb.acc.EncodeForStorage(encodedVal)
 	fmt.Printf("accountLeafHashWithKey original val: %x\n", encodedVal)
 	fmt.Printf("accountLeafHashWithKey key: %x\n", key)
 	//compute legacy geth trie root
-	
+
 	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
@@ -356,12 +355,11 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
 	fmt.Printf("hb.hashStack after appending hashBuf: %x\n", hb.hashStack)
-	
+
 	var stateRoot common.Hash
-    copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
+	copy(stateRoot[:], hb.hashStack[len(hb.hashStack)-hashStackStride+1:])
 	fmt.Println("accountLeafHashWithKey hashStack index", len(hb.hashStack)-hashStackStride+1)
 	fmt.Printf("accountLeafHashWithKey stateRoot: %x\n", stateRoot)
-	
 
 	hb.nodeStack = append(hb.nodeStack, nil)
 	if hb.trace {
@@ -369,7 +367,6 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	}
 	return nil
 }
-
 
 func (hb *HashBuilder) extension(key []byte) error {
 	if hb.trace {

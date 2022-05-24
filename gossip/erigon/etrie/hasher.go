@@ -23,10 +23,10 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/rlp"
-	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 )
 
 type hasher struct {

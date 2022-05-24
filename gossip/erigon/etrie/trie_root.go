@@ -7,13 +7,13 @@ import (
 	"math/bits"
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 	"github.com/ledgerwatch/log/v3"
 )
 
@@ -228,7 +228,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
-	i := 0 
+	i := 0
 	for ihK, ihV, hasTree, err := accTrie.AtPrefix(prefix); ; ihK, ihV, hasTree, err = accTrie.Next() { // no loop termination is at he end of loop
 		i++
 		fmt.Println("accTrie.AtPrefix first for loop i: ", i)
@@ -241,7 +241,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			goto SkipAccounts
 		}
 
-	
 		for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
 			j++
 			fmt.Println("accs.Seek second for loop j: ", j)
@@ -258,7 +257,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
 				return EmptyRoot, err
 			}
-			
+
 			if l.accountValue.Incarnation == 0 {
 				fmt.Println("accs.Seek l.accountValue.Incarnation == 0 for loop")
 				continue

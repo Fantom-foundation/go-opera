@@ -25,9 +25,9 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/crypto"
-	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 	"github.com/stretchr/testify/require"
 )
 
