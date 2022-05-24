@@ -2,6 +2,7 @@ package rlphacks
 
 import (
 	"io"
+	"fmt"
 )
 
 type RlpSerializableBytes []byte
@@ -44,7 +45,7 @@ func encodeBytesAsRlpToWriter(source []byte, w io.Writer, prefixGenFunc func([]b
 			return err
 		}
 	}
-
+	fmt.Printf("encodeBytesAsRlpToWriter source: %x\n", source)
 	_, err := w.Write(source)
 	return err
 }

@@ -172,16 +172,17 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		}
 		ni += 2
 	}
-	fmt.Printf("completeLeafHash write val: %x\n", []byte(val))
 	if err := val.ToDoubleRLP(writer, hb.prefixBuf[:]); err != nil {
 		return err
 	}
 
 	if reader != nil {
 		hb.hashBuf[0] = 0x80 + common.HashLength
+		fmt.Printf("completeLeafHash if reader not nil, hb.hashBuf: %x\n ", hb.hashBuf)
 		if _, err := reader.Read(hb.hashBuf[1:]); err != nil {
 			return err
 		}
+		fmt.Printf("completeLeafHash after reader.Read, hashBuf[1:]: %x\n", hb.hashBuf[1:])
 	}
 
 	return nil
@@ -328,7 +329,10 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 		kl = 1
 	}
 	valLen := hb.acc.EncodingLengthForHashing()
+
 	hb.acc.EncodeForHashing(hb.valBuf[:])
+	fmt.Printf("accountLeafHashWithKey EncodeForHashing original val: %x\n", hb.valBuf[:])
+
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
 
 	fmt.Printf("accountLeafHashWithKey hashedRlpEncodedVal: %x\n", hb.valBuf[:valLen])
@@ -336,7 +340,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	// recover original key in Hex and hash of value, for test purposes
 	encodedVal := make([]byte, hb.acc.EncodingLengthForStorage())
 	hb.acc.EncodeForStorage(encodedVal)
-	fmt.Printf("accountLeafHashWithKey original val: %x\n", encodedVal)
+	fmt.Printf("accountLeafHashWithKey EncodeForStorage original val: %x\n", encodedVal)
 	fmt.Printf("accountLeafHashWithKey key: %x\n", key)
 	//compute legacy geth trie root
 
