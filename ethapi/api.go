@@ -50,7 +50,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
@@ -72,21 +71,15 @@ func NewPublicEthereumAPI(b Backend) *PublicEthereumAPI {
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
 func (s *PublicEthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
-	tipcap, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
+	tipcap := s.b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
 	tipcap.Add(tipcap, s.b.MinGasPrice())
 	return (*hexutil.Big)(tipcap), nil
 }
 
 // MaxPriorityFeePerGas returns a suggestion for a gas tip cap for dynamic fee transactions.
 func (s *PublicEthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, error) {
-	tipcap, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return (*hexutil.Big)(tipcap), err
+	tipcap := s.b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
+	return (*hexutil.Big)(tipcap), nil
 }
 
 type feeHistoryResult struct {
@@ -95,40 +88,6 @@ type feeHistoryResult struct {
 	BaseFee      []*hexutil.Big   `json:"baseFeePerGas,omitempty"`
 	GasUsedRatio []float64        `json:"gasUsedRatio"`
 }
-
-func scaleGasTip(tip, baseFee *big.Int, ratio uint64) *big.Int {
-	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
-	min := baseFee
-	est := new(big.Int).Set(tip)
-	est.Add(est, min)
-	est.Mul(est, new(big.Int).SetUint64(ratio))
-	est.Div(est, gasprice.DecimalUnitBn)
-	est.Sub(est, min)
-	if est.Sign() < 0 {
-		return new(big.Int)
-	}
-
-	return est
-}
-
-var tipScaleRatio = piecefunc.NewFunc([]piecefunc.Dot{
-	{
-		X: 0,
-		Y: 0.7 * gasprice.DecimalUnit,
-	},
-	{
-		X: 0.2 * gasprice.DecimalUnit,
-		Y: 1.0 * gasprice.DecimalUnit,
-	},
-	{
-		X: 0.8 * gasprice.DecimalUnit,
-		Y: 1.2 * gasprice.DecimalUnit,
-	},
-	{
-		X: 1.0 * gasprice.DecimalUnit,
-		Y: 2.0 * gasprice.DecimalUnit,
-	},
-})
 
 var errInvalidPercentile = errors.New("invalid reward percentile")
 
@@ -166,16 +125,11 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 	}
 
 	baseFee := s.b.MinGasPrice()
-	goldTip, err := s.b.SuggestGasTipCap(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	tips := make([]*hexutil.Big, 0, len(rewardPercentiles))
 	for _, p := range rewardPercentiles {
-		ratio := tipScaleRatio(uint64(gasprice.DecimalUnit * p / 100.0))
-		scaledTip := scaleGasTip(goldTip, baseFee, ratio)
-		tips = append(tips, (*hexutil.Big)(scaledTip))
+		tip := s.b.SuggestGasTipCap(ctx, uint64(gasprice.DecimalUnit*p/100.0))
+		tips = append(tips, (*hexutil.Big)(tip))
 	}
 	res.OldestBlock.ToInt().SetUint64(uint64(oldest))
 	for i := uint64(0); i < uint64(last-oldest+1); i++ {
@@ -184,6 +138,10 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 		res.GasUsedRatio = append(res.GasUsedRatio, 0.99)
 	}
 	return res, nil
+}
+
+func (s *PublicEthereumAPI) EffectiveBaseFee(ctx context.Context) *hexutil.Big {
+	return (*hexutil.Big)(s.b.EffectiveMinGasPrice(ctx))
 }
 
 // Syncing returns true if node is syncing

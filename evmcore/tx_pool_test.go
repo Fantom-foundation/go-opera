@@ -82,7 +82,7 @@ func (bc *testBlockChain) CurrentBlock() *EvmBlock {
 func (bc *testBlockChain) MinGasPrice() *big.Int {
 	return common.Big0
 }
-func (bc *testBlockChain) RecommendedGasTip() *big.Int {
+func (bc *testBlockChain) EffectiveMinTip() *big.Int {
 	return nil
 }
 func (bc *testBlockChain) MaxGasLimit() uint64 {

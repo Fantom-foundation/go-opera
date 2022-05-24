@@ -29,6 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 )
 
 // TransactionArgs represents the arguments to construct a new transaction
@@ -86,10 +88,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 		// In this clause, user left some fields unspecified.
 		if b.ChainConfig().IsLondon(head.Number) && args.GasPrice == nil {
 			if args.MaxPriorityFeePerGas == nil {
-				tip, err := b.SuggestGasTipCap(ctx)
-				if err != nil {
-					return err
-				}
+				tip := b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
 				args.MaxPriorityFeePerGas = (*hexutil.Big)(tip)
 			}
 			if args.MaxFeePerGas == nil {
@@ -107,10 +106,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 				return errors.New("maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet")
 			}
 			if args.GasPrice == nil {
-				price, err := b.SuggestGasTipCap(ctx)
-				if err != nil {
-					return err
-				}
+				price := b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
 				price.Add(price, b.MinGasPrice())
 				args.GasPrice = (*hexutil.Big)(price)
 			}
