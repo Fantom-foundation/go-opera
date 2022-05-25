@@ -10,12 +10,12 @@ import (
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 
+	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
-	//"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
-
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
 
 	"github.com/stretchr/testify/assert"
 
@@ -283,6 +283,59 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	//erigon  : "0x7ed8e10e694f87e13ac1db95f0ebdea4a4644203edcd6b2b9f6c27e31bf1353f"
 	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
 }
+
+func addErigonTestAccountForStorage(tx kv.Putter, addr common.Address, acc *accounts.Account) error {
+	encoded := make([]byte, acc.EncodingLengthForStorage())
+	acc.EncodeForStorage(encoded)
+	hash := addr.Hash()
+	return tx.Put(kv.HashedAccounts, hash[:], encoded)
+}
+func TestErigonTrie3AccsRegenerateIntermediateHashes(t *testing.T) {
+	_, tx := memdb.NewTestTx(t)
+
+	addr1 := common.HexToAddress("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+	acc1 := &accounts.Account{
+		Nonce:    1,
+		Balance:  *uint256.NewInt(209488),
+		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"),
+	}
+	assert.Nil(t, addErigonTestAccountForStorage(tx, addr1, acc1))
+
+	
+	addr2 := common.HexToAddress("0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+	acc2 := &accounts.Account{
+		Nonce:    0,
+		Balance:  *uint256.NewInt(0),
+		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"),
+	}
+
+	assert.Nil(t, addErigonTestAccountForStorage(tx, addr2, acc2))
+
+	addr3 := common.HexToAddress("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+	acc3 := &accounts.Account{
+		Nonce:    0,
+		Balance:  *uint256.NewInt(1010),
+		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+		CodeHash: common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"),
+	}
+	
+	assert.Nil(t, addErigonTestAccountForStorage(tx, addr3, acc3))
+
+	trie := etrie.New(common.Hash{})
+	trie.UpdateAccount(addr1.Hash().Bytes(), acc1)
+	trie.UpdateAccount(addr2.Hash().Bytes(), acc2)
+	trie.UpdateAccount(addr3.Hash().Bytes(), acc3)
+
+	trieHash := trie.Hash()
+
+	cfg := StageTrieCfg(nil, false, true, t.TempDir())
+	erigonRoot, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	assert.Nil(t ,err)
+	assert.Equal(t, trieHash.Hex(), erigonRoot.Hex())
+}
+
 
 
 
