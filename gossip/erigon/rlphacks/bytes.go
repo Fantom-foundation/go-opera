@@ -41,11 +41,12 @@ func encodeBytesAsRlpToWriter(source []byte, w io.Writer, prefixGenFunc func([]b
 	if len(source) > 1 || (len(source) == 1 && source[0] >= 0x80) {
 		prefixLen := prefixGenFunc(prefixBuf, 0, len(source))
 
+		fmt.Printf("encodeBytesAsRlpToWriter write prefixBuf[:prefixLen]: %x\n", prefixBuf[:prefixLen])
 		if _, err := w.Write(prefixBuf[:prefixLen]); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("encodeBytesAsRlpToWriter source: %x\n", source)
+	fmt.Printf("encodeBytesAsRlpToWriter write source: %x\n", source)
 	_, err := w.Write(source)
 	return err
 }

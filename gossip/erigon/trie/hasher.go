@@ -113,6 +113,7 @@ func (h *hasher) hashShortNodeChildren(n *shortNode) (collapsed, cached *shortNo
 	// Unless the child is a valuenode or hashnode, hash it
 	switch n.Val.(type) {
 	case *fullNode, *shortNode:
+		fmt.Println("hashShortNodeChildren *fullNode, *shortNode") 
 		collapsed.Val, cached.Val = h.hash(n.Val, false)
 	}
 	return collapsed, cached
@@ -155,15 +156,33 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 // into compact form for RLP encoding.
 // If the rlp data is smaller than 32 bytes, `nil` is returned.
 func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
+	fmt.Println("(h *hasher) shortnodeToHash")
 	h.tmp.Reset()
+	/*
+	func Encode(w io.Writer, val interface{}) error {
+	if outer, ok := w.(*encbuf); ok {
+		// Encode was called by some type's EncodeRLP.
+		// Avoid copying by writing to the outer encbuf directly.
+		return outer.encode(val)
+	}
+	eb := encbufPool.Get().(*encbuf)
+	defer encbufPool.Put(eb)
+	eb.reset()
+	if err := eb.encode(val); err != nil {
+		return err
+	}
+	return eb.toWriter(w)
+	}
+	*/
 	if err := rlp.Encode(&h.tmp, n); err != nil {
 		panic("encode error: " + err.Error())
 	}
+	fmt.Printf("shortnodeToHash rlp.Encoded shortNode, h.tmp: %x\n",  h.tmp)
 
 	if len(h.tmp) < 32 && !force {
 		return n // Nodes smaller than 32 bytes are stored inside their parent
 	}
-	fmt.Println("(h *hasher) shortnodeToHash")
+	
 	return h.hashData(h.tmp)
 }
 
@@ -184,11 +203,12 @@ func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
 
 // hashData hashes the provided data
 func (h *hasher) hashData(data []byte) hashNode {
-	fmt.Println("(h *hasher) hashData")
+	fmt.Printf("(h *hasher) hashData data before hashing: %x\n", data)
 	n := make(hashNode, 32)
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)
+	fmt.Printf("(h *hasher) hashData data bafter hashing: %x\n", n)
 	return n
 }
 
