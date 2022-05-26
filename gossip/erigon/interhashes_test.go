@@ -4,23 +4,32 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"math/rand"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/core/types/accounts"
+	account "github.com/ledgerwatch/erigon/core/types/accounts"
+	"github.com/ledgerwatch/erigon/crypto"
+	//erigontrie "github.com/ledgerwatch/erigon/turbo/trie"
 
 	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/rlp"
+	com "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	legacytrie "github.com/ethereum/go-ethereum/trie"
+
 	"github.com/Fantom-foundation/go-opera/gossip/erigon/trie"
 	"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
+	
 
 	"github.com/stretchr/testify/assert"
 
-	com "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	
+	
+
 )
 
 
@@ -180,39 +189,19 @@ func TestCompareEthereumErigonStateRootWithSnaphotAccounts(t *testing.T) {
 */
 
 func addErigonTestAccount(tx kv.Putter, balance uint64) ([]byte, error) {
-	acc := new(accounts.Account)
-	acc.Root = common.Hash(emptyRoot)
-	acc.CodeHash = common.Hash(emptyCode)
+	acc := account.NewAccount()
 	acc.Balance.SetUint64(balance)
 	
 	encoded := make([]byte, acc.EncodingLengthForStorage())
 	acc.EncodeForStorage(encoded)
 
-	// hash a key cause trie.NewSecure hashes a key under the hood 
-	/*
-		func (t *SecureTrie) hashKey(key []byte) []byte {
-			h := newHasher(false)
-			h.sha.Reset()
-			h.sha.Write(key)
-			h.sha.Read(t.hashKeyBuf[:])
-			returnHasherToPool(h)
-			return t.hashKeyBuf[:]
-		}
-	*/
-	
-	/*
-	hashedKey, err := common.HashData(key)
-	if err != nil {
-		return nil, err
-	}
-	*/
 	return encoded, tx.Put(kv.HashedAccounts, key1[:], encoded)
 }
 
 
-// legacy and erigon state roots do not match cause they use different serializiation protocols by computing state roots
-// legacy implementation applies RLP encoding to serialize trie node and hash serialized data using keccak256 afterwards.
-// On an other hand, erigon uses more sophisticated technique in hb.completeLeafHash. THat's why state roots are different.
+// erigon calcTrieRoot algorithm serializes a leafnode here, but geth trie algorithm serializes a shortnode.
+// Due to this descrepancy, different state roots are computed. To resolve this issue, CalcTrieRoot stare root should be compared with erigon trie state root , not with geth trie root.
+// Please see TestErigonTrie3AccsRegenerateIntermediateHashes below for more information
 func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
@@ -284,7 +273,7 @@ func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	assert.Equal(t, legacyRoot.Hex(), erigonRoot.Hex())
 }
 
-func addErigonTestAccountForStorage(tx kv.Putter, addr common.Address, acc *accounts.Account) error {
+func addErigonTestAccountForStorage(tx kv.Putter, addr common.Address, acc *account.Account) error {
 	encoded := make([]byte, acc.EncodingLengthForStorage())
 	acc.EncodeForStorage(encoded)
 	hash := addr.Hash()
@@ -294,7 +283,7 @@ func TestErigonTrie3AccsRegenerateIntermediateHashes(t *testing.T) {
 	_, tx := memdb.NewTestTx(t)
 
 	addr1 := common.HexToAddress("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b")
-	acc1 := &accounts.Account{
+	acc1 := &account.Account{
 		Nonce:    1,
 		Balance:  *uint256.NewInt(209488),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
@@ -304,7 +293,7 @@ func TestErigonTrie3AccsRegenerateIntermediateHashes(t *testing.T) {
 
 	
 	addr2 := common.HexToAddress("0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b")
-	acc2 := &accounts.Account{
+	acc2 := &account.Account{
 		Nonce:    0,
 		Balance:  *uint256.NewInt(0),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
@@ -314,7 +303,7 @@ func TestErigonTrie3AccsRegenerateIntermediateHashes(t *testing.T) {
 	assert.Nil(t, addErigonTestAccountForStorage(tx, addr2, acc2))
 
 	addr3 := common.HexToAddress("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")
-	acc3 := &accounts.Account{
+	acc3 := &account.Account{
 		Nonce:    0,
 		Balance:  *uint256.NewInt(1010),
 		Root:     common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
@@ -335,6 +324,138 @@ func TestErigonTrie3AccsRegenerateIntermediateHashes(t *testing.T) {
 	assert.Nil(t ,err)
 	assert.Equal(t, trieHash.Hex(), erigonRoot.Hex())
 }
+
+func makeAccounts(size int) ([][]byte, []common.Hash) {
+	
+	accounts := make([][]byte, size)
+	addresses := make([]common.Hash, size)
+	for i := 0; i < size; i++ {
+		acc := account.NewAccount()
+		acc.Initialised = true
+		acc.Balance = *uint256.NewInt(uint64(rand.Int63()))
+
+		val := make([]byte, acc.EncodingLengthForStorage())
+		acc.EncodeForStorage(val)
+		accounts[i] = val
+
+		key, err := crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		addresses[i] = addr.Hash()
+	}
+	
+	
+	return accounts, addresses
+}
+
+func benchmarkCommitAfterHashFixedSize(b *testing.B,  accounts [][]byte, addresses []common.Hash) {
+	b.ReportAllocs()
+	trie , _:= legacytrie.New(com.Hash{}, legacytrie.NewDatabase(memorydb.New()))
+	for i := 0; i < len(addresses); i++ {
+		trie.Update(addresses[i][:], accounts[i])
+	}
+	// Insert the accounts into the trie and hash it
+	trie.Hash()
+	b.StartTimer()
+	trie.Commit(nil)
+	b.StopTimer()
+}
+
+func BenchmarkCommitAfterHashFixedSize(b *testing.B) {
+	b.Run("10", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(10)
+		for i := 0; i < b.N; i++ {
+			benchmarkCommitAfterHashFixedSize(b, acc, add)
+		}
+	})
+
+	/*
+	b.Run("100", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(100)
+		for i := 0; i < b.N; i++ {
+			benchmarkCommitAfterHashFixedSize(b, acc, add)
+		}
+	})
+	
+
+	b.Run("1K", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(1000)
+		for i := 0; i < b.N; i++ {
+			benchmarkCommitAfterHashFixedSize(b, acc, add)
+		}
+	})
+	b.Run("10K", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(10000)
+		for i := 0; i < b.N; i++ {
+			benchmarkCommitAfterHashFixedSize(b, acc, add)
+		}
+	})
+	b.Run("100K", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(100000)
+		for i := 0; i < b.N; i++ {
+			benchmarkCommitAfterHashFixedSize(b, acc, add)
+		}
+	})
+	*/
+}
+
+func benchmarkErigonRegenerateIntermediateHashes(b *testing.B, accounts [][]byte, addresses []common.Hash, tx kv.RwTx) {
+	//b.ReportAllocs()
+	for i := 0; i < len(addresses); i++ {
+		if err := tx.Put(kv.HashedAccounts, addresses[i].Bytes(), accounts[i]); err != nil {
+			b.FailNow()
+		}
+
+	}
+
+	b.StartTimer()
+
+	cfg := StageTrieCfg(nil, false, true, b.TempDir())
+	if _, err := RegenerateIntermediateHashesBench("IH", tx, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */); err != nil {
+		b.FailNow()
+	}
+	b.StopTimer()
+
+	
+
+}
+
+
+func BenchmarkErigonRegenerateIntermediateHashes(b *testing.B) {
+	b.Run("10", func(b *testing.B) {
+		b.StopTimer()
+		acc, add := makeAccounts(10)
+		_, tx := memdb.NewTestTx(b)
+		defer tx.Rollback()
+		for i := 0; i < b.N; i++ {
+			benchmarkErigonRegenerateIntermediateHashes(b, acc, add, tx)
+		}
+	})
+}
+
+/*
+func BenchmarkRegenerateIntermediateHashes(b *testing.B) {
+
+}
+
+func BenchmarkIncrementIntermediateHashes(b *testing.B) {
+
+}
+*/
+
+
+
+
+
+
+
 
 
 

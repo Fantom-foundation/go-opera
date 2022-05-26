@@ -1,4 +1,4 @@
-package etrie
+package benchtrie
 
 import (
 	"bytes"
@@ -7,13 +7,13 @@ import (
 	"math/bits"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/erigon/rlphacks"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
+	"github.com/ledgerwatch/erigon/turbo/rlphacks"
 	"github.com/ledgerwatch/log/v3"
 )
 
@@ -227,23 +227,15 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 	defer ss.Close()
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
-
-	i := 0
 	for ihK, ihV, hasTree, err := accTrie.AtPrefix(prefix); ; ihK, ihV, hasTree, err = accTrie.Next() { // no loop termination is at he end of loop
-		i++
-		fmt.Println("accTrie.AtPrefix first for loop i: ", i)
 		if err != nil {
 			return EmptyRoot, err
 		}
-		j := 0
 		if accTrie.SkipState {
-			fmt.Println("goto SkipAccounts")
 			goto SkipAccounts
 		}
 
 		for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
-			j++
-			fmt.Println("accs.Seek second for loop j: ", j)
 			if err1 != nil {
 				return EmptyRoot, err1
 			}
@@ -253,20 +245,16 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			if err = l.accountValue.DecodeForStorage(v); err != nil {
 				return EmptyRoot, fmt.Errorf("fail DecodeForStorage: %w", err)
 			}
-
 			if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
 				return EmptyRoot, err
 			}
-
 			if l.accountValue.Incarnation == 0 {
-				fmt.Println("accs.Seek l.accountValue.Incarnation == 0 for loop")
 				continue
 			}
 			copy(l.accAddrHashWithInc[:], k)
 			binary.BigEndian.PutUint64(l.accAddrHashWithInc[32:], l.accountValue.Incarnation)
 			accWithInc := l.accAddrHashWithInc[:]
 			for ihKS, ihVS, hasTreeS, err2 := storageTrie.SeekToAccount(accWithInc); ; ihKS, ihVS, hasTreeS, err2 = storageTrie.Next() {
-				fmt.Println("storageTrie.SeekToAccount seek Account for loop")
 				if err2 != nil {
 					return EmptyRoot, err2
 				}
@@ -283,11 +271,9 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 					if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
 						break
 					}
-					fmt.Println("storageTrie.SeekToAccount l.receiver.Receive Before")
 					if err = l.receiver.Receive(StorageStreamItem, accWithInc, l.kHexS, nil, vS[32:], nil, false, 0); err != nil {
 						return EmptyRoot, err
 					}
-					fmt.Println("storageTrie.SeekToAccount l.receiver.Receive Done")
 				}
 
 			SkipStorage:
@@ -311,9 +297,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 		}
 
 	SkipAccounts:
-		fmt.Println("SkipAccounts")
 		if ihK == nil { // Loop termination
-			fmt.Println("SkipAccounts break")
 			break
 		}
 
@@ -387,7 +371,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 
 	switch itemType {
 	case StorageStreamItem:
-		fmt.Println("RootHashAggregator Receive case StorageStreamItem")
 		if len(r.currAccK) == 0 {
 			r.currAccK = append(r.currAccK[:0], accountKey...)
 		}
@@ -399,7 +382,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(false, hasTree, storageValue, hash)
 	case SHashStreamItem:
-		fmt.Println("RootHashAggregator Receive case SHashStreamItem")
 		if len(storageKey) == 0 { // this is ready-to-use storage root - no reason to call GenStructStep, also GenStructStep doesn't support empty prefixes
 			r.hb.hashStack = append(append(r.hb.hashStack, byte(80+common.HashLength)), hash...)
 			r.hb.nodeStack = append(r.hb.nodeStack, nil)
@@ -417,15 +399,10 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(true, hasTree, storageValue, hash)
 	case AccountStreamItem:
-		fmt.Println("RootHashAggregator Receive case AccountStreamItem")
-		fmt.Printf("case AccountStreamItem accountKey %x\n", accountKey)
-		//fmt.Println("RootHashAggregator Receive case AccountStreamItem", "accountKey in Hex", common.Bytes2Hex(accountKey))
 		r.advanceKeysAccount(accountKey, true /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
-			fmt.Println("case AccountStreamItem  r.curr.Len() > 0 && !r.wasIH  ")
 			r.cutoffKeysStorage(0)
 			if r.currStorage.Len() > 0 {
-				fmt.Println("case AccountStreamItem r.currStorage.Len() > 0 before genStructStorage")
 				if err := r.genStructStorage(); err != nil {
 					return err
 				}
@@ -443,17 +420,14 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.currAccK = r.currAccK[:0]
 		if r.curr.Len() > 0 {
-			fmt.Println("case AccountStreamItem if r.curr.Len() > 0 before genStructAccount()")
 			if err := r.genStructAccount(); err != nil {
 				return err
 			}
 		}
-
 		if err := r.saveValueAccount(false, hasTree, accountValue, hash); err != nil {
 			return err
 		}
 	case AHashStreamItem:
-		fmt.Println("RootHashAggregator Receive case AHashStreamItem")
 		r.advanceKeysAccount(accountKey, false /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
 			r.cutoffKeysStorage(0)
@@ -483,23 +457,18 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			return err
 		}
 	case CutoffStreamItem:
-		fmt.Println("RootHashAggregator Receive case CutoffStreamItem")
 		if r.trace {
 			fmt.Printf("storage cuttoff %d\n", cutoff)
 		}
-
 		r.cutoffKeysAccount(cutoff)
 		if r.curr.Len() > 0 && !r.wasIH {
-			fmt.Println("CutoffStreamItem case r.curr.Len() > 0 && !r.wasIH")
 			r.cutoffKeysStorage(0)
 			if r.currStorage.Len() > 0 {
-				fmt.Println("CutoffStreamItem case if r.currStorage.Len() > 0")
 				if err := r.genStructStorage(); err != nil {
 					return err
 				}
 			}
 			if r.currStorage.Len() > 0 {
-				fmt.Println("CutoffStreamItem case if r.currStorage.Len() > 0")
 				r.groupsStorage = r.groupsStorage[:0]
 				r.hasTreeStorage = r.hasTreeStorage[:0]
 				r.hasHashStorage = r.hasHashStorage[:0]
@@ -511,14 +480,12 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			}
 		}
 		if r.curr.Len() > 0 {
-			fmt.Println("CutoffStreamItem case r.curr.Len() > 0")
 			if err := r.genStructAccount(); err != nil {
 				return err
 			}
 		}
 		if r.curr.Len() > 0 {
 			if len(r.groups) > cutoff {
-				fmt.Println("CutoffStreamItem case if len(r.groups) > cutoff ")
 				r.groups = r.groups[:cutoff]
 				r.hasTree = r.hasTree[:cutoff]
 				r.hasHash = r.hasHash[:cutoff]
@@ -526,7 +493,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		if r.hb.hasRoot() {
 			r.root = r.hb.rootHash()
-			fmt.Println("case CutoffStreamItem rootHash.Hex()", r.root.Hex())
 		} else {
 			r.root = EmptyRoot
 		}
@@ -587,7 +553,6 @@ func (r *RootHashAggregator) cutoffKeysStorage(cutoff int) {
 }
 
 func (r *RootHashAggregator) genStructStorage() error {
-	fmt.Println("(r *RootHashAggregator) genStructStorage()")
 	var err error
 	var data GenStructStepData
 	if r.wasIHStorage {
@@ -625,18 +590,13 @@ func (r *RootHashAggregator) saveValueStorage(isIH, hasTree bool, v, h []byte) {
 }
 
 func (r *RootHashAggregator) advanceKeysAccount(k []byte, terminator bool) {
-	fmt.Println("advanceKeysAccount resetting r.curr")
 	r.curr.Reset()
-	fmt.Println("writing r.succ into r.curr")
 	r.curr.Write(r.succ.Bytes())
 	r.succ.Reset()
-	fmt.Println("writing accountKey into r.succ")
 	r.succ.Write(k)
 	if terminator {
-		fmt.Println("writing 16 into r.succ")
 		r.succ.WriteByte(16)
 	}
-	fmt.Printf("r.succ %x\n", r.succ.Bytes())
 }
 
 func (r *RootHashAggregator) cutoffKeysAccount(cutoff int) {
@@ -650,7 +610,6 @@ func (r *RootHashAggregator) cutoffKeysAccount(cutoff int) {
 }
 
 func (r *RootHashAggregator) genStructAccount() error {
-	fmt.Println("genStructAccount then calling GenStructStep")
 	var data GenStructStepData
 	if r.wasIH {
 		r.hashData.Hash = r.hashAccount
@@ -1425,9 +1384,8 @@ func (c *StateCursor) Seek(seek []byte) ([]byte, []byte, []byte, error) {
 	if err != nil {
 		return []byte{}, nil, nil, err
 	}
-	fmt.Printf("stateCursor.Seek() k before DecompressNibbles: %x\n", k)
+
 	hexutil.DecompressNibbles(k, &c.kHex)
-	fmt.Printf("stateCursor.Seek() c.kHex after DecompressNibbles: %x\n", c.kHex)
 	return k, c.kHex, v, nil
 }
 
