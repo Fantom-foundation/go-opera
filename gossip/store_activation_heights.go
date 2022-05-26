@@ -18,7 +18,7 @@ func (s *Store) GetUpgradeHeights() []opera.UpgradeHeight {
 	if v := s.cache.UpgradeHeights.Load(); v != nil {
 		return v.([]opera.UpgradeHeight)
 	}
-	hh, ok := s.rlp.Get(s.table.Blocks, []byte{}, &[]opera.UpgradeHeight{}).(*[]opera.UpgradeHeight)
+	hh, ok := s.rlp.Get(s.table.UpgradeHeights, []byte{}, &[]opera.UpgradeHeight{}).(*[]opera.UpgradeHeight)
 	if !ok {
 		return []opera.UpgradeHeight{}
 	}
