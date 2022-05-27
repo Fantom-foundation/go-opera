@@ -12,9 +12,5 @@ func UpdateRules(src Rules, diff []byte) (res Rules, err error) {
 	res = changed
 	res.NetworkID = src.NetworkID
 	res.Name = src.Name
-	// don't allow to revert an activated upgrade
-	res.Upgrades.Berlin = res.Upgrades.Berlin || src.Upgrades.Berlin
-	res.Upgrades.London = res.Upgrades.London || src.Upgrades.London
-	res.Upgrades.Llr = res.Upgrades.Llr || src.Upgrades.Llr
 	return
 }
