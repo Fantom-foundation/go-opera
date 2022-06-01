@@ -33,6 +33,7 @@ func (s *Store) migrateData() error {
 		return nil
 	}
 
+	_ = s.eraseGenesisDB() // force eraseGenesisDB migration for alternative versions
 	err := s.migrations().Exec(versions, s.flushDBs)
 	return err
 }
