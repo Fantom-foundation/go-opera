@@ -43,7 +43,7 @@ type EthAPIBackend struct {
 
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
-	return b.svc.store.GetRules().EvmChainConfig()
+	return b.svc.store.GetEvmChainConfig()
 }
 
 func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {

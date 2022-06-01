@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
@@ -24,7 +25,7 @@ func New() *EVMModule {
 	return &EVMModule{}
 }
 
-func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules, vmCfg vm.Config) blockproc.EVMProcessor {
+func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules, vmCfg vm.Config, chainCfg *params.ChainConfig) blockproc.EVMProcessor {
 	var prevBlockHash common.Hash
 	if block.Idx != 0 {
 		prevBlockHash = reader.GetHeader(common.Hash{}, uint64(block.Idx-1)).Hash
@@ -36,6 +37,7 @@ func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, rea
 		onNewLog:      onNewLog,
 		net:           net,
 		vmCfg:         vmCfg,
+		chainCfg:      chainCfg,
 		blockIdx:      utils.U64toBig(uint64(block.Idx)),
 		prevBlockHash: prevBlockHash,
 	}
@@ -48,6 +50,7 @@ type OperaEVMProcessor struct {
 	onNewLog func(*types.Log)
 	net      opera.Rules
 	vmCfg    vm.Config
+	chainCfg *params.ChainConfig
 
 	blockIdx      *big.Int
 	prevBlockHash common.Hash
@@ -80,7 +83,7 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 }
 
 func (p *OperaEVMProcessor) Execute(txs types.Transactions) types.Receipts {
-	evmProcessor := evmcore.NewStateProcessor(p.net.EvmChainConfig(), p.reader)
+	evmProcessor := evmcore.NewStateProcessor(p.chainCfg, p.reader)
 	txsOffset := uint(len(p.incomingTxs))
 
 	// Process txs

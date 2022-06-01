@@ -41,6 +41,7 @@ type Store struct {
 		Blocks                 kvdb.Store `table:"b"`
 		EpochBlocks            kvdb.Store `table:"P"`
 		Genesis                kvdb.Store `table:"g"`
+		UpgradeHeights         kvdb.Store `table:"U"`
 
 		// Transaction traces
 		TransactionTraces kvdb.Store `table:"t"`
@@ -78,10 +79,11 @@ type Store struct {
 		BlockEpochStateHistory *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState        atomic.Value // store by value
 		HighestLamport         atomic.Value // store by value
-		LastBVs                atomic.Value
-		LastEV                 atomic.Value
-		LlrState               atomic.Value
-		KvdbEvmSnap            atomic.Value
+		LastBVs                atomic.Value // store by pointer
+		LastEV                 atomic.Value // store by pointer
+		LlrState               atomic.Value // store by value
+		KvdbEvmSnap            atomic.Value // store by pointer
+		UpgradeHeights         atomic.Value // store by pointer
 	}
 
 	mutex struct {

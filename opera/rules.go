@@ -117,15 +117,35 @@ type Upgrades struct {
 	Llr    bool
 }
 
+type UpgradeHeight struct {
+	Upgrades Upgrades
+	Height   idx.Block
+}
+
 // EvmChainConfig returns ChainConfig for transactions signing and execution
-func (r Rules) EvmChainConfig() *ethparams.ChainConfig {
+func (r Rules) EvmChainConfig(hh []UpgradeHeight) *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
 	cfg.ChainID = new(big.Int).SetUint64(r.NetworkID)
-	if !r.Upgrades.Berlin {
-		cfg.BerlinBlock = nil
-	}
-	if !r.Upgrades.London {
-		cfg.LondonBlock = nil
+	cfg.BerlinBlock = nil
+	cfg.LondonBlock = nil
+	for i, h := range hh {
+		height := new(big.Int)
+		if i > 0 {
+			height.SetUint64(uint64(h.Height))
+		}
+		if cfg.BerlinBlock == nil && h.Upgrades.Berlin {
+			cfg.BerlinBlock = height
+		}
+		if !h.Upgrades.Berlin {
+			cfg.BerlinBlock = nil
+		}
+
+		if cfg.LondonBlock == nil && h.Upgrades.London {
+			cfg.LondonBlock = height
+		}
+		if !h.Upgrades.London {
+			cfg.LondonBlock = nil
+		}
 	}
 	return &cfg
 }
