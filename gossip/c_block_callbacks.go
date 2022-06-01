@@ -255,7 +255,7 @@ func consensusCallbackBeginBlockFn(
 					})
 				}
 
-				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules, es.Rules.EvmChainConfig(store.GetUpgradeHeights()))
 				substart := time.Now()
 
 				// Execute pre-internal transactions
@@ -271,7 +271,14 @@ func consensusCallbackBeginBlockFn(
 				// Seal epoch if requested
 				if sealing {
 					sealer.Update(bs, es)
+					prevUpg := es.Rules.Upgrades
 					bs, es = sealer.SealEpoch() // TODO: refactor to not mutate the bs, it is unclear
+					if es.Rules.Upgrades != prevUpg {
+						store.AddUpgradeHeight(opera.UpgradeHeight{
+							Upgrades: es.Rules.Upgrades,
+							Height:   blockCtx.Idx + 1,
+						})
+					}
 					store.SetBlockEpochState(bs, es)
 					newValidators = es.Validators
 					txListener.Update(bs, es)

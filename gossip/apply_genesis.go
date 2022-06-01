@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
@@ -31,6 +32,12 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err erro
 	if topEr == nil {
 		return genesisHash, errors.New("no ERs in genesis")
 	}
+	var prevEs *iblockproc.EpochState
+	s.ForEachHistoryBlockEpochState(func(bs iblockproc.BlockState, es iblockproc.EpochState) bool {
+		s.WriteUpgradeHeight(bs, es, prevEs)
+		prevEs = &es
+		return true
+	})
 	s.SetBlockEpochState(topEr.BlockState, topEr.EpochState)
 	s.FlushBlockEpochState()
 

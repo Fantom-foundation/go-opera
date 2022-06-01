@@ -63,6 +63,6 @@ func StartENRUpdater(svc *Service, ln *enode.LocalNode) {
 func currentENREntry(svc *Service) *enrEntry {
 	genesisHash := *svc.store.GetGenesisID()
 	return &enrEntry{
-		ForkID: forkid.NewID(svc.store.GetRules().EvmChainConfig(), common.Hash(genesisHash), uint64(svc.store.GetLatestBlockIndex())),
+		ForkID: forkid.NewID(svc.store.GetEvmChainConfig(), common.Hash(genesisHash), uint64(svc.store.GetLatestBlockIndex())),
 	}
 }

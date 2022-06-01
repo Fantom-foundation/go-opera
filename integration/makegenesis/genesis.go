@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
+	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/iodb"
@@ -140,7 +141,12 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, b.tmpStateDB)
 	evmProcessor := blockProc.EVMModule.Start(blockCtx, b.tmpStateDB, dummyHeaderReturner{}, func(l *types.Log) {
 		txListener.OnNewLog(l)
-	}, es.Rules)
+	}, es.Rules, es.Rules.EvmChainConfig([]opera.UpgradeHeight{
+		{
+			Upgrades: es.Rules.Upgrades,
+			Height:   0,
+		},
+	}))
 
 	// Execute genesis transactions
 	evmProcessor.Execute(genesisTxs)

@@ -208,13 +208,14 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.store.GetLastBVs()
 	svc.store.GetLastEVs()
 	svc.store.GetLlrState()
+	svc.store.GetUpgradeHeights()
 
 	// create GPO
 	svc.gpo = gasprice.NewOracle(svc.config.GPO)
 
 	// create checkers
 	net := store.GetRules()
-	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(net.EvmChainConfig().ChainID))
+	txSigner := gsignercache.Wrap(types.LatestSignerForChainID(new(big.Int).SetUint64(net.NetworkID)))
 	svc.heavyCheckReader.Store = store
 	svc.heavyCheckReader.Pubkeys.Store(readEpochPubKeys(svc.store, svc.store.GetEpoch()))                                          // read pub keys of current epoch from DB
 	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), net.Economy)) // read gaspower check data from DB
