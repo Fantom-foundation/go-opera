@@ -256,7 +256,14 @@ func (tr *TraceStructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Du
 func (*TraceStructLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
 }
 
-func (*TraceStructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {}
+// CaptureExit is called when returning from an inner call
+func (tr *TraceStructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {
+        // When going back from inner call
+        result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
+        if result != nil {
+                result.GasUsed = hexutil.Uint64(gasUsed)
+        }
+}
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.
