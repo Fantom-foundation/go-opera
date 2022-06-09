@@ -83,6 +83,20 @@ be gzipped
 `,
 			},
 			{
+				Name:      "preimages",
+				Usage:     "Export blockchain account preimages",
+				ArgsUsage: "<filename>",
+				Action:    utils.MigrateFlags(exportPreimages),
+				Flags: []cli.Flag{
+					DataDirFlag,
+				},
+				Description: `
+    opera export preimages
+
+Requires a first argument of the file to write to.
+`,
+			},
+			{
 				Name:      "genesis",
 				Usage:     "Export current state into a genesis file",
 				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=MODE --export.evm.exclude=DB_PATH --export.sections=A,B,C]",
