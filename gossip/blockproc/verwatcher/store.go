@@ -1,6 +1,8 @@
 package verwatcher
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -9,6 +11,11 @@ import (
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	mainDB kvdb.Store
+
+	cache struct {
+		networkVersion atomic.Value
+		missedVersion  atomic.Value
+	}
 
 	logger.Instance
 }

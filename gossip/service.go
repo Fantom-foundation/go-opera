@@ -202,6 +202,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.dagIndexer.Reset(svc.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
 		return svc.store.GetEvent(id)
 	})
+
 	// load caches for mutable values to avoid race condition
 	svc.store.GetBlockEpochState()
 	svc.store.GetHighestLamport()
@@ -209,6 +210,9 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.store.GetLastEVs()
 	svc.store.GetLlrState()
 	svc.store.GetUpgradeHeights()
+	netVerStore := verwatcher.NewStore(store.table.NetworkVersion)
+	netVerStore.GetNetworkVersion()
+	netVerStore.GetMissedVersion()
 
 	// create GPO
 	svc.gpo = gasprice.NewOracle(svc.config.GPO)
@@ -266,7 +270,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
-	svc.verWatcher = verwatcher.New(verwatcher.NewStore(store.table.NetworkVersion))
+	svc.verWatcher = verwatcher.New(netVerStore)
 	svc.tflusher = svc.makePeriodicFlusher()
 
 	return svc, nil
