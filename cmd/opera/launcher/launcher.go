@@ -217,6 +217,7 @@ func init() {
 		snapshotCommand,
 		//see erigoncmd.go
 		erigonCommand,
+		importPreimagesCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

@@ -137,5 +137,19 @@ Checks EVM storage roots and code hashes
 
 	
 	}
+	importPreimagesCommand = cli.Command{
+		Name:     "preimages",
+		Usage:    "Import preimages and prints them out",
+		Category: "MISCELLANEOUS COMMANDS",
+		Action: utils.MigrateFlags(importPreimagesCmd),
+		//Flags: []cli.Flag{mptTraversalMode,},
+
+		Description: `
+		opera preimages
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
+
+	
+	}
 	
 )
