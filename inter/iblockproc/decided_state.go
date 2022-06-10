@@ -147,6 +147,8 @@ func (es EpochState) Copy() EpochState {
 	cp.ValidatorStates = make([]ValidatorEpochState, len(es.ValidatorStates))
 	copy(cp.ValidatorStates, es.ValidatorStates)
 	cp.ValidatorProfiles = es.ValidatorProfiles.Copy()
-	cp.Rules = es.Rules.Copy()
+	if es.Rules != (opera.Rules{}) {
+		cp.Rules = es.Rules.Copy()
+	}
 	return cp
 }

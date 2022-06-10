@@ -31,9 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -69,7 +66,7 @@ func BenchmarkInsertChain_ring1000_diskdb(b *testing.B) {
 
 var (
 	// This is the content of the genesis block used by the benchmarks.
-	benchRootKey   = makegenesis.FakeKey(1)
+	benchRootKey   = FakeKey(1)
 	benchRootAddr  = crypto.PubkeyToAddress(benchRootKey.PublicKey)
 	benchRootFunds = math.BigPow(2, 100)
 )
@@ -150,14 +147,14 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	net := makegenesis.FakeGenesisStore(2, 1, benchRootFunds, big.NewInt(1)).GetGenesis()
-
 	// state
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	if err != nil {
 		b.Fatalf("cannot create statedb: %v", err)
 	}
-	genesisBlock := MustApplyGenesis(net, statedb, opt.MiB)
+	genesisBlock := MustApplyFakeGenesis(statedb, FakeGenesisTime, map[common.Address]*big.Int{
+		benchRootAddr: benchRootFunds,
+	})
 	genesisBlock.GasLimit = 1000000
 
 	// Time the insertion of the new chain.

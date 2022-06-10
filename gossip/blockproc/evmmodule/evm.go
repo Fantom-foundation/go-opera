@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
@@ -23,7 +24,7 @@ func New() *EVMModule {
 	return &EVMModule{}
 }
 
-func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
+func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules, evmCfg *params.ChainConfig) blockproc.EVMProcessor {
 	var prevBlockHash common.Hash
 	if block.Idx != 0 {
 		prevBlockHash = reader.GetHeader(common.Hash{}, uint64(block.Idx-1)).Hash
@@ -34,6 +35,7 @@ func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, rea
 		statedb:       statedb,
 		onNewLog:      onNewLog,
 		net:           net,
+		evmCfg:        evmCfg,
 		blockIdx:      utils.U64toBig(uint64(block.Idx)),
 		prevBlockHash: prevBlockHash,
 	}
@@ -45,6 +47,7 @@ type OperaEVMProcessor struct {
 	statedb  *state.StateDB
 	onNewLog func(*types.Log)
 	net      opera.Rules
+	evmCfg   *params.ChainConfig
 
 	blockIdx      *big.Int
 	prevBlockHash common.Hash
@@ -76,13 +79,13 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 	return evmcore.NewEvmBlock(h, txs)
 }
 
-func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types.Receipts {
-	evmProcessor := evmcore.NewStateProcessor(p.net.EvmChainConfig(), p.reader)
+func (p *OperaEVMProcessor) Execute(txs types.Transactions) types.Receipts {
+	evmProcessor := evmcore.NewStateProcessor(p.evmCfg, p.reader)
 	txsOffset := uint(len(p.incomingTxs))
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
-	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, internal, func(l *types.Log, _ *state.StateDB) {
+	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, opera.DefaultVMConfig, &p.gasUsed, func(l *types.Log, _ *state.StateDB) {
 		// Note: l.Index is properly set before
 		l.TxIndex += txsOffset
 		p.onNewLog(l)

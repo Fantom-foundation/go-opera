@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -24,7 +24,7 @@ import (
 
 func TestEmitter(t *testing.T) {
 	cfg := DefaultConfig()
-	gValidators := makegenesis.GetFakeValidators(3)
+	gValidators := makefakegenesis.GetFakeValidators(3)
 	vv := pos.NewBuilder()
 	for _, v := range gValidators {
 		vv.Set(v.ID, pos.Weight(1))

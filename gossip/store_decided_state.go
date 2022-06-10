@@ -4,6 +4,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/log"
+	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -16,6 +18,7 @@ type BlockEpochState struct {
 	EpochState *iblockproc.EpochState
 }
 
+// TODO propose to pass bs, es arguments by pointer
 func (s *Store) SetHistoryBlockEpochState(epoch idx.Epoch, bs iblockproc.BlockState, es iblockproc.EpochState) {
 	bs, es = bs.Copy(), es.Copy()
 	bes := &BlockEpochState{
@@ -50,6 +53,21 @@ func (s *Store) GetHistoryBlockEpochState(epoch idx.Epoch) (*iblockproc.BlockSta
 	return &bs, &es
 }
 
+func (s *Store) ForEachHistoryBlockEpochState(fn func(iblockproc.BlockState, iblockproc.EpochState) bool) {
+	it := s.table.BlockEpochStateHistory.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		bes := BlockEpochState{}
+		err := rlp.DecodeBytes(it.Value(), &bes)
+		if err != nil {
+			s.Log.Crit("Failed to decode BlockEpochState", "err", err)
+		}
+		if !fn(*bes.BlockState, *bes.EpochState) {
+			break
+		}
+	}
+}
+
 func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
 	// check current BlockEpochState as a cache
 	if v := s.cache.BlockEpochState.Load(); v != nil {
@@ -65,6 +83,11 @@ func (s *Store) GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState {
 
 func (s *Store) HasHistoryBlockEpochState(epoch idx.Epoch) bool {
 	has, _ := s.table.BlockEpochStateHistory.Has(epoch.Bytes())
+	return has
+}
+
+func (s *Store) HasBlockEpochState() bool {
+	has, _ := s.table.BlockEpochState.Has([]byte(sKey))
 	return has
 }
 
@@ -130,6 +153,11 @@ func (s *Store) GetLatestBlockIndex() idx.Block {
 // GetRules retrieves current network rules
 func (s *Store) GetRules() opera.Rules {
 	return s.GetEpochState().Rules
+}
+
+// GetEvmChainConfig retrieves current EVM chain config
+func (s *Store) GetEvmChainConfig() *ethparams.ChainConfig {
+	return s.GetRules().EvmChainConfig(s.GetUpgradeHeights())
 }
 
 // GetEpochRules retrieves current network rules and epoch atomically

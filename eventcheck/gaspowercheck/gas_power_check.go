@@ -107,7 +107,7 @@ func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContex
 }
 
 func CalcValidatorGasPower(e inter.EventI, eTime, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config Config) uint64 {
-	gasPowerPerSec, maxGasPower, startup := calcValidatorGasPowerPerSec(e.Creator(), validators, config)
+	gasPowerPerSec, maxGasPower, startup := CalcValidatorGasPowerPerSec(e.Creator(), validators, config)
 
 	if e.SelfParent() == nil {
 		if prevGasPowerLeft < startup {
@@ -131,7 +131,7 @@ func CalcValidatorGasPower(e inter.EventI, eTime, prevTime inter.Timestamp, prev
 	return gasPower
 }
 
-func calcValidatorGasPowerPerSec(
+func CalcValidatorGasPowerPerSec(
 	validator idx.ValidatorID,
 	validators *pos.Validators,
 	config Config,

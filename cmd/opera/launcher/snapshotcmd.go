@@ -39,6 +39,14 @@ import (
 )
 
 var (
+	PruneExactCommand = cli.BoolFlag{
+		Name:  "prune.exact",
+		Usage: `full pruning without usage of bloom filter (false by default)`,
+	}
+	PruneGenesisCommand = cli.BoolTFlag{
+		Name:  "prune.genesis",
+		Usage: `prune genesis state (true by default)`,
+	}
 	snapshotCommand = cli.Command{
 		Name:        "snapshot",
 		Usage:       "A set of commands based on the snapshot",
@@ -48,11 +56,13 @@ var (
 			{
 				Name:      "prune-state",
 				Usage:     "Prune stale EVM state data based on the snapshot",
-				ArgsUsage: "<root>",
+				ArgsUsage: "<root> [--prune.exact] [--prune.genesis=false]",
 				Action:    utils.MigrateFlags(pruneState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					PruneExactCommand,
+					PruneGenesisCommand,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -82,7 +92,7 @@ the trie clean cache with default directory will be deleted.
 				Action:    utils.MigrateFlags(verifyState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -102,7 +112,7 @@ In other words, this command does the snapshot to trie conversion.
 				Action:    utils.MigrateFlags(traverseState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -124,7 +134,7 @@ It's also usable without snapshot enabled.
 				Action:    utils.MigrateFlags(traverseRawState),
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
-					utils.DataDirFlag,
+					DataDirFlag,
 					utils.AncientFlag,
 					utils.RopstenFlag,
 					utils.RinkebyFlag,
@@ -152,18 +162,43 @@ func pruneState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+	if gdb.GetGenesisID() == nil {
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 
 	tmpDir := path.Join(cfg.Node.DataDir, "tmp")
 	_ = os.MkdirAll(tmpDir, 0700)
 	defer os.RemoveAll(tmpDir)
 
-	genesisRoot := common.Hash(gdb.GetBlock(*gdb.GetGenesisBlockIndex()).Root)
+	genesisBlock := gdb.GetBlock(*gdb.GetGenesisBlockIndex())
+	genesisRoot := common.Hash{}
+	if !ctx.BoolT(PruneGenesisCommand.Name) && genesisBlock != nil {
+		if gdb.EvmStore().HasStateDB(genesisBlock.Root) {
+			genesisRoot = common.Hash(genesisBlock.Root)
+			log.Info("Excluding genesis state from pruning", "root", genesisRoot)
+		}
+	}
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
-	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, ctx.GlobalUint64(utils.BloomFilterSizeFlag.Name))
+	var bloom evmpruner.StateBloom
+	if ctx.Bool(PruneExactCommand.Name) {
+		log.Info("Initializing LevelDB storage of in-use-keys")
+		lset, closer, err := evmpruner.NewLevelDBSet(path.Join(tmpDir, "keys-in-use"))
+		if err != nil {
+			log.Error("Failed to create state bloom", "err", err)
+			return err
+		}
+		bloom = lset
+		defer closer.Close()
+	} else {
+		size := ctx.Uint64(utils.BloomFilterSizeFlag.Name)
+		log.Info("Initializing bloom filter of in-use-keys", "size (MB)", size)
+		bloom, err = evmpruner.NewProbabilisticSet(size)
+		if err != nil {
+			log.Error("Failed to create state bloom", "err", err)
+			return err
+		}
+	}
+	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, bloom)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -195,10 +230,9 @@ func verifyState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	genesis := gdb.GetGenesisHash()
+	genesis := gdb.GetGenesisID()
 	if genesis == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 
 	evmStore := gdb.EvmStore()
@@ -240,9 +274,8 @@ func traverseState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+	if gdb.GetGenesisID() == nil {
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
 
@@ -333,9 +366,8 @@ func traverseRawState(ctx *cli.Context) error {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
 
-	if gdb.GetGenesisHash() == nil {
-		log.Error("Failed to open snapshot tree", "err", "genesis is not written")
-		return err
+	if gdb.GetGenesisID() == nil {
+		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
 

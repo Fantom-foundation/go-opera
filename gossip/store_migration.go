@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -45,7 +46,10 @@ func (s *Store) migrations() *migration.Migration {
 		Next("DAG last events recovery", s.recoverLastEventsStorage).
 		Next("BlockState recovery", s.recoverBlockState).
 		Next("LlrState recovery", s.recoverLlrState).
-		Next("erase gossip-async db", s.eraseGossipAsyncDB)
+		Next("erase gossip-async db", s.eraseGossipAsyncDB).
+		Next("erase SFC API table", s.eraseSfcApiTable).
+		Next("erase legacy genesis DB", s.eraseGenesisDB).
+		Next("calculate upgrade heights", s.calculateUpgradeHeights)
 }
 
 func unsupportedMigration() error {
@@ -356,7 +360,27 @@ func (s *Store) recoverLlrState() error {
 		LowestBlockToFill:   block,
 	})
 	s.FlushLlrState()
+	return nil
+}
 
+func (s *Store) eraseSfcApiTable() error {
+	sfcapiTable := table.New(s.mainDB, []byte("S"))
+	it := sfcapiTable.NewIterator(nil, nil)
+	defer it.Release()
+	i := 0
+	for it.Next() {
+		err := sfcapiTable.Delete(it.Key())
+		if err != nil {
+			return err
+		}
+		i++
+		if i%1000 == 0 && s.IsCommitNeeded() {
+			err := s.Commit()
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -369,5 +393,30 @@ func (s *Store) eraseGossipAsyncDB() error {
 	_ = asyncDB.Close()
 	asyncDB.Drop()
 
+	return nil
+}
+
+func (s *Store) eraseGenesisDB() error {
+	genesisDB, err := s.dbs.OpenDB("genesis")
+	if err != nil {
+		return nil
+	}
+
+	_ = genesisDB.Close()
+	genesisDB.Drop()
+	return nil
+}
+
+func (s *Store) calculateUpgradeHeights() error {
+	var prevEs *iblockproc.EpochState
+	s.ForEachHistoryBlockEpochState(func(bs iblockproc.BlockState, es iblockproc.EpochState) bool {
+		s.WriteUpgradeHeight(bs, es, prevEs)
+		prevEs = &es
+		return true
+	})
+	if prevEs == nil {
+		// special case when no history is available
+		s.WriteUpgradeHeight(s.GetBlockState(), s.GetEpochState(), nil)
+	}
 	return nil
 }

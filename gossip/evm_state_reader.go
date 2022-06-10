@@ -15,16 +15,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
-var (
-	big3 = big.NewInt(3)
-	big5 = big.NewInt(5)
-)
-
 type EvmStateReader struct {
 	*ServiceFeed
 
 	store *Store
 	gpo   *gasprice.Oracle
+}
+
+func NewEvmStateReader(s *Store) *EvmStateReader {
+	return &EvmStateReader{
+		store: s,
+	}
 }
 
 func (s *Service) GetEvmStateReader() *EvmStateReader {
@@ -40,14 +41,10 @@ func (r *EvmStateReader) MinGasPrice() *big.Int {
 	return r.store.GetRules().Economy.MinGasPrice
 }
 
-// RecommendedGasTip returns current soft lower bound for gas tip
-func (r *EvmStateReader) RecommendedGasTip() *big.Int {
-	// max((SuggestedGasTip+minGasPrice)*0.6-minGasPrice, 0)
+// EffectiveMinTip returns current soft lower bound for gas tip
+func (r *EvmStateReader) EffectiveMinTip() *big.Int {
 	min := r.MinGasPrice()
-	est := new(big.Int).Set(r.gpo.SuggestTipCap())
-	est.Add(est, min)
-	est.Mul(est, big3)
-	est.Div(est, big5)
+	est := r.gpo.EffectiveMinGasPrice()
 	est.Sub(est, min)
 	if est.Sign() < 0 {
 		return new(big.Int)
@@ -67,7 +64,7 @@ func (r *EvmStateReader) MaxGasLimit() uint64 {
 }
 
 func (r *EvmStateReader) Config() *params.ChainConfig {
-	return r.store.GetRules().EvmChainConfig()
+	return r.store.GetEvmChainConfig()
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
@@ -112,7 +109,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 
 	// find block rules
-	epoch := r.store.FindBlockEpoch(n)
+	epoch := block.Atropos.Epoch()
 	es := r.store.GetHistoryEpochState(epoch)
 	var rules opera.Rules
 	if es != nil {
@@ -120,7 +117,10 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 	var prev hash.Event
 	if n != 0 {
-		prev = r.store.GetBlock(n - 1).Atropos
+		block := r.store.GetBlock(n - 1)
+		if block != nil {
+			prev = block.Atropos
+		}
 	}
 	evmHeader := evmcore.ToEvmHeader(block, n, prev, rules)
 

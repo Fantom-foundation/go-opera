@@ -67,6 +67,7 @@ func validateTx(tx *types.Transaction) error {
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
+
 	if tx.GasFeeCapIntCmp(tx.GasTipCap()) < 0 {
 		return ErrTipAboveFeeCap
 	}
@@ -267,9 +268,7 @@ func (v *Checker) validateBVs(eventEpoch idx.Epoch, bvs inter.LlrBlockVotes, gre
 	if ((bvs.Start == 0) != (len(bvs.Votes) == 0)) || ((bvs.Start == 0) != (bvs.Epoch == 0)) {
 		return MalformedBVs
 	}
-	if ((bvs.Start == 0) != (len(bvs.Votes) == 0)) || ((bvs.Start == 0) != (bvs.Epoch == 0)) {
-		return MalformedBVs
-	}
+
 	if greedy && bvs.Epoch == 0 {
 		return EmptyBVs
 	}

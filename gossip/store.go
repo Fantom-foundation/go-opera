@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/gossip/sfcapi"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
@@ -30,7 +29,6 @@ type Store struct {
 	mainDB       kvdb.Store
 	snapshotedDB *switchable.Snapshot
 	evm          *evmstore.Store
-	sfcapi       *sfcapi.Store
 	table        struct {
 		Version kvdb.Store `table:"_"`
 
@@ -41,6 +39,7 @@ type Store struct {
 		Blocks                 kvdb.Store `table:"b"`
 		EpochBlocks            kvdb.Store `table:"P"`
 		Genesis                kvdb.Store `table:"g"`
+		UpgradeHeights         kvdb.Store `table:"U"`
 
 		// P2P-only
 		HighestLamport kvdb.Store `table:"l"`
@@ -50,7 +49,6 @@ type Store struct {
 
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
-		SfcAPI      kvdb.Store `table:"S"`
 
 		LlrState           kvdb.Store `table:"!"`
 		LlrBlockResults    kvdb.Store `table:"@"`
@@ -76,10 +74,11 @@ type Store struct {
 		BlockEpochStateHistory *wlru.Cache  `cache:"-"` // store by pointer
 		BlockEpochState        atomic.Value // store by value
 		HighestLamport         atomic.Value // store by value
-		LastBVs                atomic.Value
-		LastEV                 atomic.Value
-		LlrState               atomic.Value
-		KvdbEvmSnap            atomic.Value
+		LastBVs                atomic.Value // store by pointer
+		LastEV                 atomic.Value // store by pointer
+		LlrState               atomic.Value // store by value
+		KvdbEvmSnap            atomic.Value // store by pointer
+		UpgradeHeights         atomic.Value // store by pointer
 	}
 
 	mutex struct {
@@ -119,7 +118,6 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 
 	s.initCache()
 	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
-	s.sfcapi = sfcapi.NewStore(s.table.SfcAPI)
 
 	if err := s.migrateData(); err != nil {
 		s.Log.Crit("Failed to migrate Gossip DB", "err", err)
@@ -155,7 +153,6 @@ func (s *Store) Close() {
 	table.MigrateCaches(&s.cache, setnil)
 
 	_ = s.mainDB.Close()
-	s.sfcapi.Close()
 	_ = s.closeEpochStore()
 }
 

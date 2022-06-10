@@ -10,7 +10,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/utils"
 )
@@ -20,6 +19,18 @@ const ContractABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"inter
 var (
 	sAbi, _ = abi.JSON(strings.NewReader(ContractABI))
 )
+
+type Delegation struct {
+	Address            common.Address
+	ValidatorID        idx.ValidatorID
+	Stake              *big.Int
+	LockedStake        *big.Int
+	LockupFromEpoch    idx.Epoch
+	LockupEndTime      idx.Epoch
+	LockupDuration     uint64
+	EarlyUnlockPenalty *big.Int
+	Rewards            *big.Int
+}
 
 // Methods
 
@@ -61,8 +72,8 @@ func SetGenesisValidator(v gpos.Validator) []byte {
 	return data
 }
 
-func SetGenesisDelegation(delegator common.Address, validatorID idx.ValidatorID, d genesis.Delegation) []byte {
-	data, _ := sAbi.Pack("setGenesisDelegation", delegator, utils.U64toBig(uint64(validatorID)), d.Stake, d.LockedStake, utils.U64toBig(uint64(d.LockupFromEpoch)), utils.U64toBig(uint64(d.LockupEndTime)), utils.U64toBig(uint64(d.LockupDuration)), d.EarlyUnlockPenalty, d.Rewards)
+func SetGenesisDelegation(d Delegation) []byte {
+	data, _ := sAbi.Pack("setGenesisDelegation", d.Address, utils.U64toBig(uint64(d.ValidatorID)), d.Stake, d.LockedStake, utils.U64toBig(uint64(d.LockupFromEpoch)), utils.U64toBig(uint64(d.LockupEndTime)), utils.U64toBig(uint64(d.LockupDuration)), d.EarlyUnlockPenalty, d.Rewards)
 	return data
 }
 

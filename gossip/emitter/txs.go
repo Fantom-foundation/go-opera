@@ -83,7 +83,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 	}
 	// pendingGas should be below MaxBlockGas
 	{
-		maxPendingGas := max64(rules.Blocks.MaxBlockGas*3/5, rules.Economy.Gas.MaxEventGas+rules.Economy.Gas.EventGas*uint64(em.validators.Len()))
+		maxPendingGas := max64(max64(rules.Blocks.MaxBlockGas/3, rules.Economy.Gas.MaxEventGas), 15000000)
 		if maxPendingGas <= em.pendingGas {
 			return 0
 		}

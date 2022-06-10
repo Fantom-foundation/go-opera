@@ -390,7 +390,10 @@ func TestPatternLimit(t *testing.T) {
 
 	for i, x := range data {
 		got, err := limitPattern(x.pattern)
-		require.ElementsMatch(x.exp, got, i)
+		require.Equal(len(x.exp), len(got))
+		for j := range got {
+			require.ElementsMatch(x.exp[j], got[j], i, j)
+		}
 		require.Equal(x.err, err, i)
 	}
 }

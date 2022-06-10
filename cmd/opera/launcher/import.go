@@ -27,6 +27,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
@@ -81,7 +82,7 @@ func importEvents(ctx *cli.Context) error {
 	}
 
 	// avoid P2P interaction, API calls and events emitting
-	genesis := getOperaGenesis(ctx)
+	genesisStore := mayGetGenesisStore(ctx)
 	cfg := makeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
@@ -99,7 +100,7 @@ func importEvents(ctx *cli.Context) error {
 	cfg.Node.P2P.StaticNodes = nil
 	cfg.Node.P2P.TrustedNodes = nil
 
-	err := importEventsToNode(ctx, cfg, genesis, ctx.Args()...)
+	err := importEventsToNode(ctx, cfg, genesisStore, ctx.Args()...)
 	if err != nil {
 		return err
 	}
@@ -107,8 +108,8 @@ func importEvents(ctx *cli.Context) error {
 	return nil
 }
 
-func importEventsToNode(ctx *cli.Context, cfg *config, genesis integration.InputGenesis, args ...string) error {
-	node, svc, nodeClose := makeNode(ctx, cfg, genesis)
+func importEventsToNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store, args ...string) error {
+	node, svc, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
 	startNode(ctx, node)
 
@@ -145,6 +146,16 @@ func importEventsFile(srv *gossip.Service, fn string) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
+
+	// wait until snapshot generation is complete
+	for srv.EvmSnapshotGeneration() {
+		select {
+		case <-interrupt:
+			return fmt.Errorf("interrupted")
+		case <-time.After(100 * time.Millisecond):
+			continue
+		}
+	}
 
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)

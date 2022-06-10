@@ -35,7 +35,7 @@ func BenchmarkBallotTxsProcessing(b *testing.B) {
 		}
 
 		// contract deploy
-		addr, tx, cBallot, err := ballot.DeployContract(env.Pay(1), env, proposals)
+		addr, tx, cBallot, err := ballot.DeployBallot(env.Pay(1), env, proposals)
 		require.NoError(err)
 		require.NotNil(cBallot)
 		r, err := env.ApplyTxs(nextEpoch, tx)

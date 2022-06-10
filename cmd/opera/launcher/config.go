@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -28,8 +27,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
+	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -77,6 +77,10 @@ var (
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+	ExperimentalGenesisFlag = cli.BoolFlag{
+		Name:  "genesis.allowExperimental",
+		Usage: "Allow to use experimental genesis file.",
+	}
 
 	RPCGlobalGasCapFlag = cli.Uint64Flag{
 		Name:  "rpc.gascap",
@@ -105,7 +109,21 @@ var (
 		opera.MainNetworkID: hash.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),
 		opera.TestNetworkID: hash.HexToHash("0xc4a5fc96e575a16a9a0c7349d44dc4d0f602a54e0a8543360c2fee4c3937b49e"),
 	}
+	ExitWhenAgeFlag = cli.DurationFlag{
+		Name:  "exitwhensynced.age",
+		Usage: "Exits after synchronisation reaches the required age",
+	}
+	ExitWhenEpochFlag = cli.Uint64Flag{
+		Name:  "exitwhensynced.epoch",
+		Usage: "Exits after synchronisation reaches the required epoch",
+	}
 )
+
+type GenesisTemplate struct {
+	Name   string
+	Header genesis.Header
+	Hashes genesis.Hashes
+}
 
 const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
@@ -141,12 +159,11 @@ type config struct {
 
 func (c *config) AppConfigs() integration.Configs {
 	return integration.Configs{
-		Opera:          c.Opera,
-		OperaStore:     c.OperaStore,
-		Lachesis:       c.Lachesis,
-		LachesisStore:  c.LachesisStore,
-		VectorClock:    c.VectorClock,
-		AllowedGenesis: AllowedOperaGenesisHashes,
+		Opera:         c.Opera,
+		OperaStore:    c.OperaStore,
+		Lachesis:      c.Lachesis,
+		LachesisStore: c.LachesisStore,
+		VectorClock:   c.VectorClock,
 	}
 }
 
@@ -170,51 +187,50 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func getOperaGenesis(ctx *cli.Context) integration.InputGenesis {
-
-	var genesis integration.InputGenesis
+func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		fakeGenesisStore := makegenesis.FakeGenesisStore(2, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
-		genesis = integration.InputGenesis{
-			Hash: fakeGenesisStore.Hash(),
-			Read: func(store *genesisstore.Store) error {
-				buf := bytes.NewBuffer(nil)
-				err = fakeGenesisStore.Export(buf)
-				if err != nil {
-					return err
-				}
-				return store.Import(buf)
-			},
-			Close: func() error {
-				return nil
-			},
-		}
+		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
 		genesisPath := ctx.GlobalString(GenesisFlag.Name)
 
-		genesisFile, err := os.Open(genesisPath)
+		f, err := os.Open(genesisPath)
 		if err != nil {
 			utils.Fatalf("Failed to open genesis file: %v", err)
 		}
-		inputGenesisHash, readGenesisStore, err := genesisstore.OpenGenesisStore(genesisFile)
+		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(f)
 		if err != nil {
 			utils.Fatalf("Failed to read genesis file: %v", err)
 		}
 
-		genesis = integration.InputGenesis{
-			Hash:  inputGenesisHash,
-			Read:  readGenesisStore,
-			Close: genesisFile.Close,
+		// check if it's a trusted preset
+		{
+			g := genesisStore.Genesis()
+			gHeader := genesis.Header{
+				GenesisID:   g.GenesisID,
+				NetworkID:   g.NetworkID,
+				NetworkName: g.NetworkName,
+			}
+			for _, allowed := range AllowedOperaGenesis {
+				if allowed.Hashes.Equal(genesisHashes) && allowed.Header.Equal(gHeader) {
+					log.Info("Genesis file is a known preset", "name", allowed.Name)
+					goto notExperimental
+				}
+			}
+			if ctx.GlobalBool(ExperimentalGenesisFlag.Name) {
+				log.Warn("Genesis file doesn't refer to any trusted preset")
+			} else {
+				utils.Fatalf("Genesis file doesn't refer to any trusted preset. Enable experimental genesis with --genesis.allowExperimental")
+			}
+		notExperimental:
 		}
-	default:
-		log.Crit("Network genesis is not specified")
+		return genesisStore
 	}
-	return genesis
+	return nil
 }
 
 func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
@@ -236,8 +252,8 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	defaultDataDir := DefaultDataDir()
 
 	switch {
-	case ctx.GlobalIsSet(utils.DataDirFlag.Name):
-		cfg.DataDir = ctx.GlobalString(utils.DataDirFlag.Name)
+	case ctx.GlobalIsSet(DataDirFlag.Name):
+		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
@@ -365,8 +381,11 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		cfg.Emitter = emitter.FakeConfig(num)
+		setBootnodes(ctx, []string{}, &cfg.Node)
 	} else {
-		setBootnodes(ctx, Bootnodes, &cfg.Node)
+		// "asDefault" means set network defaults
+		cfg.Node.P2P.BootstrapNodes = asDefault
+		cfg.Node.P2P.BootstrapNodesV5 = asDefault
 	}
 
 	// Load config file (medium priority)

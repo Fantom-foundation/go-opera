@@ -110,7 +110,7 @@ func (d *Leecher) selectSessionPeerCandidates() []string {
 	var selected []string
 	currentEpochPeers := make([]string, 0, len(d.Peers))
 	futureEpochPeers := make([]string, 0, len(d.Peers))
-	for p, _ := range d.Peers {
+	for p := range d.Peers {
 		epoch := d.callback.PeerEpoch(p)
 		if epoch == d.epoch {
 			currentEpochPeers = append(currentEpochPeers, p)
