@@ -63,7 +63,7 @@ func importPreimages(fn string) error {
 		key, val := crypto.Keccak256Hash(blob), common.BytesToAddress(common.CopyBytes(blob))
 		preimages[key] = val
 		i += 1
-		fmt.Printf("importPreimages %d, address Hash: %s, address: %s", i, key.String(), val.Hex())
+		fmt.Printf("importPreimages %d, address Hash: %s, address: %s\n", i, key.String(), val.Hex())
 		if i > 10 {
 			break
 		}
