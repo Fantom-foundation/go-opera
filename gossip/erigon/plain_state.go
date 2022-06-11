@@ -232,9 +232,18 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		invalidAccounts2 int
 	)
 
+	preimages, err := importPreimages(preimagesPath)
+	if err != nil {
+		return err
+	}
+
+	matches := 0
 	for accIt.Next() {
 
 		accHash := accIt.Hash()
+		if _, ok := preimages[accHash]; ok{
+			matches++
+		}
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
 			return err
@@ -253,6 +262,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			log.Warn("address is invalid")
 			missingAddresses++
 		}
+	
 
 		switch {
 		case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
@@ -314,6 +324,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			logged = time.Now()
 		}
 	}
+	log.Info("Match", "Of account hash and preimage hash", matches)
 
 	if missingAddresses > 0 {
 		log.Warn("Snapshot traversal is incomplete due to missing addresses", "missing", missingAddresses)
