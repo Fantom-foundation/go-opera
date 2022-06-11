@@ -75,10 +75,6 @@ func calcAppHelpFlagGroups() []flags.FlagGroup {
 			Flags: metricsFlags,
 		},
 		{
-			Name:  "DB",
-			Flags: dbFlags,
-		},
-		{
 			Name:  "TESTING",
 			Flags: testFlags,
 		},
