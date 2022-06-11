@@ -28,6 +28,8 @@ type (
 		TrieDirtyDisabled bool
 		// Memory limit (MB) at which to start flushing dirty trie nodes to disk
 		TrieDirtyLimit uint
+		// Whether to enable greedy gc mode
+		GreedyGC bool
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
@@ -49,7 +51,8 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmBlocksNum:      scale.I(5000),
 			EvmBlocksSize:     scale.U(6 * opt.MiB),
 			TrieDirtyDisabled: true,
-			TrieDirtyLimit:    scale.U(400 * opt.MiB),
+			GreedyGC:          false,
+			TrieDirtyLimit:    scale.U(256 * opt.MiB),
 		},
 		EnablePreimageRecording: true,
 	}

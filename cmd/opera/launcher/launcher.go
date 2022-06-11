@@ -59,6 +59,7 @@ var (
 	legacyRpcFlags   []cli.Flag
 	rpcFlags         []cli.Flag
 	metricsFlags     []cli.Flag
+	dbFlags          []cli.Flag
 )
 
 func initFlags() {
@@ -120,6 +121,7 @@ func initFlags() {
 		validatorPubkeyFlag,
 		validatorPasswordFlag,
 		SyncModeFlag,
+		GCModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,
@@ -171,6 +173,7 @@ func initFlags() {
 		utils.MetricsInfluxDBOrganizationFlag,
 		tracing.EnableFlag,
 	}
+	dbFlags = []cli.Flag{}
 
 	nodeFlags = []cli.Flag{}
 	nodeFlags = append(nodeFlags, gpoFlags...)
@@ -216,6 +219,8 @@ func init() {
 		checkCommand,
 		// See snapshot.go
 		snapshotCommand,
+		// See dbcmd.go
+		dbCommand,
 		// See fixdirty.go
 		fixDirtyCommand,
 	}
