@@ -68,7 +68,7 @@ func OpenGenesisStore(rawReaders []fileszip.Reader, close func() error) (*Store,
 		_header := genesis.Header{}
 		err = rlp.Decode(dummyByteReader{reader}, &_header)
 		if err != nil {
-			return nil, hashes, err
+			return nil, hashes, fmt.Errorf("rlp.Decode &_header: %q, i: %d\n", err, i)
 		}
 		if i == 0 {
 			header = _header
@@ -80,7 +80,7 @@ func OpenGenesisStore(rawReaders []fileszip.Reader, close func() error) (*Store,
 		_hashes := genesis.Hashes{}
 		err = rlp.Decode(dummyByteReader{reader}, &_hashes)
 		if err != nil {
-			return nil, hashes, err
+			return nil, hashes, fmt.Errorf("rlp.Decode &_hashes: %q, i: %d\n", err, i)
 		}
 		hashes.Add(_hashes)
 		consumed, err := reader.Seek(0, io.SeekCurrent)
