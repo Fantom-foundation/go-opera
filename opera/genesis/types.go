@@ -8,11 +8,7 @@ import (
 )
 
 type (
-	Hashes struct {
-		Blocks      hash.Hashes
-		Epochs      hash.Hashes
-		RawEvmItems hash.Hashes
-	}
+	Hashes map[string]hash.Hash
 	Header struct {
 		GenesisID   hash.Hash
 		NetworkID   uint64
@@ -36,47 +32,17 @@ type (
 	}
 )
 
-func includes(base, hh hash.Hashes) bool {
-	baseSet := base.Set()
-	for _, h := range hh {
-		if !baseSet.Contains(h) {
+func (hh Hashes) Includes(hh2 Hashes) bool {
+	for n, h := range hh {
+		if hh2[n] != h {
 			return false
 		}
 	}
 	return true
 }
 
-func (h Hashes) Includes(h2 Hashes) bool {
-	if !includes(h.Epochs, h2.Epochs) {
-		return false
-	}
-	if !includes(h.Blocks, h2.Blocks) {
-		return false
-	}
-	if !includes(h.RawEvmItems, h2.RawEvmItems) {
-		return false
-	}
-	return true
-}
-
-func (h Hashes) Equal(h2 Hashes) bool {
-	return h.Includes(h2) && h2.Includes(h)
-}
-
-func add(base, hh hash.Hashes) hash.Hashes {
-	baseSet := base.Set()
-	for _, h := range hh {
-		if !baseSet.Contains(h) {
-			base.Add(h)
-		}
-	}
-	return base
-}
-
-func (h *Hashes) Add(h2 Hashes) {
-	h.Blocks = add(h.Blocks, h2.Blocks)
-	h.Epochs = add(h.Epochs, h2.Epochs)
-	h.RawEvmItems = add(h.RawEvmItems, h2.RawEvmItems)
+func (hh Hashes) Equal(hh2 Hashes) bool {
+	return hh.Includes(hh2) && hh2.Includes(hh)
 }
 
 func (h Header) Equal(h2 Header) bool {

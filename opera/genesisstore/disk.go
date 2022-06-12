@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"time"
+	"compress/gzip"
+
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -15,7 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/filelog"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileszip"
+	"github.com/Fantom-foundation/go-opera/opera/genesisstore/readersmap"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
@@ -56,6 +59,110 @@ func checkFileHeader(reader io.Reader) error {
 	return nil
 }
 
+type ReadAtSeekerCloser interface {
+	io.ReaderAt
+	io.Seeker
+	io.Closer
+}
+
+type Unit struct {
+	UnitName string
+	Header   genesis.Header
+}
+
+func OpenGenesisStore(rawReader ReadAtSeekerCloser) (*Store, genesis.Hashes, error) {
+	header := genesis.Header{}
+	hashes := genesis.Hashes{}
+	units := make([]readersmap.Unit, 0, 3)
+	offset := int64(0)
+	for i := 0; ; i++ {
+		// header cannot be long, cap it with 100000 bytes
+		headerReader := io.NewSectionReader(rawReader, offset, offset+100000)
+		err := checkFileHeader(headerReader)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, hashes, err
+		}
+		unit := Unit{}
+		err = rlp.Decode(dummyByteReader{headerReader}, &unit)
+		if err != nil {
+			return nil, hashes, err
+		}
+		if i == 0 {
+			header = unit.Header
+		} else {
+			if !header.Equal(unit.Header) {
+				return nil, hashes, errors.New("subsequent genesis header doesn't match the first header")
+			}
+		}
+
+		var h hash.Hash
+		err = ioread.ReadAll(headerReader, h[:])
+		if err != nil {
+			return nil, hashes, err
+		}
+		hashes[unit.UnitName] = h
+
+		var numB [8]byte
+		err = ioread.ReadAll(headerReader, numB[:])
+		if err != nil {
+			return nil, hashes, err
+		}
+		dataCompressedSize := bigendian.BytesToUint64(numB[:])
+
+		err = ioread.ReadAll(headerReader, numB[:])
+		if err != nil {
+			return nil, hashes, err
+		}
+		uncompressedSize := bigendian.BytesToUint64(numB[:])
+
+		headerSize, err := headerReader.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, hashes, err
+		}
+
+		unitReader := io.NewSectionReader(rawReader, offset+headerSize, offset+headerSize+int64(dataCompressedSize))
+		offset += headerSize + int64(dataCompressedSize)
+
+		gzipReader, err := gzip.NewReader(unitReader)
+		if err != nil {
+			return nil, hashes, err
+		}
+
+		// wrap with a logger
+		// human-readable name
+		name := unit.UnitName
+		if unit.UnitName == BlocksSection {
+			name = "blocks"
+		}
+		if unit.UnitName == EpochsSection {
+			name = "epochs"
+		}
+		if unit.UnitName == EvmSection {
+			name = "EVM data"
+		}
+		loggedReader := filelog.Wrap(gzipReader, name, uncompressedSize, time.Minute)
+
+		units = append(units, readersmap.Unit{
+			Name:   unit.UnitName,
+			Reader: loggedReader,
+		})
+	}
+
+	unitsMap, err := readersmap.Wrap(units)
+	if err != nil {
+		return nil, hashes, err
+	}
+
+	hashedMap := fileshash.Wrap(unitsMap.Open, FilesHashMaxMemUsage, hashes)
+
+	return NewStore(hashedMap, header, rawReader.Close), hashes, nil
+}
+
+
+/*
 func OpenGenesisStore(rawReaders []fileszip.Reader, close func() error) (*Store, genesis.Hashes, error) {
 	header := genesis.Header{}
 	hashes := genesis.Hashes{}
@@ -127,3 +234,4 @@ func OpenGenesisStore(rawReaders []fileszip.Reader, close func() error) (*Store,
 
 	return NewStore(hashedMap, header, close), hashes, nil
 }
+*/

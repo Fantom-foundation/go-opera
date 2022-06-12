@@ -13,7 +13,7 @@ const (
 	EvmSection    = "evm"
 )
 
-type FilesMap func(string) (io.ReadCloser, error)
+type FilesMap func(string) (io.Reader, error)
 
 // Store is a node persistent storage working over a physical zip archive.
 type Store struct {

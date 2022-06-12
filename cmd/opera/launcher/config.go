@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileszip"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -177,6 +175,44 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		}
 		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
+		genesisPath := ctx.GlobalString(GenesisFlag.Name)
+
+		f, err := os.Open(genesisPath)
+		if err != nil {
+			utils.Fatalf("Failed to open genesis file: %v", err)
+		}
+
+		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(f)
+		if err != nil {
+			utils.Fatalf("Failed to read genesis file: %v", err)
+		}
+
+		// check if it's a trusted preset
+		{
+			g := genesisStore.Genesis()
+			gHeader := genesis.Header{
+				GenesisID:   g.GenesisID,
+				NetworkID:   g.NetworkID,
+				NetworkName: g.NetworkName,
+			}
+			for _, allowed := range AllowedOperaGenesis {
+				if allowed.Hashes.Equal(genesisHashes) && allowed.Header.Equal(gHeader) {
+					log.Info("Genesis file is a known preset", "name", allowed.Name)
+					goto notExperimental
+				}
+			}
+			if ctx.GlobalBool(ExperimentalGenesisFlag.Name) {
+				log.Warn("Genesis file doesn't refer to any trusted preset")
+			} else {
+				utils.Fatalf("Genesis file doesn't refer to any trusted preset. Enable experimental genesis with --genesis.allowExperimental")
+			}
+		notExperimental:
+		}
+		return genesisStore
+	}
+	return nil
+
+		/*
 		genesisPaths := ctx.GlobalStringSlice(GenesisFlag.Name)
 		var files []fileszip.Reader
 		var closers []io.Closer
@@ -230,6 +266,7 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		return genesisStore
 	}
 	return nil
+	*/
 }
 
 func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
@@ -379,9 +416,13 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		cfg.Emitter = emitter.FakeConfig(num)
+		setBootnodes(ctx, []string{}, &cfg.Node)
 	} else {
-		setBootnodes(ctx, Bootnodes, &cfg.Node)
+		// "asDefault" means set network defaults
+		cfg.Node.P2P.BootstrapNodes = asDefault
+		cfg.Node.P2P.BootstrapNodesV5 = asDefault
 	}
+
 
 	// Load config file (medium priority)
 	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
