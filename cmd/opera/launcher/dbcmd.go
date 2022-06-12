@@ -10,6 +10,10 @@ import (
 )
 
 var (
+	experimentalFlag = cli.BoolFlag{
+		Name:  "experimental",
+		Usage: "Allow experimental DB fixing",
+	}
 	dbCommand = cli.Command{
 		Name:        "db",
 		Usage:       "A set of commands related to leveldb database",
@@ -28,6 +32,35 @@ var (
 				Description: `
 opera db compact
 will compact all databases under datadir's chaindata.
+`,
+			},
+			{
+				Name:      "migrate",
+				Usage:     "Migrate tables layout",
+				ArgsUsage: "",
+				Action:    utils.MigrateFlags(dbMigrate),
+				Category:  "DB COMMANDS",
+				Flags: []cli.Flag{
+					utils.DataDirFlag,
+				},
+				Description: `
+opera db migrate
+will migrate tables layout according to the configuration.
+`,
+			},
+			{
+				Name:      "fix",
+				Usage:     "Experimental - try to fix dirty DB",
+				ArgsUsage: "",
+				Action:    utils.MigrateFlags(fixDirty),
+				Category:  "DB COMMANDS",
+				Flags: []cli.Flag{
+					utils.DataDirFlag,
+					experimentalFlag,
+				},
+				Description: `
+opera db fix --experimental
+Experimental - try to fix dirty DB.
 `,
 			},
 		},

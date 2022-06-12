@@ -219,8 +219,6 @@ func init() {
 		snapshotCommand,
 		// See dbcmd.go
 		dbCommand,
-		// See fixdirty.go
-		fixDirtyCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

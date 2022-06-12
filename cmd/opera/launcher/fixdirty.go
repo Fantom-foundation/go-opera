@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
@@ -10,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
@@ -21,52 +21,44 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 )
 
-var (
-	fixDirtyCommand = cli.Command{
-		Action:      utils.MigrateFlags(fixDirty),
-		Name:        "fixdirty",
-		Usage:       "Experimental - try to fix dirty DB",
-		ArgsUsage:   "",
-		Flags:       append(nodeFlags, testFlags...),
-		Category:    "MISCELLANEOUS COMMANDS",
-		Description: `Experimental - try to fix dirty DB.`,
-	}
-)
-
 // maxEpochsToTry represents amount of last closed epochs to try (in case that the last one has the state unavailable)
 const maxEpochsToTry = 10000
 
 // fixDirty is the fixdirty command.
 func fixDirty(ctx *cli.Context) error {
+	if !ctx.Bool(experimentalFlag.Name) {
+		utils.Fatalf("Add --experimental flag")
+	}
 	cfg := makeAllConfigs(ctx)
 
 	log.Info("Opening databases")
-	producer := makeRawDbsProducer(cfg)
+	dbTypes := makeRawDbsProducers(cfg)
+	multiProducer := makeMultiRawDbsProducer(dbTypes, cfg)
 
 	// reverts the gossip database state
-	epochState, err := fixDirtyGossipDb(producer, cfg)
+	epochState, err := fixDirtyGossipDb(multiProducer, cfg)
 	if err != nil {
 		return err
 	}
 
-	// drop epoch databases
+	// drop epoch-related databases and consensus database
 	log.Info("Removing epoch DBs - will be recreated on next start")
-	err = dropAllEpochDbs(producer)
-	if err != nil {
-		return err
+	for _, name := range []string{
+		fmt.Sprintf("gossip-%d", epochState.Epoch),
+		fmt.Sprintf("lachesis-%d", epochState.Epoch),
+		"lachesis",
+	} {
+		err = eraseTable(name, multiProducer)
+		if err != nil {
+			return err
+		}
 	}
-
-	// drop consensus database
-	log.Info("Removing lachesis db")
-	cMainDb := mustOpenDB(producer, "lachesis")
-	_ = cMainDb.Close()
-	cMainDb.Drop()
 
 	// prepare consensus database from epochState
-	log.Info("Recreating lachesis db")
-	cMainDb = mustOpenDB(producer, "lachesis")
+	log.Info("Recreating lachesis DB")
+	cMainDb := mustOpenDB(multiProducer, "lachesis")
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.Store {
-		return mustOpenDB(producer, fmt.Sprintf("lachesis-%d", epoch))
+		return mustOpenDB(multiProducer, fmt.Sprintf("lachesis-%d", epoch))
 	}
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), cfg.LachesisStore)
 	err = cdb.ApplyGenesis(&abft.Genesis{
@@ -78,10 +70,13 @@ func fixDirty(ctx *cli.Context) error {
 	}
 	_ = cdb.Close()
 
-	log.Info("Clearing dbs dirty flags")
-	err = clearDirtyFlags(producer)
-	if err != nil {
-		return err
+	log.Info("Clearing DBs dirty flags")
+	id := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
+	for typ, producer := range dbTypes {
+		err := clearDirtyFlags(id, producer)
+		if err != nil {
+			log.Crit("Failed to write clean FlushID", "type", typ, "err", err)
+		}
 	}
 
 	log.Info("Fixing done")
@@ -147,24 +142,27 @@ func getLastEpochWithState(gdb *gossip.Store, epochsToTry idx.Epoch) (epochIdx i
 	return 0, nil, nil
 }
 
-func dropAllEpochDbs(producer kvdb.IterableDBProducer) error {
-	for _, name := range producer.Names() {
-		if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
-			log.Info("Removing db", "name", name)
-			db, err := producer.OpenDB(name)
-			if err != nil {
-				return fmt.Errorf("unable to open db %s; %s", name, err)
-			}
-			_ = db.Close()
-			db.Drop()
+func eraseTable(name string, producer kvdb.IterableDBProducer) error {
+	log.Info("Cleaning table", "name", name)
+	db, err := producer.OpenDB(name)
+	if err != nil {
+		return fmt.Errorf("unable to open DB %s; %s", name, err)
+	}
+	db = batched.Wrap(db)
+	defer db.Close()
+	it := db.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+		err := db.Delete(it.Key())
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // clearDirtyFlags - writes the CleanPrefix into all databases
-func clearDirtyFlags(rawProducer kvdb.IterableDBProducer) error {
-	id := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
+func clearDirtyFlags(id []byte, rawProducer kvdb.IterableDBProducer) error {
 	names := rawProducer.Names()
 	for _, name := range names {
 		db, err := rawProducer.OpenDB(name)
