@@ -71,10 +71,11 @@ var (
 		Value: DefaultCacheSize,
 	}
 	// GenesisFlag specifies network genesis configuration
-	GenesisFlag = cli.StringSliceFlag{
+	GenesisFlag = cli.StringFlag{
 		Name:  "genesis",
-		Usage: "'path to genesis file(s)' - sets the network genesis configuration.",
+		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
+	
 	ExperimentalGenesisFlag = cli.BoolFlag{
 		Name:  "genesis.allowExperimental",
 		Usage: "Allow to use experimental genesis file.",
