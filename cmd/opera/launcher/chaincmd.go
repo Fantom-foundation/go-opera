@@ -11,6 +11,11 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
+	mptTraversalMode = cli.StringFlag{
+		Name:  "mpt.traversal.mode",
+		Usage: `Traversal mode ("mpt" or "snap")`,
+		Value: "snap",
+	}
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
@@ -115,5 +120,36 @@ Checks EVM storage roots and code hashes
 `,
 			},
 		},
+	}
+
+	erigonCommand = cli.Command{
+		Name:     "erigon",
+		Usage:    "Writes EVM data into Erigon tables",
+		Category: "MISCELLANEOUS COMMANDS",
+		Action: utils.MigrateFlags(writeEVMToErigon),
+		Flags: []cli.Flag{
+			mptTraversalMode,
+		},
+
+		Description: `
+		opera erigon
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
+
+	
+	}
+	importPreimagesCommand = cli.Command{
+		Name:     "preimages",
+		Usage:    "Import preimages and prints them out",
+		Category: "MISCELLANEOUS COMMANDS",
+		Action: utils.MigrateFlags(importPreimagesCmd),
+		//Flags: []cli.Flag{mptTraversalMode,},
+
+		Description: `
+		opera preimages
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
+
+	
 	}
 )
