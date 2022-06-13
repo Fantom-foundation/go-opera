@@ -210,12 +210,12 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) error {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to build a snaptree, err: %q", err)
 	}
 
 	accIt, err := snaptree.AccountIterator(root, common.Hash{})
 	if err != nil {
-		return err
+		return fmt.Errorf("Unable to make account iterator from snaptree, err: %q", err)
 	}
 	defer accIt.Release()
 
@@ -237,6 +237,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		return err
 	}
 
+	log.Info("Traversal of preimage is complete")
+
 	var matches, unmatches uint64
 	for accIt.Next() {
 		accHash := accIt.Hash()
@@ -247,7 +249,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		}
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
-			return err
+			return fmt.Errorf("Unable to get snapshot.Account from account Iterator, err: %q", err)
 		}
 
 		stateAccount := state.Account{
@@ -333,7 +335,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
-		
+
 	log.Info("Preimages", "matches", matches, "unmatches", unmatches)
 
 	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
