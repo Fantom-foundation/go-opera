@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Fantom-foundation/go-opera/integration"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 		Subcommands: []cli.Command{
 			{
 				Name:      "compact",
-				Usage:     "Compact whole leveldb databases under chaindata",
+				Usage:     "Compact all databases",
 				ArgsUsage: "",
 				Action:    utils.MigrateFlags(compact),
 				Category:  "DB COMMANDS",
@@ -29,7 +30,7 @@ var (
 				},
 				Description: `
 opera db compact
-will compact entire data store under datadir's chaindata.
+will compact all databases under datadir's chaindata.
 `,
 			},
 		},

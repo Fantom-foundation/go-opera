@@ -59,7 +59,6 @@ var (
 	legacyRpcFlags   []cli.Flag
 	rpcFlags         []cli.Flag
 	metricsFlags     []cli.Flag
-	dbFlags          []cli.Flag
 )
 
 func initFlags() {
@@ -173,7 +172,6 @@ func initFlags() {
 		utils.MetricsInfluxDBOrganizationFlag,
 		tracing.EnableFlag,
 	}
-	dbFlags = []cli.Flag{}
 
 	nodeFlags = []cli.Flag{}
 	nodeFlags = append(nodeFlags, gpoFlags...)
