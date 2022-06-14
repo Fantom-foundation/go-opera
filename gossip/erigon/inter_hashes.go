@@ -42,7 +42,7 @@ func assertSubset(a, b uint16) {
 	}
 }
 
-func accountTrieCollector(collector *etl.Collector) etrie.HashCollector2 {
+func accountTrieCollector(collector *etl.Collector) benchtrie.HashCollector2 {
 	newV := make([]byte, 0, 1024)
 	return func(keyHex []byte, hasState, hasTree, hasHash uint16, hashes, _ []byte) error {
 		fmt.Println("accountTrieCollector")
@@ -62,7 +62,7 @@ func accountTrieCollector(collector *etl.Collector) etrie.HashCollector2 {
 	}
 }
 
-func storageTrieCollector(collector *etl.Collector) etrie.StorageHashCollector2 {
+func storageTrieCollector(collector *etl.Collector) benchtrie.StorageHashCollector2 {
 	newK := make([]byte, 0, 128)
 	newV := make([]byte, 0, 1024)
 	return func(accWithInc []byte, keyHex []byte, hasState, hasTree, hasHash uint16, hashes, rootHash []byte) error {
@@ -149,7 +149,7 @@ func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := etrie.NewFlatDBTrieLoader(logPrefix)
+	loader := benchtrie.NewFlatDBTrieLoader(logPrefix)
 	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
 		stTrieCollectorFunc, false); err != nil {
 		return etrie.EmptyRoot, err
@@ -184,6 +184,7 @@ func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 }
 
 // for debugging purposes, TODO make it private 
+/*
 func RegenerateIntermediateHashes(logPrefix string,
 	db kv.RwTx, cfg TrieCfg,
 	expectedRootHash common.Hash,
@@ -230,6 +231,7 @@ func RegenerateIntermediateHashes(logPrefix string,
 	}
 	return hash, nil
 }
+*/
 
 // for bench purposes
 func RegenerateIntermediateHashesBench(logPrefix string,

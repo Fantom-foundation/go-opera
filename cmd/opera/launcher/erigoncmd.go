@@ -1,10 +1,10 @@
 package launcher
 
 import (
-	//"context"
-	//"fmt"
+	"context"
+	"fmt"
 	"path"
-	//"time"
+	"time"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -17,11 +17,11 @@ import (
 
 func writeEVMToErigon(ctx *cli.Context) error {
 
-	//start := time.Now()
+	start := time.Now()
 	log.Info("Writing of EVM accounts into Erigon database started")
 	// initiate erigon lmdb
 	//db, tmpDir, err := erigon.SetupDB()
-	db, _, err := erigon.SetupDB()
+	db, tmpDir, err := erigon.SetupDB()
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,6 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	}
 	log.Info("Generation of Erigon Plain State is complete")
 
-	/*
 	log.Info("Generate Erigon Hash State")
 	if err := erigon.GenerateHashedState("HashedState", db, tmpDir, context.Background()); err != nil {
 		log.Error("GenerateHashedState error: ", err)
@@ -75,6 +74,5 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
 
 	log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
-	*/
 	return nil
 }
