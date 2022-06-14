@@ -237,15 +237,13 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		return err
 	}
 
-	log.Info("Traversal of preimage is complete")
-
-	var matches, unmatches uint64
+	var matchedAccounts, notMatchedAccounts uint64
 	for accIt.Next() {
 		accHash := accIt.Hash()
 		if _, ok := preimages[accHash]; ok{
-			matches++
+			matchedAccounts++
 		} else {
-			unmatches++
+			notMatchedAccounts++
 		}
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
@@ -322,12 +320,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 		accounts++
 		if time.Since(logged) > 8*time.Second {
-			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", accounts,
+			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", accounts, "Preimages", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
 			logged = time.Now()
 		}
 	}
-	log.Info("Snapshot traversing", "Match of account hash and preimage hash", matches)
+
 
 	if missingAddresses > 0 {
 		log.Warn("Snapshot traversal is incomplete due to missing addresses", "missing", missingAddresses)
@@ -336,7 +334,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
 
-	log.Info("Preimages", "matches", matches, "unmatches", unmatches)
+	log.Info("Preimages matching is complete", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts)
 
 	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
 	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)

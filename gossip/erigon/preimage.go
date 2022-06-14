@@ -18,7 +18,7 @@ import (
 const preimagesPath = "/root/preimages/preimages.gz"
 
 func importPreimages(fn string) (map[common.Hash]common.Address, error) {
-	log.Info("Importing preimages", "from file file", fn)
+	log.Info("Importing preimages started....", "from file", fn)
 
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
@@ -37,8 +37,9 @@ func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 
 	// Import the preimages in batches to prevent disk trashing
 	preimages := make(map[common.Hash]common.Address)
-
+	i := 0
 	for {
+		
 		// Read the next entry and ensure it's not junk
 		var blob []byte
 
@@ -58,6 +59,10 @@ func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 			preimages = make(map[common.Hash][]byte)
 		}
 		*/
+		i++
 	}	
+	log.Info("Traversal of preimages is complete...")
+	log.Info("Total amount of imported preimages", i)
 	return preimages, nil
+
 }
