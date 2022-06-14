@@ -237,13 +237,25 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		return err
 	}
 
-	var matchedAccounts, notMatchedAccounts uint64
+	var addrPreImAddrNotMatches, matchedAccounts, notMatchedAccounts uint64
 	for accIt.Next() {
 		accHash := accIt.Hash()
-		if _, ok := preimages[accHash]; ok{
+		// get account address
+		addr := ecommon.BytesToAddress(accHash.Bytes())
+		if len(addr) != 20 {
+			log.Warn("address is invalid")
+			missingAddresses++
+		}
+
+		preImAddr, ok := preimages[accHash]
+		if ok{
 			matchedAccounts++
 		} else {
 			notMatchedAccounts++
+		}
+
+		if common.Address(addr) != preImAddr {
+			addrPreImAddrNotMatches++
 		}
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
@@ -257,12 +269,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			CodeHash: snapAccount.CodeHash,
 		}
 			
-		// get account address
-		addr := ecommon.BytesToAddress(accHash.Bytes())
-		if len(addr) != 20 {
-			log.Warn("address is invalid")
-			missingAddresses++
-		}
+		
 	
 
 		switch {
@@ -322,9 +329,13 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		if time.Since(logged) > 8*time.Second {
 			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
 			accounts, 
+			"addrPreImAddrNotMatches", addrPreImAddrNotMatches,
 			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
 			logged = time.Now()
+		}
+		if accounts > 1000 {
+			break
 		}
 	}
 
