@@ -1,12 +1,9 @@
-name: Release
+name: Check build
 
-on:
-  push:
-    tags:
-    - '*'
+on: [push]
 
 jobs:
-  release:
+  check-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,8 +17,8 @@ jobs:
       - name: Build
         run: make opera && chmod +x ./build/opera
 
-      - name: Release
-        uses: ncipollo/release-action@v1
+      - name: Publish
+        uses: actions/upload-artifact@v2
         with:
-          artifacts: "./build/opera"
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: opera
+          path: ./build/opera
