@@ -320,7 +320,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 		accounts++
 		if time.Since(logged) > 8*time.Second {
-			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", accounts, "Preimages", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
+			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
+			accounts, 
+			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
 			logged = time.Now()
 		}

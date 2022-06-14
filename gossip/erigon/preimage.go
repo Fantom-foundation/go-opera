@@ -62,7 +62,7 @@ func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 		i++
 	}	
 	log.Info("Traversal of preimages is complete...")
-	log.Info("Total amount of imported preimages", i)
+	log.Info("Total amount",  "of imported preimages", i)
 	return preimages, nil
 
 }
