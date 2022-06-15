@@ -15,7 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-const preimagesPath = "/root/preimages/preimages.gz"
+
+const  (
+	MainnnetPreimagesCount = 143168825
+	preimagesPath = "/root/preimages/preimages.gz"
+
+)
 
 func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 	log.Info("Importing preimages started....", "from file", fn)

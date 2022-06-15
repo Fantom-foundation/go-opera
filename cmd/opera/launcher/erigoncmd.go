@@ -48,10 +48,11 @@ func writeEVMToErigon(ctx *cli.Context) error {
 
 	log.Info("Getting LastBlock")
 	lastBlockIdx := gdb.GetBlockState().LastBlock.Idx
+	accountLimitFlag := ctx.GlobalInt(erigonAccountLimitFlag.Name)
 	mptFlag := ctx.String(mptTraversalMode.Name)
 
 	log.Info("Generate Erigon Plain State...")
-	if err := erigon.GeneratePlainState(mptFlag, root, chaindb, db, lastBlockIdx); err != nil {
+	if err := erigon.GeneratePlainState(mptFlag, accountLimitFlag, root, chaindb, db, lastBlockIdx); err != nil {
 		return err
 	}
 	log.Info("Generation of Erigon Plain State is complete")

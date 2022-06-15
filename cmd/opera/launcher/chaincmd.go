@@ -3,6 +3,8 @@ package launcher
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Fantom-foundation/go-opera/gossip/erigon"
 )
 
 var (
@@ -15,6 +17,12 @@ var (
 		Name:  "mpt.traversal.mode",
 		Usage: `Traversal mode ("mpt" or "snap")`,
 		Value: "snap",
+	}
+	erigonAccountLimitFlag = cli.IntFlag{
+		Name:  "limit",
+		Usage: "Maximum amount of EVM accounts traversed for erigon impl",
+		Value: erigon.MainnnetPreimagesCount,
+		
 	}
 	importCommand = cli.Command{
 		Name:      "import",
@@ -129,6 +137,7 @@ Checks EVM storage roots and code hashes
 		Action: utils.MigrateFlags(writeEVMToErigon),
 		Flags: []cli.Flag{
 			mptTraversalMode,
+			erigonAccountLimitFlag,
 		},
 
 		Description: `

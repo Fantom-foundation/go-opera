@@ -55,12 +55,12 @@ func SetupDB() (kv.RwDB, string, error) {
 
 }
 
-func GeneratePlainState(mptFlag string, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
+func GeneratePlainState(mptFlag string, accountLimit int, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
 	switch mptFlag {
 	case "mpt":
 		err = traverseMPT(chaindb, root, db, lastBlockIdx)
 	case "snap":
-		err = traverseSnapshot(chaindb, root, db)
+		err = traverseSnapshot(chaindb, accountLimit, root, db)
 	default:
 		err = errors.New("--mpt.traversal.mode must be one of {mpt, snap}")
 	}
@@ -207,7 +207,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 }
 
 
-func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) error {
+func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.Hash, db kv.RwDB) error {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	if err != nil {
 		return fmt.Errorf("Unable to build a snaptree, err: %q", err)
@@ -232,6 +232,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		invalidAccounts2 int
 	)
 
+
+	checkAcc := accountLimit < MainnnetPreimagesCount 
+
 	preimages, err := importPreimages(preimagesPath)
 	if err != nil {
 		return err
@@ -239,6 +242,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	var addrPreImAddrNotMatches, matchedAccounts, notMatchedAccounts uint64
 	for accIt.Next() {
+		
 		accHash := accIt.Hash()
 		// get account address
 		addr := ecommon.BytesToAddress(accHash.Bytes())
@@ -270,8 +274,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		}
 			
 		
-	
-
 		switch {
 		case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 			//log.Info("contract account is valid")
@@ -326,6 +328,10 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		}
 
 		accounts++
+		if checkAcc && accounts == uint64(accountLimit) {
+			break
+		}
+		
 		if time.Since(logged) > 8*time.Second {
 			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
 			accounts, 
@@ -334,9 +340,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				"elapsed", common.PrettyDuration(time.Since(start)))
 			logged = time.Now()
 		}
-		if accounts > 1000 {
-			break
-		}
+	
 	}
 
 
@@ -345,6 +349,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
+		"addrPreImAddrNotMatches", addrPreImAddrNotMatches,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
 
 	log.Info("Preimages matching is complete", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts)
