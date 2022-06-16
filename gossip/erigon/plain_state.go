@@ -219,6 +219,11 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 	}
 	defer accIt.Release()
 
+	preimages, err := importPreimages(defaultPreimagesPath)
+	if err != nil {
+		return err
+	}
+
 	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
 		start    = time.Now()
@@ -233,17 +238,14 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 		matchedAccounts, notMatchedAccounts uint64
 	)
 
-	if accountLimit == 0  || accountLimit > MainnnetPreimagesCount {
-		return errors.New("incorrect accountLimit en entered")
+	if accountLimit == 0  ||  accountLimit > MainnnetPreimagesCount {
+		return errors.New("accountLimit can not exceed MainnnetPreimagesCount")
 	}
 
 	checkAcc := accountLimit < MainnnetPreimagesCount 
 	log.Info("CheckAcc", "accountLimit", accountLimit, "checkAcc", checkAcc)
 
-	preimages, err := importPreimages(preimagesPath)
-	if err != nil {
-		return err
-	}
+	
 	for accIt.Next() {
 		accHash := accIt.Hash()
 		

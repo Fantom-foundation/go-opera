@@ -2,6 +2,7 @@ package erigon
 
 import (
 	//"fmt"
+	"time"
 	"os"
 	"strings"
 	"io"
@@ -20,13 +21,13 @@ import (
 
 const  (
 	MainnnetPreimagesCount = 143168825
-	preimagesPath = "/root/preimages/preimages.gz"
+	defaultPreimagesPath = "/root/preimages/preimages.gz"
 
 )
 
 func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
-	log.Info("Importing preimages started....", "from file", fn)
-
+	log.Info("Import of preimages started....")
+    start := time.Now()
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
 	if err != nil {
@@ -68,8 +69,8 @@ func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 		*/
 		i++
 	}	
-	log.Info("Traversal of preimages is complete...")
-	log.Info("Total amount",  "of imported preimages", i)
+	log.Info("Import preimages is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+	log.Info("Total amount of",  "imported preimages", i)
 	return preimages, nil
 
 }
