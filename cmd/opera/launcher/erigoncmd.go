@@ -13,6 +13,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip/erigon"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/logger"
 )
 
 func writeEVMToErigon(ctx *cli.Context) error {
@@ -21,10 +22,13 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	log.Info("Writing of EVM accounts into Erigon database started")
 	// initiate erigon lmdb
 	//db, tmpDir, err := erigon.SetupDB()
+	db := erigon.MakeChainDatabase(logger.New("mdbx"))
+	/*
 	db, tmpDir, err := erigon.SetupDB()
 	if err != nil {
 		return err
 	}
+	*/
 	defer db.Close()
 
 	cfg := makeAllConfigs(ctx)
@@ -58,7 +62,7 @@ func writeEVMToErigon(ctx *cli.Context) error {
 	log.Info("Generation of Erigon Plain State is complete")
 
 	log.Info("Generate Erigon Hash State")
-	if err := erigon.GenerateHashedState("HashedState", db, tmpDir, context.Background()); err != nil {
+	if err := erigon.GenerateHashedState("HashedState", db, context.Background()); err != nil {
 		log.Error("GenerateHashedState error: ", err)
 		return err
 	}

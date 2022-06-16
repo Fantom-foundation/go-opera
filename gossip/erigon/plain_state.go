@@ -1,7 +1,6 @@
 package erigon
 
 import (
-	"os"
 	"path/filepath"
 	"time"
 	"bytes"
@@ -9,10 +8,10 @@ import (
 	"fmt"
 	"context"
 
+	"github.com/c2h5oh/datasize"
+
 	"github.com/holiman/uint256"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -26,6 +25,7 @@ import (
 
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/logger"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
@@ -34,9 +34,108 @@ import (
 	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
+	"github.com/ledgerwatch/erigon/params"
+	"github.com/ledgerwatch/erigon/migrations"
 	//"github.com/ledgerwatch/erigon/crypto"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
+
 )
 
+// find out config.DatabaseVerbosity, config.MdbxPageSize
+func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
+	var name string
+	switch label {
+	case kv.ChainDB:
+		name = "chaindata"
+	case kv.TxPoolDB:
+		name = "txpool"
+	default:
+		name = "test"
+	}
+	var db kv.RwDB
+
+	/*
+	if config.DataDir == "" {
+		db = memdb.New()
+		return db, nil
+	}
+	*/
+
+	//oldDbPath := filepath.Join(DefaultDataDir(), "erigon", name)
+	dbPath := filepath.Join(defaultDataDir(), "erigon", name)
+	/*
+	if _, err := os.Stat(oldDbPath); err == nil {
+		log.Error("Old directory location found", "path", oldDbPath, "please move to new path", dbPath)
+		return nil, fmt.Errorf("safety error, see log message")
+	}
+	*/
+
+	var openFunc func(exclusive bool) (kv.RwDB, error)
+	logger.Log.Info("Opening Database", "label", name, "path", dbPath)
+	elog := elog.New()
+	openFunc = func(exclusive bool) (kv.RwDB, error) {
+		opts := mdbx.NewMDBX(elog).Path(dbPath).Label(label).DBVerbosity(/*config.DatabaseVerbosity*/ 0).MapSize(6 * datasize.TB)
+		if exclusive {
+			opts = opts.Exclusive()
+		}
+		if label == kv.ChainDB {
+			opts = opts.PageSize(/*config.MdbxPageSize.Bytes()*/ 100000000000)
+		}
+		return opts.Open()
+	}
+	var err error
+	db, err = openFunc(false)
+	if err != nil {
+		return nil, err
+	}
+	migrator := migrations.NewMigrator(label)
+	if err := migrator.VerifyVersion(db); err != nil {
+		return nil, err
+	}
+
+	has, err := migrator.HasPendingMigrations(db)
+	if err != nil {
+		return nil, err
+	}
+	if has {
+		elog.Info("Re-Opening DB in exclusive mode to apply migrations")
+		db.Close()
+		db, err = openFunc(true)
+		if err != nil {
+			return nil, err
+		}
+		if err = migrator.Apply(db, defaultDataDir()); err != nil {
+			return nil, err
+		}
+		db.Close()
+		db, err = openFunc(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := db.Update(context.Background(), func(tx kv.RwTx) (err error) {
+		return params.SetErigonVersion(tx, params.VersionKeyCreated)
+	}); err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+// MakeChainDatabase open a database using the flags passed to the client and will hard crash if it fails.
+func MakeChainDatabase(logger logger.Instance) kv.RwDB {
+	chainDb, err := openDatabase(logger, kv.ChainDB)
+	if err != nil {
+		Fatalf("Could not open database: %v", err)
+	}
+	return chainDb
+}
+
+
+/*
 func SetupDB() (kv.RwDB, string, error) {
 	tmpDir := filepath.Join(os.TempDir(), "lmdb")
 	db, err := mdbx.NewMDBX(elog.New()).
@@ -52,8 +151,8 @@ func SetupDB() (kv.RwDB, string, error) {
 			}).Open()
 
 	return db, tmpDir, err
-
 }
+*/
 
 func GeneratePlainState(mptFlag string, accountLimit uint64, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
 	switch mptFlag {

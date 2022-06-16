@@ -6,6 +6,7 @@ require (
 	github.com/Fantom-foundation/lachesis-base v0.0.0-20220904103856-4bb2a8448a22
 	github.com/VictoriaMetrics/fastcache v1.9.0
 	github.com/allegro/bigcache v1.2.1 // indirect
+	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
 	github.com/davecgh/go-spew v1.1.1

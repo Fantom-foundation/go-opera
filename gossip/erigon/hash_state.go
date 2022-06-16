@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+	"path/filepath"
 
 	"context"
 
@@ -20,7 +21,8 @@ import (
 )
 
 // GenerateHashState extracts data from kv.Plainstate and writes to kv.HashedAccounts and kv.HashedStorage
-func GenerateHashedState(logPrefix string, db kv.RwDB, tmpDir string, ctx context.Context) error {
+func GenerateHashedState(logPrefix string, db kv.RwDB, ctx context.Context) error {
+	tmpDir := filepath.Join(defaultDataDir(), "erigon", "hashedstate")
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		return err

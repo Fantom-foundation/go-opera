@@ -347,9 +347,6 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	stMap["key-2"] = "val-2"
 	stMap["key-3"] = "val-3"
 
-	// init erigon db
-	_, _, err = SetupDB() 
-	require.NoError(t, err )
 
 
 	accMap := make(map[string]*snapshot.Account)
