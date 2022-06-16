@@ -243,7 +243,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 	}
 
 	checkAcc := accountLimit < MainnnetPreimagesCount 
-	log.Info("CheckAcc", "accountLimit", accountLimit, "checkAcc", checkAcc)
+	log.Info("CheckAccount", "accountLimit", accountLimit, "checkAccountq", checkAcc)
 
 	
 	for accIt.Next() {
