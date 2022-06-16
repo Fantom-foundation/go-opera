@@ -55,7 +55,7 @@ func SetupDB() (kv.RwDB, string, error) {
 
 }
 
-func GeneratePlainState(mptFlag string, accountLimit int, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
+func GeneratePlainState(mptFlag string, accountLimit uint64, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
 	switch mptFlag {
 	case "mpt":
 		err = traverseMPT(chaindb, root, db, lastBlockIdx)
@@ -207,7 +207,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 }
 
 
-func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.Hash, db kv.RwDB) error {
+func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root common.Hash, db kv.RwDB) error {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	if err != nil {
 		return fmt.Errorf("Unable to build a snaptree, err: %q", err)
@@ -233,8 +233,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.
 		matchedAccounts, notMatchedAccounts uint64
 	)
 
-	if accountLimit > MainnnetPreimagesCount {
-		return errors.New("accountLimit can not exceed MainnnetPreimagesCount")
+	if accountLimit == 0  || accountLimit > MainnnetPreimagesCount {
+		return errors.New("incorrect accountLimit en entered")
 	}
 
 	checkAcc := accountLimit < MainnnetPreimagesCount 

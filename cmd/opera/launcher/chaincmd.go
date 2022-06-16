@@ -18,11 +18,10 @@ var (
 		Usage: `Traversal mode ("mpt" or "snap")`,
 		Value: "snap",
 	}
-	erigonAccountLimitFlag = cli.IntFlag{
+	erigonAccountLimitFlag = cli.Uint64Flag{
 		Name:  "limit",
 		Usage: "Maximum amount of EVM accounts traversed for erigon impl",
 		Value: erigon.MainnnetPreimagesCount,
-		
 	}
 	importCommand = cli.Command{
 		Name:      "import",
