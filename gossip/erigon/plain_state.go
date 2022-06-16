@@ -230,8 +230,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.
 		validNonContractAccounts int 
 		invalidAccounts1 int
 		invalidAccounts2 int
+		matchedAccounts, notMatchedAccounts uint64
 	)
 
+	if accountLimit > MainnnetPreimagesCount {
+		return errors.New("accountLimit can not exceed MainnnetPreimagesCount")
+	}
 
 	checkAcc := accountLimit < MainnnetPreimagesCount 
 	log.Info("CheckAcc", "accountLimit", accountLimit, "checkAcc", checkAcc)
@@ -240,28 +244,16 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.
 	if err != nil {
 		return err
 	}
-
-	var addrPreImAddrNotMatches, matchedAccounts, notMatchedAccounts uint64
 	for accIt.Next() {
-		
 		accHash := accIt.Hash()
-		// get account address
-		addr := ecommon.BytesToAddress(accHash.Bytes())
-		if len(addr) != 20 {
-			log.Warn("address is invalid")
-			missingAddresses++
-		}
-
-		preImAddr, ok := preimages[accHash]
+		
+		addr, ok := preimages[accHash]
 		if ok{
 			matchedAccounts++
 		} else {
 			notMatchedAccounts++
 		}
 
-		if common.Address(addr) != preImAddr {
-			addrPreImAddrNotMatches++
-		}
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
 			return fmt.Errorf("Unable to get snapshot.Account from account Iterator, err: %q", err)
@@ -337,7 +329,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.
 		if time.Since(logged) > 8*time.Second {
 			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
 			accounts, 
-			"addrPreImAddrNotMatches", addrPreImAddrNotMatches,
 			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
 			logged = time.Now()
@@ -351,7 +342,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit int, root common.
 	}
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
-		"addrPreImAddrNotMatches", addrPreImAddrNotMatches,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
 
 	log.Info("Preimages matching is complete", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts)

@@ -13,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ethereum/go-ethereum/log"
+	
+	ecommon "github.com/ledgerwatch/erigon/common"
 )
 
 
@@ -22,7 +24,7 @@ const  (
 
 )
 
-func importPreimages(fn string) (map[common.Hash]common.Address, error) {
+func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 	log.Info("Importing preimages started....", "from file", fn)
 
 	// Open the file handle and potentially unwrap the gzip stream
@@ -41,7 +43,7 @@ func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 	stream := rlp.NewStream(reader, 0)
 
 	// Import the preimages in batches to prevent disk trashing
-	preimages := make(map[common.Hash]common.Address)
+	preimages := make(map[common.Hash]ecommon.Address)
 	i := 0
 	for {
 		
@@ -55,7 +57,7 @@ func importPreimages(fn string) (map[common.Hash]common.Address, error) {
 			return nil, err
 		}
 		// Accumulate the preimages and flush when enough ws gathered
-		key, val := crypto.Keccak256Hash(blob), common.BytesToAddress(common.CopyBytes(blob))
+		key, val := crypto.Keccak256Hash(blob), ecommon.BytesToAddress(common.CopyBytes(blob))
 		preimages[key] = val
 
 		/*
