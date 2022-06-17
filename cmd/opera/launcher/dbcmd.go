@@ -156,12 +156,12 @@ func compact(ctx *cli.Context) error {
 }
 
 func showLeveldbStats(db ethdb.Stater) {
-	if stats, err := db.Stat("leveldb.stats"); err != nil {
+	if stats, err := db.Stat("stats"); err != nil {
 		log.Warn("Failed to read database stats", "error", err)
 	} else {
 		fmt.Println(stats)
 	}
-	if ioStats, err := db.Stat("leveldb.iostats"); err != nil {
+	if ioStats, err := db.Stat("iostats"); err != nil {
 		log.Warn("Failed to read database iostats", "error", err)
 	} else {
 		fmt.Println(ioStats)

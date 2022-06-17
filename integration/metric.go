@@ -24,6 +24,7 @@ type DBProducerWithMetrics struct {
 type StoreWithMetrics struct {
 	kvdb.Store
 
+	diskSizeGauge  metrics.Gauge // Gauge for tracking the size of all the levels in the database
 	diskReadMeter  metrics.Meter // Meter for measuring the effective amount of data read
 	diskWriteMeter metrics.Meter // Meter for measuring the effective amount of data written
 
@@ -74,8 +75,26 @@ func (ds *StoreWithMetrics) meter(refresh time.Duration) {
 	defer timer.Stop()
 	// Iterate ad infinitum and collect the stats
 	for i := 1; errc == nil && merr == nil; i++ {
+		// Retrieve the database size
+		diskSize, err := ds.Stat("disk.size")
+		if err != nil {
+			ds.log.Error("Failed to read database stats", "err", err)
+			merr = err
+			continue
+		}
+		var nDiskSize float64
+		if n, err := fmt.Sscanf(diskSize, "Size(MB):%f", &nDiskSize); n != 1 || err != nil {
+			ds.log.Error("Bad syntax of disk size entry", "size", diskSize)
+			merr = err
+			continue
+		}
+		// Update all the disk size meters
+		if ds.diskSizeGauge != nil {
+			ds.diskSizeGauge.Update(int64(nDiskSize * 1024 * 1024))
+		}
+
 		// Retrieve the database iostats.
-		ioStats, err := ds.Stat("leveldb.iostats")
+		ioStats, err := ds.Stat("iostats")
 		if err != nil {
 			ds.log.Error("Failed to read database iostats", "err", err)
 			merr = err
@@ -127,11 +146,15 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 		return nil, err
 	}
 	dm := WrapStoreWithMetrics(ds)
+	// disk size gauge should be meter separatly for each db name; otherwise,
+	// the last db siae metric will overwrite all the previoius one
+	dm.diskSizeGauge = metrics.GetOrRegisterGauge("opera/chaindata/"+name+"/disk/size", nil)
+	logger := log.New("database", name)
+	dm.log = logger
+
 	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
 		name = "epochs"
 	}
-	logger := log.New("database", name)
-	dm.log = logger
 	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
 	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
 
