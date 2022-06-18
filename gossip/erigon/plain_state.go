@@ -134,6 +134,40 @@ func MakeChainDatabase(logger logger.Instance) kv.RwDB {
 	return chainDb
 }
 
+func ReadPlainState() error {
+	chaindata := filepath.Join(defaultDataDir(), "erigon", "chaindata")
+	db := mdbx.MustOpen(chaindata)
+	defer db.Close()
+
+
+	tx, err := db.BeginRo(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+
+	start := time.Now()
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+
+
+	c, err := tx.Cursor(kv.PlainState)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	for k, v, e := c.First(); k != nil; k, v, e = c.Next() {
+		if e != nil {
+			return e
+		}
+		fmt.Printf("%x => %x\n", k, v)
+	}
+	log.Info("Reading plain state is complete", common.PrettyDuration(time.Since(start)))
+	return nil
+}
+
 
 /*
 func SetupDB() (kv.RwDB, string, error) {

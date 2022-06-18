@@ -16,7 +16,26 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
-func writeEVMToErigon(ctx *cli.Context) error {
+
+
+func readErigon(ctx *cli.Context) error {
+	
+	if err := erigon.ReadPlainState(); err != nil {
+		return err
+	}
+
+	// TODO handle flags
+	return nil
+}
+
+
+
+
+
+
+
+
+func writeErigon(ctx *cli.Context) error {
 
 	start := time.Now()
 	log.Info("Writing of EVM accounts into Erigon database started")

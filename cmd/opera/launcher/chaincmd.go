@@ -131,9 +131,31 @@ Checks EVM storage roots and code hashes
 
 	erigonCommand = cli.Command{
 		Name:     "erigon",
-		Usage:    "Writes EVM data into Erigon tables",
+		Usage:    "Write/Read EVM data into/from Erigon tables",
 		Category: "MISCELLANEOUS COMMANDS",
-		Action: utils.MigrateFlags(writeEVMToErigon),
+		//Action: utils.MigrateFlags(writeEVMToErigon),
+		Subcommands: []cli.Command{
+			{
+				Name:      "write",
+				Usage:     "Write EVM accounts to erigon database",
+				Action:    utils.MigrateFlags(writeErigon),
+				Flags: []cli.Flag{
+					erigonAccountLimitFlag,
+				},
+				Description: `
+   				opera erigon write
+				`,
+			},
+			{
+				Name:      "read",
+				Usage:     "Read EVM accounts from erigon database",
+				Action:    utils.MigrateFlags(readErigon),
+				Description: `
+   				opera erigon read
+				`,
+			},
+
+		},
 		Flags: []cli.Flag{
 			mptTraversalMode,
 			erigonAccountLimitFlag,
