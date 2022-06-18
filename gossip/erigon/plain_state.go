@@ -135,8 +135,9 @@ func MakeChainDatabase(logger logger.Instance) kv.RwDB {
 }
 
 func ReadPlainState() error {
-	chaindata := filepath.Join(defaultDataDir(), "erigon", "chaindata")
-	db := mdbx.MustOpen(chaindata)
+	//chaindata := filepath.Join(defaultDataDir(), "erigon", "chaindata")
+	//db := mdbx.MustOpen(chaindata)
+	db := MakeChainDatabase(logger.New("mdbx"))
 	defer db.Close()
 
 

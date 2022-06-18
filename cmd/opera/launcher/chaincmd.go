@@ -141,6 +141,7 @@ Checks EVM storage roots and code hashes
 				Action:    utils.MigrateFlags(writeErigon),
 				Flags: []cli.Flag{
 					erigonAccountLimitFlag,
+					mptTraversalMode,
 				},
 				Description: `
    				opera erigon write

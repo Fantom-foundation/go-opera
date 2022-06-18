@@ -1,8 +1,8 @@
 package launcher
 
 import (
-	"context"
-	"fmt"
+	//"context"
+	//"fmt"
 	"path"
 	"time"
 
@@ -19,6 +19,7 @@ import (
 
 
 func readErigon(ctx *cli.Context) error {
+
 	
 	if err := erigon.ReadPlainState(); err != nil {
 		return err
@@ -42,12 +43,6 @@ func writeErigon(ctx *cli.Context) error {
 	// initiate erigon lmdb
 	//db, tmpDir, err := erigon.SetupDB()
 	db := erigon.MakeChainDatabase(logger.New("mdbx"))
-	/*
-	db, tmpDir, err := erigon.SetupDB()
-	if err != nil {
-		return err
-	}
-	*/
 	defer db.Close()
 
 	cfg := makeAllConfigs(ctx)
@@ -78,7 +73,9 @@ func writeErigon(ctx *cli.Context) error {
 	if err := erigon.GeneratePlainState(mptFlag, accountLimitFlag, root, chaindb, db, lastBlockIdx); err != nil {
 		return err
 	}
-	log.Info("Generation of Erigon Plain State is complete")
+	log.Info("Generation of Erigon Plain State is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+
+	/*
 
 	log.Info("Generate Erigon Hash State")
 	if err := erigon.GenerateHashedState("HashedState", db, context.Background()); err != nil {
@@ -98,5 +95,6 @@ func writeErigon(ctx *cli.Context) error {
 	log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
 
 	log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
+	*/
 	return nil
 }
