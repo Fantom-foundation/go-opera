@@ -93,7 +93,7 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	if number == rpc.PendingBlockNumber {
 		number = rpc.LatestBlockNumber
 	}
-	// Otherwise resolve and return the block
+	// Otherwise, resolve and return the block
 	var blk *evmcore.EvmBlock
 	if number == rpc.LatestBlockNumber {
 		blk = b.state.CurrentBlock()

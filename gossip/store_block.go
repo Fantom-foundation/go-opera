@@ -24,6 +24,14 @@ func (s *Store) GetGenesisID() *hash.Hash {
 	return &val
 }
 
+func (s *Store) fakeGetGenesisHash() hash.Event {
+	fakeGenesisHash := hash.Event(*s.GetGenesisID())
+	for i := range fakeGenesisHash[:8] {
+		fakeGenesisHash[i] = 0
+	}
+	return fakeGenesisHash
+}
+
 func (s *Store) SetGenesisID(val hash.Hash) {
 	err := s.table.Genesis.Put([]byte("g"), val.Bytes())
 	if err != nil {
@@ -98,6 +106,10 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
+		if id == s.fakeGetGenesisHash() {
+			zero := idx.Block(0)
+			return &zero
+		}
 		return nil
 	}
 	n := idx.BytesToBlock(buf)
