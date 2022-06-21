@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"math/big"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -90,13 +88,6 @@ func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evmcore.EvmBlock {
 }
 
 func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmcore.EvmBlock {
-	if n == 0 {
-		// fake genesis block for compatibility with web3
-		return evmcore.NewEvmBlock(evmcore.ToEvmHeader(&inter.Block{
-			Time:    inter.Timestamp(1608600000 * time.Second),
-			Atropos: r.store.fakeGetGenesisHash(),
-		}, 0, hash.Event{}, opera.Rules{}), types.Transactions{})
-	}
 	block := r.store.GetBlock(n)
 	if block == nil {
 		return nil
