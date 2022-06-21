@@ -13,6 +13,10 @@ import (
 )
 
 func (s *Store) GetGenesisID() *hash.Hash {
+	if v := s.cache.Genesis.Load(); v != nil {
+		val := v.(hash.Hash)
+		return &val
+	}
 	valBytes, err := s.table.Genesis.Get([]byte("g"))
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -21,6 +25,7 @@ func (s *Store) GetGenesisID() *hash.Hash {
 		return nil
 	}
 	val := hash.BytesToHash(valBytes)
+	s.cache.Genesis.Store(val)
 	return &val
 }
 
@@ -29,6 +34,7 @@ func (s *Store) SetGenesisID(val hash.Hash) {
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
+	s.cache.Genesis.Store(val)
 }
 
 // SetBlock stores chain block.
