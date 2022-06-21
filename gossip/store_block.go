@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"math"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -49,6 +50,13 @@ func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n idx.Block) *inter.Block {
+	if n == 0 {
+		// fake genesis block for compatibility with web3
+		return &inter.Block{
+			Time:    inter.Timestamp(1608599999 * time.Second),
+			Atropos: s.fakeGetGenesisHash(),
+		}
+	}
 	// Get block from LRU cache first.
 	if c, ok := s.cache.Blocks.Get(n); ok {
 		return c.(*inter.Block)
