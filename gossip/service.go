@@ -210,6 +210,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	svc.store.GetLastEVs()
 	svc.store.GetLlrState()
 	svc.store.GetUpgradeHeights()
+	svc.store.GetGenesisID()
 	netVerStore := verwatcher.NewStore(store.table.NetworkVersion)
 	netVerStore.GetNetworkVersion()
 	netVerStore.GetMissedVersion()
