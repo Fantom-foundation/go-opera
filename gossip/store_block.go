@@ -25,7 +25,7 @@ func (s *Store) GetGenesisID() *hash.Hash {
 	return &val
 }
 
-func (s *Store) fakeGetGenesisHash() hash.Event {
+func (s *Store) fakeGenesisHash() hash.Event {
 	fakeGenesisHash := hash.Event(*s.GetGenesisID())
 	for i := range fakeGenesisHash[:8] {
 		fakeGenesisHash[i] = 0
@@ -54,7 +54,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 		// fake genesis block for compatibility with web3
 		return &inter.Block{
 			Time:    inter.Timestamp(1608599999 * time.Second),
-			Atropos: s.fakeGetGenesisHash(),
+			Atropos: s.fakeGenesisHash(),
 		}
 	}
 	// Get block from LRU cache first.
@@ -114,7 +114,7 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
-		if id == s.fakeGetGenesisHash() {
+		if id == s.fakeGenesisHash() {
 			zero := idx.Block(0)
 			return &zero
 		}
