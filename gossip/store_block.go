@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"math"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -10,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -53,7 +53,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	if n == 0 {
 		// fake genesis block for compatibility with web3
 		return &inter.Block{
-			Time:    inter.Timestamp(1608599999 * time.Second),
+			Time:    evmcore.FakeGenesisTime - 1,
 			Atropos: s.fakeGenesisHash(),
 		}
 	}
