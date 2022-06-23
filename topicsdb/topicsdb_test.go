@@ -60,7 +60,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		return
 	}
 
-	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
+	err = tt.searchLazy(ctx, pattern, uint64(from), uint64(to), onMatched)
 	wg.Wait()
 
 	return
