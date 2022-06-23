@@ -12,6 +12,8 @@ type (
 		topicsCount uint8
 		result      *types.Log
 		err         error
+
+		matched int
 	}
 )
 
