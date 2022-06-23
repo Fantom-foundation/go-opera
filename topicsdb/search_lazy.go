@@ -8,11 +8,11 @@ import (
 
 type logHandler func(rec *logrec) (gonext bool, err error)
 
-func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart []byte, blockEnd uint64, onMatched logHandler) (err error) {
+func (tt *Index) searchLazy(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	_, err = tt.walkFirst(ctx, blockStart, blockEnd, pattern, 0, onMatched)
+	_, err = tt.walkFirst(ctx, uintToBytes(blockStart), blockEnd, pattern, 0, onMatched)
 	return
 }
 
