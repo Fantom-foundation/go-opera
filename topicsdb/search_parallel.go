@@ -13,60 +13,71 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	}
 
 	var (
-		flag              sync.Mutex
-		wgStart, wgFinish sync.WaitGroup
-		count             int
-		result            = make(map[ID]*logrec)
+		threads   sync.WaitGroup
+		positions = make([]int, 0, len(pattern))
+		result    = make(map[ID]*logrec)
 	)
 
-	wgStart.Add(1)
-	for pos := range pattern {
-		if len(pattern[pos]) > 0 {
-			count++
-		}
-		for _, variant := range pattern[pos] {
-			wgFinish.Add(1)
-			go tt.scanPatternVariant(
-				uint8(pos), variant, blockStart,
-				func(rec *logrec) (gonext bool, err error) {
-					wgStart.Wait()
+	var mu sync.Mutex
+	aggregator := func(pos, num int) logHandler {
+		return func(rec *logrec) (gonext bool, err error) {
+			if rec == nil {
+				threads.Done()
+				return
+			}
 
-					if rec == nil {
-						wgFinish.Done()
-						return
-					}
+			err = ctx.Err()
+			if err != nil {
+				return
+			}
 
-					err = ctx.Err()
-					gonext = (err == nil)
+			if blockEnd > 0 && rec.ID.BlockNumber() > blockEnd {
+				return
+			}
 
-					if rec.topicsCount < uint8(len(pattern)-1) {
-						return
-					}
-					if blockEnd > 0 && rec.ID.BlockNumber() > blockEnd {
-						gonext = false
-						return
-					}
+			gonext = true
 
-					flag.Lock()
-					defer flag.Unlock()
+			if rec.topicsCount < uint8(len(pattern)-1) {
+				return
+			}
 
-					if prev, ok := result[rec.ID]; ok {
-						prev.matched++
-					} else {
-						rec.matched++
-						result[rec.ID] = rec
-					}
+			mu.Lock()
+			defer mu.Unlock()
 
-					return
-				})
+			if prev, ok := result[rec.ID]; ok {
+				prev.matched++
+			} else {
+				rec.matched++
+				result[rec.ID] = rec
+			}
+
+			return
 		}
 	}
-	wgStart.Done()
 
-	wgFinish.Wait()
+	// start the threads
+	var preparing sync.WaitGroup
+	preparing.Add(1)
+	for pos := range pattern {
+		if len(pattern[pos]) == 0 {
+			continue
+		}
+		positions = append(positions, pos)
+		for i, variant := range pattern[pos] {
+			threads.Add(1)
+			go func(pos, i int, variant common.Hash) {
+				onMatched := aggregator(pos, i)
+				preparing.Wait()
+				tt.scanPatternVariant(uint8(pos), variant, blockStart, onMatched)
+			}(pos, i, variant)
+		}
+	}
+	preparing.Done()
+
+	threads.Wait()
 	var gonext bool
 	for _, rec := range result {
-		if rec.matched != count {
+		if rec.matched != len(positions) {
 			continue
 		}
 		gonext, err = onMatched(rec)
