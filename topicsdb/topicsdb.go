@@ -101,8 +101,8 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 }
 
 func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) {
-	if len(pattern) > MaxTopicsCount {
-		limited = make([][]common.Hash, MaxTopicsCount)
+	if len(pattern) > (MaxTopicsCount + 1) {
+		limited = make([][]common.Hash, (MaxTopicsCount + 1))
 	} else {
 		limited = make([][]common.Hash, len(pattern))
 	}

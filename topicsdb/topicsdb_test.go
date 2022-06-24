@@ -382,8 +382,8 @@ func TestPatternLimit(t *testing.T) {
 			err: nil,
 		},
 		{
-			pattern: append(append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}), []common.Hash{hash.FakeHash(1)}),
-			exp:     append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}),
+			pattern: append(append(make([][]common.Hash, MaxTopicsCount), []common.Hash{hash.FakeHash(1)}), []common.Hash{hash.FakeHash(1)}),
+			exp:     append(make([][]common.Hash, MaxTopicsCount), []common.Hash{hash.FakeHash(1)}),
 			err:     nil,
 		},
 	}
