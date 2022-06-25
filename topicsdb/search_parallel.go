@@ -13,16 +13,15 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	}
 
 	var (
-		threads   sync.WaitGroup
-		positions = make([]int, 0, len(pattern))
-		result    = make(map[ID]*logrec)
+		syncing = newSynchronizator()
+		mu      sync.Mutex
+		result  = make(map[ID]*logrec)
 	)
 
-	var mu sync.Mutex
 	aggregator := func(pos, num int) logHandler {
 		return func(rec *logrec) (gonext bool, err error) {
 			if rec == nil {
-				threads.Done()
+				syncing.FinishThread(pos, num)
 				return
 			}
 
@@ -31,7 +30,8 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 				return
 			}
 
-			if blockEnd > 0 && rec.ID.BlockNumber() > blockEnd {
+			block := rec.ID.BlockNumber()
+			if blockEnd > 0 && block > blockEnd {
 				return
 			}
 
@@ -62,9 +62,8 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 		if len(pattern[pos]) == 0 {
 			continue
 		}
-		positions = append(positions, pos)
 		for i, variant := range pattern[pos] {
-			threads.Add(1)
+			syncing.StartThread(pos, i)
 			go func(pos, i int, variant common.Hash) {
 				onMatched := aggregator(pos, i)
 				preparing.Wait()
@@ -74,10 +73,10 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	}
 	preparing.Done()
 
-	threads.Wait()
+	syncing.WaitForThreads()
 	var gonext bool
 	for _, rec := range result {
-		if rec.matched != len(positions) {
+		if rec.matched != syncing.Criteries() {
 			continue
 		}
 		gonext, err = onMatched(rec)
