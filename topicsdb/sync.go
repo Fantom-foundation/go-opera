@@ -8,11 +8,14 @@ type synchronizator struct {
 	sync.Mutex
 	threads   sync.WaitGroup
 	positions []int
+
+	GoNext bool
 }
 
 func newSynchronizator() *synchronizator {
 	return &synchronizator{
 		positions: make([]int, 0),
+		GoNext:    true,
 	}
 }
 
