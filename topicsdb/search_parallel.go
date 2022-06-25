@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) (err error) {
+func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -35,7 +35,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 				return
 			}
 
-			gonext = syncing.GoNext
+			gonext = syncing.GoNext(block)
 			if !gonext {
 				return
 			}
@@ -52,13 +52,12 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 			} else {
 				result[rec.ID] = rec
 			}
-
 			rec.matched++
-			if rec.matched == syncing.Criteries() {
+			if rec.matched == syncing.CriteriesCount() {
 				delete(result, rec.ID)
 				gonext, err = onMatched(rec)
 				if !gonext {
-					syncing.GoNext = false
+					syncing.Halt()
 					return
 				}
 			}
@@ -87,7 +86,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 
 	syncing.WaitForThreads()
 
-	return
+	return ctx.Err()
 }
 
 func (tt *Index) scanPatternVariant(pos uint8, variant common.Hash, start uint64, onMatched logHandler) {
