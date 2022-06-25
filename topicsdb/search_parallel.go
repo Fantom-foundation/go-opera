@@ -35,7 +35,10 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 				return
 			}
 
-			gonext = true
+			gonext = syncing.GoNext
+			if !gonext {
+				return
+			}
 
 			if rec.topicsCount < uint8(len(pattern)-1) {
 				return
@@ -45,10 +48,19 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 			defer mu.Unlock()
 
 			if prev, ok := result[rec.ID]; ok {
-				prev.matched++
+				rec = prev
 			} else {
-				rec.matched++
 				result[rec.ID] = rec
+			}
+
+			rec.matched++
+			if rec.matched == syncing.Criteries() {
+				delete(result, rec.ID)
+				gonext, err = onMatched(rec)
+				if !gonext {
+					syncing.GoNext = false
+					return
+				}
 			}
 
 			return
@@ -74,16 +86,6 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	preparing.Done()
 
 	syncing.WaitForThreads()
-	var gonext bool
-	for _, rec := range result {
-		if rec.matched != syncing.Criteries() {
-			continue
-		}
-		gonext, err = onMatched(rec)
-		if !gonext {
-			break
-		}
-	}
 
 	return
 }
