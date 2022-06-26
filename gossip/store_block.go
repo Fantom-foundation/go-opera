@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -22,6 +23,14 @@ func (s *Store) GetGenesisID() *hash.Hash {
 	}
 	val := hash.BytesToHash(valBytes)
 	return &val
+}
+
+func (s *Store) fakeGenesisHash() hash.Event {
+	fakeGenesisHash := hash.Event(*s.GetGenesisID())
+	for i := range fakeGenesisHash[:8] {
+		fakeGenesisHash[i] = 0
+	}
+	return fakeGenesisHash
 }
 
 func (s *Store) SetGenesisID(val hash.Hash) {
@@ -41,6 +50,13 @@ func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n idx.Block) *inter.Block {
+	if n == 0 {
+		// fake genesis block for compatibility with web3
+		return &inter.Block{
+			Time:    evmcore.FakeGenesisTime - 1,
+			Atropos: s.fakeGenesisHash(),
+		}
+	}
 	// Get block from LRU cache first.
 	if c, ok := s.cache.Blocks.Get(n); ok {
 		return c.(*inter.Block)
@@ -98,6 +114,10 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
+		if id == s.fakeGenesisHash() {
+			zero := idx.Block(0)
+			return &zero
+		}
 		return nil
 	}
 	n := idx.BytesToBlock(buf)
