@@ -226,7 +226,7 @@ func TestVals(t *testing.T) {
 				require.Equal(exp, got, i)
 			}
 			for i, exp := range expSliceBytes {
-				got := r.SliceBytes()
+				got := r.SliceBytes(255)
 				require.Equal(exp, got, i)
 			}
 			for i, exp := range expU8 {
@@ -314,7 +314,7 @@ func TestBadVals(t *testing.T) {
 				require.Equal(len(exp), len(got), i)
 			}
 			for i, exp := range expSliceBytes {
-				got := r.SliceBytes()
+				got := r.SliceBytes(1)
 				require.NotEqual(exp, got, i)
 				require.Equal(len(exp), len(got), i)
 			}

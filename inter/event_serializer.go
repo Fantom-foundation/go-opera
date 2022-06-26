@@ -22,6 +22,8 @@ var (
 
 const MaxSerializationVersion = 1
 
+const ProtocolMaxMsgSize = 10 * 1024 * 1024
+
 func (e *Event) MarshalCSER(w *cser.Writer) error {
 	// version
 	if e.Version() > 0 {
@@ -116,6 +118,9 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	gasPowerLeft1 := r.U64()
 	// parents
 	parentsNum := r.U32()
+	if parentsNum > ProtocolMaxMsgSize/24 {
+		return cser.ErrTooLargeAlloc
+	}
 	parents := make(hash.Events, 0, parentsNum)
 	for i := uint32(0); i < parentsNum; i++ {
 		// lamport difference
@@ -150,7 +155,7 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 		}
 	}
 	// extra
-	extra := r.SliceBytes()
+	extra := r.SliceBytes(ProtocolMaxMsgSize)
 
 	if version == 0 && epoch < 256 {
 		return ErrTooLowEpoch
@@ -205,6 +210,9 @@ func (bvs *LlrBlockVotes) UnmarshalCSER(r *cser.Reader) error {
 	start := r.U64()
 	epoch := r.U32()
 	num := r.U32()
+	if num > ProtocolMaxMsgSize/32 {
+		return cser.ErrTooLargeAlloc
+	}
 	records := make([]hash.Hash, num)
 	for i := range records {
 		r.FixedBytes(records[i][:])
@@ -300,6 +308,9 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 			if size == 0 {
 				return cser.ErrNonCanonicalEncoding
 			}
+			if size > ProtocolMaxMsgSize/64 {
+				return cser.ErrTooLargeAlloc
+			}
 			for i := uint64(0); i < size; i++ {
 				tx, err := TransactionUnmarshalCSER(r)
 				if err != nil {
@@ -308,7 +319,7 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 				txs = append(txs, tx)
 			}
 		} else {
-			b := r.SliceBytes()
+			b := r.SliceBytes(ProtocolMaxMsgSize)
 			err := rlp.DecodeBytes(b, &txs)
 			if err != nil {
 				return err
@@ -319,7 +330,7 @@ func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
 	// mps
 	mps := make([]MisbehaviourProof, 0)
 	if e.AnyMisbehaviourProofs() {
-		b := r.SliceBytes()
+		b := r.SliceBytes(ProtocolMaxMsgSize)
 		err := rlp.DecodeBytes(b, &mps)
 		if err != nil {
 			return err

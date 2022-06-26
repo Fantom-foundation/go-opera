@@ -28,7 +28,7 @@ var ProtocolVersions = []uint{FTM62, FTM63}
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
 var protocolLengths = map[uint]uint64{FTM62: EventsStreamResponse + 1, FTM63: EPsStreamResponse + 1}
 
-const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
+const protocolMaxMsgSize = inter.ProtocolMaxMsgSize // Maximum cap on the size of a protocol message
 
 // protocol message codes
 const (

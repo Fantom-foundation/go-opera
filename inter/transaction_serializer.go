@@ -94,7 +94,7 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 		r.FixedBytes(_to[:])
 		to = &_to
 	}
-	data := r.SliceBytes()
+	data := r.SliceBytes(ProtocolMaxMsgSize)
 	// sig
 	v := r.BigInt()
 	var sig [64]byte
@@ -116,10 +116,16 @@ func TransactionUnmarshalCSER(r *cser.Reader) (*types.Transaction, error) {
 	} else if txType == types.AccessListTxType || txType == types.DynamicFeeTxType {
 		chainID := r.BigInt()
 		accessListLen := r.U32()
+		if accessListLen > ProtocolMaxMsgSize/24 {
+			return nil, cser.ErrTooLargeAlloc
+		}
 		accessList := make(types.AccessList, accessListLen)
 		for i := range accessList {
 			r.FixedBytes(accessList[i].Address[:])
 			keysLen := r.U32()
+			if keysLen > ProtocolMaxMsgSize/32 {
+				return nil, cser.ErrTooLargeAlloc
+			}
 			accessList[i].StorageKeys = make([]common.Hash, keysLen)
 			for j := range accessList[i].StorageKeys {
 				r.FixedBytes(accessList[i].StorageKeys[j][:])
