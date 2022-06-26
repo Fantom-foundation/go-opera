@@ -79,6 +79,7 @@ type Store struct {
 		LlrState               atomic.Value // store by value
 		KvdbEvmSnap            atomic.Value // store by pointer
 		UpgradeHeights         atomic.Value // store by pointer
+		Genesis                atomic.Value // store by value
 	}
 
 	mutex struct {
