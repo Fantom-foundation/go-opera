@@ -121,6 +121,7 @@ func initFlags() {
 		validatorPasswordFlag,
 		TraceNodeFlag,
 		SyncModeFlag,
+		GCModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,
@@ -218,6 +219,8 @@ func init() {
 		deleteCommand,
 		// See snapshot.go
 		snapshotCommand,
+		// See dbcmd.go
+		dbCommand,
 		// See fixdirty.go
 		fixDirtyCommand,
 	}

@@ -84,6 +84,7 @@ type Store struct {
 		LlrState               atomic.Value // store by value
 		KvdbEvmSnap            atomic.Value // store by pointer
 		UpgradeHeights         atomic.Value // store by pointer
+		Genesis                atomic.Value // store by value
 	}
 
 	mutex struct {
@@ -184,7 +185,15 @@ func (s *Store) commitEVM(flush bool) {
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
-	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
+	s.evm.Cap()
+}
+
+func (s *Store) cleanCommitEVM() {
+	err := s.evm.CleanCommit(s.GetBlockState())
+	if err != nil {
+		s.Log.Crit("Failed to commit EVM storage", "err", err)
+	}
+	s.evm.Cap()
 }
 
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {

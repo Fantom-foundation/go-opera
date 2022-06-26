@@ -96,6 +96,13 @@ var (
 		Usage: `Blockchain sync mode ("full" or "snap")`,
 		Value: "full",
 	}
+
+	GCModeFlag = cli.StringFlag{
+		Name:  "gcmode",
+		Usage: `Blockchain garbage collection mode ("light", "full", "archive")`,
+		Value: "archive",
+	}
+
 	ExitWhenAgeFlag = cli.DurationFlag{
 		Name:  "exitwhensynced.age",
 		Usage: "Exits after synchronisation reaches the required age",
@@ -324,10 +331,11 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossip.StoreConfig, error) {
 	cfg := src
 	if ctx.GlobalIsSet(utils.GCModeFlag.Name) {
-		if gcmode := ctx.GlobalString(utils.GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
-			utils.Fatalf("--%s must be either 'full' or 'archive'", utils.GCModeFlag.Name)
+		if gcmode := ctx.GlobalString(utils.GCModeFlag.Name); gcmode != "light" && gcmode != "full" && gcmode != "archive" {
+			utils.Fatalf("--%s must be 'light', 'full' or 'archive'", GCModeFlag.Name)
 		}
 		cfg.EVM.Cache.TrieDirtyDisabled = ctx.GlobalString(utils.GCModeFlag.Name) == "archive"
+		cfg.EVM.Cache.GreedyGC = ctx.GlobalString(utils.GCModeFlag.Name) == "full"
 	}
 	return cfg, nil
 }

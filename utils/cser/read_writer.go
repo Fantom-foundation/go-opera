@@ -11,7 +11,10 @@ import (
 var (
 	ErrNonCanonicalEncoding = errors.New("non canonical encoding")
 	ErrMalformedEncoding    = errors.New("malformed encoding")
+	ErrTooLargeAlloc        = errors.New("too large allocation")
 )
+
+const MaxAlloc = 100 * 1024
 
 type Writer struct {
 	BitsW  *bits.Writer
@@ -200,9 +203,12 @@ func (w *Writer) FixedBytes(v []byte) {
 	w.BytesW.Write(v)
 }
 
-func (r *Reader) SliceBytes() []byte {
+func (r *Reader) SliceBytes(maxLen int) []byte {
 	// read slice size
 	size := r.U56()
+	if size > uint64(maxLen) {
+		panic(ErrTooLargeAlloc)
+	}
 	buf := make([]byte, size)
 	// read slice content
 	r.FixedBytes(buf)
@@ -236,7 +242,7 @@ func (w *Writer) BigInt(v *big.Int) {
 
 func (r *Reader) BigInt() *big.Int {
 	// deserialize as an ordinary slice
-	buf := r.SliceBytes()
+	buf := r.SliceBytes(512)
 	if len(buf) == 0 {
 		return new(big.Int)
 	}
