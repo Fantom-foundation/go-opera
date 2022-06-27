@@ -29,7 +29,7 @@ var (
 	}
 )
 
-func TestDirect(t *testing.T) {
+func xTestDirect(t *testing.T) {
 	require := require.New(t)
 
 	db, err := leveldb.New(datadir+"/gossip", cache64mb(""), 0, nil, nil)
@@ -59,7 +59,7 @@ func TestDirect(t *testing.T) {
 	}
 }
 
-func xTestMain(t *testing.T) {
+func TestMain(t *testing.T) {
 	require := require.New(t)
 
 	rawProducer := leveldb.NewProducer(datadir, cache64mb)
