@@ -53,7 +53,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 				result[rec.ID] = rec
 			}
 			rec.matched++
-			if rec.matched == syncing.CriteriesCount() {
+			if rec.matched == syncing.PositionsCount() {
 				delete(result, rec.ID)
 				gonext, err = onMatched(rec)
 				if !gonext {

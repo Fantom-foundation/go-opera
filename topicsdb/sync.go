@@ -19,7 +19,7 @@ type (
 	synchronizator struct {
 		mu        sync.Mutex
 		threads   sync.WaitGroup
-		positions []*posCounter
+		positions map[int]*posCounter
 		goNext    bool
 		minBlock  uint64
 		blocks    map[uint64]*blockCounter
@@ -28,7 +28,7 @@ type (
 
 func newSynchronizator() *synchronizator {
 	s := &synchronizator{
-		positions: make([]*posCounter, 0),
+		positions: make(map[int]*posCounter),
 		goNext:    true,
 		minBlock:  0,
 		blocks:    make(map[uint64]*blockCounter),
@@ -75,10 +75,10 @@ func (s *synchronizator) StartThread(pos int, num int) {
 
 	s.enqueueBlock(s.minBlock)
 
-	if len(s.positions) == 0 || s.positions[len(s.positions)-1].pos != pos {
-		s.positions = append(s.positions, &posCounter{pos, 1})
+	if _, ok := s.positions[pos]; ok {
+		s.positions[pos].count++
 	} else {
-		s.positions[len(s.positions)-1].count++
+		s.positions[pos] = &posCounter{pos, 1}
 	}
 }
 
@@ -88,6 +88,7 @@ func (s *synchronizator) FinishThread(pos int, num int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.positions[pos].count--
 	s.dequeueBlock()
 }
 
@@ -105,6 +106,14 @@ func (s *synchronizator) enqueueBlock(n uint64) {
 func (s *synchronizator) dequeueBlock() {
 	s.blocks[s.minBlock].count--
 	if s.blocks[s.minBlock].count < 1 {
+
+		for _, pos := range s.positions {
+			if pos.count < 1 {
+				s.goNext = false
+				break
+			}
+		}
+
 		delete(s.blocks, s.minBlock)
 		if len(s.blocks) < 1 {
 			return
@@ -124,6 +133,6 @@ func (s *synchronizator) WaitForThreads() {
 	s.threads.Wait()
 }
 
-func (s *synchronizator) CriteriesCount() int {
+func (s *synchronizator) PositionsCount() int {
 	return len(s.positions)
 }
