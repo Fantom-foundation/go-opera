@@ -931,10 +931,14 @@ func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// filter too high events
 	notTooHigh := make(dag.Events, 0, len(events))
 	sessionCfg := h.config.Protocol.DagStreamLeecher.Session
+	now := time.Now()
 	for _, e := range events {
 		maxLamport := h.store.GetHighestLamport() + idx.Lamport(sessionCfg.DefaultChunkItemsNum+1)*idx.Lamport(sessionCfg.ParallelChunksDownload)
 		if e.Lamport() <= maxLamport {
 			notTooHigh = append(notTooHigh, e)
+		}
+		if now.Sub(e.(inter.EventI).CreationTime().Time()) < 10*time.Minute {
+			h.syncStatus.MarkMaybeSynced()
 		}
 	}
 	if len(events) != len(notTooHigh) {
@@ -945,7 +949,6 @@ func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	}
 	// Schedule all the events for connection
 	peer := *p
-	now := time.Now()
 	requestEvents := func(ids []interface{}) error {
 		return peer.RequestEvents(interfacesToEventIDs(ids))
 	}
@@ -978,8 +981,6 @@ func (h *handler) handleMsg(p *peer) error {
 	}
 	defer h.msgSemaphore.Release(eventsSizeEst)
 
-	myEpoch := h.store.GetEpoch()
-
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == HandshakeMsg:
@@ -992,9 +993,6 @@ func (h *handler) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		p.SetProgress(progress)
-		if progress.Epoch == myEpoch {
-			h.syncStatus.MarkMaybeSynced()
-		}
 
 	case msg.Code == EvmTxsMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
@@ -1441,14 +1439,6 @@ func (h *handler) onNewEpochLoop() {
 		select {
 		case myEpoch := <-h.newEpochsCh:
 			h.dagProcessor.Clear()
-			if !h.syncStatus.MaybeSynced() {
-				// Mark initial sync done on any peer which has the same epoch
-				for _, peer := range h.peers.List() {
-					if peer.progress.Epoch == myEpoch {
-						h.syncStatus.MarkMaybeSynced()
-					}
-				}
-			}
 			h.dagLeecher.OnNewEpoch(myEpoch)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.newEpochsSub.Err():
