@@ -299,6 +299,9 @@ func newHandler(
 			return epoch, llrs.LowestBlockToDecide
 		},
 		MaxEpochToDecide: func() idx.Epoch {
+			if !h.syncStatus.RequestLLR() {
+				return 0
+			}
 			return h.store.GetLlrState().LowestEpochToFill
 		},
 		IsProcessed: h.store.HasBlockVotes,
@@ -330,6 +333,9 @@ func newHandler(
 			return h.store.GetLlrState().LowestBlockToFill
 		},
 		MaxBlockToFill: func() idx.Block {
+			if !h.syncStatus.RequestLLR() {
+				return 0
+			}
 			// rough estimation for the max fill-able block
 			llrs := h.store.GetLlrState()
 			start := llrs.LowestBlockToFill
@@ -372,6 +378,9 @@ func newHandler(
 			return llrs.LowestEpochToDecide
 		},
 		MaxEpochToFetch: func() idx.Epoch {
+			if !h.syncStatus.RequestLLR() {
+				return 0
+			}
 			return h.store.GetLlrState().LowestEpochToDecide + 10000
 		},
 		IsProcessed: h.store.HasHistoryBlockEpochState,
