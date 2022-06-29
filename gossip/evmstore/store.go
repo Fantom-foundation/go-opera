@@ -33,8 +33,7 @@ type Store struct {
 	cfg StoreConfig
 
 	table struct {
-		Evm  kvdb.Store `table:"M"`
-		Logs kvdb.Store `table:"L"`
+		Evm kvdb.Store `table:"M"`
 		// API-only tables
 		Receipts    kvdb.Store `table:"r"`
 		TxPositions kvdb.Store `table:"x"`
@@ -78,7 +77,7 @@ func NewStore(dbs kvdb.DBProducer, cfg StoreConfig) *Store {
 	}
 
 	s.initEVMDB()
-	s.EvmLogs = topicsdb.New(s.table.Logs)
+	s.EvmLogs = topicsdb.New(dbs)
 	s.initCache()
 
 	return s
@@ -93,6 +92,7 @@ func (s *Store) Close() {
 	_ = table.CloseTables(&s.table)
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
+	s.EvmLogs.Close()
 }
 
 func (s *Store) initCache() {

@@ -14,8 +14,8 @@ import (
 func BenchmarkSearch(b *testing.B) {
 	topics, recs, topics4rec := genTestData(1000)
 
-	mem := memorydb.New()
-	index := New(mem)
+	mem := memorydb.NewProducer("")
+	index := New(mem, false)
 
 	for _, rec := range recs {
 		err := index.Push(rec)

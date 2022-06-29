@@ -102,7 +102,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	},
 	}
 
-	index := New(memorydb.New())
+	index := New(memorydb.NewProducer(""))
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -201,7 +201,7 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 
 	topics, recs, topics4rec := genTestData(100)
 
-	index := New(memorydb.New())
+	index := New(memorydb.NewProducer(""))
 
 	for _, rec := range recs {
 		err := index.Push(rec)
@@ -271,7 +271,7 @@ func TestIndexSearchSimple(t *testing.T) {
 	},
 	}
 
-	index := New(memorydb.New())
+	index := New(memorydb.NewProducer(""))
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -331,7 +331,7 @@ func TestMaxTopicsCount(t *testing.T) {
 		pattern[i+1] = []common.Hash{testdata.Topics[i]}
 	}
 
-	index := New(memorydb.New())
+	index := New(memorydb.NewProducer(""))
 	err := index.Push(testdata)
 	require.NoError(t, err)
 
