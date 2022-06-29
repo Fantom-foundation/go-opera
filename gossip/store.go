@@ -17,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
+	"github.com/Fantom-foundation/go-opera/utils/eventid"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
 )
@@ -66,7 +67,8 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events                 *wlru.Cache  `cache:"-"` // store by pointer
+		Events                 *wlru.Cache `cache:"-"` // store by pointer
+		EventIDs               *eventid.Cache
 		EventsHeaders          *wlru.Cache  `cache:"-"` // store by pointer
 		Blocks                 *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes            *wlru.Cache  `cache:"-"` // store by pointer
@@ -138,6 +140,8 @@ func (s *Store) initCache() {
 	eventsHeadersNum := s.cfg.Cache.EventsNum
 	eventsHeadersCacheSize := nominalSize * uint(eventsHeadersNum)
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
+
+	s.cache.EventIDs = eventid.NewCache(s.cfg.Cache.EventsIDsNum)
 
 	blockEpochStatesNum := s.cfg.Cache.BlockEpochStateNum
 	blockEpochStatesSize := nominalSize * uint(blockEpochStatesNum)

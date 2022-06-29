@@ -107,6 +107,8 @@ type (
 		// Cache size for full events.
 		EventsNum  int
 		EventsSize uint
+		// Cache size for event IDs
+		EventsIDsNum int
 		// Cache size for full blocks.
 		BlocksNum  int
 		BlocksSize uint
