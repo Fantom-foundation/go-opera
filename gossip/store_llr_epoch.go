@@ -23,11 +23,11 @@ func (s *Store) HasEpochVote(epoch idx.Epoch, id hash.Event) bool {
 	return ok
 }
 
-func (s *Store) iterateEpochVotesRLP(prefix []byte, f func(key []byte, ev rlp.RawValue) bool) {
+func (s *Store) iterateEpochVotesRLP(prefix []byte, f func(ev rlp.RawValue) bool) {
 	it := s.table.LlrEpochVotes.NewIterator(prefix, nil)
 	defer it.Release()
 	for it.Next() {
-		if !f(it.Key(), it.Value()) {
+		if !f(common.CopyBytes(it.Value())) {
 			break
 		}
 	}
@@ -84,7 +84,7 @@ func (s *Store) IterateEpochPacksRLP(start idx.Epoch, f func(epoch idx.Epoch, ep
 		epoch := idx.BytesToEpoch(it.Key())
 
 		evs := make([]rlp.RawValue, 0, 20)
-		s.iterateEpochVotesRLP(it.Key(), func(key []byte, ev rlp.RawValue) bool {
+		s.iterateEpochVotesRLP(it.Key(), func(ev rlp.RawValue) bool {
 			evs = append(evs, ev)
 			return len(evs) < maxEpochPackVotes
 		})
