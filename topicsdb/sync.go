@@ -59,9 +59,10 @@ func (s *synchronizator) GoNext(n uint64) bool {
 		s.mu.Lock()
 		s.enqueueBlock(n)
 		s.dequeueBlock()
+		wait := s.blocks[n].wait
 		s.mu.Unlock()
 		// wait for other threads
-		<-s.blocks[n].wait
+		<-wait
 	}
 
 	return s.goNext
