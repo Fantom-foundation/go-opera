@@ -36,16 +36,20 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 	go func() {
 		failed := false
 		for rec := range ready {
-			wg.Done()
+
 			if failed {
+				wg.Done()
 				continue
 			}
 			if rec.err != nil {
 				err = rec.err
 				failed = true
+				wg.Done()
 				continue
 			}
+
 			logs = append(logs, rec.result)
+			wg.Done()
 		}
 	}()
 
@@ -61,6 +65,7 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 	}
 
 	err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
+
 	wg.Wait()
 
 	return
