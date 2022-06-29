@@ -114,6 +114,9 @@ type (
 		BlocksSize uint
 		// Cache size for history block/epoch states.
 		BlockEpochStateNum int
+
+		LlrBlockVotesIndexes int
+		LlrEpochVotesIndexes int
 	}
 
 	// StoreConfig is a config for store db.
@@ -256,11 +259,14 @@ func (c *Config) Validate() error {
 func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 	return StoreConfig{
 		Cache: StoreCacheConfig{
-			EventsNum:          scale.I(5000),
-			EventsSize:         scale.U(6 * opt.MiB),
-			BlocksNum:          scale.I(5000),
-			BlocksSize:         scale.U(512 * opt.KiB),
-			BlockEpochStateNum: scale.I(8),
+			EventsNum:            scale.I(5000),
+			EventsSize:           scale.U(6 * opt.MiB),
+			EventsIDsNum:         scale.I(100000),
+			BlocksNum:            scale.I(5000),
+			BlocksSize:           scale.U(512 * opt.KiB),
+			BlockEpochStateNum:   scale.I(8),
+			LlrBlockVotesIndexes: scale.I(100),
+			LlrEpochVotesIndexes: scale.I(5),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),
 		MaxNonFlushedSize:   17*opt.MiB + scale.I(5*opt.MiB),
