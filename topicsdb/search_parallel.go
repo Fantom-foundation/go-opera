@@ -15,9 +15,9 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	}
 
 	var (
-		syncing = newSynchronizator()
-		mu      sync.Mutex
-		result  = make(map[ID]*logrec)
+		syncing      = newSynchronizator()
+		mu           sync.Mutex
+		foundByBlock = make(map[uint64]map[ID]*logrec)
 	)
 
 	aggregator := func(pos, num int) logHandler {
@@ -36,27 +36,36 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 			if blockEnd > 0 && block > blockEnd {
 				return
 			}
-
-			gonext = syncing.GoNext(block)
-			if !gonext {
+			if rec.topicsCount < uint8(len(pattern)-1) {
 				return
 			}
 
-			if rec.topicsCount < uint8(len(pattern)-1) {
+			var prevBlock uint64
+			prevBlock, gonext = syncing.GoNext(block)
+			if !gonext {
 				return
 			}
 
 			mu.Lock()
 			defer mu.Unlock()
 
-			if prev, ok := result[rec.ID]; ok {
-				rec = prev
+			if prevBlock > 0 {
+				delete(foundByBlock, prevBlock)
+			}
+
+			found, ok := foundByBlock[block]
+			if !ok {
+				found = make(map[ID]*logrec)
+				foundByBlock[block] = found
+			}
+
+			if before, ok := found[rec.ID]; ok {
+				rec = before
 			} else {
-				result[rec.ID] = rec
+				found[rec.ID] = rec
 			}
 			rec.matched++
 			if rec.matched == syncing.PositionsCount() {
-				delete(result, rec.ID)
 				gonext, err = onMatched(rec)
 				if !gonext {
 					syncing.Halt()

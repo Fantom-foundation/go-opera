@@ -50,13 +50,14 @@ func (s *synchronizator) Halt() {
 	}
 }
 
-func (s *synchronizator) GoNext(n uint64) bool {
+func (s *synchronizator) GoNext(n uint64) (prev uint64, gonext bool) {
 	if !s.goNext {
-		return false
+		return
 	}
 
 	if n > s.minBlock {
 		s.mu.Lock()
+		prev = s.minBlock
 		s.enqueueBlock(n)
 		s.dequeueBlock()
 		wait := s.blocks[n].wait
@@ -65,7 +66,8 @@ func (s *synchronizator) GoNext(n uint64) bool {
 		<-wait
 	}
 
-	return s.goNext
+	gonext = s.goNext
+	return
 }
 
 func (s *synchronizator) StartThread(pos int, num int) {
