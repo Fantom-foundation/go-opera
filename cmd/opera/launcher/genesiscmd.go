@@ -20,8 +20,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/inter/ibr"
-	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
@@ -236,6 +234,7 @@ func exportGenesis(ctx *cli.Context) error {
 	var blocksHash hash.Hash
 	var evmHash hash.Hash
 
+	
 	if from < 1 {
 		// avoid underflow
 		from = 1
@@ -243,8 +242,10 @@ func exportGenesis(ctx *cli.Context) error {
 	if to > gdb.GetEpoch() {
 		to = gdb.GetEpoch()
 	}
+	
 	toBlock := idx.Block(0)
 	fromBlock := idx.Block(0)
+	/*
 	{
 		log.Info("Exporting epochs", "from", from, "to", to)
 		writer := newUnitWriter(plain)
@@ -279,7 +280,9 @@ func exportGenesis(ctx *cli.Context) error {
 		}
 		log.Info("Exported epochs", "hash", epochsHash.String())
 	}
+	*/
 
+	/*
 	if fromBlock < 1 {
 		// avoid underflow
 		fromBlock = 1
@@ -315,6 +318,8 @@ func exportGenesis(ctx *cli.Context) error {
 		}
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
+
+	*/
 
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
