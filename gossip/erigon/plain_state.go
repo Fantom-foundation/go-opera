@@ -457,12 +457,14 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 		}
 
 		accounts++
+		/*
 		if checkAcc && accounts == uint64(accountLimit) {
 			log.Info("Break", "Accounts", accounts, "accountLimit", accountLimit)
 			break
 		}
+		*/
 
-		if time.Since(logged) > 8*time.Second {
+		if time.Since(logged) > 120*time.Second {
 			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
 			accounts, 
 			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
