@@ -2,9 +2,6 @@ package launcher
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -154,19 +151,4 @@ func overrideParams() {
 	params.RopstenBootnodes = []string{}
 	params.RinkebyBootnodes = []string{}
 	params.GoerliBootnodes = []string{}
-}
-
-// asDefault is slice with one fake element which indicates that network default bootnodes should be substituted
-var asDefault = fakeBootnodes()
-
-func fakeBootnodes() []*enode.Node {
-	privkey, _ := crypto.HexToECDSA("0b10b00000000000000000000000000000000000000000000000000000000000")
-	r := &enr.Record{}
-	enode.SignV4(r, privkey)
-	n, _ := enode.New(enode.ValidSchemes, r)
-	return []*enode.Node{n}
-}
-
-func needDefaultBootnodes(nn []*enode.Node) bool {
-	return len(nn) == len(asDefault) && nn[0] == asDefault[0]
 }
