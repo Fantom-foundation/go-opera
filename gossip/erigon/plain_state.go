@@ -361,7 +361,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
 		start    = time.Now()
-		logged   = time.Now()
 		accounts uint64
 		missingAddresses int
 		missingContractCode int
@@ -370,7 +369,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 		invalidAccounts1 int
 		invalidAccounts2 int
 		matchedAccounts, notMatchedAccounts uint64
+		logEvery = time.NewTicker(60 * time.Second)
 	)
+	defer logEvery.Stop()
 
 	if accountLimit == 0  ||  accountLimit > MainnnetPreimagesCount {
 		return errors.New("accountLimit can not exceed MainnnetPreimagesCount")
@@ -463,15 +464,14 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 			break
 		}
 		*/
-
-		if time.Since(logged) > 120*time.Second {
+		select {
+		default:
+		case <-logEvery.C:
 			log.Info("Snapshot traversing in progress", "at", accIt.Hash(), "accounts", 
 			accounts, 
 			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
-			logged = time.Now()
 		}
-	
 	}
 
 
