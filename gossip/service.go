@@ -172,6 +172,7 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	svc.p2pServer = stack.Server()
 	svc.accountManager = stack.AccountManager()
 	svc.eventMux = stack.EventMux()
+	svc.EthAPI.SetExtRPCEnabled(stack.Config().ExtRPCEnabled())
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 	svc.haltCheck = haltCheck
@@ -269,7 +270,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 	}
 
 	// create API backend
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
+	svc.EthAPI = &EthAPIBackend{false, svc, stateReader, txSigner, config.AllowUnprotectedTxs}
 
 	svc.verWatcher = verwatcher.New(netVerStore)
 	svc.tflusher = svc.makePeriodicFlusher()
