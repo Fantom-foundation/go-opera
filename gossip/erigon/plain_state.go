@@ -140,7 +140,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 		}
 		fmt.Printf("%x => %x\n", k, v)
 	}
-	log.Info("Reading plain state is complete", common.PrettyDuration(time.Since(start)))
+	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
 }
 
@@ -328,12 +328,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 	defer accIt.Release()
 
-	
-	preimages, err := importPreimages(defaultPreimagesPath)
-	if err != nil {
-		return err
-	}
-
 
 	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
@@ -351,15 +345,33 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	defer logEvery.Stop()
 
 
+
 	for accIt.Next() {
 		accHash := accIt.Hash()
+
+		var addr ecommon.Address
+
+		if err := db.View(context.Background(), func(tx kv.Tx) error {
+			val, err := tx.GetOne(kv.Senders, accHash.Bytes())
+			if err != nil {
+				return err
+			}
+			addr = ecommon.BytesToAddress(val)
+
+			return nil
+		}); err != nil {
+			return err
+		}
 		
-		addr, ok := preimages[accHash]
+		
+		/*
+		addr, ok := ReadSenderpreimages[accHash]
 		if ok{
 			matchedAccounts++
 		} else {
 			notMatchedAccounts++
 		}
+		*/
 
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {

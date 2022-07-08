@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	//"github.com/ethereum/go-ethereum/common"
 	//"github.com/ethereum/go-ethereum/crypto"
@@ -31,6 +32,7 @@ func writePreimagesCmd(_ *cli.Context) error {
 		return fmt.Errorf("This command requires an argument.")
 	}
 	*/
+	start := time.Now()
 
 	db := erigon.MakeChainDatabase(logger.New("mdbx"))
 	defer db.Close()
@@ -44,12 +46,14 @@ func writePreimagesCmd(_ *cli.Context) error {
 		return fmt.Errorf("Import error: %q", err)
 	}
 
+	log.Info("Writing preimages is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+
 	return nil
 }
 
 func writePreimages(tx kv.RwTx) error {
 
-	log.Info("Importing preimages", "from file file", defaultPreimagesPath)
+	log.Info("Writing preimages", "from file", defaultPreimagesPath)
 	
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(defaultPreimagesPath)
@@ -67,9 +71,8 @@ func writePreimages(tx kv.RwTx) error {
 	stream := rlp.NewStream(reader, 0)
 
 	// Import the preimages in batches to prevent disk trashing
-	preimages := make(map[common.Hash]common.Address)
+	preimages := make(map[common.Hash][]byte)
 
-	i := 0
 	for {
 		// Read the next entry and ensure it's not junk
 		var blob []byte
@@ -81,19 +84,16 @@ func writePreimages(tx kv.RwTx) error {
 			return err
 		}
 		// Accumulate the preimages and flush when enough ws gathered
-		key, val := crypto.Keccak256Hash(blob), common.BytesToAddress(common.CopyBytes(blob))
+		key, val := crypto.Keccak256Hash(blob), common.CopyBytes(blob)
 		preimages[key] = val
-		i += 1
-		fmt.Printf("importPreimages %d, address Hash: %s, address: %s\n", i, key.String(), val.Hex())
-		if i > 10 {
-			break
-		}
+	
+		//fmt.Printf("importPreimages %d, address Hash: %s, address: %s\n", i, key.String(), val.Hex())
 		
-		if len(preimages) > 5 {
+		if len(preimages) > 1024 {
 			if err := erigon.WriteSenders(tx, preimages); err != nil {
 				return err
 			}
-			preimages = make(map[common.Hash]common.Address)
+			preimages = make(map[common.Hash][]byte)
 		}
 		
 	}
