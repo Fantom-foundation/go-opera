@@ -1,46 +1,65 @@
 package launcher
 
 import (
+	"compress/gzip"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
-	"io"
-	"compress/gzip"
 
-	"gopkg.in/urfave/cli.v1"
-	"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/crypto"
+	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip/erigon"
+	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/crypto"
+	"github.com/ledgerwatch/erigon/common"
+
 )
 
+const defaultPreimagesPath = "/root/preimages/preimages.gz"
 
-
-func importPreimagesCmd(ctx *cli.Context) error {
+func writePreimagesCmd(_ *cli.Context) error {
+	/*
 	if len(ctx.Args()) < 1 {
 		return fmt.Errorf("This command requires an argument.")
 	}
+	*/
 
-	if err := importPreimages(ctx.Args().First()); err != nil {
+	db := erigon.MakeChainDatabase(logger.New("mdbx"))
+	defer db.Close()
+
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		return err
+	}
+
+	if err := writePreimages(tx); err != nil {
 		return fmt.Errorf("Import error: %q", err)
 	}
 
 	return nil
 }
 
-func importPreimages(fn string) error {
-	log.Info("Importing preimages", "from file file", fn)
+func writePreimages(tx kv.RwTx) error {
 
+	log.Info("Importing preimages", "from file file", defaultPreimagesPath)
+	
 	// Open the file handle and potentially unwrap the gzip stream
-	fh, err := os.Open(fn)
+	fh, err := os.Open(defaultPreimagesPath)
 	if err != nil {
 		return err
 	}
 	defer fh.Close()
 
 	var reader io.Reader = fh
-	if strings.HasSuffix(fn, ".gz") {
+	if strings.HasSuffix(defaultPreimagesPath, ".gz") {
 		if reader, err = gzip.NewReader(reader); err != nil {
 			return err
 		}
@@ -69,16 +88,41 @@ func importPreimages(fn string) error {
 		if i > 10 {
 			break
 		}
-		/*
-		if len(preimages) > 1024 {
-			rawdb.WritePreimages(db, preimages)
-			preimages = make(map[common.Hash][]byte)
+		
+		if len(preimages) > 5 {
+			if err := erigon.WriteSenders(tx, preimages); err != nil {
+				return err
+			}
+			preimages = make(map[common.Hash]common.Address)
 		}
-		*/
+		
 	}
-	// Flush the last batch preimage data
-	if len(preimages) == 0 {
-		return fmt.Errorf("preimages map is empty")
+
+	if len(preimages) > 0 {
+		if err := erigon.WriteSenders(tx, preimages); err != nil {
+			return err
+		}
 	}
+
+	return tx.Commit()
+}
+
+func readPreimagesCmd(_ *cli.Context) error {
+
+	db := erigon.MakeChainDatabase(logger.New("mdbx"))
+	defer db.Close()
+
+	tx, err := db.BeginRo(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+
+	if err := erigon.ReadErigonTable(kv.Senders, tx); err != nil {
+		return err
+	}
+
+	// TODO handle flags
 	return nil
 }

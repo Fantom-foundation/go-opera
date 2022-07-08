@@ -25,6 +25,7 @@ const  (
 
 )
 
+// importPreimages imports preimages acc.Hash -> account.Address from file and saves it into hashmap
 func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 	log.Info("Import of preimages started....")
     start := time.Now()

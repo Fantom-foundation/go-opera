@@ -225,7 +225,7 @@ func init() {
 		// See fixdirty.go
 		//fixDirtyCommand,
 		erigonCommand,
-		importPreimagesCommand,
+		preimagesCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

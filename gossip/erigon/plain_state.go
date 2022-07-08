@@ -56,22 +56,9 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 	}
 	var db kv.RwDB
 
-	/*
-	if config.DataDir == "" {
-		db = memdb.New()
-		return db, nil
-	}
-	*/
 
-	//oldDbPath := filepath.Join(DefaultDataDir(), "erigon", name)
 	dbPath := filepath.Join(defaultDataDir(), "erigon", name)
-	/*
-	if _, err := os.Stat(oldDbPath); err == nil {
-		log.Error("Old directory location found", "path", oldDbPath, "please move to new path", dbPath)
-		return nil, fmt.Errorf("safety error, see log message")
-	}
-	*/
-
+	
 	var openFunc func(exclusive bool) (kv.RwDB, error)
 	logger.Log.Info("Opening Database", "label", name, "path", dbPath)
 	elog := elog.New()
@@ -134,26 +121,14 @@ func MakeChainDatabase(logger logger.Instance) kv.RwDB {
 	return chainDb
 }
 
-func ReadPlainState() error {
-	//chaindata := filepath.Join(defaultDataDir(), "erigon", "chaindata")
-	//db := mdbx.MustOpen(chaindata)
-	db := MakeChainDatabase(logger.New("mdbx"))
-	defer db.Close()
-
-
-	tx, err := db.BeginRo(context.Background())
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
+func ReadErigonTable(table string, tx kv.Tx) error {
 
 	start := time.Now()
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
 
-	c, err := tx.Cursor(kv.PlainState)
+	c, err := tx.Cursor(table)
 	if err != nil {
 		return err
 	}
@@ -189,12 +164,12 @@ func SetupDB() (kv.RwDB, string, error) {
 }
 */
 
-func GeneratePlainState(mptFlag string, accountLimit uint64, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
+func GeneratePlainState(mptFlag string, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
 	switch mptFlag {
 	case "mpt":
 		err = traverseMPT(chaindb, root, db, lastBlockIdx)
 	case "snap":
-		err = traverseSnapshot(chaindb, accountLimit, root, db)
+		err = traverseSnapshot(chaindb, root, db)
 	default:
 		err = errors.New("--mpt.traversal.mode must be one of {mpt, snap}")
 	}
@@ -341,7 +316,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 }
 
 
-func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root common.Hash, db kv.RwDB) error {
+func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) error {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	if err != nil {
 		return fmt.Errorf("Unable to build a snaptree, err: %q", err)
@@ -353,10 +328,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 	}
 	defer accIt.Release()
 
+	
 	preimages, err := importPreimages(defaultPreimagesPath)
 	if err != nil {
 		return err
 	}
+
 
 	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
@@ -373,14 +350,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root comm
 	)
 	defer logEvery.Stop()
 
-	if accountLimit == 0  ||  accountLimit > MainnnetPreimagesCount {
-		return errors.New("accountLimit can not exceed MainnnetPreimagesCount")
-	}
 
-	checkAcc := accountLimit < MainnnetPreimagesCount 
-	log.Info("CheckAccount", "accountLimit", accountLimit, "checkAccountq", checkAcc)
-
-	
 	for accIt.Next() {
 		accHash := accIt.Hash()
 		

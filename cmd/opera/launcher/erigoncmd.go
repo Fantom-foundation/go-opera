@@ -1,7 +1,7 @@
 package launcher
 
 import (
-	//"context"
+	"context"
 	//"fmt"
 	"path"
 	"time"
@@ -14,14 +14,23 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/erigon"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/logger"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
+func readErigon(_ *cli.Context) error {
+
+	db := erigon.MakeChainDatabase(logger.New("mdbx"))
+	defer db.Close()
+
+	tx, err := db.BeginRo(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
 
-func readErigon(ctx *cli.Context) error {
-
-	
-	if err := erigon.ReadPlainState(); err != nil {
+	if err := erigon.ReadErigonTable(kv.PlainState, tx); err != nil {
 		return err
 	}
 
@@ -29,19 +38,12 @@ func readErigon(ctx *cli.Context) error {
 	return nil
 }
 
-
-
-
-
-
-
-
 func writeErigon(ctx *cli.Context) error {
 
 	start := time.Now()
 	log.Info("Writing of EVM accounts into Erigon database started")
-	// initiate erigon lmdb
-	//db, tmpDir, err := erigon.SetupDB()
+
+	// initiate erigon database
 	db := erigon.MakeChainDatabase(logger.New("mdbx"))
 	defer db.Close()
 
@@ -66,35 +68,34 @@ func writeErigon(ctx *cli.Context) error {
 
 	log.Info("Getting LastBlock")
 	lastBlockIdx := gdb.GetBlockState().LastBlock.Idx
-	accountLimitFlag := ctx.Uint64(erigonAccountLimitFlag.Name)
-	mptFlag := ctx.String(mptTraversalMode.Name)
+	mptFlag := ctx.String(traversalMode.Name)
 
 	log.Info("Generate Erigon Plain State...")
-	if err := erigon.GeneratePlainState(mptFlag, accountLimitFlag, root, chaindb, db, lastBlockIdx); err != nil {
+	if err := erigon.GeneratePlainState(mptFlag, root, chaindb, db, lastBlockIdx); err != nil {
 		return err
 	}
 	log.Info("Generation of Erigon Plain State is complete", "elapsed", common.PrettyDuration(time.Since(start)))
 
 	/*
 
-	log.Info("Generate Erigon Hash State")
-	if err := erigon.GenerateHashedState("HashedState", db, context.Background()); err != nil {
-		log.Error("GenerateHashedState error: ", err)
-		return err
-	}
-	log.Info("Generation Hash State is complete")
+		log.Info("Generate Erigon Hash State")
+		if err := erigon.GenerateHashedState("HashedState", db, context.Background()); err != nil {
+			log.Error("GenerateHashedState error: ", err)
+			return err
+		}
+		log.Info("Generation Hash State is complete")
 
-	log.Info("Generate Intermediate Hashes state and compute State Root")
-	trieCfg := erigon.StageTrieCfg(db, true, true, "")
-	hash, err := erigon.ComputeStateRoot("Intermediate Hashes", db, trieCfg)
-	if err != nil {
-		log.Error("GenerateIntermediateHashes error: ", err)
-		return err
-	}
-	log.Info(fmt.Sprintf("[%s] Trie root", "GenerateStateRoot"), "hash", hash.Hex())
-	log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
+		log.Info("Generate Intermediate Hashes state and compute State Root")
+		trieCfg := erigon.StageTrieCfg(db, true, true, "")
+		hash, err := erigon.ComputeStateRoot("Intermediate Hashes", db, trieCfg)
+		if err != nil {
+			log.Error("GenerateIntermediateHashes error: ", err)
+			return err
+		}
+		log.Info(fmt.Sprintf("[%s] Trie root", "GenerateStateRoot"), "hash", hash.Hex())
+		log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
 
-	log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
+		log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
 	*/
 	return nil
 }
