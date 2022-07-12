@@ -17,11 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
+	//"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/common"
-	//"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -167,7 +167,7 @@ func SetupDB() (kv.RwDB, string, error) {
 func GeneratePlainState(mptFlag string, root common.Hash, chaindb ethdb.KeyValueStore, db kv.RwDB, lastBlockIdx idx.Block ) (err error) {
 	switch mptFlag {
 	case "mpt":
-		err = traverseMPT(chaindb, root, db, lastBlockIdx)
+		//err = traverseMPT(chaindb, root, db, lastBlockIdx)
 	case "snap":
 		err = traverseSnapshot(chaindb, root, db)
 	default:
@@ -177,6 +177,7 @@ func GeneratePlainState(mptFlag string, root common.Hash, chaindb ethdb.KeyValue
 }
 
 // Attention! This function does not work properly.
+/*
 func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastBlockIdx idx.Block) error {
 	triedb := trie.NewDatabase(diskdb)
 	t, err := trie.NewSecure(root, triedb)
@@ -213,7 +214,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 			log.Info("preimage is missing")
 		}
 		*/
-
+		/*
 		addr := ecommon.BytesToAddress(accIter.Key)
 		log.Info("Addr", addr.Hex())
 		if len(addr) != 20 {
@@ -292,7 +293,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 			codes += 1
 		} 
 		*/
-
+/*
 		if time.Since(lastReport) > time.Second*8 {
 			log.Info("Traversing MPT", "accounts", accounts, "slots", slots, "codes", codes, "elapsed", common.PrettyDuration(time.Since(start)))
 			lastReport = time.Now()
@@ -314,6 +315,7 @@ func traverseMPT(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB, lastB
 
 	return nil
 }
+*/
 
 
 func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) error {
@@ -341,41 +343,24 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		invalidAccounts2 int
 		matchedAccounts, notMatchedAccounts uint64
 		logEvery = time.NewTicker(60 * time.Second)
+		bufferOptimalSize = 500 * datasize.MB
+
+		
 	)
 	defer logEvery.Stop()
 
 
+	buf := newAppendBuffer(bufferOptimalSize)
 
 	for accIt.Next() {
-		/*
 		accHash := accIt.Hash()
 
-		var addr ecommon.Address
-
-
-		if err := db.View(context.Background(), func(tx kv.Tx) error {
-			val, err := tx.GetOne(kv.Senders, accHash.Bytes())
-			if err != nil {
-				return err
-			}
-			addr = ecommon.BytesToAddress(val)
-
-			return nil
-		}); err != nil {
-			return err
+	
+		addr, err := addressFromPreimage(db, accHash)
+		if err != nil {
+			return fmt.Errorf("unable to get address from preimage, err: %q", err)
 		}
-		
-		
-		/*
-		addr, ok := ReadSenderpreimages[accHash]
-		if ok{
-			matchedAccounts++
-		} else {
-			notMatchedAccounts++
-		}
-		*/
-
-		/*
+	
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
 			return fmt.Errorf("Unable to get snapshot.Account from account Iterator, err: %q", err)
@@ -390,60 +375,54 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			
 		
 		switch {
-		case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
-			//log.Info("contract account is valid")
-			validContractAccounts++
-			eAccount := transformStateAccount(stateAccount, true)
+			case stateAccount.Root != types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+				//log.Info("contract account is valid")
+				validContractAccounts++
+				eAccount := transformStateAccount(stateAccount, true)
 
-			// writing data and storage
-			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
-				return err
-			}
+				// writing data and storage
+				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil {
+					return err
+				}
 
-		
-		case stateAccount.Root == types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
-			// non contract account
-			//log.Info("non contract account is valid")
-			validNonContractAccounts++
-			eAccount := transformStateAccount(stateAccount, false)
-			if err := writeAccountData(db, eAccount, addr); err != nil {
-				return err
-			}
-		case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
-			// root of storage trie is not empty , but codehash is empty 
-			// looks like it is invalid account
-			// invalidAccounts1  = 0 forget about this case
-			invalidAccounts1++
-			code := rawdb.ReadCode(diskdb, common.BytesToHash(stateAccount.CodeHash))
-			if len(code) == 0 {
-				missingContractCode++
-				//log.Error("Code is missing", "hash", common.BytesToHash(stateAccount.CodeHash))
-				//return errors.New("missing code")
-			}
 			
+			case stateAccount.Root == types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+				// non contract account
+				//log.Info("non contract account is valid")
+				validNonContractAccounts++
+				eAccount := transformStateAccount(stateAccount, false)
+				putAccountDataToBuf(buf, eAccount, addr)
+			case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+				// root of storage trie is not empty , but codehash is empty 
+				// looks like it is invalid account
+				// invalidAccounts1  = 0 forget about this case
+				invalidAccounts1++
+				code := rawdb.ReadCode(diskdb, common.BytesToHash(stateAccount.CodeHash))
+				if len(code) == 0 {
+					missingContractCode++
+					//log.Error("Code is missing", "hash", common.BytesToHash(stateAccount.CodeHash))
+					//return errors.New("missing code")
+				}
+				
 
-			eAccount := transformStateAccount(stateAccount, true)
+				eAccount := transformStateAccount(stateAccount, true)
 
-			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
-				return err
-			}
+				putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash)
 
-		
-		case stateAccount.Root == types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
-			// invalid accounts2=407
-			// TODO address it https://blog.ethereum.org/2020/07/17/ask-about-geth-snapshot-acceleration/
-			// Self-destructs (and deletions) are special beasts as they need to short circuit diff layer descent.
-            invalidAccounts2++
-			eAccount := transformStateAccount(stateAccount, true)
-
-			// writing data and storage
-			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
-				return err
-			}
 			
+			case stateAccount.Root == types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
+				// invalid accounts2=407
+				// TODO address it https://blog.ethereum.org/2020/07/17/ask-about-geth-snapshot-acceleration/
+				// Self-destructs (and deletions) are special beasts as they need to short circuit diff layer descent.
+				invalidAccounts2++
+				eAccount := transformStateAccount(stateAccount, true)
+
+				// writing data and storage
+				putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash)
+
 		}
-
 		accounts++
+			
 		/*
 		if checkAcc && accounts == uint64(accountLimit) {
 			log.Info("Break", "Accounts", accounts, "accountLimit", accountLimit)
@@ -461,8 +440,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				"elapsed", common.PrettyDuration(time.Since(start)))
 		}
 		*/
-		accounts++
 	}
+	
 
 	
 	if missingAddresses > 0 {
@@ -477,49 +456,82 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
 	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)
 
-	return nil
+	log.Info("Buf size", "is", buf.size)
+	log.Info("Sorting data in buffer")
+	start = time.Now()
+	buf.Sort()
+	log.Info("Sorting data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+
 	
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		return err
+	}
+	c, err := tx.RwCursorDupSort(kv.PlainState)
+	if err != nil {
+		return err 
+	}
+
+	log.Info("Iterate over sorted entries and write them into kv.Plainstate")
+	start = time.Now()
+	for _, entry := range buf.sortedBuf {
+		if err := c.AppendDup(entry.key, entry.value); err != nil {
+			return err
+		}
+	}
+	log.Info("Writing data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+
+
+	return nil
 }
 
 
-// TODO rewrite it using c.RWCursor(PlainState) its faster
-func writeAccountData(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
+func putAccountDataToBuf(buf *appendSortableBuffer, acc eaccounts.Account, addr ecommon.Address) {
+	/*
 	return db.Update(context.Background(), func(tx kv.RwTx) error {
 		value := make([]byte, acc.EncodingLengthForStorage())
 		acc.EncodeForStorage(value)
 		return tx.Put(kv.PlainState, addr[:], value)
 	})
+	*/
+	key := addr.Bytes()
+	value := make([]byte, acc.EncodingLengthForStorage())
+	acc.EncodeForStorage(value)
+	buf.Put(key, value)
 }
 
 // ask about how to write in more efficient way using RwCursor 
-func writeAccountStorage(db kv.RwDB, incarnation uint64, addr ecommon.Address, key *ecommon.Hash, val *uint256.Int) error {
+func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr ecommon.Address, key *ecommon.Hash, val *uint256.Int) {
+	/*
 	return db.Update(context.Background(), func(tx kv.RwTx) error {
 		compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), incarnation, key.Bytes())
 		value := val.Bytes()
 		return tx.Put(kv.PlainState, compositeKey, value)
 	})
+	*/
+	compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), incarnation, key.Bytes())
+	value := val.Bytes()
+	buf.Put(compositeKey,value)
+
 }
 
-func writeAccountDataStorage(eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, db kv.RwDB, root, accHash common.Hash)  error {
+func putAccountDataStorageToBuf(buf *appendSortableBuffer, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  error {
 	
-	if err := writeAccountData(db, eAccount, addr); err != nil {
-		return err
-	}
+	putAccountDataToBuf(buf, eAccount, addr)
 
 	stIt, err := snapTree.StorageIterator(root, accHash, common.Hash{})
 	if err != nil {
 		return err
 	}
 
+	defer stIt.Release()
+
 	for stIt.Next() {
 		// to make sure it is a right way to write storage
 		key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
-		if err := writeAccountStorage(db, eAccount.Incarnation, addr, &key, value); err != nil {
-			return err
-		}
+		putAccountStorageToBuf(buf, eAccount.Incarnation, addr, &key, value)
 	}
 
-	stIt.Release()
 	return nil
 }
 

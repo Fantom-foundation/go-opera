@@ -7,6 +7,7 @@ import (
 	"strings"
 	"io"
 	"compress/gzip"
+	"context"
 
 	//"gopkg.in/urfave/cli.v1"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 	
 	ecommon "github.com/ledgerwatch/erigon/common"
 )
@@ -74,4 +77,21 @@ func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 	log.Info("Total amount of",  "imported preimages", i)
 	return preimages, nil
 
+}
+
+func addressFromPreimage(db kv.RwDB, accHash common.Hash) (ecommon.Address, error) {
+	var addr ecommon.Address
+	if err := db.View(context.Background(), func(tx kv.Tx) error {
+		val, err := tx.GetOne(kv.Senders, accHash.Bytes())
+		if err != nil {
+			return err
+		}
+		addr = ecommon.BytesToAddress(val)
+
+		return nil
+	}); err != nil {
+		return ecommon.Address{}, nil 
+	}
+
+	return addr, nil
 }
