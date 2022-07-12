@@ -100,8 +100,6 @@ type (
 		// allows only for EIP155 transactions.
 		AllowUnprotectedTxs bool
 
-		ExtRPCEnabled bool
-
 		RPCBlockExt bool
 	}
 
