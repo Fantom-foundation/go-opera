@@ -461,6 +461,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				"elapsed", common.PrettyDuration(time.Since(start)))
 		}
 		*/
+		accounts++
 	}
 
 	
