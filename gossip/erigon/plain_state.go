@@ -21,7 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+	//"github.com/ethereum/go-ethereum/core/rawdb"
 
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -347,9 +347,11 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 
 	for accIt.Next() {
+		/*
 		accHash := accIt.Hash()
 
 		var addr ecommon.Address
+
 
 		if err := db.View(context.Background(), func(tx kv.Tx) error {
 			val, err := tx.GetOne(kv.Senders, accHash.Bytes())
@@ -373,6 +375,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		}
 		*/
 
+		/*
 		snapAccount, err := snapshot.FullAccount(accIt.Account())
 		if err != nil {
 			return fmt.Errorf("Unable to get snapshot.Account from account Iterator, err: %q", err)
@@ -437,6 +440,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			if err := writeAccountDataStorage(eAccount, snaptree, addr, db, root, accHash); err != nil {
 				return err
 			}
+			
 		}
 
 		accounts++
@@ -446,6 +450,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			break
 		}
 		*/
+
+		/*
 		select {
 		default:
 		case <-logEvery.C:
@@ -454,9 +460,10 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 			"Preimages matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts,
 				"elapsed", common.PrettyDuration(time.Since(start)))
 		}
+		*/
 	}
 
-
+	
 	if missingAddresses > 0 {
 		log.Warn("Snapshot traversal is incomplete due to missing addresses", "missing", missingAddresses)
 	}
@@ -470,7 +477,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)
 
 	return nil
+	
 }
+
 
 // TODO rewrite it using c.RWCursor(PlainState) its faster
 func writeAccountData(db kv.RwDB, acc eaccounts.Account, addr ecommon.Address) error {
