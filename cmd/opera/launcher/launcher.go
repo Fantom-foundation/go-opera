@@ -307,7 +307,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	if len(networkName) == 0 && genesisStore != nil {
 		networkName = genesisStore.Header().NetworkName
 	}
-	if len(cfg.Node.P2P.BootstrapNodes) == len(asDefault) && cfg.Node.P2P.BootstrapNodes[0] == asDefault[0] {
+	if needDefaultBootnodes(cfg.Node.P2P.BootstrapNodes) {
 		bootnodes := Bootnodes[networkName]
 		if bootnodes == nil {
 			bootnodes = []string{}
