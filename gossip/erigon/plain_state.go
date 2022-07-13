@@ -129,7 +129,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	defer logEvery.Stop()
 
 
-	c, err := tx.CursorDupSort(table)
+	c, err := tx.Cursor(table)
 	if err != nil {
 		return err
 	}
@@ -139,6 +139,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
+		}
 		fmt.Printf("records: %d\n", records)
 		records += 1
 		//fmt.Printf("%x => %x\n", k, v)
@@ -470,7 +471,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	if err != nil {
 		return err
 	}
-	c, err := tx.RwCursorDupSort(kv.PlainState)
+	c, err := tx.RwCursor(kv.PlainState)
 	if err != nil {
 		return err 
 	}
@@ -478,7 +479,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	log.Info("Iterate over sorted entries and write them into kv.Plainstate")
 	start = time.Now()
 	for _, entry := range buf.sortedBuf {
-		if err := c.AppendDup(entry.key, entry.value); err != nil {
+		if err := c.Append(entry.key, entry.value); err != nil {
 			return err
 		}
 	}
