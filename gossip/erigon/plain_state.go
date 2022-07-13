@@ -139,7 +139,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
-		}
+		fmt.Printf("records: %d\n", records)
 		records += 1
 		//fmt.Printf("%x => %x\n", k, v)
 	}
