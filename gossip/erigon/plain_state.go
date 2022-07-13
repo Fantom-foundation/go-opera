@@ -473,7 +473,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 
 	defer tx.Rollback() 
-	
+
 	c, err := tx.RwCursor(kv.PlainState)
 	if err != nil {
 		return err 
@@ -490,8 +490,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 	log.Info("Writing data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
 
-
-	return nil
+	
+	return tx.Commit()
 }
 
 

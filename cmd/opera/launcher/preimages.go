@@ -42,6 +42,8 @@ func writePreimagesCmd(_ *cli.Context) error {
 		return err
 	}
 
+	defer tx.Rollback()
+
 	if err := writePreimages(tx); err != nil {
 		return fmt.Errorf("Import error: %q", err)
 	}
