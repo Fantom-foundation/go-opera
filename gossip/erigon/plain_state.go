@@ -129,7 +129,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	defer logEvery.Stop()
 
 
-	c, err := tx.Cursor(table)
+	c, err := tx.CursorDupSort(table)
 	if err != nil {
 		return err
 	}
@@ -137,20 +137,18 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 
 	
 	dupRecords, records := 0, 0
-	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
+	for k, _, e := c.First(); k != nil; k, _, e = c.NextNoDup() {
 		if e != nil {
 			return e
 		}
 
 		records += 1
-		
-		if casted, ok := c.(kv.CursorDupSort); ok {
-			for vds, eds :=  casted.FirstDup(); vds != nil ; _, vds, eds = casted.NextDup() {
-				if eds != nil {
-					return eds
-				}
-				dupRecords += 1
+		// run for loop for duplicates
+		for vds, eds :=  c.FirstDup(); vds != nil ; _, vds, eds = c.NextDup() {
+			if eds != nil {
+				return eds
 			}
+			dupRecords += 1
 		} 
 
 		//fmt.Printf("%x => %x\n", k, v)
