@@ -471,10 +471,15 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	if err != nil {
 		return err
 	}
+
+	defer tx.Rollback() 
+	
 	c, err := tx.RwCursor(kv.PlainState)
 	if err != nil {
 		return err 
 	}
+
+	defer c.Close()
 
 	log.Info("Iterate over sorted entries and write them into kv.Plainstate")
 	start = time.Now()
