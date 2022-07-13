@@ -1,6 +1,7 @@
 package erigon
 
 import (
+	"errors"
 	"bytes"
 	"github.com/c2h5oh/datasize"
 	"sort"
@@ -29,14 +30,15 @@ type appendSortableBuffer struct {
 	comparator  kv.CmpFunc
 }
 
-func (b *appendSortableBuffer) Put(k, v []byte) {
+func (b *appendSortableBuffer) Put(k, v []byte) error {
 	stored, ok := b.entries[string(k)]
-	if !ok {
-		b.size += len(k)
+	if ok {
+		return errors.New("dup entry")
 	}
 	b.size += len(v)
 	stored = append(stored, v...)
 	b.entries[string(k)] = stored
+	return nil
 }
 
 func (b *appendSortableBuffer) SetComparator(cmp kv.CmpFunc) {

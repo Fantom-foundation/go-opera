@@ -411,7 +411,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				//log.Info("non contract account is valid")
 				validNonContractAccounts++
 				eAccount := transformStateAccount(stateAccount, false)
-				putAccountDataToBuf(buf, eAccount, addr)
+				if err := putAccountDataToBuf(buf, eAccount, addr); err != nil {
+					return err
+				}
 			case stateAccount.Root != types.EmptyRootHash && bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
 				// root of storage trie is not empty , but codehash is empty 
 				// looks like it is invalid account
@@ -427,7 +429,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 				eAccount := transformStateAccount(stateAccount, true)
 
-				putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash)
+				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil {
+					return err
+				}
 
 			
 			case stateAccount.Root == types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
@@ -438,7 +442,9 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				eAccount := transformStateAccount(stateAccount, true)
 
 				// writing data and storage
-				putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash)
+				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil{
+					return err
+				}
 
 		}
 		accounts++
@@ -476,19 +482,23 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
 	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)
 
-	log.Info("Buf size", "is", buf.size)
+	log.Info("Buffer length", "is", buf.Len())
+
+	/*
 	log.Info("Sorting data in buffer")
 	start = time.Now()
 	buf.Sort()
 	log.Info("Sorting data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
-
+	*/
 	
+	/*
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		return err
 	}
 
 	defer tx.Rollback() 
+
 
 	c, err := tx.RwCursorDupSort(kv.PlainState)
 	if err != nil {
@@ -511,10 +521,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	
 	return tx.Commit()
+	*/
+	return nil
 }
 
 
-func putAccountDataToBuf(buf *appendSortableBuffer, acc eaccounts.Account, addr ecommon.Address) {
+func putAccountDataToBuf(buf *appendSortableBuffer, acc eaccounts.Account, addr ecommon.Address) error {
 	/*
 	return db.Update(context.Background(), func(tx kv.RwTx) error {
 		value := make([]byte, acc.EncodingLengthForStorage())
@@ -525,11 +537,11 @@ func putAccountDataToBuf(buf *appendSortableBuffer, acc eaccounts.Account, addr 
 	key := addr.Bytes()
 	value := make([]byte, acc.EncodingLengthForStorage())
 	acc.EncodeForStorage(value)
-	buf.Put(key, value)
+	return buf.Put(key, value)
 }
 
 // ask about how to write in more efficient way using RwCursor 
-func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr ecommon.Address, key *ecommon.Hash, val *uint256.Int) {
+func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr ecommon.Address, key *ecommon.Hash, val *uint256.Int) error {
 	/*
 	return db.Update(context.Background(), func(tx kv.RwTx) error {
 		compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), incarnation, key.Bytes())
@@ -539,13 +551,15 @@ func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr 
 	*/
 	compositeKey := dbutils.PlainGenerateCompositeStorageKey(addr.Bytes(), incarnation, key.Bytes())
 	value := val.Bytes()
-	buf.Put(compositeKey,value)
+	return buf.Put(compositeKey,value)
 
 }
 
 func putAccountDataStorageToBuf(buf *appendSortableBuffer, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  error {
 	
-	putAccountDataToBuf(buf, eAccount, addr)
+	if err := putAccountDataToBuf(buf, eAccount, addr); err != nil {
+		return err
+	}
 
 	stIt, err := snapTree.StorageIterator(root, accHash, common.Hash{})
 	if err != nil {
