@@ -143,13 +143,15 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 		}
 
 		records += 1
+		/*
 		// run for loop for duplicates
-		for vds, eds :=  c.FirstDup(); vds != nil ; _, vds, eds = c.NextDup() {
+		for vds, eds := c.FirstDup(); vds != nil ; _, vds, eds = c.NextDup() {
 			if eds != nil {
 				return eds
 			}
 			dupRecords += 1
 		} 
+		*/
 
 		//fmt.Printf("%x => %x\n", k, v)
 	}
