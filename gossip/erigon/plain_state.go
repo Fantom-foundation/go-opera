@@ -145,12 +145,12 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 		records += 1
 
 		var dk, dv []byte
-		// if the next key is not duplicated, just continue
+		// if we hity no diuplicate, just continue for loop above
 		if dk, dv, _ = c.NextDup(); dk == nil && dv == nil  {
 			continue
 		}
 	
-		// otherwise qwe loop over duplicates and  count them 
+		// otherwise we loop over duplicates and  count them 
 		for dk, _, de := c.Seek(dk); dk != nil ; dk, _, de = c.NextDup() {
 			if de != nil {
 				return de
@@ -490,7 +490,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	defer tx.Rollback() 
 
-	c, err := tx.RwCursor(kv.PlainState)
+	c, err := tx.RwCursorDupSort(kv.PlainState)
 	if err != nil {
 		return err 
 	}
@@ -499,12 +499,15 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Iterate over sorted entries and write them into kv.Plainstate")
 	start = time.Now()
+	records := 0
 	for _, entry := range buf.sortedBuf {
-		if err := c.Append(entry.key, entry.value); err != nil {
+		if err := c.AppendDup(entry.key, entry.value); err != nil {
 			return err
 		}
+		records += 0
+
 	}
-	log.Info("Writing data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+	log.Info("Writing data into kv.Plainstate is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records written", records)
 
 	
 	return tx.Commit()
