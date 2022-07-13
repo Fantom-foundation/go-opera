@@ -499,7 +499,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		if err := c.Append(entry.key, entry.value); err != nil {
 			return err
 		}
-		records += 0
+		records += 1
 
 	}
 	log.Info("Writing data into kv.Plainstate is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records written", records)
@@ -553,7 +553,9 @@ func putAccountDataStorageToBuf(buf *appendSortableBuffer, eAccount eaccounts.Ac
 	for stIt.Next() {
 		// to make sure it is a right way to write storage
 		key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
-		putAccountStorageToBuf(buf, eAccount.Incarnation, addr, &key, value)
+		if err := putAccountStorageToBuf(buf, eAccount.Incarnation, addr, &key, value); err != nil {
+			return err
+		}
 	}
 
 	return nil
