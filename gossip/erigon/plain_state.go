@@ -121,6 +121,7 @@ func MakeChainDatabase(logger logger.Instance) kv.RwDB {
 	return chainDb
 }
 
+// CursorDupSort only, TODO to make it for usual cursor as well
 func ReadErigonTable(table string, tx kv.Tx) error {
 
 	start := time.Now()
@@ -128,19 +129,21 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	defer logEvery.Stop()
 
 
-	c, err := tx.Cursor(table)
+	c, err := tx.CursorDupSort(table)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 
-	for k, v, e := c.First(); k != nil; k, v, e = c.Next() {
+	records := 0
+	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
 		}
-		fmt.Printf("%x => %x\n", k, v)
+		records += 1
+		//fmt.Printf("%x => %x\n", k, v)
 	}
-	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)))
+	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records)
 	return nil
 }
 
