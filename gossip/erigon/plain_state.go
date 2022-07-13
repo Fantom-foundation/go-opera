@@ -359,6 +359,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	buf := newAppendBuffer(bufferOptimalSize)
 
 	for accIt.Next() {
+		storageIterations := 0
 		accHash := accIt.Hash()
 
 	
@@ -387,7 +388,8 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				eAccount := transformStateAccount(stateAccount, true)
 
 				// writing data and storage
-				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount,  snaptree, addr, root, accHash); err != nil {
+				storageIterations, err = putAccountDataStorageToBuf(buf, storageRecords, eAccount,  snaptree, addr, root, accHash)
+				if err != nil {
 					return err
 				}
 
@@ -415,9 +417,12 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 				eAccount := transformStateAccount(stateAccount, true)
 
-				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash); err != nil {
+				storageIterations, err = putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash)
+				if err !=  nil {
 					return err
 				}
+
+
 
 			
 			case stateAccount.Root == types.EmptyRootHash && !bytes.Equal(stateAccount.CodeHash, evmstore.EmptyCode):
@@ -428,11 +433,13 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				eAccount := transformStateAccount(stateAccount, true)
 
 				// writing data and storage
-				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash); err != nil{
+				storageIterations, err = putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash)
+				if err != nil{
 					return err
 				}
 
 		}
+		storageRecords += storageIterations
 		accounts++
 			
 		/*
@@ -538,32 +545,32 @@ func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr 
 
 }
 
-func putAccountDataStorageToBuf(buf *appendSortableBuffer, storageRecords int, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  error {
+func putAccountDataStorageToBuf(buf *appendSortableBuffer, storageRecords int, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  (int, error) {
 	
+	iterations := 0
 	if err := putAccountDataToBuf(buf, eAccount, addr); err != nil {
-		return err
+		return iterations, err
 	}
 
 	stIt, err := snapTree.StorageIterator(root, accHash, common.Hash{})
 	if err != nil {
-		return err
+		return iterations, err
 	}
 
 	defer stIt.Release()
 
-	iterations := 0
+	
 	for stIt.Next() {
 		// to make sure it is a right way to write storage
 		key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
 		if err := putAccountStorageToBuf(buf, eAccount.Incarnation, addr, &key, value); err != nil {
-			return err
+			return iterations, err
 		}
 		iterations += 1
 	}
 
-	storageRecords += iterations
 
-	return nil
+	return iterations, nil
 }
 
 
