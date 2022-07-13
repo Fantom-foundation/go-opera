@@ -5,6 +5,7 @@ import (
 	//"fmt"
 	"path"
 	"time"
+	"fmt"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -25,13 +26,13 @@ func readErigon(_ *cli.Context) error {
 
 	tx, err := db.BeginRo(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to begin transaction, err: %q", err)
 	}
 	defer tx.Rollback()
 
 
 	if err := erigon.ReadErigonTable(kv.PlainState, tx); err != nil {
-		return err
+		return fmt.Errorf("unable to read from Erigon table, err: %q", err)
 	}
 
 	// TODO handle flags
