@@ -135,12 +135,24 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	}
 	defer c.Close()
 
+	
 	records := 0
 	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
 		}
+
 		records += 1
+		
+		if casted, ok := c.(kv.CursorDupSort); ok {
+			for vds, eds :=  casted.FirstDup(); vds != nil ; _, vds, eds = casted.NextDup() {
+				if eds != nil {
+					return eds
+				}
+				records += 1
+			}
+		} 
+
 		//fmt.Printf("%x => %x\n", k, v)
 	}
 	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records)
