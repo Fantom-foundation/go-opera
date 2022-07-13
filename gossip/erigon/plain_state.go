@@ -346,6 +346,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 		validNonContractAccounts int 
 		invalidAccounts1 int
 		invalidAccounts2 int
+		storageRecords int
 		matchedAccounts, notMatchedAccounts uint64
 		logEvery = time.NewTicker(60 * time.Second)
 		bufferOptimalSize = 500 * datasize.MB
@@ -386,7 +387,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				eAccount := transformStateAccount(stateAccount, true)
 
 				// writing data and storage
-				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil {
+				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount,  snaptree, addr, root, accHash); err != nil {
 					return err
 				}
 
@@ -414,7 +415,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 				eAccount := transformStateAccount(stateAccount, true)
 
-				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil {
+				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash); err != nil {
 					return err
 				}
 
@@ -427,7 +428,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 				eAccount := transformStateAccount(stateAccount, true)
 
 				// writing data and storage
-				if err := putAccountDataStorageToBuf(buf, eAccount, snaptree, addr, root, accHash); err != nil{
+				if err := putAccountDataStorageToBuf(buf, storageRecords, eAccount, snaptree, addr, root, accHash); err != nil{
 					return err
 				}
 
@@ -464,7 +465,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Preimages matching is complete", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts)
 
-	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Valid non contract accounts", validNonContractAccounts,
+	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Storage records", storageRecords, "Valid non contract accounts", validNonContractAccounts,
 	 "invalid accounts1", invalidAccounts1, "invalid accounts2" , invalidAccounts2)
 
 	log.Info("Buffer length", "is", buf.Len())
@@ -537,7 +538,7 @@ func putAccountStorageToBuf(buf *appendSortableBuffer, incarnation uint64, addr 
 
 }
 
-func putAccountDataStorageToBuf(buf *appendSortableBuffer, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  error {
+func putAccountDataStorageToBuf(buf *appendSortableBuffer, storageRecords int, eAccount eaccounts.Account, snapTree *snapshot.Tree, addr ecommon.Address, root, accHash common.Hash)  error {
 	
 	if err := putAccountDataToBuf(buf, eAccount, addr); err != nil {
 		return err
@@ -550,13 +551,17 @@ func putAccountDataStorageToBuf(buf *appendSortableBuffer, eAccount eaccounts.Ac
 
 	defer stIt.Release()
 
+	iterations := 0
 	for stIt.Next() {
 		// to make sure it is a right way to write storage
 		key, value := ecommon.Hash(stIt.Hash()), uint256.NewInt(0).SetBytes(stIt.Slot())
 		if err := putAccountStorageToBuf(buf, eAccount.Incarnation, addr, &key, value); err != nil {
 			return err
 		}
+		iterations += 1
 	}
+
+	storageRecords += iterations
 
 	return nil
 }
