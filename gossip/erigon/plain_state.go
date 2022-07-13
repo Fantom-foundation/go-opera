@@ -137,14 +137,21 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 
 	
 	dupRecords, records := 0, 0
-	for k, _, e := c.First(); k != nil; k, _, e = c.NextNoDup() {
+	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
 		}
 
 		records += 1
+
+		var dk, dv []byte
+		// if the next key is not duplicated, just continue
+		if dk, dv, _ = c.NextDup(); dk == nil && dv == nil  {
+			continue
+		}
 	
-		for dk, _, de := c.Seek(k); dk != nil ; dk, _, de = c.NextDup() {
+		// otherwise qwe loop over duplicates and  count them 
+		for dk, _, de := c.Seek(dk); dk != nil ; dk, _, de = c.NextDup() {
 			if de != nil {
 				return de
 			}
