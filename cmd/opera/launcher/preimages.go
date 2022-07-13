@@ -121,7 +121,7 @@ func readPreimagesCmd(_ *cli.Context) error {
 	defer tx.Rollback()
 
 
-	if err := erigon.ReadErigonTable(kv.Senders, tx); err != nil {
+	if err := erigon.ReadErigonTableNoDups(kv.Senders, tx); err != nil {
 		return err
 	}
 

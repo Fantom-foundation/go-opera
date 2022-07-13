@@ -121,46 +121,31 @@ func MakeChainDatabase(logger logger.Instance) kv.RwDB {
 	return chainDb
 }
 
-// CursorDupSort only, TODO to make it for usual cursor as well
-func ReadErigonTable(table string, tx kv.Tx) error {
+// no duplicated keys are allowed
+func ReadErigonTableNoDups(table string, tx kv.Tx) error {
 
 	start := time.Now()
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
 
-	c, err := tx.CursorDupSort(table)
+	c, err := tx.Cursor(table)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 
 	
-	dupRecords, records := 0, 0
+	records := 0
 	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
 		}
 
 		records += 1
-
-		var dk, dv []byte
-		// if we hity no diuplicate, just continue for loop above
-		if dk, dv, _ = c.NextDup(); dk == nil && dv == nil  {
-			continue
-		}
-	
-		// otherwise we loop over duplicates and  count them 
-		for dk, _, de := c.Seek(dk); dk != nil ; dk, _, de = c.NextDup() {
-			if de != nil {
-				return de
-			}
-			dupRecords += 1
-		} 
-
 		//fmt.Printf("%x => %x\n", k, v)
 	}
-	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records, "dupRecords", dupRecords)
+	log.Info("Reading table", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records)
 	return nil
 }
 
@@ -484,14 +469,14 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Buffer length", "is", buf.Len())
 
-	/*
-	log.Info("Sorting data in buffer")
+
+	log.Info("Sorting data in buffer started")
 	start = time.Now()
+	// there are no duplicates keys in buf
 	buf.Sort()
 	log.Info("Sorting data is complete", "elapsed", common.PrettyDuration(time.Since(start)))
-	*/
 	
-	/*
+	
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		return err
@@ -499,19 +484,19 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	defer tx.Rollback() 
 
-
-	c, err := tx.RwCursorDupSort(kv.PlainState)
+    
+	c, err := tx.RwCursor(kv.PlainState)
 	if err != nil {
 		return err 
 	}
 
 	defer c.Close()
 
-	log.Info("Iterate over sorted entries and write them into kv.Plainstate")
+	log.Info("Iterate over sorted non duplicated buf key-value pairs and write them into kv.Plainstate")
 	start = time.Now()
 	records := 0
 	for _, entry := range buf.sortedBuf {
-		if err := c.AppendDup(entry.key, entry.value); err != nil {
+		if err := c.Append(entry.key, entry.value); err != nil {
 			return err
 		}
 		records += 0
@@ -519,10 +504,7 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 	}
 	log.Info("Writing data into kv.Plainstate is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records written", records)
 
-	
 	return tx.Commit()
-	*/
-	return nil
 }
 
 

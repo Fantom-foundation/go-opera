@@ -31,7 +31,7 @@ func readErigon(_ *cli.Context) error {
 	defer tx.Rollback()
 
 
-	if err := erigon.ReadErigonTable(kv.PlainState, tx); err != nil {
+	if err := erigon.ReadErigonTableNoDups(kv.PlainState, tx); err != nil {
 		return fmt.Errorf("unable to read from Erigon table, err: %q", err)
 	}
 

@@ -17,7 +17,6 @@ type sortableBufferEntry struct {
 func newAppendBuffer(bufferOptimalSize datasize.ByteSize) *appendSortableBuffer {
 	return &appendSortableBuffer{
 		entries:     make(map[string][]byte),
-		size:        0,
 		optimalSize: int(bufferOptimalSize.Bytes()),
 	}
 }
@@ -31,11 +30,12 @@ type appendSortableBuffer struct {
 }
 
 func (b *appendSortableBuffer) Put(k, v []byte) error {
-	stored, ok := b.entries[string(k)]
-	if ok {
-		return errors.New("dup entry")
+	if _, ok := b.entries[string(k)]; ok {
+		return errors.New("dup entry found")
 	}
+	b.size += len(k)
 	b.size += len(v)
+	stored := make([]byte, len(v))
 	stored = append(stored, v...)
 	b.entries[string(k)] = stored
 	return nil
