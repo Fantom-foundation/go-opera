@@ -136,7 +136,7 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 	defer c.Close()
 
 	
-	records := 0
+	dupRecords, records := 0, 0
 	for k, _, e := c.First(); k != nil; k, _, e = c.Next() {
 		if e != nil {
 			return e
@@ -149,13 +149,13 @@ func ReadErigonTable(table string, tx kv.Tx) error {
 				if eds != nil {
 					return eds
 				}
-				records += 1
+				dupRecords += 1
 			}
 		} 
 
 		//fmt.Printf("%x => %x\n", k, v)
 	}
-	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records)
+	log.Info("Reading", table,  "is complete", "elapsed", common.PrettyDuration(time.Since(start)), "records", records, "dupRecords", dupRecords)
 	return nil
 }
 
