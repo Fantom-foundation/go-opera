@@ -73,7 +73,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, nil, 0, onMatched)
+	return tt.searchParallel(ctx, pattern, 0, 0, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
@@ -97,12 +97,12 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
+	return tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
 }
 
 func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) {
-	if len(pattern) > MaxTopicsCount {
-		limited = make([][]common.Hash, MaxTopicsCount)
+	if len(pattern) > (MaxTopicsCount + 1) {
+		limited = make([][]common.Hash, (MaxTopicsCount + 1))
 	} else {
 		limited = make([][]common.Hash, len(pattern))
 	}

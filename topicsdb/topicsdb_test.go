@@ -36,16 +36,20 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 	go func() {
 		failed := false
 		for rec := range ready {
-			wg.Done()
+
 			if failed {
+				wg.Done()
 				continue
 			}
 			if rec.err != nil {
 				err = rec.err
 				failed = true
+				wg.Done()
 				continue
 			}
+
 			logs = append(logs, rec.result)
+			wg.Done()
 		}
 	}()
 
@@ -60,7 +64,8 @@ func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, patt
 		return
 	}
 
-	err = tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
+	err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
+
 	wg.Wait()
 
 	return
@@ -382,8 +387,8 @@ func TestPatternLimit(t *testing.T) {
 			err: nil,
 		},
 		{
-			pattern: append(append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}), []common.Hash{hash.FakeHash(1)}),
-			exp:     append(make([][]common.Hash, MaxTopicsCount-1), []common.Hash{hash.FakeHash(1)}),
+			pattern: append(append(make([][]common.Hash, MaxTopicsCount), []common.Hash{hash.FakeHash(1)}), []common.Hash{hash.FakeHash(1)}),
+			exp:     append(make([][]common.Hash, MaxTopicsCount), []common.Hash{hash.FakeHash(1)}),
 			err:     nil,
 		},
 	}
