@@ -269,7 +269,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			LlrEpochVotesIndexes: scale.I(5),
 		},
 		EVM:                 evmstore.DefaultStoreConfig(scale),
-		MaxNonFlushedSize:   17*opt.MiB + scale.I(5*opt.MiB),
+		MaxNonFlushedSize:   20*opt.MiB + scale.I(2*opt.MiB),
 		MaxNonFlushedPeriod: 30 * time.Minute,
 	}
 }
