@@ -1,10 +1,17 @@
 package pebble
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/cockroachdb/pebble"
+	"github.com/status-im/keycard-go/hexutils"
 	"sync"
+)
+
+var (
+	flushIDKey = hexutils.HexToBytes("0068c2927bf842c3e9e2f1364494a33a752db334b9a819534bc9f17d2c3b4e5970008ff519d35a86f29fcaa5aae706b75dee871f65f174fcea1747f2915fc92158f6bfbf5eb79f65d16225738594bffb0c")
 )
 
 // Database is a persistent key-value store. Apart from basic data storage
@@ -33,7 +40,7 @@ func New(path string, close func() error, drop func()) (*Database, error) {
 		MaxOpenFiles:                1000,
 		MemTableSize:                4 << 20, // default: 4 MB
 		MemTableStopWritesThreshold: 2, // writes are stopped when sum of the queued memtable sizes exceeds
-		MaxConcurrentCompactions:    1,
+		MaxConcurrentCompactions:    3, // important for big imports performance
 		NumPrevManifest:             1, // keep one old manifest
 		WALBytesPerSync:             0, // default 0 (matches RocksDB)
 	})
@@ -86,6 +93,12 @@ func (db *Database) Drop() {
 	}
 }
 
+// AsyncFlush asynchronously flushes the in-memory buffer to the disk.
+func (db *Database) AsyncFlush() error {
+	_, err := db.db.AsyncFlush()
+	return err
+}
+
 // Has retrieves if a key is present in the key-value store.
 func (db *Database) Has(key []byte) (bool, error) {
 	_, closer, err := db.db.Get(key)
@@ -115,7 +128,14 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 
 // Put inserts the given value into the key-value store.
 func (db *Database) Put(key []byte, value []byte) error {
-	return db.db.Set(key, value, pebble.NoSync)
+	err := db.db.Set(key, value, pebble.NoSync)
+
+	// hack to ensure db flushing after the SyncedPool flushing
+	if bytes.Equal(key, flushIDKey) && value[0] == flushable.CleanPrefix {
+		_ = db.AsyncFlush()
+	}
+
+	return err
 }
 
 // Delete removes the key from the key-value store.
