@@ -122,7 +122,7 @@ func dbMigrate(ctx *cli.Context) error {
 }
 
 func getDBProducersFor(chaindataDir string) map[multidb.TypeName]kvdb.FullDBProducer {
-	dbTypes, err := integration.SupportedDBs(chaindataDir, integration.DBsCacheConfig{
+	dbTypes, _ := integration.SupportedDBs(chaindataDir, integration.DBsCacheConfig{
 		Table: map[string]integration.DBCacheConfig{
 			"": {
 				Cache:   1024 * opt.MiB,
@@ -130,12 +130,9 @@ func getDBProducersFor(chaindataDir string) map[multidb.TypeName]kvdb.FullDBProd
 			},
 		},
 	})
-	if err != nil {
-		log.Crit("Failed to construct DB producers", "err", err)
-	}
 	wrappedDbTypes := make(map[multidb.TypeName]kvdb.FullDBProducer)
 	for typ, producer := range dbTypes {
-		wrappedDbTypes[typ] = cachedproducer.WrapAll(&integration.DummyFlushableProducer{IterableDBProducer: producer})
+		wrappedDbTypes[typ] = cachedproducer.WrapAll(&integration.DummyScopedProducer{IterableDBProducer: producer})
 	}
 	return wrappedDbTypes
 }
@@ -159,8 +156,6 @@ func (ee *dbMigrationEntries) Pop() *dbMigrationEntry {
 }
 
 var dbLocatorOf = multidb.DBLocatorOf
-
-var tableLocatorOf = multidb.TableLocatorOf
 
 func readRoutes(cfg *config, dbTypes map[multidb.TypeName]kvdb.FullDBProducer) (map[string]dbMigrationEntry, error) {
 	router, err := multidb.NewProducer(dbTypes, cfg.DBs.Routing.Table, integration.TablesKey)
@@ -227,29 +222,40 @@ func writeCleanTableRecords(dbTypes map[multidb.TypeName]kvdb.FullDBProducer, by
 	return nil
 }
 
+func interchangeableType(a_, b_ multidb.TypeName, types map[multidb.TypeName]kvdb.FullDBProducer) bool {
+	for t_ := range types {
+		a, b, t := string(a_), string(b_), string(t_)
+		t = strings.TrimSuffix(t, "fsh")
+		t = strings.TrimSuffix(t, "flg")
+		t = strings.TrimSuffix(t, "drc")
+		if strings.HasPrefix(a, t) && strings.HasPrefix(b, t) {
+			return true
+		}
+	}
+	return false
+}
+
 func migrateComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName]kvdb.FullDBProducer, byReq map[string]dbMigrationEntry) error {
 	byDB := separateIntoDBs(byReq)
 	// if it can be migrated just by DB renaming
 	if len(byDB) == 2 {
-		oldDBName := ""
-		newDBName := ""
-		typ := multidb.TypeName("")
+		oldDB := multidb.DBLocator{}
+		newDB := multidb.DBLocator{}
 		ok := true
 		for _, e := range byReq {
-			if len(typ) == 0 {
-				oldDBName = e.Old.Name
-				newDBName = e.New.Name
-				typ = e.New.Type
+			if len(oldDB.Type) == 0 {
+				oldDB = dbLocatorOf(e.Old)
+				newDB = dbLocatorOf(e.New)
 			}
-			if e.Old.Table != e.New.Table || e.New.Name != newDBName || e.Old.Name != oldDBName ||
-				e.Old.Type != typ || e.New.Type != typ {
+			if !interchangeableType(oldDB.Type, newDB.Type, dbTypes) || e.Old.Table != e.New.Table || e.New.Name != newDB.Name ||
+				e.Old.Name != oldDB.Name || e.Old.Type != oldDB.Type || e.New.Type != newDB.Type {
 				ok = false
 				break
 			}
 		}
 		if ok {
-			oldPath := path.Join(datadir, "chaindata", string(typ), oldDBName)
-			newPath := path.Join(datadir, "chaindata", string(typ), newDBName)
+			oldPath := path.Join(datadir, "chaindata", string(oldDB.Type), oldDB.Name)
+			newPath := path.Join(datadir, "chaindata", string(newDB.Type), newDB.Name)
 			log.Info("Renaming DB", "old", oldPath, "new", newPath)
 			return os.Rename(oldPath, newPath)
 		}

@@ -369,7 +369,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		gdb.Close()
 		_ = cdb.Close()
 		if closeDBs != nil {
-			closeDBs()
+			_ = closeDBs()
 		}
 	}
 }

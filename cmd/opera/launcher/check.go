@@ -17,10 +17,7 @@ import (
 )
 
 func makeRawDbsProducers(cfg *config) map[multidb.TypeName]kvdb.IterableDBProducer {
-	dbsList, err := integration.SupportedDBs(path.Join(cfg.Node.DataDir, "chaindata"), cfg.DBs.RuntimeCache)
-	if err != nil {
-		utils.Fatalf("Failed to initialize DB producers: %v", err)
-	}
+	dbsList, _ := integration.SupportedDBs(path.Join(cfg.Node.DataDir, "chaindata"), cfg.DBs.RuntimeCache)
 	if err := checkStateInitialized(dbsList); err != nil {
 		utils.Fatalf(err.Error())
 	}
@@ -28,7 +25,7 @@ func makeRawDbsProducers(cfg *config) map[multidb.TypeName]kvdb.IterableDBProduc
 }
 
 func makeMultiRawDbsProducer(dbsList map[multidb.TypeName]kvdb.IterableDBProducer, cfg *config) kvdb.FullDBProducer {
-	multiRawDbs, err := integration.MakeRawMultiProducer(dbsList, cfg.DBs.Routing)
+	multiRawDbs, err := integration.MakeDirectMultiProducer(dbsList, cfg.DBs.Routing)
 	if err != nil {
 		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
 	}
@@ -37,7 +34,7 @@ func makeMultiRawDbsProducer(dbsList map[multidb.TypeName]kvdb.IterableDBProduce
 
 func makeRawDbsProducer(cfg *config) kvdb.FullDBProducer {
 	dbsList := makeRawDbsProducers(cfg)
-	multiRawDbs, err := integration.MakeRawMultiProducer(dbsList, cfg.DBs.Routing)
+	multiRawDbs, err := integration.MakeDirectMultiProducer(dbsList, cfg.DBs.Routing)
 	if err != nil {
 		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
 	}

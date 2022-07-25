@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -132,31 +131,52 @@ func migrate(dbs kvdb.FlushableDBProducer, cfg Configs) error {
 	return nil
 }
 
-func makeEngine(genesisProducers, runtimeProducers map[multidb.TypeName]kvdb.IterableDBProducer, g *genesis.Genesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func(), error) {
-	{
-		if emptyStart && g == nil {
+func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error, error) {
+	// Genesis processing
+	if genesisProc {
+		// use increased DB cache for genesis processing
+		genesisProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
+		if g == nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("missing --genesis flag for an empty datadir")
 		}
-		// open raw DBs for performance reasons
-		dbs, err := MakeRawMultiProducer(genesisProducers, cfg.DBs.Routing)
+		dbs, err := MakeDirectMultiProducer(genesisProducers, cfg.DBs.Routing)
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to make DB multi-producer: %v", err)
 		}
-		if emptyStart {
-			err = applyGenesis(dbs, *g, cfg)
-			if err != nil {
-				return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to apply genesis state: %v", err)
-			}
-		} else {
-			err = migrate(dbs, cfg)
-			if err != nil {
-				return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to migrate state: %v", err)
-			}
+		err = applyGenesis(dbs, *g, cfg)
+		if err != nil {
+			_ = dbs.Close()
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to apply genesis state: %v", err)
+		}
+		_ = dbs.Close()
+	}
+	// Check DBs are synced
+	{
+		runtimeProducers, runtimeScopedProducers := SupportedDBs(chaindataDir, cfg.DBs.RuntimeCache)
+		dbs, err := MakeMultiProducer(runtimeProducers, runtimeScopedProducers, cfg.DBs.Routing)
+		if err != nil {
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		}
+		_ = dbs.Close()
+	}
+	// Migration
+	{
+		runtimeProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.RuntimeCache)
+		dbs, err := MakeDirectMultiProducer(runtimeProducers, cfg.DBs.Routing)
+		if err != nil {
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		}
+		err = migrate(dbs, cfg)
+		_ = dbs.Close()
+		if err != nil {
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to migrate state: %v", err)
 		}
 	}
+	// Live setup
 
+	runtimeProducers, runtimeScopedProducers := SupportedDBs(chaindataDir, cfg.DBs.RuntimeCache)
 	// open flushable DBs
-	dbs, closeDBs, err := MakeFlushableMultiProducer(runtimeProducers, cfg.DBs.Routing)
+	dbs, err := MakeMultiProducer(runtimeProducers, runtimeScopedProducers, cfg.DBs.Routing)
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
 	}
@@ -172,7 +192,7 @@ func makeEngine(genesisProducers, runtimeProducers map[multidb.TypeName]kvdb.Ite
 		if err != nil {
 			gdb.Close()
 			cdb.Close()
-			closeDBs()
+			dbs.Close()
 		}
 	}()
 
@@ -180,53 +200,45 @@ func makeEngine(genesisProducers, runtimeProducers map[multidb.TypeName]kvdb.Ite
 	genesisID := gdb.GetGenesisID()
 	if genesisID == nil {
 		err = errors.New("malformed chainstore: genesis ID is not written")
-		return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		return nil, nil, nil, nil, gossip.BlockProc{}, dbs.Close, err
 	}
 	if g != nil {
 		if *genesisID != g.GenesisID {
 			err = &GenesisMismatchError{*genesisID, g.GenesisID}
-			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+			return nil, nil, nil, nil, gossip.BlockProc{}, dbs.Close, err
 		}
 	}
 
 	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, nil, cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to make engine: %v", err)
-		return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		return nil, nil, nil, nil, gossip.BlockProc{}, dbs.Close, err
 	}
 
-	if emptyStart {
+	if genesisProc {
 		err = gdb.Commit()
 		if err != nil {
 			err = fmt.Errorf("failed to commit DBs: %v", err)
-			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+			return nil, nil, nil, nil, gossip.BlockProc{}, dbs.Close, err
 		}
 	}
 
-	return engine, vecClock, gdb, cdb, blockProc, closeDBs, nil
+	return engine, vecClock, gdb, cdb, blockProc, dbs.Close, nil
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func()) {
+func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error) {
+	dropAllDBsIfInterrupted(chaindataDir)
+	firstLaunch := isEmpty(chaindataDir)
 	MakeDBDirs(chaindataDir)
-	// use increased DB cache for genesis processing
-	genesisProducers, err := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
-	if err != nil {
-		utils.Fatalf("Failed to initialize DB producers: %v", err)
-	}
-	runtimeProducers, err := SupportedDBs(chaindataDir, cfg.DBs.RuntimeCache)
-	if err != nil {
-		utils.Fatalf("Failed to initialize DB producers: %v", err)
+	if firstLaunch {
+		setGenesisProcessing(chaindataDir)
 	}
 
-	firstLaunch := dropAllDBsIfInterrupted(runtimeProducers)
-
-	engine, vecClock, gdb, cdb, blockProc, closeDBs, err := makeEngine(genesisProducers, runtimeProducers, g, firstLaunch, cfg)
+	engine, vecClock, gdb, cdb, blockProc, closeDBs, err := makeEngine(chaindataDir, g, firstLaunch, cfg)
 	if err != nil {
 		if firstLaunch {
-			for _, producer := range runtimeProducers {
-				dropAllDBs(producer)
-			}
+			dropAllDBs(chaindataDir)
 		}
 		utils.Fatalf("Failed to make engine: %v", err)
 	}
@@ -234,6 +246,7 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 	rules := gdb.GetRules()
 	genesisID := gdb.GetGenesisID()
 	if firstLaunch {
+		setGenesisComplete(chaindataDir)
 		log.Info("Applied genesis state", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())
 	} else {
 		log.Info("Genesis is already written", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())

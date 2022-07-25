@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -9,14 +10,18 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flaggedproducer"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/pebble"
 	"github.com/Fantom-foundation/lachesis-base/utils/fmtfilter"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/asyncflushproducer"
 )
 
 type DBsConfig struct {
@@ -104,18 +109,37 @@ func DefaultGenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBs
 	}
 }
 
-func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName]kvdb.IterableDBProducer, error) {
+func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName]kvdb.IterableDBProducer, map[multidb.TypeName]kvdb.FullDBProducer) {
 	if chaindataDir == "inmemory" || chaindataDir == "" {
 		chaindataDir, _ = ioutil.TempDir("", "opera-tmp")
 	}
 	cacher, err := dbCacheFdlimit(cfg)
 	if err != nil {
-		return nil, err
+		utils.Fatalf("Failed to create DB cacher: %v", err)
 	}
+
+	leveldbFsh := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-fsh"), cacher)
+	leveldbFlg := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-flg"), cacher)
+	leveldbDrc := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-drc"), cacher)
+	pebbleFsh := pebble.NewProducer(path.Join(chaindataDir, "pebble-fsh"), cacher)
+	pebbleFlg := pebble.NewProducer(path.Join(chaindataDir, "pebble-flg"), cacher)
+	pebbleDrc := pebble.NewProducer(path.Join(chaindataDir, "pebble-drc"), cacher)
+
 	return map[multidb.TypeName]kvdb.IterableDBProducer{
-		"leveldb": leveldb.NewProducer(path.Join(chaindataDir, "leveldb"), cacher),
-		"pebble":  pebble.NewProducer(path.Join(chaindataDir, "pebble"), cacher),
-	}, nil
+			"leveldb-fsh": leveldbFsh,
+			"leveldb-flg": leveldbFlg,
+			"leveldb-drc": leveldbDrc,
+			"pebble-fsh":  pebbleFsh,
+			"pebble-flg":  pebbleFlg,
+			"pebble-drc":  pebbleDrc,
+		}, map[multidb.TypeName]kvdb.FullDBProducer{
+			"leveldb-fsh": flushable.NewSyncedPool(leveldbFsh, FlushIDKey),
+			"leveldb-flg": flaggedproducer.Wrap(leveldbFlg, FlushIDKey),
+			"leveldb-drc": &DummyScopedProducer{leveldbDrc},
+			"pebble-fsh":  asyncflushproducer.Wrap(flushable.NewSyncedPool(pebbleFsh, FlushIDKey), 200000),
+			"pebble-flg":  flaggedproducer.Wrap(pebbleFlg, FlushIDKey),
+			"pebble-drc":  &DummyScopedProducer{pebbleDrc},
+		}
 }
 
 func dbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
@@ -151,56 +175,28 @@ func dbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
 	}, nil
 }
 
-func dropAllDBs(producer kvdb.IterableDBProducer) {
-	names := producer.Names()
-	for _, name := range names {
-		db, err := producer.OpenDB(name)
-		if err != nil {
-			continue
-		}
-		_ = db.Close()
-		db.Drop()
+func isEmpty(dir string) bool {
+	f, err := os.Open(dir)
+	if err != nil {
+		return true
 	}
-}
-
-func isInterrupted(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer) bool {
-	for _, producer := range rawProducers {
-		names := producer.Names()
-		for _, name := range names {
-			db, err := producer.OpenDB(name)
-			if err != nil {
-				return false
-			}
-			flushID, err := db.Get(FlushIDKey)
-			_ = db.Close()
-			if err != nil {
-				return false
-			}
-			if flushID == nil {
-				return true
-			}
-		}
+	defer f.Close()
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true
 	}
 	return false
 }
 
-func isEmpty(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer) bool {
-	for _, producer := range rawProducers {
-		if len(producer.Names()) > 0 {
-			return false
-		}
-	}
-	return true
+func dropAllDBs(chaindataDir string) {
+	_ = os.RemoveAll(chaindataDir)
 }
 
-func dropAllDBsIfInterrupted(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer) bool {
-	if isInterrupted(rawProducers) {
-		for _, producer := range rawProducers {
-			dropAllDBs(producer)
-		}
-		return true
+func dropAllDBsIfInterrupted(chaindataDir string) {
+	if isInterrupted(chaindataDir) {
+		log.Info("Restarting genesis processing")
+		dropAllDBs(chaindataDir)
 	}
-	return isEmpty(rawProducers)
 }
 
 type GossipStoreAdapter struct {
@@ -215,23 +211,31 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 	return e
 }
 
-type DummyFlushableProducer struct {
+func MakeDBDirs(chaindataDir string) {
+	dbs, _ := SupportedDBs(chaindataDir, DBsCacheConfig{})
+	for typ := range dbs {
+		if err := os.MkdirAll(path.Join(chaindataDir, string(typ)), 0700); err != nil {
+			utils.Fatalf("Failed to create chaindata/leveldb directory: %v", err)
+		}
+	}
+}
+
+type DummyScopedProducer struct {
 	kvdb.IterableDBProducer
 }
 
-func (p *DummyFlushableProducer) NotFlushedSizeEst() int {
+func (d DummyScopedProducer) NotFlushedSizeEst() int {
 	return 0
 }
 
-func (p *DummyFlushableProducer) Flush(_ []byte) error {
+func (d DummyScopedProducer) Flush(_ []byte) error {
 	return nil
 }
 
-func MakeDBDirs(chaindataDir string) {
-	if err := os.MkdirAll(path.Join(chaindataDir, "leveldb"), 0700); err != nil {
-		utils.Fatalf("Failed to create chaindata/leveldb directory: %v", err)
-	}
-	if err := os.MkdirAll(path.Join(chaindataDir, "pebble"), 0700); err != nil {
-		utils.Fatalf("Failed to create chaindata/pebble directory: %v", err)
-	}
+func (d DummyScopedProducer) Initialize(_ []string, flushID []byte) ([]byte, error) {
+	return flushID, nil
+}
+
+func (d DummyScopedProducer) Close() error {
+	return nil
 }

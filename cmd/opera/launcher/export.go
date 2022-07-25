@@ -112,7 +112,7 @@ func checkStateInitialized(rawProducers map[multidb.TypeName]kvdb.IterableDBProd
 }
 
 func makeRawGossipStore(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, error) {
-	dbs := &integration.DummyFlushableProducer{rawProducer}
+	dbs := &integration.DummyScopedProducer{rawProducer}
 	gdb := gossip.NewStore(dbs, cfg.OperaStore)
 	return gdb, nil
 }

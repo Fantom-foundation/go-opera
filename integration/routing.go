@@ -5,7 +5,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/cachedproducer"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skipkeys"
 )
@@ -18,83 +17,74 @@ func DefaultRoutingConfig() RoutingConfig {
 	return RoutingConfig{
 		Table: map[string]multidb.Route{
 			"": {
-				Type: "pebble",
+				Type: "pebble-fsh",
 			},
 			"lachesis": {
-				Type:  "pebble",
+				Type:  "pebble-fsh",
 				Name:  "main",
 				Table: ">",
 			},
 			"gossip": {
-				Type: "pebble",
+				Type: "pebble-fsh",
 				Name: "main",
 			},
 			"evm": {
-				Type: "pebble",
+				Type: "pebble-fsh",
 				Name: "main",
 			},
 			"gossip/e": {
-				Type: "pebble",
+				Type: "pebble-fsh",
 				Name: "events",
 			},
 			"evm/M": {
-				Type: "pebble",
+				Type: "pebble-drc",
 				Name: "evm-data",
 			},
 			"evm-logs": {
-				Type: "pebble",
+				Type: "pebble-fsh",
 				Name: "evm-logs",
 			},
 			"gossip-%d": {
-				Type:  "leveldb",
+				Type:  "leveldb-fsh",
 				Name:  "epoch-%d",
 				Table: "G",
 			},
 			"lachesis-%d": {
-				Type:  "leveldb",
-				Name:  "epoch-%d",
-				Table: "L",
+				Type:   "leveldb-fsh",
+				Name:   "epoch-%d",
+				Table:  "L",
+				NoDrop: true,
 			},
 		},
 	}
 }
 
-func MakeFlushableMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, func(), error) {
-	flushables := make(map[multidb.TypeName]kvdb.FullDBProducer)
+func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, scopedProducers map[multidb.TypeName]kvdb.FullDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
+	cachedProducers := make(map[multidb.TypeName]kvdb.FullDBProducer)
 	var flushID []byte
 	var err error
-	var closeDBs = func() {}
-	for typ, producer := range rawProducers {
-		existingDBs := producer.Names()
-		flushablePool := flushable.NewSyncedPool(producer, FlushIDKey)
-		prevCloseDBs := closeDBs
-		closeDBs = func() {
-			prevCloseDBs()
-			_ = flushablePool.Close()
-		}
-		flushID, err = flushablePool.Initialize(existingDBs, flushID)
+	for typ, producer := range scopedProducers {
+		flushID, err = producer.Initialize(rawProducers[typ].Names(), flushID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to open existing databases: %v", err)
+			return nil, fmt.Errorf("failed to open existing databases: %v", err)
 		}
-		flushables[typ] = cachedproducer.WrapAll(flushablePool)
+		cachedProducers[typ] = cachedproducer.WrapAll(producer)
 	}
 
-	p, err := makeMultiProducer(flushables, cfg)
-	return p, closeDBs, err
-}
-
-func MakeRawMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
-	flushables := make(map[multidb.TypeName]kvdb.FullDBProducer)
-	for typ, producer := range rawProducers {
-		flushables[typ] = cachedproducer.WrapAll(&DummyFlushableProducer{producer})
-	}
-
-	p, err := makeMultiProducer(flushables, cfg)
+	p, err := makeMultiProducer(cachedProducers, cfg)
 	return p, err
 }
 
-func makeMultiProducer(producers map[multidb.TypeName]kvdb.FullDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
-	multi, err := multidb.NewProducer(producers, cfg.Table, TablesKey)
+func MakeDirectMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
+	dproducers := map[multidb.TypeName]kvdb.FullDBProducer{}
+	for typ, producer := range rawProducers {
+		dproducers[typ] = &DummyScopedProducer{producer}
+	}
+	return MakeMultiProducer(rawProducers, dproducers, cfg)
+}
+
+func makeMultiProducer(scopedProducers map[multidb.TypeName]kvdb.FullDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
+	multi, err := multidb.NewProducer(scopedProducers, cfg.Table, TablesKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct multidb: %v", err)
 	}
