@@ -66,7 +66,7 @@ func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer
 	for typ, producer := range scopedProducers {
 		flushID, err = producer.Initialize(rawProducers[typ].Names(), flushID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open existing databases: %v", err)
+			return nil, fmt.Errorf("failed to open existing databases: %v. Try to use 'db heal' to recover", err)
 		}
 		cachedProducers[typ] = cachedproducer.WrapAll(producer)
 	}
