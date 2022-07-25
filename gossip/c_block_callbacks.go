@@ -458,6 +458,48 @@ func consensusCallbackBeginBlockFn(
 	}
 }
 
+func (s *Service) ReexecuteBlocks(from, to idx.Block) {
+	blockProc := s.blockProcModules
+	upgradeHeights := s.store.GetUpgradeHeights()
+	evmStateReader := s.GetEvmStateReader()
+	prev := s.store.GetBlock(from)
+	for b := from + 1; b <= to; b++ {
+		block := s.store.GetBlock(b)
+		blockCtx := iblockproc.BlockCtx{
+			Idx:     b,
+			Time:    block.Time,
+			Atropos: block.Atropos,
+		}
+		statedb, err := s.store.evm.StateDB(prev.Root)
+		if err != nil {
+			log.Crit("Failue to re-execute blocks", "err", err)
+		}
+		es := s.store.GetHistoryEpochState(s.store.FindBlockEpoch(b))
+		evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, func(t *types.Log) {}, es.Rules, es.Rules.EvmChainConfig(upgradeHeights))
+		txs := s.store.GetBlockTxs(b, block)
+		evmProcessor.Execute(txs)
+		evmProcessor.Finalize()
+		_ = s.store.evm.Commit(b, block.Root, false)
+		s.store.evm.Cap()
+		s.mayCommit(false)
+		prev = block
+	}
+}
+
+func (s *Service) RecoverEVM() {
+	start := s.store.GetLatestBlockIndex()
+	for b := start; b >= 1 && b > start-20000; b-- {
+		block := s.store.GetBlock(b)
+		if s.store.evm.HasStateDB(block.Root) {
+			if b != start {
+				s.Log.Warn("Reexecuting blocks after abrupt stopping", "from", b, "to", start)
+				s.ReexecuteBlocks(b, start)
+			}
+			break
+		}
+	}
+}
+
 // spillBlockEvents excludes first events which exceed MaxBlockGas
 func spillBlockEvents(store *Store, block *inter.Block, network opera.Rules) (*inter.Block, inter.EventPayloads) {
 	fullEvents := make(inter.EventPayloads, len(block.Events))
