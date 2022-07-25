@@ -24,8 +24,8 @@ import (
 // maxEpochsToTry represents amount of last closed epochs to try (in case that the last one has the state unavailable)
 const maxEpochsToTry = 10000
 
-// fixDirty is the fixdirty command.
-func fixDirty(ctx *cli.Context) error {
+// healDirty is the 'db heal' command.
+func healDirty(ctx *cli.Context) error {
 	if !ctx.Bool(experimentalFlag.Name) {
 		utils.Fatalf("Add --experimental flag")
 	}

@@ -49,18 +49,18 @@ will migrate tables layout according to the configuration.
 `,
 			},
 			{
-				Name:      "fix",
-				Usage:     "Experimental - try to fix dirty DB",
+				Name:      "heal",
+				Usage:     "Experimental - try to heal dirty DB",
 				ArgsUsage: "",
-				Action:    utils.MigrateFlags(fixDirty),
+				Action:    utils.MigrateFlags(healDirty),
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 					experimentalFlag,
 				},
 				Description: `
-opera db fix --experimental
-Experimental - try to fix dirty DB.
+opera db heal --experimental
+Experimental - try to heal dirty DB.
 `,
 			},
 		},
