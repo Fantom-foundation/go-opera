@@ -35,16 +35,16 @@ will compact all databases under datadir's chaindata.
 `,
 			},
 			{
-				Name:      "migrate",
-				Usage:     "Migrate tables layout",
+				Name:      "transform",
+				Usage:     "Transform DBs layout",
 				ArgsUsage: "",
-				Action:    utils.MigrateFlags(dbMigrate),
+				Action:    utils.MigrateFlags(dbTransform),
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
 				},
 				Description: `
-opera db migrate
+opera db transform
 will migrate tables layout according to the configuration.
 `,
 			},

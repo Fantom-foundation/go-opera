@@ -21,7 +21,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration"
 )
 
-func dbMigrate(ctx *cli.Context) error {
+func dbTransform(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 
 	tmpPath := path.Join(cfg.Node.DataDir, "tmp")
@@ -38,7 +38,7 @@ func dbMigrate(ctx *cli.Context) error {
 	}
 	byDB := separateIntoDBs(byReq)
 
-	// weed out DBs which don't need migration
+	// weed out DBs which don't need transformation
 	{
 		for _, byReqOfDB := range byDB {
 			match := true
@@ -56,7 +56,7 @@ func dbMigrate(ctx *cli.Context) error {
 		}
 	}
 	if len(byReq) == 0 {
-		log.Info("No DB migration is needed")
+		log.Info("No DB transformation is needed")
 		return nil
 	}
 
@@ -103,9 +103,9 @@ func dbMigrate(ctx *cli.Context) error {
 
 	tmpDbTypes := getDBProducersFor(path.Join(cfg.Node.DataDir, "tmp"))
 	for _, component := range byComponents {
-		err := migrateComponent(cfg.Node.DataDir, dbTypes, tmpDbTypes, component)
+		err := transformComponent(cfg.Node.DataDir, dbTypes, tmpDbTypes, component)
 		if err != nil {
-			log.Crit("Failed to migrate component", "err", err)
+			log.Crit("Failed to transform component", "err", err)
 		}
 	}
 	id := bigendian.Uint64ToBytes(uint64(time.Now().UnixNano()))
@@ -116,7 +116,7 @@ func dbMigrate(ctx *cli.Context) error {
 		}
 	}
 
-	log.Info("DB migration is complete")
+	log.Info("DB transformation is complete")
 
 	return nil
 }
@@ -235,9 +235,9 @@ func interchangeableType(a_, b_ multidb.TypeName, types map[multidb.TypeName]kvd
 	return false
 }
 
-func migrateComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName]kvdb.FullDBProducer, byReq map[string]dbMigrationEntry) error {
+func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName]kvdb.FullDBProducer, byReq map[string]dbMigrationEntry) error {
 	byDB := separateIntoDBs(byReq)
-	// if it can be migrated just by DB renaming
+	// if it can be transformed just by DB renaming
 	if len(byDB) == 2 {
 		oldDB := multidb.DBLocator{}
 		newDB := multidb.DBLocator{}

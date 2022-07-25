@@ -91,7 +91,7 @@ func makeMultiProducer(scopedProducers map[multidb.TypeName]kvdb.FullDBProducer,
 
 	err = multi.Verify()
 	if err != nil {
-		return nil, fmt.Errorf("incompatible chainstore DB layout: %v. Try to use 'db migrate' to recover", err)
+		return nil, fmt.Errorf("incompatible chainstore DB layout: %v. Try to use 'db transform' to recover", err)
 	}
 	return skipkeys.WrapAllProducer(multi, MetadataPrefix), nil
 }
