@@ -218,7 +218,7 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types
 	}
 	b.epochs = append(b.epochs, b.currentEpoch)
 
-	return b.tmpEvmStore.Commit(bs, true)
+	return b.tmpEvmStore.Commit(bs.LastBlock.Idx, bs.FinalizedStateRoot, true)
 }
 
 type memFile struct {

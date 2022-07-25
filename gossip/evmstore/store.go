@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
@@ -184,9 +185,9 @@ func (s *Store) IsEvmSnapshotPaused() bool {
 }
 
 // Commit changes.
-func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
+func (s *Store) Commit(block idx.Block, root hash.Hash, flush bool) error {
 	triedb := s.EvmState.TrieDB()
-	stateRoot := common.Hash(block.FinalizedStateRoot)
+	stateRoot := common.Hash(root)
 	// If we're applying genesis or running an archive node, always flush
 	if flush || s.cfg.Cache.TrieDirtyDisabled {
 		err := triedb.Commit(stateRoot, false, nil)
@@ -197,9 +198,9 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(stateRoot, common.Hash{}) // metadata reference to keep trie alive
-		s.triegc.Push(stateRoot, -int64(block.LastBlock.Idx))
+		s.triegc.Push(stateRoot, -int64(block))
 
-		if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
+		if current := uint64(block); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
 			s.Cap()
 
