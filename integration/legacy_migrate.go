@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -55,9 +56,14 @@ func moveDB(src, dst_ kvdb.Store, name, dir string) error {
 		freeSpace, err := getFreeDiskSpace(dir)
 		if err != nil {
 			log.Error("Failed to retrieve free disk space", "err", err)
-		} else if len(keys) > 0 && freeSpace < 50*opt.GiB {
+		} else if freeSpace < 10*opt.GiB {
+			return errors.New("not enough disk space")
+		} else if len(keys) > 0 && freeSpace < 100*opt.GiB {
 			log.Warn("Not enough disk space. Trimming source DB records", "space_GB", freeSpace/opt.GiB)
-			_ = dst.Flush()
+			err = dst.Flush()
+			if err != nil {
+				return err
+			}
 			_, _ = dst.Stat("async_flush")
 			for i := 0; i < len(keys); i++ {
 				err := src.Delete(keys[i])
