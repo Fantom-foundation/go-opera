@@ -32,8 +32,8 @@ func healDirty(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 
 	log.Info("Opening databases")
-	dbTypes := makeRawDbsProducers(cfg)
-	multiProducer := makeMultiRawDbsProducer(dbTypes, cfg)
+	dbTypes := makeUncheckedDBsProducers(cfg)
+	multiProducer := makeDirectDBsProducerFrom(dbTypes, cfg)
 
 	// reverts the gossip database state
 	epochState, err := fixDirtyGossipDb(multiProducer, cfg)
@@ -84,12 +84,9 @@ func healDirty(ctx *cli.Context) error {
 }
 
 // fixDirtyGossipDb reverts the gossip database into state, when was one of last epochs sealed
-func fixDirtyGossipDb(producer kvdb.IterableDBProducer, cfg *config) (
+func fixDirtyGossipDb(producer kvdb.FlushableDBProducer, cfg *config) (
 	epochState *iblockproc.EpochState, err error) {
-	gdb, err := makeRawGossipStore(producer, cfg) // requires FlushIDKey present (not clean) in all dbs
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	gdb := makeGossipStore(producer, cfg) // requires FlushIDKey present (not clean) in all dbs
 	defer gdb.Close()
 
 	// find the last closed epoch with the state available

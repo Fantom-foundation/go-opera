@@ -9,13 +9,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/cachedproducer"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -30,7 +27,7 @@ func dbTransform(ctx *cli.Context) error {
 	defer os.RemoveAll(tmpPath)
 
 	// get supported DB producers
-	dbTypes := getDBProducersFor(path.Join(cfg.Node.DataDir, "chaindata"))
+	dbTypes := makeUncheckedCachedDBsProducers(path.Join(cfg.Node.DataDir, "chaindata"))
 
 	byReq, err := readRoutes(cfg, dbTypes)
 	if err != nil {
@@ -101,7 +98,7 @@ func dbTransform(ctx *cli.Context) error {
 		byComponents = append(byComponents, component)
 	}
 
-	tmpDbTypes := getDBProducersFor(path.Join(cfg.Node.DataDir, "tmp"))
+	tmpDbTypes := makeUncheckedCachedDBsProducers(path.Join(cfg.Node.DataDir, "tmp"))
 	for _, component := range byComponents {
 		err := transformComponent(cfg.Node.DataDir, dbTypes, tmpDbTypes, component)
 		if err != nil {
@@ -119,22 +116,6 @@ func dbTransform(ctx *cli.Context) error {
 	log.Info("DB transformation is complete")
 
 	return nil
-}
-
-func getDBProducersFor(chaindataDir string) map[multidb.TypeName]kvdb.FullDBProducer {
-	dbTypes, _ := integration.SupportedDBs(chaindataDir, integration.DBsCacheConfig{
-		Table: map[string]integration.DBCacheConfig{
-			"": {
-				Cache:   1024 * opt.MiB,
-				Fdlimit: uint64(utils.MakeDatabaseHandles() / 2),
-			},
-		},
-	})
-	wrappedDbTypes := make(map[multidb.TypeName]kvdb.FullDBProducer)
-	for typ, producer := range dbTypes {
-		wrappedDbTypes[typ] = cachedproducer.WrapAll(&integration.DummyScopedProducer{IterableDBProducer: producer})
-	}
-	return wrappedDbTypes
 }
 
 type dbMigrationEntry struct {

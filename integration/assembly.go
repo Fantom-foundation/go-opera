@@ -132,9 +132,22 @@ func migrate(dbs kvdb.FlushableDBProducer, cfg Configs) error {
 	return nil
 }
 
+func CheckStateInitialized(chaindataDir string, cfg DBsConfig) error {
+	if isInterrupted(chaindataDir) {
+		return errors.New("genesis processing isn't finished")
+	}
+	runtimeProducers, runtimeScopedProducers := SupportedDBs(chaindataDir, cfg.RuntimeCache)
+	dbs, err := MakeMultiProducer(runtimeProducers, runtimeScopedProducers, cfg.Routing)
+	if err != nil {
+		return err
+	}
+	return dbs.Close()
+}
+
 func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error, error) {
 	// Genesis processing
 	if genesisProc {
+		setGenesisProcessing(chaindataDir)
 		// use increased DB cache for genesis processing
 		genesisProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
 		if g == nil {
@@ -150,15 +163,14 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 			return nil, nil, nil, nil, gossip.BlockProc{}, nil, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
 		_ = dbs.Close()
+		setGenesisComplete(chaindataDir)
 	}
 	// Check DBs are synced
 	{
-		runtimeProducers, runtimeScopedProducers := SupportedDBs(chaindataDir, cfg.DBs.RuntimeCache)
-		dbs, err := MakeMultiProducer(runtimeProducers, runtimeScopedProducers, cfg.DBs.Routing)
+		err := CheckStateInitialized(chaindataDir, cfg.DBs)
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
 		}
-		_ = dbs.Close()
 	}
 	// Migration
 	{
@@ -247,9 +259,6 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 	dropAllDBsIfInterrupted(chaindataDir)
 	firstLaunch := isEmpty(chaindataDir)
 	MakeDBDirs(chaindataDir)
-	if firstLaunch {
-		setGenesisProcessing(chaindataDir)
-	}
 
 	engine, vecClock, gdb, cdb, blockProc, closeDBs, err := makeEngine(chaindataDir, g, firstLaunch, cfg)
 	if err != nil {
@@ -262,7 +271,6 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 	rules := gdb.GetRules()
 	genesisID := gdb.GetGenesisID()
 	if firstLaunch {
-		setGenesisComplete(chaindataDir)
 		log.Info("Applied genesis state", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())
 	} else {
 		log.Info("Genesis is already written", "name", rules.Name, "id", rules.NetworkID, "genesis", genesisID.String())

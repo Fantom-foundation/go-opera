@@ -36,11 +36,8 @@ func importEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 	defer gdb.Close()
 
 	for _, fn := range ctx.Args() {

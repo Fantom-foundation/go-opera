@@ -1,45 +1,16 @@
 package launcher
 
 import (
-	"path"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
-
-func makeRawDbsProducers(cfg *config) map[multidb.TypeName]kvdb.IterableDBProducer {
-	dbsList, _ := integration.SupportedDBs(path.Join(cfg.Node.DataDir, "chaindata"), cfg.DBs.RuntimeCache)
-	if err := checkStateInitialized(dbsList); err != nil {
-		utils.Fatalf(err.Error())
-	}
-	return dbsList
-}
-
-func makeMultiRawDbsProducer(dbsList map[multidb.TypeName]kvdb.IterableDBProducer, cfg *config) kvdb.FullDBProducer {
-	multiRawDbs, err := integration.MakeDirectMultiProducer(dbsList, cfg.DBs.Routing)
-	if err != nil {
-		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
-	}
-	return multiRawDbs
-}
-
-func makeRawDbsProducer(cfg *config) kvdb.FullDBProducer {
-	dbsList := makeRawDbsProducers(cfg)
-	multiRawDbs, err := integration.MakeDirectMultiProducer(dbsList, cfg.DBs.Routing)
-	if err != nil {
-		utils.Fatalf("Failed to initialize multi DB producer: %v", err)
-	}
-	return multiRawDbs
-}
 
 func checkEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) != 0 {
@@ -48,11 +19,8 @@ func checkEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 	defer gdb.Close()
 	evms := gdb.EvmStore()
 
@@ -89,7 +57,7 @@ func checkEvm(ctx *cli.Context) error {
 		})
 	}
 
-	err = evms.CheckEvm(checkBlocks)
+	err := evms.CheckEvm(checkBlocks)
 	if err != nil {
 		return err
 	}

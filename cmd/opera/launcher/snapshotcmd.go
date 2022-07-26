@@ -155,11 +155,8 @@ It's also usable without snapshot enabled.
 
 func pruneState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 
 	if gdb.GetGenesisID() == nil {
 		return errors.New("failed to open snapshot tree: genesis is not written")
@@ -179,6 +176,7 @@ func pruneState(ctx *cli.Context) error {
 	}
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
 	var bloom evmpruner.StateBloom
+	var err error
 	if ctx.Bool(PruneExactCommand.Name) {
 		log.Info("Initializing LevelDB storage of in-use-keys")
 		lset, closer, err := evmpruner.NewLevelDBSet(path.Join(tmpDir, "keys-in-use"))
@@ -223,11 +221,8 @@ func pruneState(ctx *cli.Context) error {
 
 func verifyState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 
 	genesis := gdb.GetGenesisID()
 	if genesis == nil {
@@ -237,7 +232,7 @@ func verifyState(ctx *cli.Context) error {
 	evmStore := gdb.EvmStore()
 	root := common.Hash(gdb.GetBlockState().FinalizedStateRoot)
 
-	err = evmStore.GenerateEvmSnapshot(root, false, false)
+	err := evmStore.GenerateEvmSnapshot(root, false, false)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -267,11 +262,8 @@ func verifyState(ctx *cli.Context) error {
 // contract codes are present.
 func traverseState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 
 	if gdb.GetGenesisID() == nil {
 		return errors.New("failed to open snapshot tree: genesis is not written")
@@ -284,6 +276,7 @@ func traverseState(ctx *cli.Context) error {
 	}
 	var (
 		root common.Hash
+		err  error
 	)
 	if ctx.NArg() == 1 {
 		root, err = parseRoot(ctx.Args()[0])
@@ -359,11 +352,8 @@ func traverseState(ctx *cli.Context) error {
 // but it will check each trie node.
 func traverseRawState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 
 	if gdb.GetGenesisID() == nil {
 		return errors.New("failed to open snapshot tree: genesis is not written")
@@ -376,6 +366,7 @@ func traverseRawState(ctx *cli.Context) error {
 	}
 	var (
 		root common.Hash
+		err  error
 	)
 	if ctx.NArg() == 1 {
 		root, err = parseRoot(ctx.Args()[0])

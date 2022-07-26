@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"compress/gzip"
-	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -21,7 +18,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/integration"
 )
 
 var (
@@ -40,11 +36,8 @@ func exportEvents(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawDbs := makeRawDbsProducer(cfg)
-	gdb, err := makeRawGossipStore(rawDbs, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 	defer gdb.Close()
 
 	fn := ctx.Args().First()
@@ -91,30 +84,6 @@ func exportEvents(ctx *cli.Context) error {
 	}
 
 	return nil
-}
-
-func checkStateInitialized(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer) error {
-	// if flushID is not written, then previous genesis processing attempt was interrupted
-	for _, rawProducer := range rawProducers {
-		for _, name := range rawProducer.Names() {
-			db, err := rawProducer.OpenDB(name)
-			if err != nil {
-				return err
-			}
-			flushID, _ := db.Get(integration.FlushIDKey)
-			_ = db.Close()
-			if flushID != nil {
-				return nil
-			}
-		}
-	}
-	return errors.New("datadir is not initialized")
-}
-
-func makeRawGossipStore(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, error) {
-	dbs := &integration.DummyScopedProducer{rawProducer}
-	gdb := gossip.NewStore(dbs, cfg.OperaStore)
-	return gdb, nil
 }
 
 // exportTo writer the active chain.
