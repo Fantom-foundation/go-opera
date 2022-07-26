@@ -114,26 +114,10 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 			oldDBs = pebble.NewProducer(chaindataDir, cacheFn)
 		}
 
-		// move lachesis DB
-		lachesisDB, err := oldDBs.OpenDB("lachesis")
-		if err != nil {
-			return err
-		}
-		newDB, err := dbs.OpenDB("lachesis")
-		if err != nil {
-			return err
-		}
-		err = moveDB(skipkeys.Wrap(lachesisDB, MetadataPrefix), newDB, "lachesis", chaindataDir)
-		newDB.Close()
-		lachesisDB.Close()
-		if err != nil {
-			return err
-		}
-		lachesisDB.Drop()
-
-		// move lachesis-%d and gossip-%d DBs
+		var newDB kvdb.Store
+		// move lachesis, lachesis-%d and gossip-%d DBs
 		for _, name := range oldDBs.Names() {
-			if strings.HasPrefix(name, "lachesis-") || strings.HasPrefix(name, "gossip-") {
+			if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
 				oldDB, err := oldDBs.OpenDB(name)
 				if err != nil {
 					return err
