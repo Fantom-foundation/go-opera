@@ -2,12 +2,14 @@ package integration
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/pebble"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skipkeys"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -77,13 +79,21 @@ func isEmptyDB(db kvdb.Iteratee) bool {
 	return !it.Next()
 }
 
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
 func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 	if !isEmpty(path.Join(chaindataDir, "gossip")) {
 		// migrate DB layout
 		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
 			Table: map[string]DBCacheConfig{
 				"": {
-					Cache:   1024 * opt.MiB,
+					Cache:   128 * opt.MiB,
 					Fdlimit: uint64(utils.MakeDatabaseHandles() / 2),
 				},
 			},
@@ -91,7 +101,12 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 		if err != nil {
 			return err
 		}
-		oldDBs := leveldb.NewProducer(chaindataDir, cacheFn)
+		var oldDBs kvdb.IterableDBProducer
+		if fileExists(path.Join(chaindataDir, "gossip", "LOG")) {
+			oldDBs = leveldb.NewProducer(chaindataDir, cacheFn)
+		} else {
+			oldDBs = pebble.NewProducer(chaindataDir, cacheFn)
+		}
 
 		// move lachesis DB
 		lachesisDB, err := oldDBs.OpenDB("lachesis")
