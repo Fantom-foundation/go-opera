@@ -323,7 +323,7 @@ func exportGenesis(ctx *cli.Context) error {
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		err := writer.Start(header, genesisstore.EvmSection, tmpPath)
 		if err != nil {
 			return err
 		}
