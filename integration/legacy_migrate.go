@@ -36,7 +36,10 @@ func moveDB(src, dst_ kvdb.Store, name, dir string) error {
 	keys := make([][]byte, 0, batchKeys)
 	values := make([][]byte, 0, batchKeys)
 	it := src.NewIterator(nil, start)
-	defer it.Release()
+	defer func() {
+		// wrap with func because 'it' may be reopened below
+		it.Release()
+	}()
 	log.Info("Transforming DB layout", "db", name)
 	for next := true; next; {
 		for len(keys) < batchKeys {
@@ -59,19 +62,19 @@ func moveDB(src, dst_ kvdb.Store, name, dir string) error {
 		} else if freeSpace < 10*opt.GiB {
 			return errors.New("not enough disk space")
 		} else if len(keys) > 0 && freeSpace < 100*opt.GiB {
-			log.Warn("Not enough disk space. Trimming source DB records", "space_GB", freeSpace/opt.GiB)
+			log.Warn("Running out of disk space. Trimming source DB records", "space_GB", freeSpace/opt.GiB)
 			err = dst.Flush()
 			if err != nil {
 				return err
 			}
 			_, _ = dst.Stat("async_flush")
-			for i := 0; i < len(keys); i++ {
-				err := src.Delete(keys[i])
-				if err != nil {
-					return err
-				}
+			// release iterator so that DB could release data
+			it.Release()
+			for _, k := range keys {
+				_ = src.Delete(k)
 			}
 			_ = src.Compact(keys[0], keys[len(keys)-1])
+			it = src.NewIterator(nil, keys[len(keys)-1])
 		}
 		keys = keys[:0]
 		values = values[:0]
