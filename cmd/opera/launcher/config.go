@@ -369,7 +369,6 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
-		cachescale:    cacheRatio,
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
@@ -388,6 +387,8 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 			return &cfg, err
 		}
 	}
+
+	cfg.cachescale = cacheRatio
 
 	// Apply flags (high priority)
 	var err error
