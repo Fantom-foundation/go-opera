@@ -102,7 +102,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
 			Table: map[string]DBCacheConfig{
 				"": {
-					Cache:   128 * opt.MiB,
+					Cache:   1024 * opt.MiB,
 					Fdlimit: uint64(utils.MakeDatabaseHandles() / 2),
 				},
 			},
