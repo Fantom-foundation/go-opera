@@ -124,29 +124,32 @@ func compact(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := makeDirectDBsProducer(cfg)
-	for _, name := range rawProducer.Names() {
-		db, err := rawProducer.OpenDB(name)
-		defer db.Close()
-		if err != nil {
-			log.Error("Cannot open db or db does not exists", "db", name)
-			return err
-		}
-
-		log.Info("Stats before compaction", "db", name)
-		showLeveldbStats(db)
-
-		log.Info("Triggering compaction", "db", name)
-		for b := byte(0); b < 255; b++ {
-			log.Trace("Compacting chain database", "db", name, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
-			if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
-				log.Error("Database compaction failed", "err", err)
+	producers := makeCheckedDBsProducers(cfg)
+	for typ, p := range producers {
+		for _, name := range p.Names() {
+			humanName := path.Join(string(typ), name)
+			db, err := p.OpenDB(name)
+			defer db.Close()
+			if err != nil {
+				log.Error("Cannot open db or db does not exists", "db", humanName)
 				return err
 			}
-		}
 
-		log.Info("Stats after compaction", "db", name)
-		showLeveldbStats(db)
+			log.Info("Stats before compaction", "db", humanName)
+			showLeveldbStats(db)
+
+			log.Info("Triggering compaction", "db", humanName)
+			for b := byte(0); b < 255; b++ {
+				log.Trace("Compacting chain database", "db", humanName, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
+				if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
+					log.Error("Database compaction failed", "err", err)
+					return err
+				}
+			}
+
+			log.Info("Stats after compaction", "db", humanName)
+			showLeveldbStats(db)
+		}
 	}
 
 	return nil
