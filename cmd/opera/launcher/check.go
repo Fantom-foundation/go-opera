@@ -57,8 +57,7 @@ func checkEvm(ctx *cli.Context) error {
 		})
 	}
 
-	err := evms.CheckEvm(checkBlocks)
-	if err != nil {
+	if err := evms.CheckEvm(checkBlocks); err != nil {
 		return err
 	}
 	log.Info("EVM storage is verified", "last", prevPoint, "elapsed", common.PrettyDuration(time.Since(start)))
