@@ -490,6 +490,9 @@ func (s *Service) RecoverEVM() {
 	start := s.store.GetLatestBlockIndex()
 	for b := start; b >= 1 && b > start-20000; b-- {
 		block := s.store.GetBlock(b)
+		if block == nil {
+			break
+		}
 		if s.store.evm.HasStateDB(block.Root) {
 			if b != start {
 				s.Log.Warn("Reexecuting blocks after abrupt stopping", "from", b, "to", start)
