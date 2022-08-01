@@ -30,7 +30,6 @@ func TestConfigFile(t *testing.T) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
-		cachescale:    cacheRatio,
 	}
 
 	canonical := func(nn []*enode.Node) []*enode.Node {

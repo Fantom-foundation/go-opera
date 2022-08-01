@@ -6,9 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/utils/piecefunc"
 	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/Fantom-foundation/go-opera/utils/piecefunc"
 )
 
 const (

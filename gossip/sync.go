@@ -63,6 +63,10 @@ func (ss *syncStatus) AcceptTxs() bool {
 	return ss.MaybeSynced() && ss.Is(ssEvents)
 }
 
+func (ss *syncStatus) RequestLLR() bool {
+	return !ss.Is(ssEvents) || ss.MaybeSynced()
+}
+
 type txsync struct {
 	p     *peer
 	txids []common.Hash
