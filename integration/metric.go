@@ -141,7 +141,6 @@ func (ds *StoreWithMetrics) meter(refresh time.Duration) {
 }
 
 func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
-	println("name: " + name)
 	ds, err := db.FlushableDBProducer.OpenDB(name)
 	if err != nil {
 		return nil, err
@@ -155,6 +154,16 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 
 	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
 		name = "epochs"
+	}
+
+	if strings.HasPrefix(name, "gossip/") {
+		name = "gossip"
+	}
+	if strings.HasPrefix(name, "evm/") {
+		name = "evm"
+	}
+	if strings.HasPrefix(name, "evm-logs/") {
+		name = "evm-logs"
 	}
 	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
 	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
