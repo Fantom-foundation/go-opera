@@ -50,14 +50,8 @@ var (
 	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
 
 	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
-	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
 	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
 	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
-
-	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
 )
 
 type ExtendedTxPosition struct {
@@ -256,7 +250,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules, es.Rules.EvmChainConfig(store.GetUpgradeHeights()))
-				substart := time.Now()
+				executionStart := time.Now()
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -399,14 +393,13 @@ func consensusCallbackBeginBlockFn(
 					storageUpdateTimer.Update(statedb.StorageUpdates)
 					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
 					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
-					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
-					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
-					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
-					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
-					// Update the metrics touched during block validation
 					accountHashTimer.Update(statedb.AccountHashes)
 					storageHashTimer.Update(statedb.StorageHashes)
-					blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
+					triehash := statedb.AccountHashes + statedb.StorageHashes
+					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
+					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					blockExecutionTimer.Update(time.Since(executionStart) - trieproc - triehash)
+
 					// Update the metrics touched by new block
 					headBlockGauge.Update(int64(blockCtx.Idx))
 					headHeaderGauge.Update(int64(blockCtx.Idx))
@@ -424,12 +417,14 @@ func consensusCallbackBeginBlockFn(
 						feed.newLogs.Send(logs)
 					}
 
+					commitStart := time.Now()
 					store.commitEVM(false)
+
 					// Update the metrics touched during block commit
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)
 					snapshotCommitTimer.Update(statedb.SnapshotCommits)
-					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(commitStart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()
