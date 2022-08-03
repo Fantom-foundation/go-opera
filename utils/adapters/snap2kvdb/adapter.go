@@ -43,6 +43,8 @@ func (db *Adapter) Close() error {
 	return nil
 }
 
+func (db *Adapter) Drop() {}
+
 func (db *Adapter) Stat(property string) (string, error) {
 	return "", nil
 }

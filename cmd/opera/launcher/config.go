@@ -148,7 +148,7 @@ type config struct {
 	Lachesis      abft.Config
 	LachesisStore abft.StoreConfig
 	VectorClock   vecmt.IndexConfig
-	cachescale    cachescale.Func
+	DBs           integration.DBsConfig
 }
 
 func (c *config) AppConfigs() integration.Configs {
@@ -158,6 +158,7 @@ func (c *config) AppConfigs() integration.Configs {
 		Lachesis:      c.Lachesis,
 		LachesisStore: c.LachesisStore,
 		VectorClock:   c.VectorClock,
+		DBs:           c.DBs,
 	}
 }
 
@@ -387,8 +388,17 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 			return &cfg, err
 		}
 	}
-
-	cfg.cachescale = cacheRatio
+	// apply default for DB config if it wasn't touched by config file
+	dbDefault := integration.DefaultDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	if len(cfg.DBs.Routing.Table) == 0 {
+		cfg.DBs.Routing = dbDefault.Routing
+	}
+	if len(cfg.DBs.GenesisCache.Table) == 0 {
+		cfg.DBs.GenesisCache = dbDefault.GenesisCache
+	}
+	if len(cfg.DBs.RuntimeCache.Table) == 0 {
+		cfg.DBs.RuntimeCache = dbDefault.RuntimeCache
+	}
 
 	// Apply flags (high priority)
 	var err error

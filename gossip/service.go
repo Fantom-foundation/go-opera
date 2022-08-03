@@ -433,6 +433,7 @@ func (s *Service) Start() error {
 	if s.store.evm.IsEvmSnapshotPaused() && !s.config.AllowSnapsync {
 		return errors.New("cannot halt snapsync and start fullsync")
 	}
+	s.RecoverEVM()
 	root := s.store.GetBlockState().FinalizedStateRoot
 	if !s.store.evm.HasStateDB(root) {
 		if !s.config.AllowSnapsync {

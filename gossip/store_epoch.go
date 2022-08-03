@@ -24,7 +24,7 @@ var (
 type (
 	epochStore struct {
 		epoch idx.Epoch
-		db    kvdb.DropableStore
+		db    kvdb.Store
 		table struct {
 			LastEvents kvdb.Store `table:"t"`
 			Heads      kvdb.Store `table:"H"`
@@ -39,7 +39,7 @@ type (
 	}
 )
 
-func newEpochStore(epoch idx.Epoch, db kvdb.DropableStore) *epochStore {
+func newEpochStore(epoch idx.Epoch, db kvdb.Store) *epochStore {
 	es := &epochStore{
 		epoch:    epoch,
 		db:       db,

@@ -39,13 +39,17 @@ func (m *Migration) Next(name string, exec func() error) *Migration {
 	}
 }
 
-// ID is an uniq migration's id.
-func (m *Migration) ID() string {
+func idOf(name string) string {
 	digest := sha256.New()
-	digest.Write([]byte(m.name))
+	digest.Write([]byte(name))
 
 	bytes := digest.Sum(nil)
 	return fmt.Sprintf("%x", bytes)
+}
+
+// ID is an uniq migration's id.
+func (m *Migration) ID() string {
+	return idOf(m.name)
 }
 
 // Exec method run migrations chain in order
@@ -54,7 +58,7 @@ func (m *Migration) Exec(curr IDStore, flush func() error) error {
 	myID := m.ID()
 
 	if m.veryFirst() {
-		if currID != "" && currID != myID {
+		if currID != myID {
 			return errors.New("unknown version: " + currID)
 		}
 		return nil

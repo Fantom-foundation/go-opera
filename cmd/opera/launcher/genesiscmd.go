@@ -20,7 +20,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
@@ -208,11 +207,8 @@ func exportGenesis(ctx *cli.Context) error {
 	_ = os.RemoveAll(tmpPath)
 	defer os.RemoveAll(tmpPath)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 	if gdb.GetHighestLamport() != 0 {
 		log.Warn("Attempting genesis export not in a beginning of an epoch. Genesis file output may contain excessive data.")
 	}
@@ -323,7 +319,7 @@ func exportGenesis(ctx *cli.Context) error {
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		err := writer.Start(header, genesisstore.EvmSection, tmpPath)
 		if err != nil {
 			return err
 		}
