@@ -61,7 +61,7 @@ func (c *config) UnmarshalTOML(input []byte) error {
 	defaultBootstrapNodes, defaultBootstrapNodesV5 := isBootstrapNodesDefault(ast)
 
 	type rawCfg config
-	var raw rawCfg
+	var raw = rawCfg(*c)
 	err = toml.UnmarshalTable(ast, &raw)
 	if err != nil {
 		return err
