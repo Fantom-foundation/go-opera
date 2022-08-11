@@ -22,7 +22,7 @@ func DefaultRoutingConfig() RoutingConfig {
 			"lachesis": {
 				Type:  "pebble-fsh",
 				Name:  "main",
-				Table: ">",
+				Table: "L",
 			},
 			"gossip": {
 				Type: "pebble-fsh",
