@@ -155,6 +155,37 @@ func newClosableTable(db kvdb.Store, prefix []byte) *closebaleTable {
 	}
 }
 
+func translateGossipPrefix(p byte) byte {
+	if p == byte('!') {
+		return byte('S')
+	}
+	if p == byte('@') {
+		return byte('R')
+	}
+	if p == byte('#') {
+		return byte('Q')
+	}
+	if p == byte('$') {
+		return byte('T')
+	}
+	if p == byte('%') {
+		return byte('J')
+	}
+	if p == byte('^') {
+		return byte('E')
+	}
+	if p == byte('&') {
+		return byte('I')
+	}
+	if p == byte('*') {
+		return byte('G')
+	}
+	if p == byte('(') {
+		return byte('F')
+	}
+	return p
+}
+
 func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 	if !isEmpty(path.Join(chaindataDir, "gossip")) {
 		// migrate DB layout
@@ -207,8 +238,8 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 		}
 
 		// move gossip DB
-		// move logs
 
+		// move logs
 		mustTransform(transformTask{
 			openSrc: func() kvdb.Store {
 				return newClosableTable(openOldDB("gossip"), []byte("Lr"))
@@ -244,7 +275,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 					if b == int('M') || b == int('r') || b == int('x') || b == int('X') {
 						return openNewDB("evm/" + string([]byte{byte(b)}))
 					} else {
-						return openNewDB("gossip/" + string([]byte{byte(b)}))
+						return openNewDB("gossip/" + string([]byte{translateGossipPrefix(byte(b))}))
 					}
 				},
 				name:    fmt.Sprintf("gossip/%c", rune(b)),
