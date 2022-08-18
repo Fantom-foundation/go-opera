@@ -93,6 +93,20 @@ Pass dry-run instead of filename for calculation of hashes without exporting dat
 EVM export mode is configured with --export.evm.mode.
 `,
 			},
+			{
+				Name:      "evm-keys",
+				Usage:     "Export EVM node keys",
+				ArgsUsage: "<directory>",
+				Action:    utils.MigrateFlags(exportEvmKeys),
+				Flags: []cli.Flag{
+					DataDirFlag,
+				},
+				Description: `
+    opera export evm-keys
+
+Requires a first argument of the DB directory to write to.
+`,
+			},
 		},
 	}
 	checkCommand = cli.Command{
