@@ -11,6 +11,10 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
+	EvmExportExclude = cli.StringFlag{
+		Name:  "export.evm.exclude",
+		Usage: `DB of EVM keys to exclude from genesis`,
+	}
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
