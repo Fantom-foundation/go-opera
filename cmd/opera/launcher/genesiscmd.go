@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -21,6 +22,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -192,6 +194,14 @@ func (w *unitWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
+func getEpochBlock(epoch idx.Epoch, store *gossip.Store) idx.Block {
+	bs, _ := store.GetHistoryBlockEpochState(epoch)
+	if bs == nil {
+		return 0
+	}
+	return bs.LastBlock.Idx
+}
+
 func exportGenesis(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
@@ -214,8 +224,8 @@ func exportGenesis(ctx *cli.Context) error {
 		to = idx.Epoch(n)
 	}
 	mode := ctx.String(EvmExportMode.Name)
-	if mode != "full" && mode != "ext-mpt" && mode != "mpt" && mode != "none" {
-		return errors.New("--export.evm.mode must be one of {full, ext-mpt, mpt, none}")
+	if mode != "full" && mode != "ext-mpt" && mode != "mpt" {
+		return errors.New("--export.evm.mode must be one of {full, ext-mpt, mpt}")
 	}
 
 	var excludeEvmDB kvdb.Store
@@ -225,6 +235,24 @@ func exportGenesis(ctx *cli.Context) error {
 			return err
 		}
 		excludeEvmDB = db
+	}
+
+	sectionsStr := ctx.String(GenesisExportSections.Name)
+	sections := map[string]string{}
+	for _, str := range strings.Split(sectionsStr, ",") {
+		before := len(sections)
+		if strings.HasPrefix(str, "brs") {
+			sections["brs"] = str
+		} else if strings.HasPrefix(str, "ers") {
+			sections["ers"] = str
+		} else if strings.HasPrefix(str, "evm") {
+			sections["evm"] = str
+		} else {
+			return fmt.Errorf("unknown section '%s': has to start with either 'brs' or 'ers' or 'evm'", str)
+		}
+		if len(sections) == before {
+			return fmt.Errorf("duplicate section: '%s'", str)
+		}
 	}
 
 	cfg := makeAllConfigs(ctx)
@@ -268,12 +296,10 @@ func exportGenesis(ctx *cli.Context) error {
 	if to > gdb.GetEpoch() {
 		to = gdb.GetEpoch()
 	}
-	toBlock := idx.Block(0)
-	fromBlock := idx.Block(0)
-	{
+	if len(sections["ers"]) > 0 {
 		log.Info("Exporting epochs", "from", from, "to", to)
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.EpochsSection, tmpPath)
+		err := writer.Start(header, sections["ers"], tmpPath)
 		if err != nil {
 			return err
 		}
@@ -291,28 +317,29 @@ func exportGenesis(ctx *cli.Context) error {
 			if err != nil {
 				return err
 			}
-			if i == from {
-				fromBlock = er.BlockState.LastBlock.Idx
-			}
-			if i == to {
-				toBlock = er.BlockState.LastBlock.Idx
-			}
 		}
 		epochsHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
-		log.Info("Exported epochs", "hash", epochsHash.String())
+		log.Info("Exported epochs")
+		fmt.Printf("- Epochs hash: %v \n", epochsHash.String())
 	}
 
-	if fromBlock < 1 {
-		// avoid underflow
-		fromBlock = 1
-	}
-	{
+	if len(sections["brs"]) > 0 {
+		toBlock := getEpochBlock(to, gdb)
+		fromBlock := getEpochBlock(from, gdb)
+		if sections["brs"] != "brs" {
+			// to continue prev section, include blocks of prev epochs too, excluding first blocks of prev epoch (which is last block if prev section)
+			fromBlock = getEpochBlock(from-1, gdb) + 1
+		}
+		if fromBlock < 1 {
+			// avoid underflow
+			fromBlock = 1
+		}
 		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		err := writer.Start(header, sections["brs"], tmpPath)
 		if err != nil {
 			return err
 		}
@@ -338,13 +365,14 @@ func exportGenesis(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Exported blocks", "hash", blocksHash.String())
+		log.Info("Exported blocks")
+		fmt.Printf("- Blocks hash: %v \n", blocksHash.String())
 	}
 
-	if mode != "none" {
-		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
+	if len(sections["evm"]) > 0 {
+		log.Info("Exporting EVM data")
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.EvmSection, tmpPath)
+		err := writer.Start(header, sections["evm"], tmpPath)
 		if err != nil {
 			return err
 		}
@@ -368,12 +396,9 @@ func exportGenesis(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Exported EVM data", "hash", evmHash.String())
+		log.Info("Exported EVM data")
+		fmt.Printf("- EVM hash: %v \n", evmHash.String())
 	}
-
-	fmt.Printf("- Epochs hash: %v \n", epochsHash.String())
-	fmt.Printf("- Blocks hash: %v \n", blocksHash.String())
-	fmt.Printf("- EVM hash: %v \n", evmHash.String())
 
 	return nil
 }
