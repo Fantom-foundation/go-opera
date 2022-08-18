@@ -8,12 +8,17 @@ import (
 var (
 	EvmExportMode = cli.StringFlag{
 		Name:  "export.evm.mode",
-		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
+		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt")`,
 		Value: "mpt",
 	}
 	EvmExportExclude = cli.StringFlag{
 		Name:  "export.evm.exclude",
 		Usage: `DB of EVM keys to exclude from genesis`,
+	}
+	GenesisExportSections = cli.StringFlag{
+		Name:  "export.sections",
+		Usage: `Genesis sections to export separated by comma (e.g. "brs-1" or "ers" or "evm-2")`,
+		Value: "brs,ers,evm",
 	}
 	importCommand = cli.Command{
 		Name:      "import",
@@ -80,11 +85,13 @@ be gzipped
 			{
 				Name:      "genesis",
 				Usage:     "Export current state into a genesis file",
-				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=none]",
+				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=MODE --export.evm.exclude=DB_PATH --export.sections=A,B,C]",
 				Action:    utils.MigrateFlags(exportGenesis),
 				Flags: []cli.Flag{
 					DataDirFlag,
 					EvmExportMode,
+					EvmExportExclude,
+					GenesisExportSections,
 				},
 				Description: `
     opera export genesis
