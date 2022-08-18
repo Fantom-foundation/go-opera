@@ -14,9 +14,11 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/pebble"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -59,6 +61,20 @@ type mptAndPreimageIterator struct {
 func (it mptAndPreimageIterator) Next() bool {
 	for it.Iterator.Next() {
 		if evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key()) {
+			return true
+		}
+	}
+	return false
+}
+
+type excludingIterator struct {
+	kvdb.Iterator
+	exclude kvdb.Reader
+}
+
+func (it excludingIterator) Next() bool {
+	for it.Iterator.Next() {
+		if ok, _ := it.exclude.Has(it.Key()); !ok {
 			return true
 		}
 	}
@@ -202,6 +218,15 @@ func exportGenesis(ctx *cli.Context) error {
 		return errors.New("--export.evm.mode must be one of {full, ext-mpt, mpt, none}")
 	}
 
+	var excludeEvmDB kvdb.Store
+	if excludeEvmDBPath := ctx.String(EvmExportExclude.Name); len(excludeEvmDBPath) > 0 {
+		db, err := pebble.New(excludeEvmDBPath, 1024*opt.MiB, utils.MakeDatabaseHandles()/2, nil, nil)
+		if err != nil {
+			return err
+		}
+		excludeEvmDB = db
+	}
+
 	cfg := makeAllConfigs(ctx)
 	tmpPath := path.Join(cfg.Node.DataDir, "tmp")
 	_ = os.RemoveAll(tmpPath)
@@ -330,6 +355,9 @@ func exportGenesis(ctx *cli.Context) error {
 		} else if mode == "ext-mpt" {
 			// iterate only over MPT data and preimages
 			it = mptAndPreimageIterator{it}
+		}
+		if excludeEvmDB != nil {
+			it = excludingIterator{it, excludeEvmDB}
 		}
 		defer it.Release()
 		err = iodb.Write(writer, it)
