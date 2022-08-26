@@ -18,16 +18,16 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/fmtfilter"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/asyncflushproducer"
 )
 
 type DBsConfig struct {
-	Routing      RoutingConfig
-	RuntimeCache DBsCacheConfig
-	GenesisCache DBsCacheConfig
+	Routing       RoutingConfig
+	RuntimeCache  DBsCacheConfig
+	GenesisCache  DBsCacheConfig
+	MigrationMode string
 }
 
 type DBCacheConfig struct {
@@ -39,75 +39,7 @@ type DBsCacheConfig struct {
 	Table map[string]DBCacheConfig
 }
 
-func DefaultDBsConfig(scale func(uint64) uint64, fdlimit uint64) DBsConfig {
-	return DBsConfig{
-		Routing:      DefaultRoutingConfig(),
-		RuntimeCache: DefaultRuntimeDBsCacheConfig(scale, fdlimit),
-		GenesisCache: DefaultGenesisDBsCacheConfig(scale, fdlimit),
-	}
-}
-
-func DefaultRuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCacheConfig {
-	return DBsCacheConfig{
-		Table: map[string]DBCacheConfig{
-			"evm-data": {
-				Cache:   scale(242 * opt.MiB),
-				Fdlimit: fdlimit*242/700 + 1,
-			},
-			"evm-logs": {
-				Cache:   scale(110 * opt.MiB),
-				Fdlimit: fdlimit*110/700 + 1,
-			},
-			"main": {
-				Cache:   scale(186 * opt.MiB),
-				Fdlimit: fdlimit*186/700 + 1,
-			},
-			"events": {
-				Cache:   scale(87 * opt.MiB),
-				Fdlimit: fdlimit*87/700 + 1,
-			},
-			"epoch-%d": {
-				Cache:   scale(75 * opt.MiB),
-				Fdlimit: fdlimit*75/700 + 1,
-			},
-			"": {
-				Cache:   64 * opt.MiB,
-				Fdlimit: fdlimit/100 + 1,
-			},
-		},
-	}
-}
-
-func DefaultGenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCacheConfig {
-	return DBsCacheConfig{
-		Table: map[string]DBCacheConfig{
-			"main": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
-			},
-			"evm-data": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
-			},
-			"evm-logs": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
-			},
-			"events": {
-				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
-			},
-			"epoch-%d": {
-				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
-			},
-			"": {
-				Cache:   16 * opt.MiB,
-				Fdlimit: fdlimit/100 + 1,
-			},
-		},
-	}
-}
+var DefaultDBsConfig = Pbl1DBsConfig
 
 func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName]kvdb.IterableDBProducer, map[multidb.TypeName]kvdb.FullDBProducer) {
 	if chaindataDir == "inmemory" || chaindataDir == "" {

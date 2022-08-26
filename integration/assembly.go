@@ -242,6 +242,9 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 // MakeEngine makes consensus engine from config.
 func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error) {
 	// Legacy DBs migrate
+	if cfg.DBs.MigrationMode != "reformat" && cfg.DBs.MigrationMode != "rebuild" && cfg.DBs.MigrationMode != "" {
+		utils.Fatalf("MigrationMode must be 'reformat' or 'rebuild'")
+	}
 	if !isEmpty(path.Join(chaindataDir, "gossip")) {
 		MakeDBDirs(chaindataDir)
 		genesisProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
@@ -249,7 +252,7 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 		if err != nil {
 			utils.Fatalf("Failed to make engine: %v", err)
 		}
-		err = migrateLegacyDBs(chaindataDir, dbs)
+		err = migrateLegacyDBs(chaindataDir, dbs, cfg.DBs.MigrationMode)
 		_ = dbs.Close()
 		if err != nil {
 			utils.Fatalf("Failed to migrate state: %v", err)
