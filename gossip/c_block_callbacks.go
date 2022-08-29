@@ -49,9 +49,9 @@ var (
 	snapshotStorageReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/storage/reads", nil)
 	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
 
-	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
-	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
-	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
+	blockInsertTimer    = metrics.GetOrRegisterTimer("chain/inserts", nil)
+	blockExecutionTimer = metrics.GetOrRegisterTimer("chain/execution", nil)
+	blockWriteTimer     = metrics.GetOrRegisterTimer("chain/write", nil)
 )
 
 type ExtendedTxPosition struct {
