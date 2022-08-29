@@ -39,8 +39,6 @@ type DBsCacheConfig struct {
 	Table map[string]DBCacheConfig
 }
 
-var DefaultDBsConfig = Pbl1DBsConfig
-
 func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName]kvdb.IterableDBProducer, map[multidb.TypeName]kvdb.FullDBProducer) {
 	if chaindataDir == "inmemory" || chaindataDir == "" {
 		chaindataDir, _ = ioutil.TempDir("", "opera-tmp")

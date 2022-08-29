@@ -5,6 +5,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
+var DefaultDBsConfig = Ldb1DBsConfig
+
 /*
  * pbl-1 config
  */
@@ -26,7 +28,7 @@ func Pbl1RoutingConfig() RoutingConfig {
 			"lachesis": {
 				Type:  "pebble-fsh",
 				Name:  "main",
-				Table: "L",
+				Table: "C",
 			},
 			"gossip": {
 				Type: "pebble-fsh",
@@ -112,6 +114,95 @@ func Pbl1GenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 			"events": {
 				Cache:   scale(1 * opt.MiB),
 				Fdlimit: fdlimit*1/3072 + 1,
+			},
+			"epoch-%d": {
+				Cache:   scale(1 * opt.MiB),
+				Fdlimit: fdlimit*1/3072 + 1,
+			},
+			"": {
+				Cache:   16 * opt.MiB,
+				Fdlimit: fdlimit/100 + 1,
+			},
+		},
+	}
+}
+
+/*
+ * ldb-1 config
+ */
+
+func Ldb1DBsConfig(scale func(uint64) uint64, fdlimit uint64) DBsConfig {
+	return DBsConfig{
+		Routing:      Ldb1RoutingConfig(),
+		RuntimeCache: Ldb1RuntimeDBsCacheConfig(scale, fdlimit),
+		GenesisCache: Ldb1GenesisDBsCacheConfig(scale, fdlimit),
+	}
+}
+
+func Ldb1RoutingConfig() RoutingConfig {
+	return RoutingConfig{
+		Table: map[string]multidb.Route{
+			"": {
+				Type: "leveldb-fsh",
+			},
+			"lachesis": {
+				Type:  "leveldb-fsh",
+				Name:  "main",
+				Table: "C",
+			},
+			"gossip": {
+				Type: "leveldb-fsh",
+				Name: "main",
+			},
+			"evm": {
+				Type: "leveldb-fsh",
+				Name: "main",
+			},
+			"evm-logs": {
+				Type:  "leveldb-fsh",
+				Name:  "main",
+				Table: "L",
+			},
+			"gossip-%d": {
+				Type:  "leveldb-fsh",
+				Name:  "epoch-%d",
+				Table: "G",
+			},
+			"lachesis-%d": {
+				Type:   "leveldb-fsh",
+				Name:   "epoch-%d",
+				Table:  "L",
+				NoDrop: true,
+			},
+		},
+	}
+}
+
+func Ldb1RuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCacheConfig {
+	return DBsCacheConfig{
+		Table: map[string]DBCacheConfig{
+			"main": {
+				Cache:   scale(625 * opt.MiB),
+				Fdlimit: fdlimit*625/700 + 1,
+			},
+			"epoch-%d": {
+				Cache:   scale(75 * opt.MiB),
+				Fdlimit: fdlimit*75/700 + 1,
+			},
+			"": {
+				Cache:   64 * opt.MiB,
+				Fdlimit: fdlimit/100 + 1,
+			},
+		},
+	}
+}
+
+func Ldb1GenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCacheConfig {
+	return DBsCacheConfig{
+		Table: map[string]DBCacheConfig{
+			"main": {
+				Cache:   scale(3072 * opt.MiB),
+				Fdlimit: fdlimit,
 			},
 			"epoch-%d": {
 				Cache:   scale(1 * opt.MiB),

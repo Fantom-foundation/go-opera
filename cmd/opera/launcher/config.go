@@ -351,7 +351,7 @@ func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachesc
 		if preset == "pbl-1" {
 			cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
 		} else if preset == "ldb-1" {
-			utils.Fatalf("--%s: ldb-1 preset is not unsupported yet", DBPresetFlag.Name)
+			cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
 		} else if preset == "legacy-ldb" {
 			cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
 		} else if preset == "legacy-pbl" {
