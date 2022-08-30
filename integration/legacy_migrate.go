@@ -199,7 +199,7 @@ func equalRoutingConfig(a, b RoutingConfig) bool {
 }
 
 func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string, layout RoutingConfig) error {
-	if !isEmpty(path.Join(chaindataDir, "gossip")) {
+	{ // didn't erase the brackets to avoid massive code changes
 		// migrate DB layout
 		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
 			Table: map[string]DBCacheConfig{
