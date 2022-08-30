@@ -186,7 +186,19 @@ func translateGossipPrefix(p byte) byte {
 	return p
 }
 
-func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string) error {
+func equalRoutingConfig(a, b RoutingConfig) bool {
+	if len(a.Table) != len(b.Table) {
+		return false
+	}
+	for k, v := range a.Table {
+		if b.Table[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string, layout RoutingConfig) error {
 	if !isEmpty(path.Join(chaindataDir, "gossip")) {
 		// migrate DB layout
 		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
@@ -289,6 +301,9 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 			}
 		} else if mode == "reformat" {
 			if oldDBsType == "ldb" {
+				if !equalRoutingConfig(layout, LdbLegacyRoutingConfig()) {
+					return errors.New("reformatting DBs: missing --db.preset=legacy-ldb flag")
+				}
 				_ = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "leveldb-fsh", "main"))
 				for _, name := range oldDBs.Names() {
 					if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
@@ -296,6 +311,9 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 					}
 				}
 			} else {
+				if !equalRoutingConfig(layout, PblLegacyRoutingConfig()) {
+					return errors.New("reformatting DBs: missing --db.preset=legacy-pbl flag")
+				}
 				_ = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "pebble-fsh", "main"))
 				for _, name := range oldDBs.Names() {
 					if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {

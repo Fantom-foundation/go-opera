@@ -252,7 +252,7 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 		if err != nil {
 			utils.Fatalf("Failed to make engine: %v", err)
 		}
-		err = migrateLegacyDBs(chaindataDir, dbs, cfg.DBs.MigrationMode)
+		err = migrateLegacyDBs(chaindataDir, dbs, cfg.DBs.MigrationMode, cfg.DBs.Routing)
 		_ = dbs.Close()
 		if err != nil {
 			utils.Fatalf("Failed to migrate state: %v", err)
