@@ -236,7 +236,8 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 			return db
 		}
 
-		if mode == "rebuild" {
+		switch mode {
+		case "rebuild":
 			// move lachesis, lachesis-%d and gossip-%d DBs
 			for _, name := range oldDBs.Names() {
 				if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
