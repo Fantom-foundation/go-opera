@@ -1,6 +1,7 @@
 package makefakegenesis
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"math/big"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -32,6 +32,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 var (
@@ -43,16 +47,21 @@ func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
 	return evmcore.FakeKey(int(n))
 }
 
-func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
-	return FakeGenesisStoreWithRules(num, balance, stake, opera.FakeNetRules())
+func FakeGenesisStore(db kv.RwDB, num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
+	return FakeGenesisStoreWithRules(db, num, balance, stake, opera.FakeNetRules())
 }
 
-func FakeGenesisStoreWithRules(num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
-	return FakeGenesisStoreWithRulesAndStart(num, balance, stake, rules, 2, 1)
+func FakeGenesisStoreWithRules(db kv.RwDB, num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
+	return FakeGenesisStoreWithRulesAndStart(db, num, balance, stake, rules, 2, 1)
 }
 
-func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
-	builder := makegenesis.NewGenesisBuilder(memorydb.New())
+func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	stateReader := estate.NewPlainStateReader(tx)
+	builder := makegenesis.NewGenesisBuilder(stateReader)
 
 	validators := GetFakeValidators(num)
 
@@ -123,12 +132,14 @@ func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.In
 
 	blockProc := makegenesis.DefaultBlockProc()
 	genesisTxs := GetGenesisTxs(epoch-2, validators, builder.TotalSupply(), delegations, owner)
-	err := builder.ExecuteGenesisTxs(blockProc, genesisTxs)
+	err = builder.ExecuteGenesisTxs(tx,blockProc, genesisTxs)
 	if err != nil {
 		panic(err)
 	}
 
-	return builder.Build(genesis.Header{
+	tx.Rollback()
+
+	return builder.Build(db, genesis.Header{
 		GenesisID:   builder.CurrentHash(),
 		NetworkID:   rules.NetworkID,
 		NetworkName: rules.Name,

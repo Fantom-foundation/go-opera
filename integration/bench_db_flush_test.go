@@ -1,5 +1,7 @@
 package integration
 
+/*
+
 import (
 	"io/ioutil"
 	"os"
@@ -76,3 +78,4 @@ func dbProducer(name string) (kvdb.IterableDBProducer, string) {
 	}
 	return leveldb.NewProducer(dir, cache64mb), dir
 }
+*/

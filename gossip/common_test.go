@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"sync"
 	"time"
+	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -37,6 +38,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 )
 
 const (
@@ -135,7 +138,9 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	rules.Epochs.MaxEpochDuration = inter.Timestamp(maxEpochDuration)
 	rules.Blocks.MaxEmptyBlockSkipPeriod = 0
 
-	genStore := makefakegenesis.FakeGenesisStoreWithRulesAndStart(validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake), rules, firstEpoch, 2)
+	db := memdb.NewTestDB(&testing.T{})
+
+	genStore := makefakegenesis.FakeGenesisStoreWithRulesAndStart(db, validatorsNum, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake), rules, firstEpoch, 2)
 	genesis := genStore.Genesis()
 
 	store := NewMemStore()
