@@ -334,7 +334,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 					}
 				}
 			}
-		} else {
+		default:
 			return errors.New("missing --db.migration.mode flag")
 		}
 	}
