@@ -300,7 +300,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 					dropSrc: b == 0xff,
 				})
 			}
-		} else if mode == "reformat" {
+		case "reformat":
 			if oldDBsType == "ldb" {
 				if !equalRoutingConfig(layout, LdbLegacyRoutingConfig()) {
 					return errors.New("reformatting DBs: missing --db.preset=legacy-ldb flag")
