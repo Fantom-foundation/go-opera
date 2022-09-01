@@ -18,7 +18,7 @@ const (
 )
 
 type DBProducerWithMetrics struct {
-	kvdb.FlushableDBProducer
+	kvdb.IterableDBProducer
 }
 
 type StoreWithMetrics struct {
@@ -34,7 +34,7 @@ type StoreWithMetrics struct {
 	log log.Logger // Contextual logger tracking the database path
 }
 
-func WrapDatabaseWithMetrics(db kvdb.FlushableDBProducer) kvdb.FlushableDBProducer {
+func WrapDatabaseWithMetrics(db kvdb.IterableDBProducer) kvdb.IterableDBProducer {
 	wrapper := &DBProducerWithMetrics{db}
 	return wrapper
 }
@@ -141,7 +141,7 @@ func (ds *StoreWithMetrics) meter(refresh time.Duration) {
 }
 
 func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
-	ds, err := db.FlushableDBProducer.OpenDB(name)
+	ds, err := db.IterableDBProducer.OpenDB(name)
 	if err != nil {
 		return nil, err
 	}
@@ -149,22 +149,11 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 	// disk size gauge should be meter separatly for each db name; otherwise,
 	// the last db siae metric will overwrite all the previoius one
 	dm.diskSizeGauge = metrics.GetOrRegisterGauge("opera/chaindata/"+name+"/disk/size", nil)
-	logger := log.New("database", name)
-	dm.log = logger
-
 	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
 		name = "epochs"
 	}
-
-	if strings.HasPrefix(name, "gossip/") {
-		name = "gossip"
-	}
-	if strings.HasPrefix(name, "evm/") {
-		name = "evm"
-	}
-	if strings.HasPrefix(name, "evm-logs/") {
-		name = "evm-logs"
-	}
+	logger := log.New("database", name)
+	dm.log = logger
 	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
 	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
 
