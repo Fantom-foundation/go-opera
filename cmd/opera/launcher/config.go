@@ -348,15 +348,16 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachescale.Func) integration.DBsConfig {
 	if ctx.GlobalIsSet(DBPresetFlag.Name) {
 		preset := ctx.GlobalString(DBPresetFlag.Name)
-		if preset == "pbl-1" {
+		switch preset {
+		case "pbl-1":
 			cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		} else if preset == "ldb-1" {
+		case "ldb-1":
 			cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		} else if preset == "legacy-ldb" {
+		case "legacy-ldb":
 			cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		} else if preset == "legacy-pbl" {
+		case "legacy-pbl":
 			cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		} else {
+		default:
 			utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
 		}
 	}
