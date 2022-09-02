@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -35,7 +36,7 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 
-	estate "github.com/ledgerwatch/erigon/core/state"
+	//estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 var (
@@ -60,8 +61,8 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 	if err != nil {
 		panic(err)
 	}
-	stateReader := estate.NewPlainStateReader(tx)
-	builder := makegenesis.NewGenesisBuilder(stateReader)
+	
+	builder := makegenesis.NewGenesisBuilder(memorydb.New(), tx)
 
 	validators := GetFakeValidators(num)
 

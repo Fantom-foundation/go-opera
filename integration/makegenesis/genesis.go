@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"context"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -19,13 +20,13 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	//"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 
 	estate "github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -33,6 +34,9 @@ import (
 )
 
 type GenesisBuilder struct {
+	tmpDB kvdb.Store
+
+	tmpEvmStore *evmstore.Store
 	tmpStateDB  *state.StateDB
 
 	totalSupply *big.Int
@@ -109,9 +113,13 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 	return er.Hash()
 }
 
-func NewGenesisBuilder(stateReader estate.StateReader) *GenesisBuilder {
-	statedb := state.NewWithStateReader(stateReader)
+func NewGenesisBuilder(tmpDb kvdb.Store, tx kv.RwTx) *GenesisBuilder {
+	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
+	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
+	statedb.WithStateReader(estate.NewPlainStateReader(tx))
 	return &GenesisBuilder{
+		tmpDB:       tmpDb,
+		tmpEvmStore: tmpEvmStore,
 		tmpStateDB:  statedb,
 		totalSupply: new(big.Int),
 	}

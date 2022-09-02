@@ -55,6 +55,8 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 		name = "chaindata"
 	case kv.TxPoolDB:
 		name = "txpool"
+	case kv.ConsensusDB:
+		name = "consensusDB"
 	default:
 		name = "test"
 	}
