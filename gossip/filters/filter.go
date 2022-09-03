@@ -41,6 +41,7 @@ type Backend interface {
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
+	GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 	GetTxPosition(txid common.Hash) *evmstore.TxPosition
 
@@ -49,6 +50,8 @@ type Backend interface {
 	SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription
 
 	EvmLogIndex() *topicsdb.Index
+
+	CalcBlockExtApi() bool
 }
 
 // Filter can be used to retrieve and filter logs.

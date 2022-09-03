@@ -102,6 +102,10 @@ func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.
 	return nil, nil
 }
 
+func (b *testBackend) GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
+	return rawdb.ReadReceipts(b.db, common.Hash{}, uint64(number), params.TestChainConfig), nil
+}
+
 func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
 	number := rawdb.ReadHeaderNumber(b.db, hash)
 	if number == nil {
@@ -135,6 +139,10 @@ func (b *testBackend) EvmLogIndex() *topicsdb.Index {
 
 func (b *testBackend) GetTxPosition(txid common.Hash) *evmstore.TxPosition {
 	return nil
+}
+
+func (b *testBackend) CalcBlockExtApi() bool {
+	return true
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain notify.
