@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -2066,9 +2065,7 @@ func NewPrivateDebugAPI(b Backend) *PrivateDebugAPI {
 // ChaindbProperty returns leveldb properties of the key-value database.
 func (api *PrivateDebugAPI) ChaindbProperty(property string) (string, error) {
 	if property == "" {
-		property = "leveldb.stats"
-	} else if !strings.HasPrefix(property, "leveldb.") {
-		property = "leveldb." + property
+		property = "stats"
 	}
 	return api.b.ChainDb().Stat(property)
 }

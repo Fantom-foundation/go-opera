@@ -18,6 +18,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/fmtfilter"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/asyncflushproducer"
@@ -54,6 +55,15 @@ func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName
 	pebbleFsh := pebble.NewProducer(path.Join(chaindataDir, "pebble-fsh"), cacher)
 	pebbleFlg := pebble.NewProducer(path.Join(chaindataDir, "pebble-flg"), cacher)
 	pebbleDrc := pebble.NewProducer(path.Join(chaindataDir, "pebble-drc"), cacher)
+
+	if metrics.Enabled {
+		leveldbFsh = WrapDatabaseWithMetrics(leveldbFsh)
+		leveldbFlg = WrapDatabaseWithMetrics(leveldbFlg)
+		leveldbDrc = WrapDatabaseWithMetrics(leveldbDrc)
+		pebbleFsh = WrapDatabaseWithMetrics(pebbleFsh)
+		pebbleFlg = WrapDatabaseWithMetrics(pebbleFlg)
+		pebbleDrc = WrapDatabaseWithMetrics(pebbleDrc)
+	}
 
 	return map[multidb.TypeName]kvdb.IterableDBProducer{
 			"leveldb-fsh": leveldbFsh,
