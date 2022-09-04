@@ -29,6 +29,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -56,7 +58,8 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(
-	block *EvmBlock, statedb *state.StateDB, cfg vm.Config, usedGas *uint64, onNewLog func(*types.Log, *state.StateDB),
+	block *EvmBlock, statedb *state.StateDB, stateWriter estate.StateWriter,
+	cfg vm.Config, usedGas *uint64, onNewLog func(*types.Log, *state.StateDB),
 ) (
 	receipts types.Receipts, allLogs []*types.Log, skipped []uint32, err error,
 ) {
@@ -72,15 +75,16 @@ func (p *StateProcessor) Process(
 		blockNumber  = block.Number
 		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number))
 	)
+
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
 		msg, err := TxAsMessage(tx, signer, header.BaseFee)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
-
+		
 		statedb.Prepare(tx.Hash(), i)
-		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, blockNumber, blockHash, tx, usedGas, vmenv, onNewLog)
+		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, stateWriter, blockNumber, blockHash, tx, usedGas, vmenv, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
 			err = nil
@@ -100,6 +104,7 @@ func applyTransaction(
 	config *params.ChainConfig,
 	gp *GasPool,
 	statedb *state.StateDB,
+	stateWriter estate.StateWriter,
 	blockNumber *big.Int,
 	blockHash common.Hash,
 	tx *types.Transaction,
@@ -127,7 +132,14 @@ func applyTransaction(
 		onNewLog(l, statedb)
 	}
 
+	
+	if err := statedb.FinalizeTx(&params.Rules{}, stateWriter); err != nil {
+		panic(err)
+	}
+
+
 	// Update the state with pending changes.
+	/*
 	var root []byte
 	if config.IsByzantium(blockNumber) {
 		statedb.Finalise(true)
@@ -135,10 +147,11 @@ func applyTransaction(
 		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
 	}
 	*usedGas += result.UsedGas
+	*/
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
-	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}
+	receipt := &types.Receipt{Type: tx.Type(), /*PostState: root*/ CumulativeGasUsed: *usedGas}
 	if result.Failed() {
 		receipt.Status = types.ReceiptStatusFailed
 	} else {

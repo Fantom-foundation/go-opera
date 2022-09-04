@@ -39,6 +39,8 @@ type GenesisBuilder struct {
 	tmpEvmStore *evmstore.Store
 	tmpStateDB  *state.StateDB
 
+	stateWriter  estate.StateWriter
+
 	totalSupply *big.Int
 
 	blocks       []ibr.LlrIdxFullBlockRecord
@@ -117,10 +119,12 @@ func NewGenesisBuilder(tmpDb kvdb.Store, tx kv.RwTx) *GenesisBuilder {
 	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
 	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
 	statedb.WithStateReader(estate.NewPlainStateReader(tx))
+	stateWriter := estate.NewPlainStateWriter(tx, tx, 1)  // 0 or 1 ?
 	return &GenesisBuilder{
 		tmpDB:       tmpDb,
 		tmpEvmStore: tmpEvmStore,
 		tmpStateDB:  statedb,
+		stateWriter: stateWriter,
 		totalSupply: new(big.Int),
 	}
 }
@@ -132,7 +136,7 @@ func (d dummyHeaderReturner) GetHeader(common.Hash, uint64) *evmcore.EvmHeader {
 	return &evmcore.EvmHeader{}
 }
 
-func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, genesisTxs types.Transactions) error {
+func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types.Transactions) error {
 	bs, es := b.currentEpoch.BlockState.Copy(), b.currentEpoch.EpochState.Copy()
 
 	blockCtx := iblockproc.BlockCtx{
@@ -144,7 +148,7 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, gene
 	sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 	sealing := true
 	txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, b.tmpStateDB)
-	evmProcessor := blockProc.EVMModule.Start(blockCtx, b.tmpStateDB, dummyHeaderReturner{}, func(l *types.Log) {
+	evmProcessor := blockProc.EVMModule.Start(blockCtx, b.tmpStateDB, b.stateWriter, dummyHeaderReturner{}, func(l *types.Log) {
 		txListener.OnNewLog(l)
 	}, es.Rules)
 

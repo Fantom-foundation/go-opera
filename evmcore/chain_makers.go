@@ -30,6 +30,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 // BlockGen creates blocks for testing.
@@ -100,7 +102,7 @@ func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
 	b.statedb.Prepare(tx.Hash(), len(b.txs))
 	blockContext := NewEVMBlockContext(b.header, bc, nil)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, b.statedb, b.config, opera.DefaultVMConfig)
-	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, func(log *types.Log, db *state.StateDB) {})
+	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, estate.NewNoopWriter(), b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, func(log *types.Log, db *state.StateDB) {})
 	if err != nil {
 		panic(err)
 	}

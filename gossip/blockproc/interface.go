@@ -9,6 +9,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
+
+
+	
 )
 
 type TxListener interface {
@@ -51,5 +56,5 @@ type EVMProcessor interface {
 }
 
 type EVM interface {
-	Start(block iblockproc.BlockCtx, statedb *state.StateDB, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) EVMProcessor
+	Start(block iblockproc.BlockCtx, statedb *state.StateDB, stateWriter estate.StateWriter, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) EVMProcessor
 }

@@ -26,6 +26,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 var (
@@ -255,7 +257,7 @@ func consensusCallbackBeginBlockFn(
 					})
 				}
 
-				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules)
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, estate.NewNoopWriter(), evmStateReader, onNewLogAll, es.Rules)
 				substart := time.Now()
 
 				// Execute pre-internal transactions

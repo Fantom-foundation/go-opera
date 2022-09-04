@@ -133,7 +133,7 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 
 	blockProc := makegenesis.DefaultBlockProc()
 	genesisTxs := GetGenesisTxs(epoch-2, validators, builder.TotalSupply(), delegations, owner)
-	err = builder.ExecuteGenesisTxs(tx,blockProc, genesisTxs)
+	err = builder.ExecuteGenesisTxs(blockProc, genesisTxs)
 	if err != nil {
 		panic(err)
 	}
