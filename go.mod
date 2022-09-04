@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.14
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20220811115347-2434192efadb
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20220904103856-4bb2a8448a22
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
@@ -45,7 +45,5 @@ require (
 )
 
 replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum v1.10.8-ftm-rc7
-
-replace github.com/Fantom-foundation/lachesis-base => github.com/hadv/lachesis-base v0.0.0-20220802031837-77b6ebe3697f
 
 replace github.com/dvyukov/go-fuzz => github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f
