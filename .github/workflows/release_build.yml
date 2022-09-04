@@ -1,30 +1,27 @@
-name: Release build
+name: Release
 
 on:
   push:
     tags:
-      - '*'
-    # TODO how to only run on intersection of these two things?
-    #branches:
-    #  - 'release/**'
+    - '*'
 
 jobs:
-  build-and-release:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Golang dependency
         uses: actions/setup-go@v3
         with:
-          go-version: '^1.14'
+          go-version: '^1.18'
+
       - name: Build
-        run: |
-          make opera
-          cd build && tar -cvf opera.tar.gz opera
+        run: make opera
+
       - name: Release
-        # Note: If you get Error 403 you probably need to enable write permissions for workflows
         uses: ncipollo/release-action@v1
         with:
+          artifacts: "./build/opera"
           token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: "build/opera.tar.gz"

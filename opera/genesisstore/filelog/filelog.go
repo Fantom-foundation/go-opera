@@ -30,9 +30,10 @@ func (f *Filelog) Read(p []byte) (n int, err error) {
 	} else if f.consumed > 0 && f.consumed < f.size && time.Since(f.prevLog) >= f.period {
 		elapsed := time.Since(f.start)
 		eta := float64(f.size-f.consumed) / float64(f.consumed) * float64(elapsed)
-		eta *= 1.2 // show slightly higher ETA as performance degrades over larger volumes of data
-		progress := fmt.Sprintf("%.2f%%", 100*float64(f.consumed)/float64(f.size))
-		log.Info(fmt.Sprintf("- Reading %s", f.name), "progress", progress, "elapsed", utils.PrettyDuration(elapsed), "eta", utils.PrettyDuration(eta))
+		progress := float64(f.consumed) / float64(f.size)
+		eta *= 1.0 + (1.0-progress)/2.0 // show slightly higher ETA as performance degrades over larger volumes of data
+		progressStr := fmt.Sprintf("%.2f%%", 100*progress)
+		log.Info(fmt.Sprintf("- Reading %s", f.name), "progress", progressStr, "elapsed", utils.PrettyDuration(elapsed), "eta", utils.PrettyDuration(eta))
 		f.prevLog = time.Now()
 	}
 	return

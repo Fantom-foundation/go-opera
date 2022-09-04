@@ -24,7 +24,7 @@ const (
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
-	// Start a opera console, make sure it's cleaned up and terminate the console
+	// Start an opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"console")

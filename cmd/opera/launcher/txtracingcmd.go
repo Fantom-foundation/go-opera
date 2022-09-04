@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path"
 	"strconv"
 	"strings"
 	"syscall"
@@ -22,7 +21,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -45,8 +43,8 @@ func importTxTraces(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStoreTrace(rawProducer, cfg)
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb, err := makeRawGossipStoreTrace(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -108,8 +106,8 @@ func deleteTxTraces(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStoreTrace(rawProducer, cfg)
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb, err := makeRawGossipStoreTrace(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -150,8 +148,8 @@ func exportTxTraces(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStoreTrace(rawProducer, cfg)
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb, err := makeRawGossipStoreTrace(rawDbs, cfg)
 	if err != nil {
 		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
 	}
@@ -199,12 +197,8 @@ func exportTxTraces(ctx *cli.Context) error {
 	return nil
 }
 
-func makeRawGossipStoreTrace(rawProducer kvdb.IterableDBProducer, cfg *config) (*gossip.Store, error) {
-	if err := checkStateInitialized(rawProducer); err != nil {
-		return nil, err
-	}
-	dbs := &integration.DummyFlushableProducer{rawProducer}
-	gdb := gossip.NewStore(dbs, cfg.OperaStore)
+func makeRawGossipStoreTrace(producer kvdb.FlushableDBProducer, cfg *config) (*gossip.Store, error) {
+	gdb := makeGossipStore(producer, cfg)
 
 	if gdb.TxTraceStore() == nil {
 		return nil, errors.New("transaction traces db store is not initialized")

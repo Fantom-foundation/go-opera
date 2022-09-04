@@ -27,6 +27,7 @@ func (s *Store) DelEvent(id hash.Event) {
 	// Remove from LRU cache.
 	s.cache.Events.Remove(id)
 	s.cache.EventsHeaders.Remove(id)
+	s.cache.EventIDs.Remove(id)
 }
 
 // SetEvent stores event.
@@ -39,6 +40,7 @@ func (s *Store) SetEvent(e *inter.EventPayload) {
 	s.cache.Events.Add(e.ID(), e, uint(e.Size()))
 	eh := e.Event
 	s.cache.EventsHeaders.Add(e.ID(), &eh, nominalSize)
+	s.cache.EventIDs.Add(e.ID())
 }
 
 // GetEventPayload returns stored event.
@@ -152,6 +154,9 @@ func (s *Store) GetEventPayloadRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
+	if has, ok := s.cache.EventIDs.Has(h); ok {
+		return has
+	}
 	has, _ := s.table.Events.Has(h.Bytes())
 	return has
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func TestFakeNetFlag_NonValidator(t *testing.T) {
-	// Start a opera console, make sure it's cleaned up and terminate the console
+	// Start an opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "0/3",
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
@@ -57,7 +57,7 @@ To exit, press ctrl-d
 }
 
 func TestFakeNetFlag_Validator(t *testing.T) {
-	// Start a opera console, make sure it's cleaned up and terminate the console
+	// Start an opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "3/3",
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",

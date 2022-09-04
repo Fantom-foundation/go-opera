@@ -6,8 +6,8 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -15,13 +15,12 @@ import (
 const MaxTopicsCount = 5 // count is limited hard to 5 by EVM (see LOG0...LOG4 ops)
 
 var (
-	ErrEmptyTopics  = fmt.Errorf("Empty topics")
-	ErrTooBigTopics = fmt.Errorf("Too big topics")
+	ErrEmptyTopics  = fmt.Errorf("empty topics")
+	ErrTooBigTopics = fmt.Errorf("too many topics")
 )
 
 // Index is a specialized indexes for log records storing and fetching.
 type Index struct {
-	db    kvdb.Store
 	table struct {
 		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count (where topicN=0 is for address)
 		Topic kvdb.Store `table:"t"`
@@ -31,14 +30,28 @@ type Index struct {
 }
 
 // New Index instance.
-func New(db kvdb.Store) *Index {
-	tt := &Index{
-		db: db,
+func New(dbs kvdb.DBProducer) *Index {
+	tt := &Index{}
+
+	err := table.OpenTables(&tt.table, dbs, "evm-logs")
+	if err != nil {
+		panic(err)
 	}
 
-	table.MigrateTables(&tt.table, tt.db)
-
 	return tt
+}
+
+func (tt *Index) WrapTablesAsBatched() (unwrap func()) {
+	origTables := tt.table
+	batchedTopic := batched.Wrap(tt.table.Topic)
+	tt.table.Topic = batchedTopic
+	batchedLogrec := batched.Wrap(tt.table.Logrec)
+	tt.table.Logrec = batchedLogrec
+	return func() {
+		_ = batchedTopic.Flush()
+		_ = batchedLogrec.Flush()
+		tt.table = origTables
+	}
 }
 
 // FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
@@ -73,7 +86,7 @@ func (tt *Index) ForEach(ctx context.Context, pattern [][]common.Hash, onLog fun
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, nil, 0, onMatched)
+	return tt.searchParallel(ctx, pattern, 0, 0, onMatched)
 }
 
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
@@ -97,12 +110,12 @@ func (tt *Index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return
 	}
 
-	return tt.searchLazy(ctx, pattern, uintToBytes(uint64(from)), uint64(to), onMatched)
+	return tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
 }
 
 func limitPattern(pattern [][]common.Hash) (limited [][]common.Hash, err error) {
-	if len(pattern) > MaxTopicsCount {
-		limited = make([][]common.Hash, MaxTopicsCount)
+	if len(pattern) > (MaxTopicsCount + 1) {
+		limited = make([][]common.Hash, (MaxTopicsCount + 1))
 	} else {
 		limited = make([][]common.Hash, len(pattern))
 	}
@@ -144,7 +157,7 @@ func (tt *Index) MustPush(recs ...*types.Log) {
 	}
 }
 
-// Write log record to database.
+// Push log record to database batch
 func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
 		if len(rec.Topics) > MaxTopicsCount {
@@ -192,4 +205,9 @@ func (tt *Index) Push(recs ...*types.Log) error {
 	}
 
 	return nil
+}
+
+func (tt *Index) Close() {
+	_ = tt.table.Topic.Close()
+	_ = tt.table.Logrec.Close()
 }

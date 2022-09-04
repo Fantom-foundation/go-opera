@@ -41,6 +41,11 @@ type EthAPIBackend struct {
 	allowUnprotectedTxs bool
 }
 
+// SetExtRPCEnabled updates extRPCEnabled
+func (b *EthAPIBackend) SetExtRPCEnabled(v bool) {
+	b.extRPCEnabled = v
+}
+
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.svc.store.GetEvmChainConfig()

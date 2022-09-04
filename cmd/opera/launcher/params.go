@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -25,9 +24,6 @@ var (
 			"enode://1703640d1239434dcaf010541cafeeb3c4c707be9098954c50aa705f6e97e2d0273671df13f6e447563e7d3a7c7ffc88de48318d8a3cc2cc59d196516054f17e@52.72.222.228:7946",
 		},
 	}
-
-	// asDefault is slice with one empty element which indicates that network default bootnodes should be substituted
-	asDefault = []*enode.Node{{}}
 
 	mainnetHeader = genesis.Header{
 		GenesisID:   hash.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),

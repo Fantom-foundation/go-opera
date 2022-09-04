@@ -18,6 +18,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/txtrace"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
+	"github.com/Fantom-foundation/go-opera/utils/eventid"
+	"github.com/Fantom-foundation/go-opera/utils/randat"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
 )
@@ -27,11 +29,10 @@ type Store struct {
 	dbs kvdb.FlushableDBProducer
 	cfg StoreConfig
 
-	mainDB       kvdb.Store
-	snapshotedDB *switchable.Snapshot
-	evm          *evmstore.Store
-	txtrace      *txtrace.Store
-	table        struct {
+	snapshotedEVMDB *switchable.Snapshot
+	evm             *evmstore.Store
+	txtrace         *txtrace.Store
+	table           struct {
 		Version kvdb.Store `table:"_"`
 
 		// Main DAG tables
@@ -55,15 +56,15 @@ type Store struct {
 		// API-only
 		BlockHashes kvdb.Store `table:"B"`
 
-		LlrState           kvdb.Store `table:"!"`
-		LlrBlockResults    kvdb.Store `table:"@"`
-		LlrEpochResults    kvdb.Store `table:"#"`
-		LlrBlockVotes      kvdb.Store `table:"$"`
-		LlrBlockVotesIndex kvdb.Store `table:"%"`
-		LlrEpochVotes      kvdb.Store `table:"^"`
-		LlrEpochVoteIndex  kvdb.Store `table:"&"`
-		LlrLastBlockVotes  kvdb.Store `table:"*"`
-		LlrLastEpochVote   kvdb.Store `table:"("`
+		LlrState           kvdb.Store `table:"S"`
+		LlrBlockResults    kvdb.Store `table:"R"`
+		LlrEpochResults    kvdb.Store `table:"Q"`
+		LlrBlockVotes      kvdb.Store `table:"T"`
+		LlrBlockVotesIndex kvdb.Store `table:"J"`
+		LlrEpochVotes      kvdb.Store `table:"E"`
+		LlrEpochVoteIndex  kvdb.Store `table:"I"`
+		LlrLastBlockVotes  kvdb.Store `table:"G"`
+		LlrLastEpochVote   kvdb.Store `table:"F"`
 	}
 
 	prevFlushTime time.Time
@@ -71,7 +72,8 @@ type Store struct {
 	epochStore atomic.Value
 
 	cache struct {
-		Events                 *wlru.Cache  `cache:"-"` // store by pointer
+		Events                 *wlru.Cache `cache:"-"` // store by pointer
+		EventIDs               *eventid.Cache
 		EventsHeaders          *wlru.Cache  `cache:"-"` // store by pointer
 		Blocks                 *wlru.Cache  `cache:"-"` // store by pointer
 		BlockHashes            *wlru.Cache  `cache:"-"` // store by pointer
@@ -85,6 +87,8 @@ type Store struct {
 		KvdbEvmSnap            atomic.Value // store by pointer
 		UpgradeHeights         atomic.Value // store by pointer
 		Genesis                atomic.Value // store by value
+		LlrBlockVotesIndex     *VotesCache  // store by pointer
+		LlrEpochVoteIndex      *VotesCache  // store by pointer
 	}
 
 	mutex struct {
@@ -107,23 +111,21 @@ func NewMemStore() *Store {
 
 // NewStore creates store over key-value db.
 func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
-	mainDB, err := dbs.OpenDB("gossip")
-	if err != nil {
-		log.Crit("Failed to open DB", "name", "gossip", "err", err)
-	}
 	s := &Store{
 		dbs:           dbs,
 		cfg:           cfg,
-		mainDB:        mainDB,
 		Instance:      logger.New("gossip-store"),
 		prevFlushTime: time.Now(),
 		rlp:           rlpstore.Helper{logger.New("rlp")},
 	}
 
-	table.MigrateTables(&s.table, s.mainDB)
+	err := table.OpenTables(&s.table, dbs, "gossip")
+	if err != nil {
+		log.Crit("Failed to open DB", "name", "gossip", "err", err)
+	}
 
 	s.initCache()
-	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+	s.evm = evmstore.NewStore(dbs, cfg.EVM)
 	if cfg.TraceTransactions {
 		s.txtrace = txtrace.NewStore(s.table.TransactionTraces)
 	}
@@ -147,9 +149,14 @@ func (s *Store) initCache() {
 	eventsHeadersCacheSize := nominalSize * uint(eventsHeadersNum)
 	s.cache.EventsHeaders = s.makeCache(eventsHeadersCacheSize, eventsHeadersNum)
 
+	s.cache.EventIDs = eventid.NewCache(s.cfg.Cache.EventsIDsNum)
+
 	blockEpochStatesNum := s.cfg.Cache.BlockEpochStateNum
 	blockEpochStatesSize := nominalSize * uint(blockEpochStatesNum)
 	s.cache.BlockEpochStateHistory = s.makeCache(blockEpochStatesSize, blockEpochStatesNum)
+
+	s.cache.LlrBlockVotesIndex = NewVotesCache(s.cfg.Cache.LlrBlockVotesIndexes, s.flushLlrBlockVoteWeight)
+	s.cache.LlrEpochVoteIndex = NewVotesCache(s.cfg.Cache.LlrEpochVotesIndexes, s.flushLlrEpochVoteWeight)
 }
 
 // Close closes underlying database.
@@ -158,30 +165,34 @@ func (s *Store) Close() {
 		return nil
 	}
 
+	_ = table.CloseTables(&s.table)
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
 
-	_ = s.mainDB.Close()
 	if s.txtrace != nil {
 		s.txtrace.Close()
 	}
 	_ = s.closeEpochStore()
+	s.evm.Close()
 }
 
 func (s *Store) IsCommitNeeded() bool {
-	return s.isCommitNeeded(100, 100)
+	// randomize flushing criteria for each epoch so that nodes would desynchronize flushes
+	ratio := 900 + randat.RandAt(uint64(s.GetEpoch()))%100
+	return s.isCommitNeeded(ratio, ratio)
 }
 
-func (s *Store) isCommitNeeded(sc, tc int) bool {
-	period := s.cfg.MaxNonFlushedPeriod * time.Duration(sc) / 100
-	size := (s.cfg.MaxNonFlushedSize / 2) * tc / 100
+func (s *Store) isCommitNeeded(sc, tc uint64) bool {
+	period := s.cfg.MaxNonFlushedPeriod * time.Duration(sc) / 1000
+	size := (uint64(s.cfg.MaxNonFlushedSize) / 2) * tc / 1000
 	return time.Since(s.prevFlushTime) > period ||
-		s.dbs.NotFlushedSizeEst() > size
+		uint64(s.dbs.NotFlushedSizeEst()) > size
 }
 
 // commitEVM commits EVM storage
 func (s *Store) commitEVM(flush bool) {
-	err := s.evm.Commit(s.GetBlockState(), flush)
+	bs := s.GetBlockState()
+	err := s.evm.Commit(bs.LastBlock.Idx, bs.FinalizedStateRoot, flush)
 	if err != nil {
 		s.Log.Crit("Failed to commit EVM storage", "err", err)
 	}
@@ -218,6 +229,8 @@ func (s *Store) Commit() error {
 	s.FlushLastBVs()
 	s.FlushLastEV()
 	s.FlushLlrState()
+	s.cache.LlrBlockVotesIndex.FlushMutated(s.flushLlrBlockVoteWeight)
+	s.cache.LlrEpochVoteIndex.FlushMutated(s.flushLlrEpochVoteWeight)
 	es := s.getAnyEpochStore()
 	if es != nil {
 		es.FlushHeads()
@@ -246,27 +259,28 @@ func (s *Store) CaptureEvmKvdbSnapshot() {
 	}
 	gen, err := s.evm.Snaps.Generating()
 	if err != nil {
-		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
+		s.Log.Error("Failed to check EVM snapshot generation", "err", err)
 		return
 	}
 	if gen {
 		return
 	}
-	newKvdbSnap, err := s.mainDB.GetSnapshot()
+	newEvmKvdbSnap, err := s.evm.EVMDB().GetSnapshot()
 	if err != nil {
 		s.Log.Error("Failed to initialize frozen KVDB", "err", err)
 		return
 	}
-	if s.snapshotedDB == nil {
-		s.snapshotedDB = switchable.Wrap(newKvdbSnap)
+	if s.snapshotedEVMDB == nil {
+		s.snapshotedEVMDB = switchable.Wrap(newEvmKvdbSnap)
 	} else {
-		old := s.snapshotedDB.SwitchTo(newKvdbSnap)
+		old := s.snapshotedEVMDB.SwitchTo(newEvmKvdbSnap)
 		// release only after DB is atomically switched
 		if old != nil {
 			old.Release()
 		}
 	}
-	newStore := evmstore.NewStore(snap2kvdb.Wrap(s.snapshotedDB), evmstore.LiteStoreConfig())
+	newStore := s.evm.ResetWithEVMDB(snap2kvdb.Wrap(s.snapshotedEVMDB))
+	newStore.Snaps = nil
 	root := s.GetBlockState().FinalizedStateRoot
 	err = s.generateSnapshotAt(newStore, common.Hash(root), false, false)
 	if err != nil {

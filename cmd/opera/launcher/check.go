@@ -1,7 +1,6 @@
 package launcher
 
 import (
-	"path"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -10,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -21,11 +19,8 @@ func checkEvm(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
-	gdb, err := makeRawGossipStore(rawProducer, cfg)
-	if err != nil {
-		log.Crit("DB opening error", "datadir", cfg.Node.DataDir, "err", err)
-	}
+	rawDbs := makeDirectDBsProducer(cfg)
+	gdb := makeGossipStore(rawDbs, cfg)
 	defer gdb.Close()
 	evms := gdb.EvmStore()
 
@@ -62,8 +57,7 @@ func checkEvm(ctx *cli.Context) error {
 		})
 	}
 
-	err = evms.CheckEvm(checkBlocks)
-	if err != nil {
+	if err := evms.CheckEvm(checkBlocks); err != nil {
 		return err
 	}
 	log.Info("EVM storage is verified", "last", prevPoint, "elapsed", common.PrettyDuration(time.Since(start)))

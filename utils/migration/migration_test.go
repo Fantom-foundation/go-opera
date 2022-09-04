@@ -15,6 +15,7 @@ func TestMigrations(t *testing.T) {
 		require := require.New(t)
 
 		native := Begin("native")
+		curVer.lastID = idOf("native")
 
 		num := 1
 		lastGood := native.Next("01",

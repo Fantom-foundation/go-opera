@@ -120,6 +120,7 @@ func processLastEvent(lasts *concurrent.ValidatorEventsSet, e *inter.EventPayloa
 }
 
 func (s *Service) switchEpochTo(newEpoch idx.Epoch) {
+	s.store.cache.EventIDs.Reset(newEpoch)
 	s.store.SetHighestLamport(0)
 	// reset dag indexer
 	s.store.resetEpochStore(newEpoch)

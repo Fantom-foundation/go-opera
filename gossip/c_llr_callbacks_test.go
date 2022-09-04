@@ -838,8 +838,10 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	fullRepeater.compareParams()
 
 	// 2. Comparing mainDb of generator and fullRepeater
-	genKVMap := fetchTable(s.generator.store.mainDB)
-	fullRepKVMap := fetchTable(s.processor.store.mainDB)
+	genKVDB, _ := s.generator.store.dbs.OpenDB("gossip")
+	fullRepKVDB, _ := s.processor.store.dbs.OpenDB("gossip")
+	genKVMap := fetchTable(genKVDB)
+	fullRepKVMap := fetchTable(fullRepKVDB)
 
 	subsetOf := func(aa, bb map[string]string) {
 		for _k, _v := range aa {
@@ -859,8 +861,10 @@ func (s *IntegrationTestSuite) TestFullRepeater() {
 	s.T().Log("Checking genKVs == fullKVs")
 	checkEqual(genKVMap, fullRepKVMap)
 
-	genKVMapAfterIndexLogs := fetchTable(s.generator.store.mainDB)
-	fullRepKVMapAfterIndexLogs := fetchTable(s.processor.store.mainDB)
+	genKVMapAfterIndexLogsDB, _ := s.generator.store.dbs.OpenDB("gossip")
+	fullRepKVMapAfterIndexLogsDB, _ := s.processor.store.dbs.OpenDB("gossip")
+	genKVMapAfterIndexLogs := fetchTable(genKVMapAfterIndexLogsDB)
+	fullRepKVMapAfterIndexLogs := fetchTable(fullRepKVMapAfterIndexLogsDB)
 
 	// comparing the states
 	checkEqual(genKVMap, genKVMapAfterIndexLogs)

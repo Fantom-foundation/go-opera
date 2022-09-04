@@ -50,15 +50,9 @@ var (
 	snapshotStorageReadTimer = metrics.GetOrRegisterTimer("chain/snapshot/storage/reads", nil)
 	snapshotCommitTimer      = metrics.GetOrRegisterTimer("chain/snapshot/commits", nil)
 
-	blockInsertTimer     = metrics.GetOrRegisterTimer("chain/inserts", nil)
-	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
-	blockExecutionTimer  = metrics.GetOrRegisterTimer("chain/execution", nil)
-	blockWriteTimer      = metrics.GetOrRegisterTimer("chain/write", nil)
-
-	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
+	blockInsertTimer    = metrics.GetOrRegisterTimer("chain/inserts", nil)
+	blockExecutionTimer = metrics.GetOrRegisterTimer("chain/execution", nil)
+	blockWriteTimer     = metrics.GetOrRegisterTimer("chain/write", nil)
 )
 
 type ExtendedTxPosition struct {
@@ -265,7 +259,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, onNewLogAll, es.Rules, evmCfg, es.Rules.EvmChainConfig(store.GetUpgradeHeights()))
-				substart := time.Now()
+				executionStart := time.Now()
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
@@ -408,14 +402,13 @@ func consensusCallbackBeginBlockFn(
 					storageUpdateTimer.Update(statedb.StorageUpdates)
 					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
 					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
-					triehash := statedb.AccountHashes + statedb.StorageHashes // save to not double count in validation
-					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
-					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
-					blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
-					// Update the metrics touched during block validation
 					accountHashTimer.Update(statedb.AccountHashes)
 					storageHashTimer.Update(statedb.StorageHashes)
-					blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
+					triehash := statedb.AccountHashes + statedb.StorageHashes
+					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
+					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					blockExecutionTimer.Update(time.Since(executionStart) - trieproc - triehash)
+
 					// Update the metrics touched by new block
 					headBlockGauge.Update(int64(blockCtx.Idx))
 					headHeaderGauge.Update(int64(blockCtx.Idx))
@@ -433,12 +426,14 @@ func consensusCallbackBeginBlockFn(
 						feed.newLogs.Send(logs)
 					}
 
+					commitStart := time.Now()
 					store.commitEVM(false)
+
 					// Update the metrics touched during block commit
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)
 					snapshotCommitTimer.Update(statedb.SnapshotCommits)
-					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(commitStart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()
@@ -463,6 +458,58 @@ func consensusCallbackBeginBlockFn(
 
 				return newValidators
 			},
+		}
+	}
+}
+
+func (s *Service) ReexecuteBlocks(from, to idx.Block) {
+	blockProc := s.blockProcModules
+	upgradeHeights := s.store.GetUpgradeHeights()
+	evmStateReader := s.GetEvmStateReader()
+	prev := s.store.GetBlock(from)
+	for b := from + 1; b <= to; b++ {
+		block := s.store.GetBlock(b)
+		blockCtx := iblockproc.BlockCtx{
+			Idx:     b,
+			Time:    block.Time,
+			Atropos: block.Atropos,
+		}
+		statedb, err := s.store.evm.StateDB(prev.Root)
+		if err != nil {
+			log.Crit("Failue to re-execute blocks", "err", err)
+		}
+		es := s.store.GetHistoryEpochState(s.store.FindBlockEpoch(b))
+		// Providing default config
+		// In case of trace transaction node, this config is changed
+		evmCfg := opera.DefaultVMConfig
+		if s.store.txtrace != nil {
+			evmCfg.Debug = true
+			evmCfg.Tracer = txtrace.NewTraceStructLogger(s.store.txtrace)
+		}
+		evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, func(t *types.Log) {}, es.Rules, evmCfg, es.Rules.EvmChainConfig(upgradeHeights))
+		txs := s.store.GetBlockTxs(b, block)
+		evmProcessor.Execute(txs)
+		evmProcessor.Finalize()
+		_ = s.store.evm.Commit(b, block.Root, false)
+		s.store.evm.Cap()
+		s.mayCommit(false)
+		prev = block
+	}
+}
+
+func (s *Service) RecoverEVM() {
+	start := s.store.GetLatestBlockIndex()
+	for b := start; b >= 1 && b > start-20000; b-- {
+		block := s.store.GetBlock(b)
+		if block == nil {
+			break
+		}
+		if s.store.evm.HasStateDB(block.Root) {
+			if b != start {
+				s.Log.Warn("Reexecuting blocks after abrupt stopping", "from", b, "to", start)
+				s.ReexecuteBlocks(b, start)
+			}
+			break
 		}
 	}
 }
