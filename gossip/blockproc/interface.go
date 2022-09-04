@@ -11,9 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 
 	estate "github.com/ledgerwatch/erigon/core/state"
-
-
-	
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 type TxListener interface {
@@ -52,7 +50,7 @@ type ConfirmedEventsModule interface {
 
 type EVMProcessor interface {
 	Execute(txs types.Transactions) types.Receipts
-	Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts)
+	Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts)
 }
 
 type EVM interface {

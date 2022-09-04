@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/erigon/benchtrie"
 	"github.com/Fantom-foundation/go-opera/erigon/etrie"
+	"github.com/Fantom-foundation/go-opera/erigon/cleantrie"
 
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
@@ -275,3 +276,19 @@ func RegenerateIntermediateHashesBench(logPrefix string,
 	}
 	return hash, nil
 }
+
+
+func CalcRoot(logPrefix string, tx kv.Tx) (common.Hash, error) {
+	loader := cleantrie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(cleantrie.NewRetainList(0), nil, nil, false); err != nil {
+		return cleantrie.EmptyRoot, err
+	}
+
+	h, err := loader.CalcTrieRoot(tx, nil, nil)
+	if err != nil {
+		return cleantrie.EmptyRoot, err
+	}
+
+	return h, nil
+}
+

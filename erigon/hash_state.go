@@ -209,3 +209,50 @@ func CalcTrieRoot2(db kv.RwDB) (common.Hash, error) {
 
 	return root, nil
 }
+
+// GenerateHashedStatePut does the same thing as GenerateHashedStateLoad but in a different manner using tx.Put method. It iterates over kv.Plainstate records and fill in kv.HashedAccounts and kv.HashedStorage records.
+func GenerateHashedStatePut(tx kv.RwTx) error {
+
+	c, err := tx.Cursor(kv.PlainState)
+	if err != nil {
+		return err
+	}
+	h := common.NewHasher()
+
+	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+		if err != nil {
+			return fmt.Errorf("interate over plain state: %w", err)
+		}
+		var newK []byte
+		if len(k) == common.AddressLength {
+			newK = make([]byte, common.HashLength)
+		} else {
+			newK = make([]byte, common.HashLength*2+common.IncarnationLength)
+		}
+		h.Sha.Reset()                         //?
+		h.Sha.Write(k[:common.AddressLength]) //?
+		h.Sha.Read(newK[:common.HashLength])  //?
+		if len(k) > common.AddressLength {
+			copy(newK[common.HashLength:], k[common.AddressLength:common.AddressLength+common.IncarnationLength])
+			h.Sha.Reset()
+			h.Sha.Write(k[common.AddressLength+common.IncarnationLength:])
+			h.Sha.Read(newK[common.HashLength+common.IncarnationLength:])
+			if err = tx.Put(kv.HashedStorage, newK, common.CopyBytes(v)); err != nil {
+				return fmt.Errorf("insert hashed key: %w", err)
+			}
+		} else {
+			if err = tx.Put(kv.HashedAccounts, newK, common.CopyBytes(v)); err != nil {
+				return fmt.Errorf("insert hashed key: %w", err)
+			}
+		}
+	}
+	c.Close()
+
+	/*
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	*/
+
+	return nil
+}

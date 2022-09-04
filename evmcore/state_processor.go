@@ -154,6 +154,7 @@ func applyTransaction(
 	receipt := &types.Receipt{Type: tx.Type(), /*PostState: root*/ CumulativeGasUsed: *usedGas}
 	if result.Failed() {
 		receipt.Status = types.ReceiptStatusFailed
+		panic(result.Revert())
 	} else {
 		receipt.Status = types.ReceiptStatusSuccessful
 	}

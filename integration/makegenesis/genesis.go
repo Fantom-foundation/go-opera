@@ -136,7 +136,7 @@ func (d dummyHeaderReturner) GetHeader(common.Hash, uint64) *evmcore.EvmHeader {
 	return &evmcore.EvmHeader{}
 }
 
-func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types.Transactions) error {
+func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, genesisTxs types.Transactions) error {
 	bs, es := b.currentEpoch.BlockState.Copy(), b.currentEpoch.EpochState.Copy()
 
 	blockCtx := iblockproc.BlockCtx{
@@ -172,7 +172,7 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types
 	internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, b.tmpStateDB)
 	evmProcessor.Execute(internalTxs)
 
-	evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
+	evmBlock, skippedTxs, receipts := evmProcessor.Finalize(tx)
 	for _, r := range receipts {
 		if r.Status == 0 {
 			return errors.New("genesis transaction reverted")

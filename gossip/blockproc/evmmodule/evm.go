@@ -15,8 +15,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/erigon"
 
+	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"
+
 
 )
 
@@ -113,7 +116,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions) types.Receipts {
 	return receipts
 }
 
-func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts) {
+func (p *OperaEVMProcessor) Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts) {
 	evmBlock = p.evmBlockWith(
 		// Filter skipped transactions. Receipts are filtered already
 		inter.FilterSkippedTxs(p.incomingTxs, p.skippedTxs),
@@ -122,11 +125,26 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 	receipts = p.receipts
 
 	// Get state root
+	/*
 	newStateHash, err := p.statedb.Commit(true)
 	if err != nil {
 		log.Crit("Failed to commit state", "err", err)
 	}
 	evmBlock.Root = newStateHash
+	*/
+
+	if err := erigon.GenerateHashedStatePut(tx); err != nil {
+		panic(err)
+	}
+
+	stateRoot, err := erigon.CalcRoot("", tx)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Info("Finalize", "StateRoot ", stateRoot.Hex())
+
+	evmBlock.Root = common.Hash(stateRoot)
 
 	return
 }
