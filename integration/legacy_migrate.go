@@ -186,8 +186,20 @@ func translateGossipPrefix(p byte) byte {
 	return p
 }
 
-func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
-	if !isEmpty(path.Join(chaindataDir, "gossip")) {
+func equalRoutingConfig(a, b RoutingConfig) bool {
+	if len(a.Table) != len(b.Table) {
+		return false
+	}
+	for k, v := range a.Table {
+		if b.Table[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string, layout RoutingConfig) error {
+	{ // didn't erase the brackets to avoid massive code changes
 		// migrate DB layout
 		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
 			Table: map[string]DBCacheConfig{
@@ -201,10 +213,13 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 			return err
 		}
 		var oldDBs kvdb.IterableDBProducer
+		var oldDBsType string
 		if fileExists(path.Join(chaindataDir, "gossip", "LOG")) {
 			oldDBs = leveldb.NewProducer(chaindataDir, cacheFn)
+			oldDBsType = "ldb"
 		} else {
 			oldDBs = pebble.NewProducer(chaindataDir, cacheFn)
+			oldDBsType = "pbl"
 		}
 		openOldDB := func(name string) kvdb.Store {
 			db, err := oldDBs.OpenDB(name)
@@ -221,67 +236,106 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer) error {
 			return db
 		}
 
-		// move lachesis, lachesis-%d and gossip-%d DBs
-		for _, name := range oldDBs.Names() {
-			if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
-				mustTransform(transformTask{
-					openSrc: func() kvdb.Store {
-						return skipkeys.Wrap(openOldDB(name), MetadataPrefix)
-					},
-					openDst: func() kvdb.Store {
-						return openNewDB(name)
-					},
-					name: name,
-					dir:  chaindataDir,
-				})
+		switch mode {
+		case "rebuild":
+			// move lachesis, lachesis-%d and gossip-%d DBs
+			for _, name := range oldDBs.Names() {
+				if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
+					mustTransform(transformTask{
+						openSrc: func() kvdb.Store {
+							return skipkeys.Wrap(openOldDB(name), MetadataPrefix)
+						},
+						openDst: func() kvdb.Store {
+							return openNewDB(name)
+						},
+						name: name,
+						dir:  chaindataDir,
+					})
+				}
 			}
-		}
 
-		// move gossip DB
+			// move gossip DB
 
-		// move logs
-		mustTransform(transformTask{
-			openSrc: func() kvdb.Store {
-				return newClosableTable(openOldDB("gossip"), []byte("Lr"))
-			},
-			openDst: func() kvdb.Store {
-				return openNewDB("evm-logs/r")
-			},
-			name: "gossip/Lr",
-			dir:  chaindataDir,
-		})
-		mustTransform(transformTask{
-			openSrc: func() kvdb.Store {
-				return newClosableTable(openOldDB("gossip"), []byte("Lt"))
-			},
-			openDst: func() kvdb.Store {
-				return openNewDB("evm-logs/t")
-			},
-			name: "gossip/Lt",
-			dir:  chaindataDir,
-		})
-
-		// skip 0 prefix, as it contains flushID
-		for b := 1; b <= 0xff; b++ {
-			if b == int('L') {
-				// logs are already moved above
-				continue
-			}
+			// move logs
 			mustTransform(transformTask{
 				openSrc: func() kvdb.Store {
-					return newClosableTable(openOldDB("gossip"), []byte{byte(b)})
+					return newClosableTable(openOldDB("gossip"), []byte("Lr"))
 				},
 				openDst: func() kvdb.Store {
-					if b == int('M') || b == int('r') || b == int('x') || b == int('X') {
-						return openNewDB("evm/" + string([]byte{byte(b)}))
-					} else {
-						return openNewDB("gossip/" + string([]byte{translateGossipPrefix(byte(b))}))
-					}
+					return openNewDB("evm-logs/r")
 				},
-				name:    fmt.Sprintf("gossip/%c", rune(b)),
-				dir:     chaindataDir,
-				dropSrc: b == 0xff,
+				name: "gossip/Lr",
+				dir:  chaindataDir,
 			})
+			mustTransform(transformTask{
+				openSrc: func() kvdb.Store {
+					return newClosableTable(openOldDB("gossip"), []byte("Lt"))
+				},
+				openDst: func() kvdb.Store {
+					return openNewDB("evm-logs/t")
+				},
+				name: "gossip/Lt",
+				dir:  chaindataDir,
+			})
+
+			// skip 0 prefix, as it contains flushID
+			for b := 1; b <= 0xff; b++ {
+				if b == int('L') {
+					// logs are already moved above
+					continue
+				}
+				mustTransform(transformTask{
+					openSrc: func() kvdb.Store {
+						return newClosableTable(openOldDB("gossip"), []byte{byte(b)})
+					},
+					openDst: func() kvdb.Store {
+						if b == int('M') || b == int('r') || b == int('x') || b == int('X') {
+							return openNewDB("evm/" + string([]byte{byte(b)}))
+						} else {
+							return openNewDB("gossip/" + string([]byte{translateGossipPrefix(byte(b))}))
+						}
+					},
+					name:    fmt.Sprintf("gossip/%c", rune(b)),
+					dir:     chaindataDir,
+					dropSrc: b == 0xff,
+				})
+			}
+		case "reformat":
+			if oldDBsType == "ldb" {
+				if !equalRoutingConfig(layout, LdbLegacyRoutingConfig()) {
+					return errors.New("reformatting DBs: missing --db.preset=legacy-ldb flag")
+				}
+				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "leveldb-fsh", "main"))
+				if err != nil {
+					return err
+				}
+				for _, name := range oldDBs.Names() {
+					if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
+						err = os.Rename(path.Join(chaindataDir, name), path.Join(chaindataDir, "leveldb-fsh", name))
+						if err != nil {
+							return err
+						}
+					}
+				}
+			} else {
+				if !equalRoutingConfig(layout, PblLegacyRoutingConfig()) {
+					return errors.New("reformatting DBs: missing --db.preset=legacy-pbl flag")
+				}
+				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "pebble-fsh", "main"))
+				if err != nil {
+					return err
+				}
+				for _, name := range oldDBs.Names() {
+					if strings.HasPrefix(name, "lachesis") || strings.HasPrefix(name, "gossip-") {
+						err = os.Rename(path.Join(chaindataDir, name), path.Join(chaindataDir, "pebble-fsh", name))
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		default:
+			return errors.New("missing --db.migration.mode flag")
 		}
 	}
 

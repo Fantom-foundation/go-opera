@@ -13,52 +13,6 @@ type RoutingConfig struct {
 	Table map[string]multidb.Route
 }
 
-func DefaultRoutingConfig() RoutingConfig {
-	return RoutingConfig{
-		Table: map[string]multidb.Route{
-			"": {
-				Type: "pebble-fsh",
-			},
-			"lachesis": {
-				Type:  "pebble-fsh",
-				Name:  "main",
-				Table: "L",
-			},
-			"gossip": {
-				Type: "pebble-fsh",
-				Name: "main",
-			},
-			"evm": {
-				Type: "pebble-fsh",
-				Name: "main",
-			},
-			"gossip/e": {
-				Type: "pebble-fsh",
-				Name: "events",
-			},
-			"evm/M": {
-				Type: "pebble-drc",
-				Name: "evm-data",
-			},
-			"evm-logs": {
-				Type: "pebble-fsh",
-				Name: "evm-logs",
-			},
-			"gossip-%d": {
-				Type:  "leveldb-fsh",
-				Name:  "epoch-%d",
-				Table: "G",
-			},
-			"lachesis-%d": {
-				Type:   "leveldb-fsh",
-				Name:   "epoch-%d",
-				Table:  "L",
-				NoDrop: true,
-			},
-		},
-	}
-}
-
 func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, scopedProducers map[multidb.TypeName]kvdb.FullDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
 	cachedProducers := make(map[multidb.TypeName]kvdb.FullDBProducer)
 	var flushID []byte
