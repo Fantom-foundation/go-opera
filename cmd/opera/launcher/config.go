@@ -132,7 +132,7 @@ const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
 	// Average memory consumption might be 3-5 times lower than the maximum
 	DefaultCacheSize  = 3600
-	ConstantCacheSize = 1024
+	ConstantCacheSize = 600
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.

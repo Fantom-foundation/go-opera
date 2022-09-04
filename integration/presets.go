@@ -69,24 +69,24 @@ func Pbl1RuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"evm-data": {
-				Cache:   scale(242 * opt.MiB),
-				Fdlimit: fdlimit*242/700 + 1,
+				Cache:   scale(460 * opt.MiB),
+				Fdlimit: fdlimit*460/1400 + 1,
 			},
 			"evm-logs": {
-				Cache:   scale(110 * opt.MiB),
-				Fdlimit: fdlimit*110/700 + 1,
+				Cache:   scale(260 * opt.MiB),
+				Fdlimit: fdlimit*220/1400 + 1,
 			},
 			"main": {
-				Cache:   scale(186 * opt.MiB),
-				Fdlimit: fdlimit*186/700 + 1,
+				Cache:   scale(320 * opt.MiB),
+				Fdlimit: fdlimit*280/1400 + 1,
 			},
 			"events": {
-				Cache:   scale(87 * opt.MiB),
-				Fdlimit: fdlimit*87/700 + 1,
+				Cache:   scale(240 * opt.MiB),
+				Fdlimit: fdlimit*200/1400 + 1,
 			},
 			"epoch-%d": {
-				Cache:   scale(75 * opt.MiB),
-				Fdlimit: fdlimit*75/700 + 1,
+				Cache:   scale(100 * opt.MiB),
+				Fdlimit: fdlimit*100/1400 + 1,
 			},
 			"": {
 				Cache:   64 * opt.MiB,
@@ -100,24 +100,24 @@ func Pbl1GenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
 			},
 			"evm-data": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
 			},
 			"evm-logs": {
-				Cache:   scale(1024 * opt.MiB),
-				Fdlimit: fdlimit*1024/3072 + 1,
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
 			},
 			"events": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"epoch-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"": {
 				Cache:   16 * opt.MiB,
@@ -182,12 +182,12 @@ func Ldb1RuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(625 * opt.MiB),
-				Fdlimit: fdlimit*625/700 + 1,
+				Cache:   scale(900 * opt.MiB),
+				Fdlimit: fdlimit*900/1000 + 1,
 			},
 			"epoch-%d": {
-				Cache:   scale(75 * opt.MiB),
-				Fdlimit: fdlimit*75/700 + 1,
+				Cache:   scale(100 * opt.MiB),
+				Fdlimit: fdlimit*100/1000 + 1,
 			},
 			"": {
 				Cache:   64 * opt.MiB,
@@ -201,12 +201,12 @@ func Ldb1GenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(3072 * opt.MiB),
+				Cache:   scale(3000 * opt.MiB),
 				Fdlimit: fdlimit,
 			},
 			"epoch-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"": {
 				Cache:   16 * opt.MiB,
@@ -316,20 +316,20 @@ func LdbLegacyRuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) D
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(564 * opt.MiB),
-				Fdlimit: fdlimit*564/700 + 1,
+				Cache:   scale(850 * opt.MiB),
+				Fdlimit: fdlimit*850/1000 + 1,
 			},
 			"lachesis": {
-				Cache:   scale(8 * opt.MiB),
-				Fdlimit: fdlimit*8/700 + 1,
+				Cache:   scale(20 * opt.MiB),
+				Fdlimit: fdlimit*20/1000 + 1,
 			},
 			"gossip-%d": {
-				Cache:   scale(64 * opt.MiB),
-				Fdlimit: fdlimit*64/700 + 1,
+				Cache:   scale(50 * opt.MiB),
+				Fdlimit: fdlimit*50/1000 + 1,
 			},
 			"lachesis-%d": {
-				Cache:   scale(64 * opt.MiB),
-				Fdlimit: fdlimit*64/700 + 1,
+				Cache:   scale(80 * opt.MiB),
+				Fdlimit: fdlimit*80/1000 + 1,
 			},
 			"": {
 				Cache:   64 * opt.MiB,
@@ -343,20 +343,20 @@ func LdbLegacyGenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) D
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(3072 * opt.MiB),
-				Fdlimit: fdlimit*3072 + 1,
+				Cache:   scale(3000 * opt.MiB),
+				Fdlimit: fdlimit*3000 + 1,
 			},
 			"lachesis": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"gossip-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"lachesis-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"": {
 				Cache:   16 * opt.MiB,
@@ -466,20 +466,20 @@ func PblLegacyRuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) D
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(564 * opt.MiB),
-				Fdlimit: fdlimit*564/700 + 1,
+				Cache:   scale(950 * opt.MiB),
+				Fdlimit: fdlimit*950/1400 + 1,
 			},
 			"lachesis": {
-				Cache:   scale(8 * opt.MiB),
-				Fdlimit: fdlimit*8/700 + 1,
+				Cache:   scale(150 * opt.MiB),
+				Fdlimit: fdlimit*150/1400 + 1,
 			},
 			"gossip-%d": {
-				Cache:   scale(64 * opt.MiB),
-				Fdlimit: fdlimit*64/700 + 1,
+				Cache:   scale(150 * opt.MiB),
+				Fdlimit: fdlimit*150/1400 + 1,
 			},
 			"lachesis-%d": {
-				Cache:   scale(64 * opt.MiB),
-				Fdlimit: fdlimit*64/700 + 1,
+				Cache:   scale(150 * opt.MiB),
+				Fdlimit: fdlimit*150/1400 + 1,
 			},
 			"": {
 				Cache:   64 * opt.MiB,
@@ -493,20 +493,20 @@ func PblLegacyGenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) D
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(3072 * opt.MiB),
-				Fdlimit: fdlimit*3072 + 1,
+				Cache:   scale(3000 * opt.MiB),
+				Fdlimit: fdlimit,
 			},
 			"lachesis": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"gossip-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"lachesis-%d": {
 				Cache:   scale(1 * opt.MiB),
-				Fdlimit: fdlimit*1/3072 + 1,
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"": {
 				Cache:   16 * opt.MiB,
