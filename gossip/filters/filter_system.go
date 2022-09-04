@@ -19,6 +19,7 @@
 package filters
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 )
@@ -323,11 +325,32 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 			f.hashes <- hashes
 		}
 	case evmcore.ChainHeadNotify:
+		h := e.Block.EthHeader()
+		h.GasLimit = 0xffffffffffff // don't use too much bits here to avoid parsing issues
+		es.calculateExtBlockApi(h)
 		for _, f := range filters[BlocksSubscription] {
-			h := e.Block.EthHeader()
-			h.GasLimit = 0xffffffffffff // don't use too much bits here to avoid parsing issues
 			f.headers <- h
 		}
+	}
+}
+
+// calculateExtBlockApi doubles ethapi/PublicBlockChainAPI.calculateExtBlockApi() functionality.
+// TODO: common code.
+func (es *EventSystem) calculateExtBlockApi(h *types.Header) {
+	blkNumber := rpc.BlockNumber(h.Number.Int64())
+	if !es.backend.CalcBlockExtApi() || blkNumber == rpc.EarliestBlockNumber {
+		return
+	}
+
+	receipts, err := es.backend.GetReceiptsByNumber(context.Background(), blkNumber)
+	if err != nil {
+		return
+	}
+	if receipts.Len() != 0 {
+		h.ReceiptHash = types.DeriveSha(receipts, trie.NewStackTrie(nil))
+		h.Bloom = types.CreateBloom(receipts)
+	} else {
+		h.ReceiptHash = types.EmptyRootHash
 	}
 }
 

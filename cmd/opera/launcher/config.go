@@ -111,6 +111,15 @@ var (
 		Name:  "exitwhensynced.epoch",
 		Usage: "Exits after synchronisation reaches the required epoch",
 	}
+
+	DBMigrationModeFlag = cli.StringFlag{
+		Name:  "db.migration.mode",
+		Usage: "MultiDB migration mode ('reformat' or 'rebuild')",
+	}
+	DBPresetFlag = cli.StringFlag{
+		Name:  "db.preset",
+		Usage: "DBs layout preset ('pbl-1' or 'ldb-1' or 'legacy-ldb' or 'legacy-pbl')",
+	}
 )
 
 type GenesisTemplate struct {
@@ -123,7 +132,7 @@ const (
 	// DefaultCacheSize is calculated as memory consumption in a worst case scenario with default configuration
 	// Average memory consumption might be 3-5 times lower than the maximum
 	DefaultCacheSize  = 3600
-	ConstantCacheSize = 1024
+	ConstantCacheSize = 600
 )
 
 // These settings ensure that TOML keys use the same names as Go struct fields.
@@ -336,6 +345,28 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 	return cfg, nil
 }
 
+func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachescale.Func) integration.DBsConfig {
+	if ctx.GlobalIsSet(DBPresetFlag.Name) {
+		preset := ctx.GlobalString(DBPresetFlag.Name)
+		switch preset {
+		case "pbl-1":
+			cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		case "ldb-1":
+			cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		case "legacy-ldb":
+			cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		case "legacy-pbl":
+			cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		default:
+			utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
+		}
+	}
+	if ctx.GlobalIsSet(DBMigrationModeFlag.Name) {
+		cfg.MigrationMode = ctx.GlobalString(DBMigrationModeFlag.Name)
+	}
+	return cfg
+}
+
 func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	utils.SetNodeConfig(ctx, &cfg)
 
@@ -411,6 +442,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		return nil, err
 	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
+	cfg.DBs = setDBConfig(ctx, cfg.DBs, cacheRatio)
 
 	err = setValidator(ctx, &cfg.Emitter)
 	if err != nil {

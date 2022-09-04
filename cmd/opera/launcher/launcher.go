@@ -122,6 +122,8 @@ func initFlags() {
 		validatorPasswordFlag,
 		SyncModeFlag,
 		GCModeFlag,
+		DBPresetFlag,
+		DBMigrationModeFlag,
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,

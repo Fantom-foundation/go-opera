@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -193,14 +192,7 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
 	}
-	var wdbs kvdb.FlushableDBProducer
-	// final DB wrappers
-	if metrics.Enabled {
-		wdbs = WrapDatabaseWithMetrics(dbs)
-	} else {
-		wdbs = dbs
-	}
-	gdb, cdb := getStores(wdbs, cfg)
+	gdb, cdb := getStores(dbs, cfg)
 	defer func() {
 		if err != nil {
 			gdb.Close()
@@ -242,6 +234,9 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 // MakeEngine makes consensus engine from config.
 func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error) {
 	// Legacy DBs migrate
+	if cfg.DBs.MigrationMode != "reformat" && cfg.DBs.MigrationMode != "rebuild" && cfg.DBs.MigrationMode != "" {
+		utils.Fatalf("MigrationMode must be 'reformat' or 'rebuild'")
+	}
 	if !isEmpty(path.Join(chaindataDir, "gossip")) {
 		MakeDBDirs(chaindataDir)
 		genesisProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
@@ -249,7 +244,7 @@ func MakeEngine(chaindataDir string, g *genesis.Genesis, cfg Configs) (*abft.Lac
 		if err != nil {
 			utils.Fatalf("Failed to make engine: %v", err)
 		}
-		err = migrateLegacyDBs(chaindataDir, dbs)
+		err = migrateLegacyDBs(chaindataDir, dbs, cfg.DBs.MigrationMode, cfg.DBs.Routing)
 		_ = dbs.Close()
 		if err != nil {
 			utils.Fatalf("Failed to migrate state: %v", err)

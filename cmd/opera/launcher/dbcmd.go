@@ -136,7 +136,7 @@ func compact(ctx *cli.Context) error {
 			}
 
 			log.Info("Stats before compaction", "db", humanName)
-			showLeveldbStats(db)
+			showDbStats(db)
 
 			log.Info("Triggering compaction", "db", humanName)
 			for b := byte(0); b < 255; b++ {
@@ -148,20 +148,20 @@ func compact(ctx *cli.Context) error {
 			}
 
 			log.Info("Stats after compaction", "db", humanName)
-			showLeveldbStats(db)
+			showDbStats(db)
 		}
 	}
 
 	return nil
 }
 
-func showLeveldbStats(db ethdb.Stater) {
-	if stats, err := db.Stat("leveldb.stats"); err != nil {
+func showDbStats(db ethdb.Stater) {
+	if stats, err := db.Stat("stats"); err != nil {
 		log.Warn("Failed to read database stats", "error", err)
 	} else {
 		fmt.Println(stats)
 	}
-	if ioStats, err := db.Stat("leveldb.iostats"); err != nil {
+	if ioStats, err := db.Stat("iostats"); err != nil {
 		log.Warn("Failed to read database iostats", "error", err)
 	} else {
 		fmt.Println(ioStats)
