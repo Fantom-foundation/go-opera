@@ -53,6 +53,11 @@ var (
 	blockExecutionTimer = metrics.GetOrRegisterTimer("chain/execution", nil)
 	blockWriteTimer     = metrics.GetOrRegisterTimer("chain/write", nil)
 	blockAgeGauge       = metrics.GetOrRegisterGauge("chain/block/age", nil)
+
+	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
+	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
 )
 
 type ExtendedTxPosition struct {
@@ -394,6 +399,8 @@ func consensusCallbackBeginBlockFn(
 					storageUpdateTimer.Update(statedb.StorageUpdates)
 					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
 					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
+
+					// Update the metrics touched during block validation
 					accountHashTimer.Update(statedb.AccountHashes)
 					storageHashTimer.Update(statedb.StorageHashes)
 					triehash := statedb.AccountHashes + statedb.StorageHashes
