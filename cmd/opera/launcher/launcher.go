@@ -273,6 +273,7 @@ func lachesisMain(ctx *cli.Context) error {
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
+	genesisStore.DB().Close()
 	return nil
 }
 
@@ -350,7 +351,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		}
 		return false
 	}
-	svc, err := gossip.NewService(stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
+	svc, err := gossip.NewService(genesisStore.DB(), stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}

@@ -5,6 +5,8 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 const (
@@ -20,16 +22,18 @@ type Store struct {
 	fMap  FilesMap
 	head  genesis.Header
 	close func() error
+	db    kv.RwDB
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(fMap FilesMap, head genesis.Header, close func() error) *Store {
+func NewStore(fMap FilesMap, head genesis.Header, close func() error, db kv.RwDB) *Store {
 	return &Store{
 		fMap:     fMap,
 		head:     head,
 		close:    close,
+		db:       db,
 		Instance: logger.New("genesis-store"),
 	}
 }
@@ -39,3 +43,9 @@ func (s *Store) Close() error {
 	s.fMap = nil
 	return s.close()
 }
+
+func (s *Store) DB() kv.RwDB {
+	return s.db
+}
+
+

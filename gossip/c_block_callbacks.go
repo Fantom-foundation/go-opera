@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
@@ -17,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
@@ -27,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
 
+	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
@@ -71,6 +74,7 @@ type ExtendedTxPosition struct {
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
 		BeginBlock: consensusCallbackBeginBlockFn(
+			s.db,
 			s.blockProcTasks,
 			&s.blockProcWg,
 			&s.blockBusyFlag,
@@ -87,6 +91,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and
 // makes lachesis.BeginBlockFn.
 func consensusCallbackBeginBlockFn(
+	db kv.RwDB,
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
 	blockBusyFlag *uint32,
@@ -111,10 +116,23 @@ func consensusCallbackBeginBlockFn(
 		bs.EpochCheaters = mergeCheaters(bs.EpochCheaters, cBlock.Cheaters)
 
 		// Get stateDB
+		/*
+		log.Info("consensusCallbackBeginBlockFn", "bs.FinalizedStateRoot.Hex()", bs.FinalizedStateRoot.Hex())
 		statedb, err := store.evm.StateDB(bs.FinalizedStateRoot)
 		if err != nil {
 			log.Crit("Failed to open StateDB", "err", err)
 		}
+		*/
+
+		// start new RW transaction
+		tx, err := db.BeginRw(context.Background())
+		if err != nil {
+			panic(err)
+		}
+		// defer tx.Rollback()
+		
+		statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
+		
 		evmStateReader := &EvmStateReader{
 			ServiceFeed: feed,
 			store:       store,
@@ -257,7 +275,8 @@ func consensusCallbackBeginBlockFn(
 					})
 				}
 
-				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, estate.NewNoopWriter(), evmStateReader, onNewLogAll, es.Rules)
+				stateWriter := estate.NewPlainStateWriter(tx, tx, uint64(blockCtx.Idx))
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, stateWriter, evmStateReader, onNewLogAll, es.Rules)
 				substart := time.Now()
 
 				// Execute pre-internal transactions
@@ -311,7 +330,7 @@ func consensusCallbackBeginBlockFn(
 
 					_ = evmProcessor.Execute(txs)
 
-					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize(nil)
+					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize(tx)
 					block.SkippedTxs = skippedTxs
 					block.Root = hash.Hash(evmBlock.Root)
 					block.GasUsed = evmBlock.GasUsed
@@ -427,6 +446,11 @@ func consensusCallbackBeginBlockFn(
 					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
+					// Commit erigon rw tx
+					if err := tx.Commit(); err != nil {
+						panic(err)
+					}
+					
 					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "txs", fmt.Sprintf("%d/%d", len(evmBlock.Transactions), len(block.SkippedTxs)),

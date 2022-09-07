@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/eventcheck"
@@ -53,6 +54,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+
 )
 
 type ServiceFeed struct {
@@ -111,6 +113,7 @@ type Service struct {
 	accountManager *accounts.Manager
 
 	// application
+	db                  kv.RwDB
 	store               *Store
 	engine              lachesis.Consensus
 	dagIndexer          *vecmt.Index
@@ -157,7 +160,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc,
+func NewService(db kv.RwDB, stack *node.Node, config Config, store *Store, blockProc BlockProc,
 	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
 	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
 	if err := config.Validate(); err != nil {
@@ -175,6 +178,7 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 	svc.haltCheck = haltCheck
+	svc.db = db
 
 	return svc, nil
 }
@@ -427,12 +431,15 @@ func (s *Service) Start() error {
 		return errors.New("cannot halt snapsync and start fullsync")
 	}
 	root := s.store.GetBlockState().FinalizedStateRoot
+	log.Info("(s *Service) Start()", "root.Hex()", root.Hex())
+	/*
 	if !s.store.evm.HasStateDB(root) {
 		if !s.config.AllowSnapsync {
 			return errors.New("fullsync isn't possible because state root is missing")
 		}
 		root = hash.Zero
 	}
+	*/
 	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
 
 	// start blocks processor

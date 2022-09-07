@@ -222,8 +222,7 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, gene
 	}
 	b.epochs = append(b.epochs, b.currentEpoch)
 
-	//return b.tmpEvmStore.Commit(bs, true)
-	return nil
+	return b.tmpEvmStore.Commit(bs, true)
 }
 
 type memFile struct {
@@ -266,5 +265,5 @@ func (b *GenesisBuilder) Build(db kv.RwDB, head genesis.Header) *genesisstore.St
 	}, head, func() error {
 		*b = GenesisBuilder{}
 		return nil
-	})
+	}, db)
 }

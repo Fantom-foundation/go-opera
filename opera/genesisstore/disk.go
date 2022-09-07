@@ -157,5 +157,5 @@ func OpenGenesisStore(rawReader ReadAtSeekerCloser) (*Store, genesis.Hashes, err
 
 	hashedMap := fileshash.Wrap(unitsMap.Open, FilesHashMaxMemUsage, hashes)
 
-	return NewStore(hashedMap, header, rawReader.Close), hashes, nil
+	return NewStore(hashedMap, header, rawReader.Close, nil), hashes, nil
 }
