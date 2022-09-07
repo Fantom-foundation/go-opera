@@ -91,12 +91,7 @@ func (s *Service) processSavedEvent(ctx context.Context, e *inter.EventPayload, 
 	blockValidationTimer.Update(time.Since(begin))
 
 	// aBFT processing
-	err = s.engine.Process(e)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.engine.Process(e)
 }
 
 // saveAndProcessEvent deletes event in a case if it fails validation during event processing
