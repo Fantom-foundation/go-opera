@@ -155,8 +155,8 @@ func TestVals(t *testing.T) {
 	var (
 		expBigInt     = []*big.Int{big.NewInt(0), big.NewInt(0xFFFFF)}
 		expBool       = []bool{true, false}
-		expFixedBytes = [][]byte{[]byte{}, randBytes(0xFF)}
-		expSliceBytes = [][]byte{[]byte{}, randBytes(0xFF)}
+		expFixedBytes = [][]byte{{}, randBytes(0xFF)}
+		expSliceBytes = [][]byte{{}, randBytes(0xFF)}
 		expU8         = []uint8{0, 1, 0xFF}
 		expU16        = []uint16{0, 1, 0xFFFF}
 		expU32        = []uint32{0, 1, 0xFFFFFFFF}
@@ -304,7 +304,7 @@ func TestBadVals(t *testing.T) {
 		require := require.New(t)
 
 		err = UnmarshalBinaryAdapter(buf, func(r *Reader) error {
-			for _, _ = range expBigInt {
+			for range expBigInt {
 				// skip
 			}
 			for i, exp := range expFixedBytes {
@@ -318,7 +318,7 @@ func TestBadVals(t *testing.T) {
 				require.NotEqual(exp, got, i)
 				require.Equal(len(exp), len(got), i)
 			}
-			for _, _ = range expU56 {
+			for range expU56 {
 				// skip
 			}
 			return nil

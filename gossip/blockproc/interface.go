@@ -10,8 +10,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 
-	estate "github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 type TxListener interface {

@@ -47,5 +47,3 @@ func (s *Store) Close() error {
 func (s *Store) DB() kv.RwDB {
 	return s.db
 }
-
-

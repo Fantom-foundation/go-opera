@@ -54,7 +54,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
-
 )
 
 type ServiceFeed struct {
@@ -433,12 +432,12 @@ func (s *Service) Start() error {
 	root := s.store.GetBlockState().FinalizedStateRoot
 	log.Info("(s *Service) Start()", "root.Hex()", root.Hex())
 	/*
-	if !s.store.evm.HasStateDB(root) {
-		if !s.config.AllowSnapsync {
-			return errors.New("fullsync isn't possible because state root is missing")
+		if !s.store.evm.HasStateDB(root) {
+			if !s.config.AllowSnapsync {
+				return errors.New("fullsync isn't possible because state root is missing")
+			}
+			root = hash.Zero
 		}
-		root = hash.Zero
-	}
 	*/
 	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
 

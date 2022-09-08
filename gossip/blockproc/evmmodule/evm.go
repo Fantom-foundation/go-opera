@@ -9,18 +9,16 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/erigon"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"
-
-
 )
 
 type EVMModule struct{}
@@ -29,7 +27,7 @@ func New() *EVMModule {
 	return &EVMModule{}
 }
 
-func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, stateWriter estate.StateWriter,  reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
+func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, stateWriter estate.StateWriter, reader evmcore.DummyChain, onNewLog func(*types.Log), net opera.Rules) blockproc.EVMProcessor {
 	var prevBlockHash common.Hash
 	if block.Idx != 0 {
 		prevBlockHash = reader.GetHeader(common.Hash{}, uint64(block.Idx-1)).Hash
@@ -47,12 +45,12 @@ func (p *EVMModule) Start(block iblockproc.BlockCtx, statedb *state.StateDB, sta
 }
 
 type OperaEVMProcessor struct {
-	block    iblockproc.BlockCtx
+	block       iblockproc.BlockCtx
 	stateWriter estate.StateWriter
-	reader   evmcore.DummyChain
-	statedb  *state.StateDB
-	onNewLog func(*types.Log)
-	net      opera.Rules
+	reader      evmcore.DummyChain
+	statedb     *state.StateDB
+	onNewLog    func(*types.Log)
+	net         opera.Rules
 
 	blockIdx      *big.Int
 	prevBlockHash common.Hash
@@ -90,7 +88,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions) types.Receipts {
 
 	// Process txs
 	evmBlock := p.evmBlockWith(txs)
-	
+
 	receipts, _, skipped, err := evmProcessor.Process(evmBlock, p.statedb, p.stateWriter, opera.DefaultVMConfig, &p.gasUsed, func(l *types.Log, _ *state.StateDB) {
 		// Note: l.Index is properly set before
 		l.TxIndex += txsOffset
@@ -126,11 +124,11 @@ func (p *OperaEVMProcessor) Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, sk
 
 	// Get state root
 	/*
-	newStateHash, err := p.statedb.Commit(true)
-	if err != nil {
-		log.Crit("Failed to commit state", "err", err)
-	}
-	evmBlock.Root = newStateHash
+		newStateHash, err := p.statedb.Commit(true)
+		if err != nil {
+			log.Crit("Failed to commit state", "err", err)
+		}
+		evmBlock.Root = newStateHash
 	*/
 
 	if err := erigon.GenerateHashedStatePut(tx); err != nil {

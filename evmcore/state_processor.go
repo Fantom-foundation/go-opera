@@ -82,7 +82,7 @@ func (p *StateProcessor) Process(
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
-		
+
 		statedb.Prepare(tx.Hash(), i)
 		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, stateWriter, blockNumber, blockHash, tx, usedGas, vmenv, onNewLog)
 		if skip {
@@ -132,26 +132,25 @@ func applyTransaction(
 		onNewLog(l, statedb)
 	}
 
-	
 	if err := statedb.FinalizeTx(&params.Rules{}, stateWriter); err != nil {
 		panic(err)
 	}
-
+	*usedGas += result.UsedGas
 
 	// Update the state with pending changes.
 	/*
-	var root []byte
-	if config.IsByzantium(blockNumber) {
-		statedb.Finalise(true)
-	} else {
-		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
-	}
-	*usedGas += result.UsedGas
+		var root []byte
+		if config.IsByzantium(blockNumber) {
+			statedb.Finalise(true)
+		} else {
+			root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
+		}
+		*usedGas += result.UsedGas
 	*/
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
-	receipt := &types.Receipt{Type: tx.Type(), /*PostState: root*/ CumulativeGasUsed: *usedGas}
+	receipt := &types.Receipt{Type: tx.Type() /*PostState: root*/, CumulativeGasUsed: *usedGas}
 	if result.Failed() {
 		receipt.Status = types.ReceiptStatusFailed
 		panic(result.Revert())

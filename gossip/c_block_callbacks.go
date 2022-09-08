@@ -1,12 +1,12 @@
 package gossip
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
-	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
@@ -15,10 +15,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
@@ -117,11 +117,11 @@ func consensusCallbackBeginBlockFn(
 
 		// Get stateDB
 		/*
-		log.Info("consensusCallbackBeginBlockFn", "bs.FinalizedStateRoot.Hex()", bs.FinalizedStateRoot.Hex())
-		statedb, err := store.evm.StateDB(bs.FinalizedStateRoot)
-		if err != nil {
-			log.Crit("Failed to open StateDB", "err", err)
-		}
+			log.Info("consensusCallbackBeginBlockFn", "bs.FinalizedStateRoot.Hex()", bs.FinalizedStateRoot.Hex())
+			statedb, err := store.evm.StateDB(bs.FinalizedStateRoot)
+			if err != nil {
+				log.Crit("Failed to open StateDB", "err", err)
+			}
 		*/
 
 		// start new RW transaction
@@ -130,9 +130,9 @@ func consensusCallbackBeginBlockFn(
 			panic(err)
 		}
 		// defer tx.Rollback()
-		
+
 		statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
-		
+
 		evmStateReader := &EvmStateReader{
 			ServiceFeed: feed,
 			store:       store,
@@ -450,7 +450,7 @@ func consensusCallbackBeginBlockFn(
 					if err := tx.Commit(); err != nil {
 						panic(err)
 					}
-					
+
 					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",
 						evmBlock.GasUsed, "txs", fmt.Sprintf("%d/%d", len(evmBlock.Transactions), len(block.SkippedTxs)),

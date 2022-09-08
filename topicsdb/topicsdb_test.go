@@ -363,22 +363,22 @@ func TestPatternLimit(t *testing.T) {
 			err:     ErrEmptyTopics,
 		},
 		{
-			pattern: [][]common.Hash{[]common.Hash{}, []common.Hash{}, []common.Hash{}},
-			exp:     [][]common.Hash{[]common.Hash{}, []common.Hash{}, []common.Hash{}},
+			pattern: [][]common.Hash{{}, {}, {}},
+			exp:     [][]common.Hash{{}, {}, {}},
 			err:     ErrEmptyTopics,
 		},
 		{
 			pattern: [][]common.Hash{
-				[]common.Hash{hash.FakeHash(1), hash.FakeHash(1)}, []common.Hash{hash.FakeHash(2), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}},
+				{hash.FakeHash(1), hash.FakeHash(1)}, {hash.FakeHash(2), hash.FakeHash(2)}, {hash.FakeHash(3), hash.FakeHash(4)}},
 			exp: [][]common.Hash{
-				[]common.Hash{hash.FakeHash(1)}, []common.Hash{hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}},
+				{hash.FakeHash(1)}, {hash.FakeHash(2)}, {hash.FakeHash(3), hash.FakeHash(4)}},
 			err: nil,
 		},
 		{
 			pattern: [][]common.Hash{
-				[]common.Hash{hash.FakeHash(1), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}, []common.Hash{hash.FakeHash(5), hash.FakeHash(6)}},
+				{hash.FakeHash(1), hash.FakeHash(2)}, {hash.FakeHash(3), hash.FakeHash(4)}, {hash.FakeHash(5), hash.FakeHash(6)}},
 			exp: [][]common.Hash{
-				[]common.Hash{hash.FakeHash(1), hash.FakeHash(2)}, []common.Hash{hash.FakeHash(3), hash.FakeHash(4)}, []common.Hash{hash.FakeHash(5), hash.FakeHash(6)}},
+				{hash.FakeHash(1), hash.FakeHash(2)}, {hash.FakeHash(3), hash.FakeHash(4)}, {hash.FakeHash(5), hash.FakeHash(6)}},
 			err: nil,
 		},
 		{

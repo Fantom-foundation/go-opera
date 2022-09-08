@@ -17,8 +17,8 @@
 package etrie
 
 import (
-	"io"
 	"fmt"
+	"io"
 
 	"github.com/ledgerwatch/erigon/rlp"
 )

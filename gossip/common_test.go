@@ -8,8 +8,8 @@ import (
 	"math"
 	"math/big"
 	"sync"
-	"time"
 	"testing"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/hash"

@@ -186,9 +186,9 @@ func GenerateHashState2(tx kv.RwTx) error {
 	c.Close()
 
 	/*
-	if err := tx.Commit(); err != nil {
-		return err
-	}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	*/
 
 	return nil

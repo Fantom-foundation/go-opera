@@ -2,32 +2,30 @@ package erigon
 
 import (
 	//"fmt"
-	"time"
+	"compress/gzip"
+	"io"
 	"os"
 	"strings"
-	"io"
-	"compress/gzip"
+	"time"
 
 	//"gopkg.in/urfave/cli.v1"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/ethereum/go-ethereum/log"
-	
+
 	ecommon "github.com/ledgerwatch/erigon/common"
 )
 
-
-const  (
+const (
 	MainnnetPreimagesCount = 143168825
-	defaultPreimagesPath = "/root/preimages/preimages.gz"
-
+	defaultPreimagesPath   = "/root/preimages/preimages.gz"
 )
 
 func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 	log.Info("Import of preimages started....")
-    start := time.Now()
+	start := time.Now()
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
 	if err != nil {
@@ -47,7 +45,7 @@ func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 	preimages := make(map[common.Hash]ecommon.Address)
 	i := 0
 	for {
-		
+
 		// Read the next entry and ensure it's not junk
 		var blob []byte
 
@@ -62,15 +60,15 @@ func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 		preimages[key] = val
 
 		/*
-		if len(preimages) > 1024 {
-			rawdb.WritePreimages(db, preimages)
-			preimages = make(map[common.Hash][]byte)
-		}
+			if len(preimages) > 1024 {
+				rawdb.WritePreimages(db, preimages)
+				preimages = make(map[common.Hash][]byte)
+			}
 		*/
 		i++
-	}	
+	}
 	log.Info("Import preimages is complete", "elapsed", common.PrettyDuration(time.Since(start)))
-	log.Info("Total amount of",  "imported preimages", i)
+	log.Info("Total amount of", "imported preimages", i)
 	return preimages, nil
 
 }

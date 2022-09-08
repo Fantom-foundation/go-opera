@@ -9,11 +9,11 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -35,7 +35,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
-
 	//estate "github.com/ledgerwatch/erigon/core/state"
 )
 
@@ -61,7 +60,7 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 	if err != nil {
 		panic(err)
 	}
-	
+
 	builder := makegenesis.NewGenesisBuilder(memorydb.New(), tx)
 
 	validators := GetFakeValidators(num)
