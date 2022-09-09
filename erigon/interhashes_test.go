@@ -15,15 +15,13 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 
-
 	"github.com/ledgerwatch/erigon/common"
 	account "github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	etrie "github.com/ledgerwatch/erigon/turbo/trie"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/holiman/uint256"
-
+	"github.com/stretchr/testify/assert"
 )
 
 var (

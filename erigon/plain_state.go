@@ -26,7 +26,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/logger"
 
-
 	elog "github.com/ledgerwatch/log/v3"
 
 	ecommon "github.com/ledgerwatch/erigon/common"
@@ -58,7 +57,6 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 		name = "test"
 	}
 	var db kv.RwDB
-
 
 	dbPath := filepath.Join(DefaultDataDir(), "erigon", name)
 
@@ -124,7 +122,6 @@ func MakeChainDatabase(logger logger.Instance, label kv.Label) kv.RwDB {
 	return chainDb
 }
 
-
 // Write iterates over erigon kv.PlainState records and populates io.Writer
 func Write(writer io.Writer, tx kv.Tx) (accounts int, err error) {
 	c, err := tx.Cursor(kv.PlainState)
@@ -159,8 +156,6 @@ func Write(writer io.Writer, tx kv.Tx) (accounts int, err error) {
 
 	return accounts, nil
 }
-
-
 
 func traverseSnapshot(diskdb ethdb.KeyValueStore, accountLimit uint64, root common.Hash, db kv.RwDB) error {
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)

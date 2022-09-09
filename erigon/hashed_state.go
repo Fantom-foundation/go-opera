@@ -21,9 +21,8 @@ import (
 func GenerateHashedStateLoad(tx kv.RwTx) error {
 	logPrefix := "hashedstate"
 	tmpDir := filepath.Join(DefaultDataDir(), "erigon", logPrefix)
-	return readPlainStateOnce(logPrefix,tx,tmpDir,etl.IdentityLoadFunc,nil)
+	return readPlainStateOnce(logPrefix, tx, tmpDir, etl.IdentityLoadFunc, nil)
 }
-
 
 // readPlainStateOnce reads kv.Plainstate and then loads data into kv.HashedAccounts and kv.HashedStorage
 func readPlainStateOnce(
@@ -128,7 +127,6 @@ func readPlainStateOnce(
 	return nil
 }
 
-
 // GenerateHashedStatePut does the same thing as GenerateHashedStateLoad but in a different manner using tx.Put method. It iterates over kv.Plainstate records and fill in kv.HashedAccounts and kv.HashedStorage records.
 // TODO make benches to decide what is the most efficient methode to use either GenerateHashedStatePut or GenerateHashedStateLoad
 /*
@@ -137,8 +135,8 @@ func GenerateHashedStatePut(tx kv.RwTx) error {
 	if err != nil {
 		return err
 	}
-
 	defer c.Close()
+
 	h := common.NewHasher()
 
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
@@ -168,8 +166,6 @@ func GenerateHashedStatePut(tx kv.RwTx) error {
 			}
 		}
 	}
-	c.Close()
-
 
 	return nil
 }

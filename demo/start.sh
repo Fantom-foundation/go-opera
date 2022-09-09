@@ -9,11 +9,9 @@ echo -e "\nStart $N nodes:\n"
 go build -o ../build/demo_opera ../cmd/opera
 
 rm -f ./transactions.rlp
-TEMP="${PWD}/temp"
-mkdir -p ${TEMP}
 for ((i=0;i<$N;i+=1))
 do
-    DATADIR="${TEMP}/opera$i.datadir"
+    DATADIR="opera$i.datadir"
     mkdir -p ${DATADIR}
 
     PORT=$(($PORT_BASE+$i))
@@ -28,7 +26,7 @@ do
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
     --syncmode full \
-	--verbosity=3 --tracing >> ${TEMP}/opera$i.log 2>&1)&
+	--verbosity=3 --tracing >> opera$i.log 2>&1)&
 
     echo -e "\tnode$i ok"
 done

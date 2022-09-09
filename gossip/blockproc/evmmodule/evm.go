@@ -133,7 +133,7 @@ func (p *OperaEVMProcessor) Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, sk
 		panic(err)
 	}
 
-	log.Info("Finalize", "StateRoot ", stateRoot.Hex())
+	log.Info("Finalize", "Erigon StateRoot ", stateRoot.Hex())
 
 	evmBlock.Root = common.Hash(stateRoot)
 
