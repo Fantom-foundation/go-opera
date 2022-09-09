@@ -11,7 +11,7 @@ go build -o ../build/demo_opera ../cmd/opera
 rm -f ./transactions.rlp
 for ((i=0;i<$N;i+=1))
 do
-    DATADIR="opera$i.datadir"
+    DATADIR="${PWD}/opera$i.datadir"
     mkdir -p ${DATADIR}
 
     PORT=$(($PORT_BASE+$i))
