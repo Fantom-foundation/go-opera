@@ -137,17 +137,6 @@ func applyTransaction(
 	}
 	*usedGas += result.UsedGas
 
-	// Update the state with pending changes.
-	/*
-		var root []byte
-		if config.IsByzantium(blockNumber) {
-			statedb.Finalise(true)
-		} else {
-			root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
-		}
-		*usedGas += result.UsedGas
-	*/
-
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
 	receipt := &types.Receipt{Type: tx.Type() /*PostState: root*/, CumulativeGasUsed: *usedGas}
