@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/Fantom-foundation/go-opera/erigon/benchtrie"
-	"github.com/Fantom-foundation/go-opera/erigon/cleantrie"
-	"github.com/Fantom-foundation/go-opera/erigon/etrie"
+	etrie "github.com/ledgerwatch/erigon/turbo/trie"
 
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
@@ -81,7 +79,7 @@ func storageTrieCollector(collector *etl.Collector) etrie.StorageHashCollector2 
 	}
 }
 
-func accountTrieCollectorBench(collector *etl.Collector) benchtrie.HashCollector2 {
+func accountTrieCollectorBench(collector *etl.Collector) etrie.HashCollector2 {
 	newV := make([]byte, 0, 1024)
 	return func(keyHex []byte, hasState, hasTree, hasHash uint16, hashes, _ []byte) error {
 		if len(keyHex) == 0 {
@@ -100,7 +98,7 @@ func accountTrieCollectorBench(collector *etl.Collector) benchtrie.HashCollector
 	}
 }
 
-func storageTrieCollectorBench(collector *etl.Collector) benchtrie.StorageHashCollector2 {
+func storageTrieCollectorBench(collector *etl.Collector) etrie.StorageHashCollector2 {
 	newK := make([]byte, 0, 128)
 	newV := make([]byte, 0, 1024)
 	return func(accWithInc []byte, keyHex []byte, hasState, hasTree, hasHash uint16, hashes, rootHash []byte) error {
@@ -120,66 +118,6 @@ func storageTrieCollectorBench(collector *etl.Collector) benchtrie.StorageHashCo
 		return collector.Collect(newK, newV)
 	}
 }
-
-// refactored RegenerateIntermediateHashes
-/*
-func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
-
-//expectedRootHash common.Hash
-) (common.Hash, error) {
-	log.Info(fmt.Sprintf("[%s] Generation of trie hashes started", logPrefix))
-	defer log.Info(fmt.Sprintf("[%s] Generation ended", logPrefix))
-
-	tx, err := db.BeginRw(context.Background())
-	if err != nil {
-		return etrie.EmptyRoot, err
-	}
-	_ = tx.ClearBucket(kv.TrieOfAccounts)
-	_ = tx.ClearBucket(kv.TrieOfStorage)
-
-	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
-		etl.NewSortableBuffer(etl.BufferOptimalSize))
-	defer accTrieCollector.Close()
-	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
-
-	stTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir,
-		etl.NewSortableBuffer(etl.BufferOptimalSize))
-	defer stTrieCollector.Close()
-	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
-
-	loader := benchtrie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
-		stTrieCollectorFunc, false); err != nil {
-		return etrie.EmptyRoot, err
-	}
-	hash, err := loader.CalcTrieRoot(tx, []byte{}, nil)
-	if err != nil {
-		return etrie.EmptyRoot, err
-	}
-
-
-		if cfg.checkRoot && hash != expectedRootHash {
-			return hash, nil
-		}
-
-	//log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
-
-	if err := accTrieCollector.Load(tx, kv.TrieOfAccounts, etl.IdentityLoadFunc,
-		etl.TransformArgs{Quit: nil}); err != nil {
-		return etrie.EmptyRoot, err
-	}
-	if err := stTrieCollector.Load(tx, kv.TrieOfStorage, etl.IdentityLoadFunc,
-		etl.TransformArgs{Quit: nil}); err != nil {
-		return etrie.EmptyRoot, err
-	}
-
-	// ?
-	if err := tx.Commit(); err != nil {
-		return etrie.EmptyRoot, err
-	}
-	return hash, nil
-}
-*/
 
 // for debugging purposes, TODO make it private
 func RegenerateIntermediateHashes(logPrefix string,
@@ -249,8 +187,8 @@ func RegenerateIntermediateHashesBench(logPrefix string,
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollectorBench(stTrieCollector)
 
-	loader := benchtrie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(benchtrie.NewRetainList(0), accTrieCollectorFunc,
+	loader := etrie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
 		stTrieCollectorFunc, false); err != nil {
 		return etrie.EmptyRoot, err
 	}
@@ -268,24 +206,25 @@ func RegenerateIntermediateHashesBench(logPrefix string,
 
 	if err := accTrieCollector.Load(db, kv.TrieOfAccounts, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: quit}); err != nil {
-		return benchtrie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 	if err := stTrieCollector.Load(db, kv.TrieOfStorage, etl.IdentityLoadFunc,
 		etl.TransformArgs{Quit: quit}); err != nil {
-		return benchtrie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 	return hash, nil
 }
 
+// CalcRoot computes a state root using erigon algorithm
 func CalcRoot(logPrefix string, tx kv.Tx) (common.Hash, error) {
-	loader := cleantrie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(cleantrie.NewRetainList(0), nil, nil, false); err != nil {
-		return cleantrie.EmptyRoot, err
+	loader := etrie.NewFlatDBTrieLoader(logPrefix)
+	if err := loader.Reset(etrie.NewRetainList(0), nil, nil, false); err != nil {
+		return etrie.EmptyRoot, err
 	}
 
 	h, err := loader.CalcTrieRoot(tx, nil, nil)
 	if err != nil {
-		return cleantrie.EmptyRoot, err
+		return etrie.EmptyRoot, err
 	}
 
 	return h, nil

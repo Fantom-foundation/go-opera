@@ -33,7 +33,6 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
-	github.com/ugorji/go/codec v1.1.13
 	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
@@ -86,6 +85,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	github.com/torquem-ch/mdbx-go v0.23.2 // indirect
+	github.com/ugorji/go/codec v1.1.13 // indirect
 	github.com/valyala/fastjson v1.6.3 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
@@ -108,6 +108,6 @@ replace github.com/ledgerwatch/erigon => github.com/ledgerwatch/erigon v1.9.7-0.
 
 replace github.com/dvyukov/go-fuzz => github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f
 
-replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20220906110108-6bab74acbf33
+replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20220909134421-c638af3b5ed0
 
 replace github.com/Fantom-foundation/lachesis-base => github.com/cyberbono3/lachesis-base v0.0.0-20220721185149-47bc10eaa83b

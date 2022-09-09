@@ -6,26 +6,24 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/memdb"
-	"github.com/ledgerwatch/erigon/common"
-	account "github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/crypto"
-
-	//erigontrie "github.com/ledgerwatch/erigon/turbo/trie"
-
-	"github.com/holiman/uint256"
-
 	com "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	legacytrie "github.com/ethereum/go-ethereum/trie"
 
-	"github.com/Fantom-foundation/go-opera/erigon/etrie"
-	"github.com/Fantom-foundation/go-opera/erigon/trie"
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+
+
+	"github.com/ledgerwatch/erigon/common"
+	account "github.com/ledgerwatch/erigon/core/types/accounts"
+	"github.com/ledgerwatch/erigon/crypto"
+	etrie "github.com/ledgerwatch/erigon/turbo/trie"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/holiman/uint256"
+
 )
 
 var (
@@ -198,14 +196,14 @@ func addErigonTestAccount(tx kv.Putter, balance uint64) ([]byte, error) {
 func TestStateRootsNotMatchWithErigonAccounts(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
-		triedb = trie.NewDatabase(diskdb)
+		triedb = legacytrie.NewDatabase(diskdb)
 
 		_, tx = memdb.NewTestTx(t)
 	)
 
 	// 1.make a tree
 	//tr, _ := trie.NewSecure(com.Hash{}, triedb)
-	tr, err := trie.New(com.Hash{}, triedb)
+	tr, err := legacytrie.New(com.Hash{}, triedb)
 	assert.NoError(t, err)
 
 	/*

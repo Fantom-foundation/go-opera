@@ -185,7 +185,6 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-
 		db := erigon.MakeChainDatabase(logger.New("fakenet-chain-db"), kv.ConsensusDB)
 
 		return makefakegenesis.FakeGenesisStore(db, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))

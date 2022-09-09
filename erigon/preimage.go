@@ -55,16 +55,9 @@ func importPreimages(fn string) (map[common.Hash]ecommon.Address, error) {
 			}
 			return nil, err
 		}
-		// Accumulate the preimages and flush when enough ws gathered
+
 		key, val := crypto.Keccak256Hash(blob), ecommon.BytesToAddress(common.CopyBytes(blob))
 		preimages[key] = val
-
-		/*
-			if len(preimages) > 1024 {
-				rawdb.WritePreimages(db, preimages)
-				preimages = make(map[common.Hash][]byte)
-			}
-		*/
 		i++
 	}
 	log.Info("Import preimages is complete", "elapsed", common.PrettyDuration(time.Since(start)))

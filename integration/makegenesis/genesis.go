@@ -119,6 +119,7 @@ func NewGenesisBuilder(tmpDb kvdb.Store, tx kv.RwTx) *GenesisBuilder {
 	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
 	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
 	statedb.WithStateReader(estate.NewPlainStateReader(tx))
+	// initiate stateWriter to write changes into erigon tables after each transaction
 	stateWriter := estate.NewPlainStateWriter(tx, tx, 1) // 0 or 1 ?
 	return &GenesisBuilder{
 		tmpDB:       tmpDb,

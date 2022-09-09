@@ -1,7 +1,6 @@
 package erigon
 
 import (
-	//"bytes"
 	"fmt"
 	"math/big"
 	"math/rand"

@@ -122,19 +122,12 @@ func (p *OperaEVMProcessor) Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, sk
 	skippedTxs = p.skippedTxs
 	receipts = p.receipts
 
-	// Get state root
-	/*
-		newStateHash, err := p.statedb.Commit(true)
-		if err != nil {
-			log.Crit("Failed to commit state", "err", err)
-		}
-		evmBlock.Root = newStateHash
-	*/
-
-	if err := erigon.GenerateHashedStatePut(tx); err != nil {
+	// Generate records in kv.HashedStorage and kv.HashedAcounts tables. They are required for later computation of state root.
+	if err := erigon.GenerateHashedStateLoad(tx); err != nil {
 		panic(err)
 	}
 
+	// Compute erigon state root
 	stateRoot, err := erigon.CalcRoot("", tx)
 	if err != nil {
 		panic(err)

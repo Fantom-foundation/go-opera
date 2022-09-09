@@ -56,6 +56,7 @@ func FakeGenesisStoreWithRules(db kv.RwDB, num idx.Validator, balance, stake *bi
 }
 
 func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+	// start erigon RW transaction for genesis block
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		panic(err)

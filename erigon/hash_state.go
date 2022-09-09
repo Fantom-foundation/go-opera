@@ -7,8 +7,6 @@ import (
 	"runtime"
 	"time"
 
-	"context"
-
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -16,33 +14,17 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
-	"github.com/ledgerwatch/erigon/turbo/trie"
 	"github.com/ledgerwatch/log/v3"
 )
 
 // GenerateHashState extracts data from kv.Plainstate and writes to kv.HashedAccounts and kv.HashedStorage
-func GenerateHashedState(logPrefix string, db kv.RwDB, ctx context.Context) error {
-	tmpDir := filepath.Join(DefaultDataDir(), "erigon", "hashedstate")
-	tx, err := db.BeginRw(context.Background())
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := readPlainStateOnce(
-		logPrefix,
-		tx,
-		tmpDir,
-		etl.IdentityLoadFunc,
-		ctx.Done(),
-	); err != nil {
-		return err
-	}
-
-	return tx.Commit()
+func GenerateHashedStateLoad(tx kv.RwTx) error {
+	logPrefix := "hashedstate"
+	tmpDir := filepath.Join(DefaultDataDir(), "erigon", logPrefix)
+	return readPlainStateOnce(logPrefix,tx,tmpDir,etl.IdentityLoadFunc,nil)
 }
 
-// TODO write tests
+
 // readPlainStateOnce reads kv.Plainstate and then loads data into kv.HashedAccounts and kv.HashedStorage
 func readPlainStateOnce(
 	logPrefix string,
@@ -146,77 +128,17 @@ func readPlainStateOnce(
 	return nil
 }
 
-// not a stable method to generate HashState
-func GenerateHashState2(tx kv.RwTx) error {
-	// address tx.Rollback() in upper level
-
-	c, err := tx.Cursor(kv.PlainState)
-	if err != nil {
-		return err
-	}
-	h := common.NewHasher()
-
-	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
-		if err != nil {
-			return fmt.Errorf("interate over plain state: %w", err)
-		}
-		var newK []byte
-		if len(k) == common.AddressLength {
-			newK = make([]byte, common.HashLength)
-		} else {
-			newK = make([]byte, common.HashLength*2+common.IncarnationLength)
-		}
-		h.Sha.Reset()                         //?
-		h.Sha.Write(k[:common.AddressLength]) //?
-		h.Sha.Read(newK[:common.HashLength])  //?
-		if len(k) > common.AddressLength {
-			copy(newK[common.HashLength:], k[common.AddressLength:common.AddressLength+common.IncarnationLength])
-			h.Sha.Reset()
-			h.Sha.Write(k[common.AddressLength+common.IncarnationLength:])
-			h.Sha.Read(newK[common.HashLength+common.IncarnationLength:])
-			if err = tx.Put(kv.HashedStorage, newK, common.CopyBytes(v)); err != nil {
-				return fmt.Errorf("insert hashed key: %w", err)
-			}
-		} else {
-			if err = tx.Put(kv.HashedAccounts, newK, common.CopyBytes(v)); err != nil {
-				return fmt.Errorf("insert hashed key: %w", err)
-			}
-		}
-	}
-	c.Close()
-
-	/*
-		if err := tx.Commit(); err != nil {
-			return err
-		}
-	*/
-
-	return nil
-}
-
-// not stable method to generate trie root
-func CalcTrieRoot2(db kv.RwDB) (common.Hash, error) {
-	tx, err := db.BeginRw(context.Background())
-	if err != nil {
-		return common.Hash{}, err
-	}
-	defer tx.Rollback()
-
-	root, err := trie.CalcRoot("", tx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return root, nil
-}
 
 // GenerateHashedStatePut does the same thing as GenerateHashedStateLoad but in a different manner using tx.Put method. It iterates over kv.Plainstate records and fill in kv.HashedAccounts and kv.HashedStorage records.
+// TODO make benches to decide what is the most efficient methode to use either GenerateHashedStatePut or GenerateHashedStateLoad
+/*
 func GenerateHashedStatePut(tx kv.RwTx) error {
-
 	c, err := tx.Cursor(kv.PlainState)
 	if err != nil {
 		return err
 	}
+
+	defer c.Close()
 	h := common.NewHasher()
 
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
@@ -248,11 +170,7 @@ func GenerateHashedStatePut(tx kv.RwTx) error {
 	}
 	c.Close()
 
-	/*
-		if err := tx.Commit(); err != nil {
-			return err
-		}
-	*/
 
 	return nil
 }
+*/
