@@ -53,11 +53,6 @@ var (
 	blockExecutionTimer = metrics.GetOrRegisterTimer("chain/execution", nil)
 	blockWriteTimer     = metrics.GetOrRegisterTimer("chain/write", nil)
 	blockAgeGauge       = metrics.GetOrRegisterGauge("chain/block/age", nil)
-
-	_ = metrics.GetOrRegisterMeter("chain/reorg/executes", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/add", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/drop", nil)
-	_ = metrics.GetOrRegisterMeter("chain/reorg/invalidTx", nil)
 )
 
 type ExtendedTxPosition struct {
