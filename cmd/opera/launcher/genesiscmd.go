@@ -9,6 +9,11 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
+	"context"
+	"encoding/binary"
+	"runtime"
+
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -17,6 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/common"
+
+
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -27,8 +35,16 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
 	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
-	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	"github.com/Fantom-foundation/go-opera/erigon"
+
+	"github.com/Fantom-foundation/go-opera/logger"
+	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/kv"
+
+	"github.com/pkg/profile"
 )
+
+const stage = "exportblocks"
 
 type dropableFile struct {
 	io.ReadWriteSeeker
@@ -177,6 +193,27 @@ func (w *unitWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
+func marshalData(blockNumber uint64) []byte {
+	return encodeBigEndian(blockNumber)
+}
+
+func encodeBigEndian(n uint64) []byte {
+	var v [8]byte
+	binary.BigEndian.PutUint64(v[:], n)
+	return v[:]
+}
+
+func unmarshalData(data []byte) (uint64, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+	if len(data) < 8 {
+		return 0, fmt.Errorf("value must be at least 8 bytes, got %d", len(data))
+	}
+	return binary.BigEndian.Uint64(data[:8]), nil
+}
+
+
 func exportGenesis(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
@@ -205,7 +242,7 @@ func exportGenesis(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 	tmpPath := path.Join(cfg.Node.DataDir, "tmp")
-	_ = os.RemoveAll(tmpPath)
+	//_ = os.RemoveAll(tmpPath)
 	defer os.RemoveAll(tmpPath)
 
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
@@ -236,9 +273,11 @@ func exportGenesis(ctx *cli.Context) error {
 		NetworkID:   gdb.GetEpochState().Rules.NetworkID,
 		NetworkName: gdb.GetEpochState().Rules.Name,
 	}
-	var epochsHash hash.Hash
-	var blocksHash hash.Hash
-	var evmHash hash.Hash
+	var (
+		epochsHash hash.Hash
+		blocksHash hash.Hash
+		evmHash    hash.Hash
+	)
 
 	if from < 1 {
 		// avoid underflow
@@ -247,8 +286,12 @@ func exportGenesis(ctx *cli.Context) error {
 	if to > gdb.GetEpoch() {
 		to = gdb.GetEpoch()
 	}
+
 	toBlock := idx.Block(0)
 	fromBlock := idx.Block(0)
+	//toBlock := idx.Block(ctx.Uint64(toBlockFlag.Name))
+	//fromBlock := idx.Block(1)
+
 	{
 		log.Info("Exporting epochs", "from", from, "to", to)
 		writer := newUnitWriter(plain)
@@ -288,63 +331,142 @@ func exportGenesis(ctx *cli.Context) error {
 		// avoid underflow
 		fromBlock = 1
 	}
+
+	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB)
+	defer db.Close()
+
+	if cleanExportBlockProgress := ctx.Bool(cleanExportBlockProgressFlag.Name); cleanExportBlockProgress {
+		err := db.Update(context.Background(), func(tx kv.RwTx) error {
+			return tx.Put(kv.SyncStageProgress, []byte(stage), marshalData(0))
+		})
+		if err != nil {
+			log.Crit("Unable to commit transaction to save export blocks progress")
+			return err
+		}
+	} else {
+
+		var stageProgress uint64
+		err := db.View(context.Background(), func(tx kv.Tx) error {
+			v, err := tx.GetOne(kv.SyncStageProgress, []byte(stage))
+			if err != nil {
+				return err
+			}
+			stageProgress, err = unmarshalData(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			log.Crit("Unable to read stage progress", err)
+			return err
+		}
+
+		if stageProgress != 0 && idx.Block(stageProgress) < toBlock {
+			toBlock = idx.Block(stageProgress)
+		}
+	}
+
 	{
+		pprof := ctx.Bool(pprofFlag.Name)
+		var profileS interface{ Stop() }
+		if pprof {
+			profileS = profile.Start(profile.ProfilePath("."))
+		}
 		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		err = writer.Start(header, genesisstore.BlocksSection, tmpPath)
 		if err != nil {
 			return err
 		}
+
+		logInterval := 30 * time.Second
+		logEvery := time.NewTicker(logInterval)
+
+		prev := toBlock
+
 		for i := toBlock; i >= fromBlock; i-- {
 			br := gdb.GetFullBlockRecord(i)
 			if br == nil {
 				log.Warn("No block record", "block", i)
 				break
 			}
-			if i%200000 == 0 {
-				log.Info("Exporting blocks", "last", i)
+
+			select {
+			case <-logEvery.C:
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				speed := float64(prev-i) / float64(logInterval/time.Second)
+				prev = i
+
+				err = db.Update(context.Background(), func(tx kv.RwTx) error {
+					return tx.Put(kv.SyncStageProgress, []byte(stage), marshalData(uint64(i)))
+				})
+				if err != nil {
+					log.Crit("Unable to save export block progress")
+					return err
+				}
+
+				log.Info("Exporting blocks progress", "blockNumber", i,
+					"blk/second", speed,
+					"alloc", libcommon.ByteCount(m.Alloc),
+					"sys", libcommon.ByteCount(m.Sys))
+			default:
 			}
-			b, _ := rlp.EncodeToBytes(ibr.LlrIdxFullBlockRecord{
+
+			b, err := rlp.EncodeToBytes(ibr.LlrIdxFullBlockRecord{
 				LlrFullBlockRecord: *br,
 				Idx:                i,
 			})
-			_, err := writer.Write(b)
 			if err != nil {
-				return err
+				log.Crit("Export blocks err: rlp.EncodeToBytes error occured")
+			}
+			_, err = writer.Write(b)
+			if err != nil {
+				log.Crit("Export blocks err: write error occured ")
 			}
 		}
+		log.Info("Export of blocks is completed")
+		logEvery.Stop()
+		log.Info("Flushing blocks")
 		blocksHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
 		log.Info("Exported blocks", "hash", blocksHash.String())
+		if pprof {
+			profileS.Stop()
+		}
+
 	}
 
 	if mode != "none" {
-		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
+		log.Info("Exporting EVM data from Erigon database")
+		start := time.Now()
 		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
+		err := writer.Start(header, genesisstore.EvmSection, tmpPath)
 		if err != nil {
 			return err
 		}
-		it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
-		if mode == "mpt" {
-			// iterate only over MPT data
-			it = mptIterator{it}
-		} else if mode == "ext-mpt" {
-			// iterate only over MPT data and preimages
-			it = mptAndPreimageIterator{it}
-		}
-		defer it.Release()
-		err = iodb.Write(writer, it)
+		// TODO decide which label to use for erigon DB
+
+		tx, err := db.BeginRo(context.Background())
 		if err != nil {
 			return err
 		}
+
+		defer tx.Rollback()
+
+		accounts, err := erigon.Write(writer, tx)
+		if err != nil {
+			return err
+		}
+
 		evmHash, err = writer.Flush()
 		if err != nil {
 			return err
 		}
-		log.Info("Exported EVM data", "hash", evmHash.String())
+		log.Info("Exported EVM data from Erigon database", "hash", evmHash.String(), "elapsed", common.PrettyDuration(time.Since(start)), "accounts", accounts)
 	}
 
 	fmt.Printf("- Epochs hash: %v \n", epochsHash.String())

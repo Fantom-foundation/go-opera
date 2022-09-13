@@ -11,6 +11,15 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
+	pprofFlag = cli.BoolFlag{
+		Name:  "profile",
+		Usage: "Enable the pprof HTTP server",
+	}
+
+	cleanExportBlockProgressFlag = cli.BoolFlag{
+		Name:  "cleanprogress",
+		Usage: "Clean export block",
+	}
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
@@ -76,11 +85,13 @@ be gzipped
 			{
 				Name:      "genesis",
 				Usage:     "Export current state into a genesis file",
-				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=none]",
+				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=none] [--profile] [--cleanprogress]",
 				Action:    utils.MigrateFlags(exportGenesis),
 				Flags: []cli.Flag{
 					DataDirFlag,
 					EvmExportMode,
+					pprofFlag,
+					cleanExportBlockProgressFlag,
 				},
 				Description: `
     opera export genesis
