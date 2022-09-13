@@ -43,6 +43,15 @@ var (
 
 	AllowedOperaGenesis = []GenesisTemplate{
 		{
+			Name:   "Erigon based genesis",
+			Header: mainnetHeader,
+			Hashes: genesis.Hashes{
+				genesisstore.EpochsSection: hash.HexToHash("0x7a1ea0a5bbd7bf8260e96bd5e4c26396b1ca78027b9851708aa0a16653e6f887"),
+				genesisstore.BlocksSection: hash.HexToHash("0xd192985773574abbfe476b236affd355a46d903a38b990af8c47fcfbe22cdb91"),
+				genesisstore.EvmSection:    hash.HexToHash("0xe3445d6e504987165b34594644ed32d1a3b27abb3d81891f0d248765cf669e90"),
+			},
+		},
+		{
 			Name:   "Mainnet-5577 with pruned MPT",
 			Header: mainnetHeader,
 			Hashes: genesis.Hashes{
