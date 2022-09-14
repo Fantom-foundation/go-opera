@@ -461,6 +461,7 @@ func (h *handler) makeDagProcessor(checkers *eventcheck.Checkers) *dagprocessor.
 				defer h.engineMu.Unlock()
 
 				err := h.process.Event(e)
+				h.Log.Info("h.process.Event(e)")
 				if err != nil {
 					return err
 				}
