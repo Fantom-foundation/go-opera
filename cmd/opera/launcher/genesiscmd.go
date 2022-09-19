@@ -2,31 +2,30 @@ package launcher
 
 import (
 	"compress/gzip"
+	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"time"
-	"context"
-	"encoding/binary"
-	"runtime"
-
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/common"
-
 
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -35,7 +34,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
 	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
-	"github.com/Fantom-foundation/go-opera/erigon"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -212,7 +210,6 @@ func unmarshalData(data []byte) (uint64, error) {
 	}
 	return binary.BigEndian.Uint64(data[:8]), nil
 }
-
 
 func exportGenesis(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {

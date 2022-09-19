@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -21,19 +22,18 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
+	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 
-	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -179,24 +179,26 @@ func loadAllConfigs(file string, cfg *config) error {
 }
 
 func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
+	var db kv.RwDB
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		
-		return makefakegenesis.FakeGenesisStore(nil, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+
+		db = erigon.MakeChainDatabase(logger.New("fakenet-chain-db"), kv.ConsensusDB)
+		return makefakegenesis.FakeGenesisStore(db, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
 		genesisPath := ctx.GlobalString(GenesisFlag.Name)
-
-		erigon.MakeChainDatabase(logger.New("mainnet-chain-db"), kv.TxPoolDB)
 
 		f, err := os.Open(genesisPath)
 		if err != nil {
 			utils.Fatalf("Failed to open genesis file: %v", err)
 		}
-		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(f)
+
+		db = erigon.MakeChainDatabase(logger.New("mainnet-chain-db"), kv.ChainDB)
+		genesisStore, genesisHashes, err := genesisstore.OpenGenesisStore(f, db)
 		if err != nil {
 			utils.Fatalf("Failed to read genesis file: %v", err)
 		}

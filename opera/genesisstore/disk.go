@@ -19,6 +19,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/readersmap"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 var (
@@ -69,7 +71,7 @@ type Unit struct {
 	Header   genesis.Header
 }
 
-func OpenGenesisStore(rawReader ReadAtSeekerCloser) (*Store, genesis.Hashes, error) {
+func OpenGenesisStore(rawReader ReadAtSeekerCloser, db kv.RwDB) (*Store, genesis.Hashes, error) {
 	header := genesis.Header{}
 	hashes := genesis.Hashes{}
 	units := make([]readersmap.Unit, 0, 3)
@@ -133,14 +135,15 @@ func OpenGenesisStore(rawReader ReadAtSeekerCloser) (*Store, genesis.Hashes, err
 		// wrap with a logger
 		// human-readable name
 		name := unit.UnitName
-		if unit.UnitName == BlocksSection {
+		switch name {
+		case BlocksSection:
 			name = "blocks"
-		}
-		if unit.UnitName == EpochsSection {
+		case EpochsSection:
 			name = "epochs"
-		}
-		if unit.UnitName == EvmSection {
+		case EvmSection:
 			name = "EVM data"
+		default:
+			panic("UnitName is not valid")
 		}
 		loggedReader := filelog.Wrap(gzipReader, name, uncompressedSize, time.Minute)
 
@@ -157,5 +160,5 @@ func OpenGenesisStore(rawReader ReadAtSeekerCloser) (*Store, genesis.Hashes, err
 
 	hashedMap := fileshash.Wrap(unitsMap.Open, FilesHashMaxMemUsage, hashes)
 
-	return NewStore(hashedMap, header, rawReader.Close, nil), hashes, nil
+	return NewStore(hashedMap, header, rawReader.Close, db), hashes, nil
 }
