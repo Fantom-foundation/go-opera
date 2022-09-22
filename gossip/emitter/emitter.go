@@ -300,6 +300,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 
 	if synced := em.logSyncStatus(em.isSyncedToEmit()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
+		em.Log.Info("createEvent", "synced", false)
 		return nil, nil
 	}
 
