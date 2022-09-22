@@ -23,7 +23,8 @@ const (
 const ProtocolName = "opera"
 
 // ProtocolVersions are the supported versions of the protocol (first is primary).
-var ProtocolVersions = []uint{FTM62, FTM63}
+//var ProtocolVersions = []uint{FTM62, FTM63}
+var ProtocolVersions = []uint{FTM63}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
 var protocolLengths = map[uint]uint64{FTM62: EventsStreamResponse + 1, FTM63: EPsStreamResponse + 1}
