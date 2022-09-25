@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-killall demo_opera
+sudo pkill -9 demo_opera

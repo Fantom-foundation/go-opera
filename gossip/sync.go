@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type syncStage uint32
@@ -84,6 +85,7 @@ func (h *handler) syncTransactions(p *peer, txids []common.Hash) {
 // transactions. In order to minimise egress bandwidth usage, we send
 // the transactions in small packs to one peer at a time.
 func (h *handler) txsyncLoop() {
+	log.Info("(h *handler) txsyncLoop()")
 	var (
 		pending = make(map[enode.ID]*txsync)
 		sending = false               // whether a send is active

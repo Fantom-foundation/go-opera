@@ -14,6 +14,9 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/core/types"
 	lru "github.com/hashicorp/golang-lru"
+	//elog "github.com/ledgerwatch/log/v3"
+	"github.com/ethereum/go-ethereum/log"
+	
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
@@ -107,6 +110,7 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
+	log.Info("(em *Emitter) init()")
 	em.syncStatus.startup = time.Now()
 	em.syncStatus.lastConnected = time.Now()
 	em.syncStatus.p2pSynced = time.Now()
@@ -127,6 +131,7 @@ func (em *Emitter) init() {
 
 // Start starts event emission.
 func (em *Emitter) Start() {
+	log.Info("(em *Emitter) Start()")
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return
@@ -135,6 +140,8 @@ func (em *Emitter) Start() {
 		return
 	}
 	em.init()
+	log.Info("after em.init()")
+
 	em.done = make(chan struct{})
 
 	newTxsCh := make(chan evmcore.NewTxsNotify)
@@ -177,6 +184,7 @@ func (em *Emitter) Stop() {
 }
 
 func (em *Emitter) tick() {
+	log.Info("(em *Emitter) tick()")
 	// track synced time
 	if em.world.PeersNum() == 0 {
 		// connected time ~= last time when it's true that "not connected yet"
@@ -232,6 +240,7 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 }
 
 func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
+	log.Info("(em *Emitter) EmitEvent()")
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return nil, nil
@@ -244,10 +253,12 @@ func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
 	em.world.Lock()
 	defer em.world.Unlock()
 
+	log.Info("(em *Emitter) EmitEvent()", "create", "event")
 	e, err := em.createEvent(sortedTxs)
 	if e == nil || err != nil {
 		return nil, err
 	}
+	log.Info("(em *Emitter) EmitEvent()", "after", "create event")
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
 	err = em.world.Process(e)
@@ -298,10 +309,16 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 		return nil, nil
 	}
 
+	log.Info("em *Emitter) createEvent", "before", "logSyncStatus")
+
+	/*
 	if synced := em.logSyncStatus(em.isSyncedToEmit()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil, nil
 	}
+	*/
+
+	log.Info("em *Emitter) createEvent", "after", "logSyncStatus")
 
 	var (
 		selfParentSeq  idx.Event

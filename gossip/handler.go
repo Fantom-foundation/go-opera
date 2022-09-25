@@ -636,8 +636,8 @@ func (h *handler) unregisterPeer(id string) {
 }
 
 func (h *handler) Start(maxPeers int) {
-	h.snapsyncStageTick()
-
+	//h.snapsyncStageTick()
+	h.store.Log.Info("h *handler) Start(maxPeers int)")
 	h.maxPeers = maxPeers
 
 	// broadcast transactions
@@ -664,8 +664,8 @@ func (h *handler) Start(maxPeers int) {
 	// start sync handlers
 	go h.txsyncLoop()
 	h.loopsWg.Add(2)
-	go h.snapsyncStateLoop()
-	go h.snapsyncStageLoop()
+//	go h.snapsyncStateLoop()
+//	go h.snapsyncStageLoop()
 	h.dagFetcher.Start()
 	h.txFetcher.Start()
 	h.checkers.Heavycheck.Start()
@@ -800,6 +800,8 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Warn("Leecher peer registration failed", "err", err)
 		return err
 	}
+	/*	
+	
 	if p.RunningCap(ProtocolName, []uint{FTM63}) {
 		if err := h.epLeecher.RegisterPeer(p.id); err != nil {
 			p.Log().Warn("Leecher peer registration failed", "err", err)
@@ -814,6 +816,7 @@ func (h *handler) handle(p *peer) error {
 			return err
 		}
 	}
+	*/
 	if snap != nil {
 		if err := h.snapLeecher.SnapSyncer.Register(snap); err != nil {
 			p.Log().Error("Failed to register peer in snap syncer", "err", err)
@@ -1391,13 +1394,16 @@ func (h *handler) BroadcastTxs(txs types.Transactions) {
 
 // Mined broadcast loop
 func (h *handler) emittedBroadcastLoop() {
+	log.Info("go (h *handler) emittedBroadcastLoop()")
 	defer h.loopsWg.Done()
 	for {
 		select {
 		case emitted := <-h.emittedEventsCh:
+			log.Info("emitted := <-h.emittedEventsCh")
 			h.BroadcastEvent(emitted, 0)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.emittedEventsSub.Err():
+			log.Info("case <-h.emittedEventsSub.Err()")
 			return
 		}
 	}
@@ -1412,6 +1418,7 @@ func (h *handler) broadcastProgress() {
 
 // Progress broadcast loop
 func (h *handler) progressBroadcastLoop() {
+	log.Info("(h *handler) progressBroadcastLoop()")
 	ticker := time.NewTicker(h.config.Protocol.ProgressBroadcastPeriod)
 	defer ticker.Stop()
 	defer h.loopsWg.Done()
@@ -1427,6 +1434,7 @@ func (h *handler) progressBroadcastLoop() {
 }
 
 func (h *handler) onNewEpochLoop() {
+	log.Info("(h *handler) onNewEpochLoop()")
 	defer h.loopsWg.Done()
 	for {
 		select {

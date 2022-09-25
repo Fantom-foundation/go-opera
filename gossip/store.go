@@ -177,7 +177,7 @@ func (s *Store) commitEVM(flush bool) {
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 	err = s.generateSnapshotAt(s.evm, root, true, async)
 	if err != nil {
-		s.Log.Error("EVM snapshot", "at", root, "err", err)
+		s.Log.Info("EVM snapshot", "at", root, "err", err)
 	} else {
 		gen, _ := s.evm.Snaps.Generating()
 		s.Log.Info("EVM snapshot", "at", root, "generating", gen)
