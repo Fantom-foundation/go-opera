@@ -720,7 +720,6 @@ func (h *handler) Stop() {
 	}
 
 	// Wait for the subscription loops to come down.
-	h.loopsWg.Wait()
 
 	h.msgSemaphore.Terminate()
 	// Quit the sync loop.
@@ -1403,7 +1402,6 @@ func (h *handler) emittedBroadcastLoop() {
 			h.BroadcastEvent(emitted, 0)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.emittedEventsSub.Err():
-			log.Info("case <-h.emittedEventsSub.Err()")
 			return
 		}
 	}

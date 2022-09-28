@@ -106,6 +106,8 @@ func consensusCallbackBeginBlockFn(
 		wg.Wait()
 		start := time.Now()
 
+		log.Info("consensusCallBackBeginBlockFn")
+
 		// Note: take copies to avoid race conditions with API calls
 		bs := store.GetBlockState().Copy()
 		es := store.GetEpochState().Copy()
@@ -152,6 +154,7 @@ func consensusCallbackBeginBlockFn(
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
+				log.Info("consensusCallBackBeginBlockFn applyEvent")
 				e := _e.(inter.EventI)
 				if cBlock.Atropos == e.ID() {
 					atroposTime = e.MedianTime()
@@ -212,6 +215,7 @@ func consensusCallbackBeginBlockFn(
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
+				log.Info("consensusCallBackBeginBlockFn EndBlock")
 				if atroposTime <= bs.LastBlock.Time {
 					atroposTime = bs.LastBlock.Time + 1
 				}

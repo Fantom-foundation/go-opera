@@ -184,7 +184,6 @@ func (em *Emitter) Stop() {
 }
 
 func (em *Emitter) tick() {
-	log.Info("(em *Emitter) tick()")
 	// track synced time
 	if em.world.PeersNum() == 0 {
 		// connected time ~= last time when it's true that "not connected yet"
@@ -240,7 +239,6 @@ func (em *Emitter) getSortedTxs() *types.TransactionsByPriceAndNonce {
 }
 
 func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
-	log.Info("(em *Emitter) EmitEvent()")
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return nil, nil
@@ -253,12 +251,11 @@ func (em *Emitter) EmitEvent() (*inter.EventPayload, error) {
 	em.world.Lock()
 	defer em.world.Unlock()
 
-	log.Info("(em *Emitter) EmitEvent()", "create", "event")
 	e, err := em.createEvent(sortedTxs)
 	if e == nil || err != nil {
 		return nil, err
 	}
-	log.Info("(em *Emitter) EmitEvent()", "after", "create event")
+
 	em.syncStatus.prevLocalEmittedID = e.ID()
 
 	err = em.world.Process(e)
@@ -308,17 +305,6 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 	if !em.isValidator() {
 		return nil, nil
 	}
-
-	log.Info("em *Emitter) createEvent", "before", "logSyncStatus")
-
-	/*
-	if synced := em.logSyncStatus(em.isSyncedToEmit()); !synced {
-		// I'm reindexing my old events, so don't create events until connect all the existing self-events
-		return nil, nil
-	}
-	*/
-
-	log.Info("em *Emitter) createEvent", "after", "logSyncStatus")
 
 	var (
 		selfParentSeq  idx.Event
