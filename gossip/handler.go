@@ -1398,7 +1398,6 @@ func (h *handler) emittedBroadcastLoop() {
 	for {
 		select {
 		case emitted := <-h.emittedEventsCh:
-			log.Info("emitted := <-h.emittedEventsCh")
 			h.BroadcastEvent(emitted, 0)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.emittedEventsSub.Err():

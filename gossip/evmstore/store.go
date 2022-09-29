@@ -135,6 +135,7 @@ func (s *Store) IsEvmSnapshotPaused() bool {
 }
 
 // Commit changes.
+
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
