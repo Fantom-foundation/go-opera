@@ -166,7 +166,7 @@ func NewService(db kv.RwDB, stack *node.Node, config Config, store *Store, block
 		return nil, err
 	}
 
-	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool)
+	svc, err := newService(db, config, store, blockProc, engine, dagIndexer, newTxPool)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func NewService(db kv.RwDB, stack *node.Node, config Config, store *Store, block
 	return svc, nil
 }
 
-func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func newService(db kv.RwDB, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		blockProcTasksDone: make(chan struct{}),
@@ -432,15 +432,14 @@ func (s *Service) Start() error {
 	root := s.store.GetBlockState().FinalizedStateRoot //erigon state root
 	log.Info("(s *Service) Start()", " erigon root.Hex()", root.Hex())
 
-    /*
-	if !s.store.evm.HasStateDB(root) {
-		if !s.config.AllowSnapsync {
-			return errors.New("fullsync isn't possible because state root is missing")
+	/*
+		if !s.store.evm.HasStateDB(root) {
+			if !s.config.AllowSnapsync {
+				return errors.New("fullsync isn't possible because state root is missing")
+			}
+			root = hash.Zero
 		}
-		root = hash.Zero
-	}
 	*/
-	
 
 	//_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
 
@@ -456,7 +455,7 @@ func (s *Service) Start() error {
 	for _, em := range s.emitters {
 		em.Start()
 	}
-	log.Info("s.handler.Start(s.p2pServer.MaxPeers)", "for _, em := range s.emitters",  "after")
+	log.Info("s.handler.Start(s.p2pServer.MaxPeers)", "for _, em := range s.emitters", "after")
 
 	s.verWatcher.Start()
 
@@ -500,7 +499,7 @@ func (s *Service) Stop() error {
 
 	s.blockProcWg.Wait()
 	close(s.blockProcTasksDone)
-	s.store.evm.Flush(s.store.GetBlockState(), s.store.GetBlock)
+	//s.store.evm.Flush(s.store.GetBlockState(), s.store.GetBlock)
 	return s.store.Commit()
 }
 

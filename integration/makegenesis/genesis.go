@@ -117,7 +117,7 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 
 func NewGenesisBuilder(tmpDb kvdb.Store, tx kv.RwTx) *GenesisBuilder {
 	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
-	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
+	statedb := tmpEvmStore.StateDB(hash.Zero)
 	statedb.WithStateReader(estate.NewPlainStateReader(tx))
 	// initiate stateWriter to write changes into erigon tables after each transaction
 	stateWriter := estate.NewPlainStateWriter(tx, tx, 1) // 0 or 1 ?
@@ -223,7 +223,8 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, gene
 	}
 	b.epochs = append(b.epochs, b.currentEpoch)
 
-	return b.tmpEvmStore.Commit(bs, true)
+	//return b.tmpEvmStore.Commit(bs, true)
+	return nil
 }
 
 type memFile struct {

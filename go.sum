@@ -345,8 +345,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.1 h1:r/myEWzV9lfsM1tFLgDyu0atFtJ1fXn261LKY
 github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/cyberbono3/go-ethereum v0.0.0-20220929135704-917410cf0463 h1:sQE0fYK6cddMmYLVLeKtoIkTm7KBD9GCsX50FYds9ug=
-github.com/cyberbono3/go-ethereum v0.0.0-20220929135704-917410cf0463/go.mod h1:PgW16aO+iyPgBVaEvt574EtQELXZEsLexy7QYa12e/A=
+github.com/cyberbono3/go-ethereum v0.0.0-20220930135538-ffdcc0ffd5c4 h1:rLsIQ1ynBV81/zkScQ1ytjBclPPxmeLZJwVvNsKtmq4=
+github.com/cyberbono3/go-ethereum v0.0.0-20220930135538-ffdcc0ffd5c4/go.mod h1:PgW16aO+iyPgBVaEvt574EtQELXZEsLexy7QYa12e/A=
 github.com/cyberbono3/lachesis-base v0.0.0-20220721185149-47bc10eaa83b h1:TuK3sbY5x4JOLk08TSlKvQjwLcnWc6wA8EXX8YyRP6w=
 github.com/cyberbono3/lachesis-base v0.0.0-20220721185149-47bc10eaa83b/go.mod h1:E6+2LOvgADwSOv0U5YXhRJz4PlX8qJxvq8M93AOC1tM=
 github.com/cyberdelia/templates v0.0.0-20141128023046-ca7fffd4298c/go.mod h1:GyV+0YP4qX0UQ7r2MoYZ+AvYDp12OF5yg4q8rGnyNh4=

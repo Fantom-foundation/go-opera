@@ -5,10 +5,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	//"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 type syncStage uint32
@@ -156,6 +156,7 @@ func (h *handler) txsyncLoop() {
 	}
 }
 
+/*
 func (h *handler) updateSnapsyncStage() {
 	// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
 	snapGenOngoing, _ := h.store.evm.Snaps.Generating()
@@ -238,20 +239,8 @@ func (h *handler) snapsyncStageTick() {
 		h.brLeecher.Resume()
 	}
 }
+*/
 
-func (h *handler) snapsyncStageLoop() {
-	ticker := time.NewTicker(200 * time.Millisecond)
-	defer ticker.Stop()
-	defer h.loopsWg.Done()
-	for {
-		select {
-		case <-ticker.C:
-			h.snapsyncStageTick()
-		case <-h.snapState.quit:
-			return
-		}
-	}
-}
 
 // mayCancel cancels existing snapsync process if any
 func (ss *snapsyncState) mayCancel() error {

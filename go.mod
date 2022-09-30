@@ -108,6 +108,6 @@ replace github.com/ledgerwatch/erigon => github.com/ledgerwatch/erigon v1.9.7-0.
 
 replace github.com/dvyukov/go-fuzz => github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f
 
-replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20220929135704-917410cf0463
+replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20220930135538-ffdcc0ffd5c4
 
 replace github.com/Fantom-foundation/lachesis-base => github.com/cyberbono3/lachesis-base v0.0.0-20220721185149-47bc10eaa83b

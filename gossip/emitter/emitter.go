@@ -16,7 +16,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	//elog "github.com/ledgerwatch/log/v3"
 	"github.com/ethereum/go-ethereum/log"
-	
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"

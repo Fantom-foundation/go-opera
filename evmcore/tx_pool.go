@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 const (
@@ -137,7 +138,7 @@ const (
 type StateReader interface {
 	CurrentBlock() *EvmBlock
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
-	StateAt(root common.Hash) (*state.StateDB, error)
+	StateAt(root common.Hash) *state.StateDB
 	MinGasPrice() *big.Int
 	EffectiveMinTip() *big.Int
 	MaxGasLimit() uint64
@@ -269,7 +270,7 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain StateReader) *TxPool {
+func NewTxPool(db kv.RwDB, config TxPoolConfig, chainconfig *params.ChainConfig, chain StateReader) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -1303,6 +1304,9 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
+
+	statedb := pool.chain.StateAt(newHead.Root)
+	/*
 	statedb, err := pool.chain.StateAt(newHead.Root)
 	if err != nil && pool.currentState == nil {
 		log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
@@ -1312,6 +1316,8 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 		log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
 		return
 	}
+	*/
+
 	pool.currentState = statedb
 	pool.pendingNonces = newTxNoncer(statedb)
 	pool.currentMaxGas = pool.chain.MaxGasLimit()

@@ -1,5 +1,6 @@
 package launcher
 
+/*
 import (
 	"path"
 	"time"
@@ -69,3 +70,4 @@ func checkEvm(ctx *cli.Context) error {
 	log.Info("EVM storage is verified", "last", prevPoint, "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
 }
+*/

@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
+	//"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/bvallcheck"
@@ -225,9 +225,11 @@ func newHandler(
 	h.started.Add(1)
 
 	// TODO: configure it
+	/*
 	var (
 		configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
 	)
+	*/
 
 	var err error
 	h.chain, err = newEthBlockChain(c.s)
@@ -235,6 +237,7 @@ func newHandler(
 		return nil, err
 	}
 
+	/*
 	stateDb := h.store.EvmStore().EvmDb
 	var stateBloom *trie.SyncBloom
 	if false {
@@ -248,6 +251,7 @@ func newHandler(
 		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
 	}
 	h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
+	*/
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
@@ -664,8 +668,8 @@ func (h *handler) Start(maxPeers int) {
 	// start sync handlers
 	go h.txsyncLoop()
 	h.loopsWg.Add(2)
-//	go h.snapsyncStateLoop()
-//	go h.snapsyncStageLoop()
+	//	go h.snapsyncStateLoop()
+	//	go h.snapsyncStageLoop()
 	h.dagFetcher.Start()
 	h.txFetcher.Start()
 	h.checkers.Heavycheck.Start()
@@ -799,22 +803,22 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Warn("Leecher peer registration failed", "err", err)
 		return err
 	}
-	/*	
-	
-	if p.RunningCap(ProtocolName, []uint{FTM63}) {
-		if err := h.epLeecher.RegisterPeer(p.id); err != nil {
-			p.Log().Warn("Leecher peer registration failed", "err", err)
-			return err
+	/*
+
+		if p.RunningCap(ProtocolName, []uint{FTM63}) {
+			if err := h.epLeecher.RegisterPeer(p.id); err != nil {
+				p.Log().Warn("Leecher peer registration failed", "err", err)
+				return err
+			}
+			if err := h.bvLeecher.RegisterPeer(p.id); err != nil {
+				p.Log().Warn("Leecher peer registration failed", "err", err)
+				return err
+			}
+			if err := h.brLeecher.RegisterPeer(p.id); err != nil {
+				p.Log().Warn("Leecher peer registration failed", "err", err)
+				return err
+			}
 		}
-		if err := h.bvLeecher.RegisterPeer(p.id); err != nil {
-			p.Log().Warn("Leecher peer registration failed", "err", err)
-			return err
-		}
-		if err := h.brLeecher.RegisterPeer(p.id); err != nil {
-			p.Log().Warn("Leecher peer registration failed", "err", err)
-			return err
-		}
-	}
 	*/
 	if snap != nil {
 		if err := h.snapLeecher.SnapSyncer.Register(snap); err != nil {

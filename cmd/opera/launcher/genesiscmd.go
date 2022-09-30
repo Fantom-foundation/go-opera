@@ -9,17 +9,18 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	//"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	//"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -27,7 +28,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
 	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
-	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	//"github.com/Fantom-foundation/go-opera/utils/iodb"
+	"github.com/Fantom-foundation/go-opera/erigon"
+	"github.com/Fantom-foundation/go-opera/logger"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 type dropableFile struct {
@@ -38,32 +43,6 @@ type dropableFile struct {
 
 func (f dropableFile) Drop() error {
 	return os.Remove(f.path)
-}
-
-type mptIterator struct {
-	kvdb.Iterator
-}
-
-func (it mptIterator) Next() bool {
-	for it.Iterator.Next() {
-		if evmstore.IsMptKey(it.Key()) {
-			return true
-		}
-	}
-	return false
-}
-
-type mptAndPreimageIterator struct {
-	kvdb.Iterator
-}
-
-func (it mptAndPreimageIterator) Next() bool {
-	for it.Iterator.Next() {
-		if evmstore.IsMptKey(it.Key()) || evmstore.IsPreimageKey(it.Key()) {
-			return true
-		}
-	}
-	return false
 }
 
 type unitWriter struct {
@@ -320,23 +299,27 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
+
+	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB)
+	defer db.Close()
+
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
+
+
 		writer := newUnitWriter(plain)
 		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
 		if err != nil {
 			return err
 		}
-		it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
-		if mode == "mpt" {
-			// iterate only over MPT data
-			it = mptIterator{it}
-		} else if mode == "ext-mpt" {
-			// iterate only over MPT data and preimages
-			it = mptAndPreimageIterator{it}
+	
+		tx, err := db.BeginRo(context.Background())
+		if err != nil {
+			return err
 		}
-		defer it.Release()
-		err = iodb.Write(writer, it)
+		tx.Rollback()
+
+		_, err = erigon.Write(writer, tx)
 		if err != nil {
 			return err
 		}

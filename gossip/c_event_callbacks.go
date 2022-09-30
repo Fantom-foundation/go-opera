@@ -169,8 +169,12 @@ func (s *Service) PauseEvmSnapshot() {
 }
 
 func (s *Service) EvmSnapshotGeneration() bool {
+	/*
 	gen, _ := s.store.evm.Snaps.Generating()
 	return gen
+	*/
+    //TODO deal with snaps
+	return false
 }
 
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
@@ -183,11 +187,11 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		return err
 	}
 	/*
-	if gen, err := s.store.evm.Snaps.Generating(); gen || err != nil {
-		// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
-		s.Log.Warn("EVM snapshot is not ready during event processing", "gen", gen, "err", err)
-		return errDirtyEvmSnap
-	}
+		if gen, err := s.store.evm.Snaps.Generating(); gen || err != nil {
+			// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
+			s.Log.Warn("EVM snapshot is not ready during event processing", "gen", gen, "err", err)
+			return errDirtyEvmSnap
+		}
 	*/
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
 	defer atomic.StoreUint32(&s.eventBusyFlag, 0)
@@ -281,11 +285,15 @@ func (s *Service) commit(epochSealing bool) {
 	// s.engineMu is locked here
 	s.blockProcWg.Wait()
 	// TODO: prune old MPTs in beginnings of committed sections
-	if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
-		s.store.commitEVM(true)
-	}
+	/*
+		if !s.store.cfg.EVM.Cache.TrieDirtyDisabled {
+			s.store.commitEVM(true)
+		}
+	*/
 	_ = s.store.Commit()
-	if epochSealing {
-		s.store.CaptureEvmKvdbSnapshot()
-	}
+	/*
+		if epochSealing {
+			s.store.CaptureEvmKvdbSnapshot()
+		}
+	*/
 }

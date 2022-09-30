@@ -16,6 +16,7 @@
 
 package evmcore
 
+/*
 import (
 	"math/big"
 	"math/rand"
@@ -68,3 +69,4 @@ func BenchmarkTxListAdd(t *testing.B) {
 		list.Filter(priceLimit, DefaultTxPoolConfig.PriceBump)
 	}
 }
+*/

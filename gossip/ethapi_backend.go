@@ -124,10 +124,8 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb, err := b.svc.store.evm.StateDB(hash.Hash(header.Root))
-	if err != nil {
-		return nil, nil, err
-	}
+	stateDb := b.svc.store.evm.StateDB(hash.Hash(header.Root))
+	
 	return stateDb, header, nil
 }
 
@@ -433,7 +431,7 @@ func (b *EthAPIBackend) EffectiveMinGasPrice(ctx context.Context) *big.Int {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.evm.EvmDb
+	return nil
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {

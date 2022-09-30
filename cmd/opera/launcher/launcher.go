@@ -213,9 +213,9 @@ func init() {
 		// See chaincmd.go
 		importCommand,
 		exportCommand,
-		checkCommand,
+		//checkCommand,
 		// See snapshot.go
-		snapshotCommand,
+		//snapshotCommand,
 		// See fixdirty.go
 		fixDirtyCommand,
 	}
@@ -282,6 +282,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
+	db := genesisStore.DB()
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
 		utils.Fatalf("Failed to create chaindata directory: %v", err)
@@ -291,7 +292,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		gv := genesisStore.Genesis()
 		g = &gv
 	}
-	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(db, integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
 	if genesisStore != nil {
 		_ = genesisStore.Close()
 	}
@@ -337,7 +338,8 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		if cfg.TxPool.Journal != "" {
 			cfg.TxPool.Journal = stack.ResolvePath(cfg.TxPool.Journal)
 		}
-		return evmcore.NewTxPool(cfg.TxPool, reader.Config(), reader)
+
+		return evmcore.NewTxPool(db, cfg.TxPool, reader.Config(), reader)
 	}
 	haltCheck := func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool {
 		stop := ctx.GlobalIsSet(ExitWhenAgeFlag.Name) && ctx.GlobalDuration(ExitWhenAgeFlag.Name) >= time.Since(age)
@@ -351,7 +353,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		}
 		return false
 	}
-	svc, err := gossip.NewService(genesisStore.DB(), stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
+	svc, err := gossip.NewService(db, stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}

@@ -8,10 +8,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err error) {
+func (s *Store) ApplyGenesis(db kv.RwDB, g genesis.Genesis) (genesisHash hash.Hash, err error) {
 	// write epochs
 	var topEr *ier.LlrIdxFullEpochRecord
 	g.Epochs.ForEach(func(er ier.LlrIdxFullEpochRecord) bool {
@@ -41,7 +43,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err erro
 	})
 
 	// write EVM items
-	err = s.evm.ApplyGenesis(g)
+	err = s.evm.ApplyGenesis(db, g)
 	if err != nil {
 		return genesisHash, err
 	}

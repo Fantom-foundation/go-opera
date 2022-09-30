@@ -9,7 +9,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"path"
+	//"path"
 	"strings"
 	"syscall"
 	"time"
@@ -25,12 +25,13 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration"
+	//"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/ioread"
 )
 
+/*
 func importEvm(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
@@ -57,6 +58,7 @@ func importEvm(ctx *cli.Context) error {
 	return nil
 }
 
+
 func importEvmFile(fn string, gdb *gossip.Store) error {
 	// Open the file handle and potentially unwrap the gzip stream
 	fh, err := os.Open(fn)
@@ -75,6 +77,7 @@ func importEvmFile(fn string, gdb *gossip.Store) error {
 
 	return gdb.EvmStore().ImportEvm(reader)
 }
+*/
 
 func importEvents(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {

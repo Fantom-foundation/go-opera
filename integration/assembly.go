@@ -22,6 +22,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 var (
@@ -72,16 +74,17 @@ func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *
 	return gdb, cdb
 }
 
-func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g genesis.Genesis, cfg Configs) error {
-	_, _, _, err := rawMakeEngine(gdb, cdb, &g, cfg)
+func rawApplyGenesis(db kv.RwDB, gdb *gossip.Store, cdb *abft.Store, g genesis.Genesis, cfg Configs) error {
+	_, _, _, err := rawMakeEngine(db, gdb, cdb, &g, cfg)
 	return err
 }
 
-func rawMakeEngine(gdb *gossip.Store, cdb *abft.Store, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
+func rawMakeEngine(db kv.RwDB, gdb *gossip.Store, cdb *abft.Store, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, gossip.BlockProc, error) {
 	blockProc := gossip.DefaultBlockProc()
 
 	if g != nil {
-		_, err := gdb.ApplyGenesis(*g)
+		log.Info("rawMakeEngine", "g != nil", "gdb.ApplyGenesis(db, *g)")
+		_, err := gdb.ApplyGenesis(db, *g)
 		if err != nil {
 			return nil, nil, blockProc, fmt.Errorf("failed to write Gossip genesis state: %v", err)
 		}
@@ -115,13 +118,13 @@ func makeFlushableProducer(rawProducer kvdb.IterableDBProducer) (*flushable.Sync
 	return dbs, nil
 }
 
-func applyGenesis(rawProducer kvdb.DBProducer, g genesis.Genesis, cfg Configs) error {
+func applyGenesis(db kv.RwDB, rawProducer kvdb.DBProducer, g genesis.Genesis, cfg Configs) error {
 	rawDbs := &DummyFlushableProducer{rawProducer}
 	gdb, cdb := getStores(rawDbs, cfg)
 	defer gdb.Close()
 	defer cdb.Close()
 	log.Info("Applying genesis state")
-	err := rawApplyGenesis(gdb, cdb, g, cfg)
+	err := rawApplyGenesis(db, gdb, cdb, g, cfg)
 	if err != nil {
 		return err
 	}
@@ -132,7 +135,7 @@ func applyGenesis(rawProducer kvdb.DBProducer, g genesis.Genesis, cfg Configs) e
 	return nil
 }
 
-func makeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, error) {
+func makeEngine(db kv.RwDB, rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptyStart bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, error) {
 	dbs, err := makeFlushableProducer(rawProducer)
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
@@ -148,7 +151,7 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptySt
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to close existing databases: %v", err)
 		}
 
-		err = applyGenesis(rawProducer, *g, cfg)
+		err = applyGenesis(db, rawProducer, *g, cfg)
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, fmt.Errorf("failed to apply genesis state: %v", err)
 		}
@@ -187,7 +190,7 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptySt
 		}
 	}
 
-	engine, vecClock, blockProc, err := rawMakeEngine(gdb, cdb, nil, cfg)
+	engine, vecClock, blockProc, err := rawMakeEngine(db, gdb, cdb, nil, cfg)
 	if err != nil {
 		err = fmt.Errorf("failed to make engine: %v", err)
 		return nil, nil, nil, nil, gossip.BlockProc{}, err
@@ -203,11 +206,11 @@ func makeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, emptySt
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc) {
+func MakeEngine(db kv.RwDB, rawProducer kvdb.IterableDBProducer, g *genesis.Genesis, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc) {
 	dropAllDBsIfInterrupted(rawProducer)
 	existingDBs := rawProducer.Names()
 
-	engine, vecClock, gdb, cdb, blockProc, err := makeEngine(rawProducer, g, len(existingDBs) == 0, cfg)
+	engine, vecClock, gdb, cdb, blockProc, err := makeEngine(db, rawProducer, g, len(existingDBs) == 0, cfg)
 	if err != nil {
 		if len(existingDBs) == 0 {
 			dropAllDBs(rawProducer)

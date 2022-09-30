@@ -144,7 +144,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	genesis := genStore.Genesis()
 
 	store := NewMemStore()
-	_, err := store.ApplyGenesis(genesis)
+	_, err := store.ApplyGenesis(db, genesis)
 	if err != nil {
 		panic(err)
 	}
@@ -161,7 +161,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 
 	// create the service
 	txPool := &dummyTxPool{}
-	env.Service, err = newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
+	env.Service, err = newService(db, DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
 		return txPool
 	})
 	if err != nil {
@@ -198,7 +198,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 		em.Start()
 	}
 
-	_ = env.store.GenerateSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot), false)
+	//_ = env.store.GenerateSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot), false)
 	env.blockProcTasks.Start(1)
 	env.verWatcher.Start()
 
@@ -379,7 +379,7 @@ func (env *testEnv) ReadOnly() *bind.CallOpts {
 }
 
 func (env *testEnv) State() *state.StateDB {
-	statedb, _ := env.store.evm.StateDB(env.store.GetBlockState().FinalizedStateRoot)
+	statedb := env.store.evm.StateDB(env.store.GetBlockState().FinalizedStateRoot)
 	return statedb
 }
 

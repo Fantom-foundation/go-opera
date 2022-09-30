@@ -16,6 +16,7 @@
 
 package evmcore
 
+/*
 import (
 	"crypto/ecdsa"
 	"errors"
@@ -2565,3 +2566,4 @@ func BenchmarkInsertRemoteWithAllLocals(b *testing.B) {
 		pool.Stop()
 	}
 }
+*/

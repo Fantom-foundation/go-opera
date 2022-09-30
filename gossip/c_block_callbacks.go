@@ -464,8 +464,6 @@ func consensusCallbackBeginBlockFn(
 
 					log.Info("consensusCallBackBeginBlockFn notify about new block end")
 
-					//store.commitEVM(false)
-					log.Info("consensusCallBackBeginBlockFn store.commitEVM(false) end")
 					// Update the metrics touched during block commit
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)

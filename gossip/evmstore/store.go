@@ -5,26 +5,26 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	//	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
+	//	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+	//	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/trie"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	//	"github.com/ethereum/go-ethereum/ethdb"
+	//	"github.com/ethereum/go-ethereum/trie"
+	//	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
+	//"github.com/Fantom-foundation/go-opera/inter"
+	//"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
-	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
+	//"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 )
 
@@ -44,10 +44,9 @@ type Store struct {
 		Txs         kvdb.Store `table:"X"`
 	}
 
-	EvmDb    ethdb.Database
-	EvmState state.Database
-	EvmLogs  *topicsdb.Index
-	Snaps    *snapshot.Tree
+	//EvmDb    ethdb.Database
+	//EvmState state.Database
+	EvmLogs *topicsdb.Index
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -82,15 +81,18 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDB)
 
-	s.EvmDb = rawdb.NewDatabase(
-		kvdb2ethdb.Wrap(
-			nokeyiserr.Wrap(
-				s.table.Evm)))
-	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
-		Cache:     cfg.Cache.EvmDatabase / opt.MiB,
-		Journal:   cfg.Cache.TrieCleanJournal,
-		Preimages: cfg.EnablePreimageRecording,
-	})
+	/*
+		s.EvmDb = rawdb.NewDatabase(
+			kvdb2ethdb.Wrap(
+				nokeyiserr.Wrap(
+					s.table.Evm)))
+		s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
+			Cache:     cfg.Cache.EvmDatabase / opt.MiB,
+			Journal:   cfg.Cache.TrieCleanJournal,
+			Preimages: cfg.EnablePreimageRecording,
+		})
+	*/
+
 	s.EvmLogs = topicsdb.New(s.table.Logs)
 
 	s.initCache()
@@ -105,37 +107,48 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
-	if s.Snaps != nil {
-		return errors.New("EVM snapshot is already opened")
-	}
-	s.Snaps, err = snapshot.New(
-		s.EvmDb,
-		s.EvmState.TrieDB(),
-		s.cfg.Cache.EvmSnap/opt.MiB,
-		root,
-		async,
-		rebuild,
-		false)
-	return
+	/*
+		if s.Snaps != nil {
+			return errors.New("EVM snapshot is already opened")
+		}
+		s.Snaps, err = snapshot.New(
+			s.EvmDb,
+			s.EvmState.TrieDB(),
+			s.cfg.Cache.EvmSnap/opt.MiB,
+			root,
+			async,
+			rebuild,
+			false)
+		return
+	*/
+	// TODO: deal with snaps
+	return errors.New("EVM snapshot is not implemented yet")
 }
 
 func (s *Store) RebuildEvmSnapshot(root common.Hash) {
-	if s.Snaps == nil {
-		return
-	}
-	s.Snaps.Rebuild(root)
+	/*
+		if s.Snaps == nil {
+			return
+		}
+		s.Snaps.Rebuild(root)
+	*/
+	// TODO: deal with snaps
 }
 
 func (s *Store) PauseEvmSnapshot() {
-	s.Snaps.Disable()
+	//s.Snaps.Disable()
+	// TODO: deal with snaps
 }
 
 func (s *Store) IsEvmSnapshotPaused() bool {
-	return rawdb.ReadSnapshotDisabled(s.table.Evm)
+	// return rawdb.ReadSnapshotDisabled(s.table.Evm)
+	// TODO: deal with snaps
+	return false
 }
 
 // Commit changes.
 
+/*
 func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
@@ -176,7 +189,9 @@ func (s *Store) Commit(block iblockproc.BlockState, flush bool) error {
 		return nil
 	}
 }
+*/
 
+/*
 func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *inter.Block) {
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
@@ -226,7 +241,9 @@ func (s *Store) Flush(block iblockproc.BlockState, getBlock func(n idx.Block) *i
 		triedb.SaveCache(s.cfg.Cache.TrieCleanJournal)
 	}
 }
+*/
 
+/*
 func (s *Store) Cap(max, min int) {
 	maxSize := common.StorageSize(max)
 	minSize := common.StorageSize(min)
@@ -235,17 +252,20 @@ func (s *Store) Cap(max, min int) {
 		_ = s.EvmState.TrieDB().Cap(minSize)
 	}
 }
+*/
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
+func (s *Store) StateDB(from hash.Hash) *state.StateDB {
+	return state.NewWithRoot(common.Hash(from))
 }
 
 // HasStateDB returns if state database exists
+/*
 func (s *Store) HasStateDB(from hash.Hash) bool {
 	_, err := s.StateDB(from)
 	return err == nil
 }
+*/
 
 // IndexLogs indexes EVM logs
 func (s *Store) IndexLogs(recs ...*types.Log) {
@@ -256,7 +276,8 @@ func (s *Store) IndexLogs(recs ...*types.Log) {
 }
 
 func (s *Store) Snapshots() *snapshot.Tree {
-	return s.Snaps
+	// TODO: deal with snaps
+	return nil
 }
 
 /*

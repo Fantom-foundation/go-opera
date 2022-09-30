@@ -16,6 +16,7 @@
 
 package launcher
 
+/*
 import (
 	"bytes"
 	"errors"
@@ -266,6 +267,7 @@ func verifyState(ctx *cli.Context) error {
 // traverseState is a helper function used for pruning verification.
 // Basically it just iterates the trie, ensure all nodes and associated
 // contract codes are present.
+
 func traverseState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
@@ -354,10 +356,12 @@ func traverseState(ctx *cli.Context) error {
 	return nil
 }
 
+
 // traverseRawState is a helper function used for pruning verification.
 // Basically it just iterates the trie, ensure all nodes and associated
 // contract codes are present. It's basically identical to traverseState
 // but it will check each trie node.
+
 func traverseRawState(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cfg.cachescale)
@@ -478,6 +482,7 @@ func traverseRawState(ctx *cli.Context) error {
 	return nil
 }
 
+
 func parseRoot(input string) (common.Hash, error) {
 	var h common.Hash
 	if err := h.UnmarshalText([]byte(input)); err != nil {
@@ -485,3 +490,4 @@ func parseRoot(input string) (common.Hash, error) {
 	}
 	return h, nil
 }
+*/

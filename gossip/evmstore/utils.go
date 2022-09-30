@@ -1,23 +1,24 @@
 package evmstore
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
+	
+	//"bytes"
+	//"errors"
+	//"fmt"
+	//"io"
 
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
-	"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
+	//"github.com/Fantom-foundation/lachesis-base/kvdb"
+	//"github.com/Fantom-foundation/lachesis-base/kvdb/table"
+	//"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
+	//"github.com/ethereum/go-ethereum/core/rawdb"
+	//"github.com/ethereum/go-ethereum/core/state"
+	//"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
+	//"github.com/ethereum/go-ethereum/log"
+	//"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	//"github.com/Fantom-foundation/go-opera/utils/iodb"
 )
 
 var (
@@ -28,6 +29,7 @@ var (
 	emptyHash     = common.Hash{}
 )
 
+/*
 func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, err error))) error {
 	log.Info("Checking every node hash")
 	nodeIt := s.table.Evm.NewIterator(nil, nil)
@@ -162,7 +164,9 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 
 	return nil
 }
+*/
 
+/*
 func (s *Store) ImportEvm(r io.Reader) error {
 	it := iodb.NewIterator(r)
 	defer it.Release()
@@ -204,3 +208,4 @@ func (v *restrictedEvmBatch) Put(key []byte, value []byte) error {
 	}
 	return v.Batch.Put(key, value)
 }
+*/

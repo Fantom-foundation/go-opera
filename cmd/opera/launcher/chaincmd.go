@@ -35,6 +35,7 @@ Events are fully verified by default, unless overridden by check=false flag.`,
 The import command imports events from RLP-encoded files.
 Events are fully verified by default, unless overridden by --check=false flag.`,
 			},
+			/*
 			{
 				Action:    utils.MigrateFlags(importEvm),
 				Name:      "evm",
@@ -48,6 +49,7 @@ Events are fully verified by default, unless overridden by --check=false flag.`,
 
 The import command imports EVM storage (trie nodes, code, preimages) from files.`,
 			},
+			*/
 		},
 	}
 	exportCommand = cli.Command{
@@ -86,6 +88,7 @@ be gzipped
     opera export genesis
 
 Export current state into a genesis file.
+Note, the EVM data should be written into erigon kv.PlainState table beforehand
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
 last epoch to write.
@@ -95,6 +98,7 @@ EVM export mode is configured with --export.evm.mode.
 			},
 		},
 	}
+	/*
 	checkCommand = cli.Command{
 		Name:     "check",
 		Usage:    "Check blockchain",
@@ -111,9 +115,10 @@ EVM export mode is configured with --export.evm.mode.
 				Description: `
     opera check evm
 
+
 Checks EVM storage roots and code hashes
 `,
 			},
 		},
-	}
+	}*/
 )

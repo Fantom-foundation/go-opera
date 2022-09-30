@@ -11,12 +11,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
-	"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
+	//"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
 )
@@ -166,6 +166,7 @@ func (s *Store) isCommitNeeded(sc, tc int) bool {
 }
 
 // commitEVM commits EVM storage
+/*
 func (s *Store) commitEVM(flush bool) {
 	err := s.evm.Commit(s.GetBlockState(), flush)
 	if err != nil {
@@ -173,7 +174,9 @@ func (s *Store) commitEVM(flush bool) {
 	}
 	s.evm.Cap(s.cfg.MaxNonFlushedSize/3, s.cfg.MaxNonFlushedSize/4)
 }
+*/
 
+/*
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 	err = s.generateSnapshotAt(s.evm, root, true, async)
 	if err != nil {
@@ -188,6 +191,7 @@ func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, rebuild, async bool) (err error) {
 	return evmStore.GenerateEvmSnapshot(root, rebuild, async)
 }
+*/
 
 // Commit changes.
 func (s *Store) Commit() error {
@@ -214,6 +218,7 @@ func (s *Store) EvmStore() *evmstore.Store {
 	return s.evm
 }
 
+/*
 func (s *Store) CaptureEvmKvdbSnapshot() {
 	if s.evm.Snaps == nil {
 		return
@@ -256,6 +261,7 @@ func (s *Store) LastKvdbEvmSnapshot() *evmstore.Store {
 	}
 	return s.evm
 }
+*/
 
 /*
  * Utils:
