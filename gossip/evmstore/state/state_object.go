@@ -191,7 +191,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 }
 
 // GetState retrieves a value from the account storage trie.
-func (s *stateObject) GetState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetState(key common.Hash) common.Hash {
 	// If the fake storage is set, only lookup the state here(in the debugging mode)
 	if s.fakeStorage != nil {
 		return s.fakeStorage[key]
@@ -202,11 +202,11 @@ func (s *stateObject) GetState(db Database, key common.Hash) common.Hash {
 		return value
 	}
 	// Otherwise return the entry's original value
-	return s.GetCommittedState(db, key)
+	return s.GetCommittedState(key)
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
 	// If the fake storage is set, only lookup the state here(in the debugging mode)
 	if s.fakeStorage != nil {
 		return s.fakeStorage[key]
@@ -221,7 +221,6 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 	// If no live objects are available, attempt to use snapshots
 	var (
 		enc   []byte
-		err   error
 		meter *time.Duration
 	)
 	readStart := time.Now()
@@ -235,37 +234,18 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 			}
 		}()
 	}
-	if s.db.snap != nil {
-		if metrics.EnabledExpensive {
-			meter = &s.db.SnapshotStorageReads
-		}
-		// If the object was destructed in *this* block (and potentially resurrected),
-		// the storage has been cleared out, and we should *not* consult the previous
-		// snapshot about any storage values. The only possible alternatives are:
-		//   1) resurrect happened, and new slot values were set -- those should
-		//      have been handles via pendingStorage above.
-		//   2) we don't have new values, and can deliver empty response back
-		if _, destructed := s.db.snapDestructs[s.addrHash]; destructed {
-			return common.Hash{}
-		}
-		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
+	eKeyHash := ecommon.Hash(key)
+	enc, err := s.db.stateReader.ReadAccountStorage(ecommon.Address(s.Address()), uint64(1), &eKeyHash)
+	if err != nil {
+		s.setError(err)
+		return common.Hash{}
 	}
-	// If snapshot unavailable or reading from it failed, load from the database
-	if s.db.snap == nil || err != nil {
-		if meter != nil {
-			// If we already spent time checking the snapshot, account for it
-			// and reset the readStart
-			*meter += time.Since(readStart)
-			readStart = time.Now()
-		}
-		if metrics.EnabledExpensive {
-			meter = &s.db.StorageReads
-		}
-		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
-			s.setError(err)
-			return common.Hash{}
-		}
+	var value common.Hash
+	if len(enc) > 0 {
+		value.SetBytes(enc)
 	}
+
+	/* TODO check
 	var value common.Hash
 	if len(enc) > 0 {
 		_, content, _, err := rlp.Split(enc)
@@ -274,6 +254,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		}
 		value.SetBytes(content)
 	}
+	*/
 	s.originStorage[key] = value
 	return value
 }
@@ -286,7 +267,7 @@ func (s *stateObject) SetState(db Database, key, value common.Hash) {
 		return
 	}
 	// If the new value is the same as old, don't set
-	prev := s.GetState(db, key)
+	prev := s.GetState(key)
 	if prev == value {
 		return
 	}
