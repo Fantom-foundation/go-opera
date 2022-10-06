@@ -808,14 +808,12 @@ func makeLog(size int) executionFunc {
 		topics := make([]common.Hash, size)
 		stack := scope.Stack
 		mStart, mSize := stack.pop(), stack.pop()
-		fmt.Println("makeLog", "mStart", mStart.String(), "mSize", mSize.String())
 		for i := 0; i < size; i++ {
 			addr := stack.pop()
 			topics[i] = addr.Bytes32()
 		}
 	
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
-		fmt.Println("makeLog", "Address", scope.Contract.Address(), "len(Topics)", len(topics), "Data", d)
 		interpreter.evm.StateDB.AddLog(&types.Log{
 			Address: scope.Contract.Address(),
 			Topics:  topics,
