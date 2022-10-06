@@ -25,7 +25,7 @@ func (s *Store) ApplyGenesis(db kv.RwDB, g genesis.Genesis) (err error) {
 	path := filepath.Join(erigon.DefaultDataDir(), "erigon", "batch")
 	defer os.RemoveAll(path)
 	batch := erigon.NewHashBatch(tx, nil, path)
-	defer batch.Rollback()
+	//defer batch.Rollback()
 
 	g.RawEvmItems.ForEach(func(key, value []byte) bool {
 		if err != nil {

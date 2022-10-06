@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -146,7 +146,7 @@ geth snapshot traverse-rawstate <state-root>
 will traverse the whole state from the given root and will abort if any referenced
 trie node or contract code is missing. This command can be used for state integrity
 verification. The default checking target is the HEAD state. It's basically identical
-to traverse-state, but the check granularity is smaller. 
+to traverse-state, but the check granularity is smaller.
 
 It's also usable without snapshot enabled.
 `,

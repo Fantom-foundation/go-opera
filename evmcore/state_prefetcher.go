@@ -19,9 +19,9 @@ package evmcore
 import (
 	"sync/atomic"
 
-	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"

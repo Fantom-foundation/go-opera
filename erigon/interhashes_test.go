@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
 	com "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	legacytrie "github.com/ethereum/go-ethereum/trie"

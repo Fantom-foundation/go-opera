@@ -19,8 +19,8 @@ package evmcore
 import (
 	"math/big"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 // DummyChain supports retrieving headers and consensus parameters from the

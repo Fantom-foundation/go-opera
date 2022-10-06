@@ -5,9 +5,9 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 

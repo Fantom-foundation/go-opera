@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"

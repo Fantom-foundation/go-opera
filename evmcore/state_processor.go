@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 

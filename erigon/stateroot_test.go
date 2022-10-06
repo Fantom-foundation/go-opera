@@ -11,10 +11,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"

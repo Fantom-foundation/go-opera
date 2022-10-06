@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"

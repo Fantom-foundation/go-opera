@@ -1,9 +1,9 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 )
 
 // ethBlockChain wraps store to implement eth/protocols/snap.BlockChain interface.
@@ -18,7 +18,6 @@ func newEthBlockChain(s *Store) (*ethBlockChain, error) {
 
 	return bc, nil
 }
-
 
 // StateCache returns the caching database underpinning the blockchain instance.
 func (bc *ethBlockChain) StateCache() state.Database {

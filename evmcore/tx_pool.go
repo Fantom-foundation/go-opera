@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -1307,15 +1307,15 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 
 	statedb := pool.chain.StateAt(newHead.Root)
 	/*
-	statedb, err := pool.chain.StateAt(newHead.Root)
-	if err != nil && pool.currentState == nil {
-		log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
-		statedb, err = pool.chain.StateAt(common.Hash{})
-	}
-	if err != nil {
-		log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
-		return
-	}
+		statedb, err := pool.chain.StateAt(newHead.Root)
+		if err != nil && pool.currentState == nil {
+			log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
+			statedb, err = pool.chain.StateAt(common.Hash{})
+		}
+		if err != nil {
+			log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
+			return
+		}
 	*/
 
 	pool.currentState = statedb
