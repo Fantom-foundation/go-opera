@@ -14,8 +14,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/core/types"
 	lru "github.com/hashicorp/golang-lru"
-	//elog "github.com/ledgerwatch/log/v3"
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
@@ -109,7 +107,6 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
-	log.Info("(em *Emitter) init()")
 	em.syncStatus.startup = time.Now()
 	em.syncStatus.lastConnected = time.Now()
 	em.syncStatus.p2pSynced = time.Now()
@@ -130,7 +127,6 @@ func (em *Emitter) init() {
 
 // Start starts event emission.
 func (em *Emitter) Start() {
-	log.Info("(em *Emitter) Start()")
 	if em.config.Validator.ID == 0 {
 		// short circuit if not a validator
 		return
@@ -139,7 +135,6 @@ func (em *Emitter) Start() {
 		return
 	}
 	em.init()
-	log.Info("after em.init()")
 
 	em.done = make(chan struct{})
 

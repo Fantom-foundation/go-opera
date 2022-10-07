@@ -226,9 +226,9 @@ func newHandler(
 
 	// TODO: configure it
 	/*
-	var (
-		configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
-	)
+		var (
+			configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
+		)
 	*/
 
 	var err error
@@ -238,19 +238,19 @@ func newHandler(
 	}
 
 	/*
-	stateDb := h.store.EvmStore().EvmDb
-	var stateBloom *trie.SyncBloom
-	if false {
-		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
-		// sync is requested. The downloader is responsible for deallocating the state
-		// bloom when it's done.
-		// Note: we don't enable it if snap-sync is performed, since it's very heavy
-		// and the heal-portion of the snap sync is much lighter than fast. What we particularly
-		// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
-		// indexing the entire trie
-		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
-	}
-	h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
+		stateDb := h.store.EvmStore().EvmDb
+		var stateBloom *trie.SyncBloom
+		if false {
+			// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
+			// sync is requested. The downloader is responsible for deallocating the state
+			// bloom when it's done.
+			// Note: we don't enable it if snap-sync is performed, since it's very heavy
+			// and the heal-portion of the snap sync is much lighter than fast. What we particularly
+			// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
+			// indexing the entire trie
+			stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
+		}
+		h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
 	*/
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
@@ -640,8 +640,6 @@ func (h *handler) unregisterPeer(id string) {
 }
 
 func (h *handler) Start(maxPeers int) {
-	//h.snapsyncStageTick()
-	h.store.Log.Info("h *handler) Start(maxPeers int)")
 	h.maxPeers = maxPeers
 
 	// broadcast transactions
@@ -1397,7 +1395,6 @@ func (h *handler) BroadcastTxs(txs types.Transactions) {
 
 // Mined broadcast loop
 func (h *handler) emittedBroadcastLoop() {
-	log.Info("go (h *handler) emittedBroadcastLoop()")
 	defer h.loopsWg.Done()
 	for {
 		select {
@@ -1419,7 +1416,6 @@ func (h *handler) broadcastProgress() {
 
 // Progress broadcast loop
 func (h *handler) progressBroadcastLoop() {
-	log.Info("(h *handler) progressBroadcastLoop()")
 	ticker := time.NewTicker(h.config.Protocol.ProgressBroadcastPeriod)
 	defer ticker.Stop()
 	defer h.loopsWg.Done()
@@ -1435,7 +1431,6 @@ func (h *handler) progressBroadcastLoop() {
 }
 
 func (h *handler) onNewEpochLoop() {
-	log.Info("(h *handler) onNewEpochLoop()")
 	defer h.loopsWg.Done()
 	for {
 		select {

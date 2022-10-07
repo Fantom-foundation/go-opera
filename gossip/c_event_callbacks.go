@@ -170,10 +170,10 @@ func (s *Service) PauseEvmSnapshot() {
 
 func (s *Service) EvmSnapshotGeneration() bool {
 	/*
-	gen, _ := s.store.evm.Snaps.Generating()
-	return gen
+		gen, _ := s.store.evm.Snaps.Generating()
+		return gen
 	*/
-    //TODO deal with snaps
+	//TODO deal with snaps
 	return false
 }
 

@@ -106,8 +106,6 @@ func consensusCallbackBeginBlockFn(
 		wg.Wait()
 		start := time.Now()
 
-		log.Info("consensusCallBackBeginBlockFn")
-
 		// Note: take copies to avoid race conditions with API calls
 		bs := store.GetBlockState().Copy()
 		es := store.GetEpochState().Copy()
@@ -154,7 +152,6 @@ func consensusCallbackBeginBlockFn(
 
 		return lachesis.BlockCallbacks{
 			ApplyEvent: func(_e dag.Event) {
-				log.Info("consensusCallBackBeginBlockFn applyEvent")
 				e := _e.(inter.EventI)
 				if cBlock.Atropos == e.ID() {
 					atroposTime = e.MedianTime()
@@ -215,7 +212,6 @@ func consensusCallbackBeginBlockFn(
 				}
 			},
 			EndBlock: func() (newValidators *pos.Validators) {
-				log.Info("consensusCallBackBeginBlockFn EndBlock")
 				if atroposTime <= bs.LastBlock.Time {
 					atroposTime = bs.LastBlock.Time + 1
 				}
@@ -339,8 +335,6 @@ func consensusCallbackBeginBlockFn(
 					block.Root = hash.Hash(evmBlock.Root)
 					block.GasUsed = evmBlock.GasUsed
 
-					log.Info("consensusCallBackBeginBlockFn Finalize end")
-
 					// memorize event position of each tx
 					txPositions := make(map[common.Hash]ExtendedTxPosition)
 					for _, e := range blockEvents {
@@ -359,7 +353,6 @@ func consensusCallbackBeginBlockFn(
 						}
 					}
 
-					log.Info("consensusCallBackBeginBlockFn txPositions end")
 					// memorize block position of each tx
 					for i, tx := range evmBlock.Transactions {
 						// not skipped txs only
@@ -368,8 +361,6 @@ func consensusCallbackBeginBlockFn(
 						position.BlockOffset = uint32(i)
 						txPositions[tx.Hash()] = position
 					}
-
-					log.Info("consensusCallBackBeginBlockFn range evmBlock.Transactions end")
 
 					// call OnNewReceipt
 					for i, r := range allReceipts {
@@ -380,12 +371,9 @@ func consensusCallbackBeginBlockFn(
 						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
 
-					log.Info("consensusCallBackBeginBlockFn range allReceipts end")
 					bs = txListener.Finalize() // TODO: refactor to not mutate the bs
 					bs.FinalizedStateRoot = block.Root
 					// At this point, block state is finalized
-
-					log.Info("consensusCallBackBeginBlockFn txListener Finalize end")
 
 					// Build index for not skipped txs
 					if txIndex {
@@ -393,8 +381,6 @@ func consensusCallbackBeginBlockFn(
 							// not skipped txs only
 							store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()].TxPosition)
 						}
-
-						log.Info("consensusCallBackBeginBlockFn if txIndex range evmBlock end")
 
 						// Index receipts
 						// Note: it's possible for receipts to get indexed twice by BR and block processing
@@ -404,14 +390,11 @@ func consensusCallbackBeginBlockFn(
 								store.evm.IndexLogs(r.Logs...)
 							}
 						}
-						log.Info("consensusCallBackBeginBlockFn if txIndex if allReceipts.Len() != 0 ")
 
 					}
 					for _, tx := range append(preInternalTxs, internalTxs...) {
 						store.evm.SetTx(tx.Hash(), tx)
 					}
-
-					log.Info("consensusCallBackBeginBlockFn range append(preInternalTxs, internalTxs...)")
 
 					bs.LastBlock = blockCtx
 					bs.CheatersWritten = uint32(bs.EpochCheaters.Len())
@@ -425,8 +408,6 @@ func consensusCallbackBeginBlockFn(
 					store.EvmStore().SetCachedEvmBlock(blockCtx.Idx, evmBlock)
 					updateLowestBlockToFill(blockCtx.Idx, store)
 					updateLowestEpochToFill(es.Epoch, store)
-
-					log.Info("consensusCallBackBeginBlockFn bs.LastBlock = blockCtx end")
 
 					// Update the metrics touched during block processing
 					accountReadTimer.Update(statedb.AccountReads)
@@ -448,8 +429,6 @@ func consensusCallbackBeginBlockFn(
 					headHeaderGauge.Update(int64(blockCtx.Idx))
 					headFastBlockGauge.Update(int64(blockCtx.Idx))
 
-					log.Info("consensusCallBackBeginBlockFn metrics end")
-
 					// Notify about new block
 					if feed != nil {
 						feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
@@ -462,8 +441,6 @@ func consensusCallbackBeginBlockFn(
 						feed.newLogs.Send(logs)
 					}
 
-					log.Info("consensusCallBackBeginBlockFn notify about new block end")
-
 					// Update the metrics touched during block commit
 					accountCommitTimer.Update(statedb.AccountCommits)
 					storageCommitTimer.Update(statedb.StorageCommits)
@@ -471,14 +448,10 @@ func consensusCallbackBeginBlockFn(
 					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
-					log.Info("consensusCallBackBeginBlockFn timer end")
-
 					// Commit erigon rw tx
 					if err := tx.Commit(); err != nil {
 						panic(err)
 					}
-
-					log.Info("consensusCallBackBeginBlockFn tx.Commit() end")
 
 					now := time.Now()
 					log.Info("New block", "index", blockCtx.Idx, "id", block.Atropos, "gas_used",

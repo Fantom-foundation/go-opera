@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -299,20 +299,18 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
-
 	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB)
 	defer db.Close()
 
 	if mode != "none" {
 		log.Info("Exporting EVM data", "from", fromBlock, "to", toBlock)
 
-
 		writer := newUnitWriter(plain)
 		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
 		if err != nil {
 			return err
 		}
-	
+
 		tx, err := db.BeginRo(context.Background())
 		if err != nil {
 			return err

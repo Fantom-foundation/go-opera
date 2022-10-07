@@ -83,12 +83,10 @@ func rawMakeEngine(db kv.RwDB, gdb *gossip.Store, cdb *abft.Store, g *genesis.Ge
 	blockProc := gossip.DefaultBlockProc()
 
 	if g != nil {
-		log.Info("rawMakeEngine", "g != nil", "gdb.ApplyGenesis(db, *g)")
 		_, err := gdb.ApplyGenesis(db, *g)
 		if err != nil {
 			return nil, nil, blockProc, fmt.Errorf("failed to write Gossip genesis state: %v", err)
 		}
-		log.Info("rawMakeEngine", "gdb.GetValidators().Len()", gdb.GetValidators().Len())
 		err = cdb.ApplyGenesis(&abft.Genesis{
 			Epoch:      gdb.GetEpoch(),
 			Validators: gdb.GetValidators(),

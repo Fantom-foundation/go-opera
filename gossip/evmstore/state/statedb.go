@@ -539,60 +539,60 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	}
 	// If no live objects are available, attempt to use snapshots
 	/*
-	var (
-		data *Account
-		err  error
-	)
+		var (
+			data *Account
+			err  error
+		)
 	*/
 
 	/*
-	if s.snap != nil {
-		if metrics.EnabledExpensive {
-			defer func(start time.Time) { s.SnapshotAccountReads += time.Since(start) }(time.Now())
+		if s.snap != nil {
+			if metrics.EnabledExpensive {
+				defer func(start time.Time) { s.SnapshotAccountReads += time.Since(start) }(time.Now())
+			}
+			var acc *snapshot.Account
+			if acc, err = s.snap.Account(crypto.HashData(s.hasher, addr.Bytes())); err == nil {
+				if acc == nil {
+					return nil
+				}
+				data = &Account{
+					Nonce:    acc.Nonce,
+					Balance:  acc.Balance,
+					CodeHash: acc.CodeHash,
+					Root:     common.BytesToHash(acc.Root),
+				}
+				if len(data.CodeHash) == 0 {
+					data.CodeHash = emptyCodeHash
+				}
+				if data.Root == (common.Hash{}) {
+					data.Root = emptyRoot
+				}
+			}
 		}
-		var acc *snapshot.Account
-		if acc, err = s.snap.Account(crypto.HashData(s.hasher, addr.Bytes())); err == nil {
-			if acc == nil {
-				return nil
-			}
-			data = &Account{
-				Nonce:    acc.Nonce,
-				Balance:  acc.Balance,
-				CodeHash: acc.CodeHash,
-				Root:     common.BytesToHash(acc.Root),
-			}
-			if len(data.CodeHash) == 0 {
-				data.CodeHash = emptyCodeHash
-			}
-			if data.Root == (common.Hash{}) {
-				data.Root = emptyRoot
-			}
-		}
-	}
 	*/
 	// If snapshot unavailable or reading from it failed, load from the database
 	/*
-	if s.snap == nil || err != nil {
-		if metrics.EnabledExpensive {
-			defer func(start time.Time) { s.AccountReads += time.Since(start) }(time.Now())
+		if s.snap == nil || err != nil {
+			if metrics.EnabledExpensive {
+				defer func(start time.Time) { s.AccountReads += time.Since(start) }(time.Now())
+			}
+			enc, err := s.trie.TryGet(addr.Bytes())
+			if err != nil {
+				s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
+				return nil
+			}
+			if len(enc) == 0 {
+				return nil
+			}
+			data = new(Account)
+			if err := rlp.DecodeBytes(enc, data); err != nil {
+				log.Error("Failed to decode state object", "addr", addr, "err", err)
+				return nil
+			}
 		}
-		enc, err := s.trie.TryGet(addr.Bytes())
-		if err != nil {
-			s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
-			return nil
 		}
-		if len(enc) == 0 {
-			return nil
-		}
-		data = new(Account)
-		if err := rlp.DecodeBytes(enc, data); err != nil {
-			log.Error("Failed to decode state object", "addr", addr, "err", err)
-			return nil
-		}
-	}
-	}
 	*/
-	
+
 	eAccount, err := s.stateReader.ReadAccountData(ecommon.Address(addr))
 	if err != nil {
 		s.setError(err)
@@ -605,7 +605,6 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 
 	// convert from erigon type to Account type
 	account := transformErigonAccount(eAccount)
-
 
 	// Insert into the live set
 	obj := newObject(s, addr, account)
@@ -632,13 +631,13 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 	//prev = s.getDeletedStateObject(addr) // Note, prev might have been deleted, we need that!
 
 	/*
-	var prevdestruct bool
-	if s.snap != nil && prev != nil {
-		_, prevdestruct = s.snapDestructs[prev.addrHash]
-		if !prevdestruct {
-			s.snapDestructs[prev.addrHash] = struct{}{}
+		var prevdestruct bool
+		if s.snap != nil && prev != nil {
+			_, prevdestruct = s.snapDestructs[prev.addrHash]
+			if !prevdestruct {
+				s.snapDestructs[prev.addrHash] = struct{}{}
+			}
 		}
-	}
 	*/
 	newobj = newObject(s, addr, Account{})
 	if prev == nil {
@@ -705,7 +704,6 @@ func (s *StateDB) Copy() *StateDB {
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
 		db:                  s.db,
-		trie:                s.db.CopyTrie(s.trie),
 		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),

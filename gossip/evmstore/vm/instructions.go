@@ -17,8 +17,6 @@
 package vm
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -812,7 +810,7 @@ func makeLog(size int) executionFunc {
 			addr := stack.pop()
 			topics[i] = addr.Bytes32()
 		}
-	
+
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
 		interpreter.evm.StateDB.AddLog(&types.Log{
 			Address: scope.Contract.Address(),

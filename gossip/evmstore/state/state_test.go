@@ -148,7 +148,6 @@ func TestSnapshotEmpty(t *testing.T) {
 	s.state.RevertToSnapshot(s.state.Snapshot())
 }
 
-
 /*
 func TestSnapshot2(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)

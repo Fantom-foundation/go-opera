@@ -138,10 +138,10 @@ func getLastEpochWithState(gdb *gossip.Store, epochsToTry idx.Epoch) (epochIdx i
 			continue
 		}
 		/*
-		if !gdb.EvmStore().HasStateDB(blockState.FinalizedStateRoot) {
-			log.Info("State for the last closed epoch is not available", "epoch", epochIdx)
-			continue
-		}
+			if !gdb.EvmStore().HasStateDB(blockState.FinalizedStateRoot) {
+				log.Info("State for the last closed epoch is not available", "epoch", epochIdx)
+				continue
+			}
 		*/
 		log.Info("Last closed epoch with available state found", "epoch", epochIdx)
 		return epochIdx, blockState, epochState

@@ -485,7 +485,6 @@ func (so *stateObject) Code() []byte {
 	return code
 }
 
-
 // Code returns the contract code associated with this object, if any.
 /*
 func (s *stateObject) Code(db Database) []byte {

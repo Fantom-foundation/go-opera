@@ -110,7 +110,7 @@ func transformStateAccount(account *Account, isContractAcc bool) accounts.Accoun
 	return eAccount
 }
 
-// this is temporary solution, evaluate which account model to use 
+// this is temporary solution, evaluate which account model to use
 func transformErigonAccount(eAccount *accounts.Account) Account {
 	var account Account
 	account.Nonce = eAccount.Nonce

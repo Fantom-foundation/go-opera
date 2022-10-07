@@ -5,9 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	//"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
@@ -85,7 +83,6 @@ func (h *handler) syncTransactions(p *peer, txids []common.Hash) {
 // transactions. In order to minimise egress bandwidth usage, we send
 // the transactions in small packs to one peer at a time.
 func (h *handler) txsyncLoop() {
-	log.Info("(h *handler) txsyncLoop()")
 	var (
 		pending = make(map[enode.ID]*txsync)
 		sending = false               // whether a send is active
@@ -240,7 +237,6 @@ func (h *handler) snapsyncStageTick() {
 	}
 }
 */
-
 
 // mayCancel cancels existing snapsync process if any
 func (ss *snapsyncState) mayCancel() error {

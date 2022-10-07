@@ -429,33 +429,14 @@ func (s *Service) Start() error {
 	if s.store.evm.IsEvmSnapshotPaused() && !s.config.AllowSnapsync {
 		return errors.New("cannot halt snapsync and start fullsync")
 	}
-	root := s.store.GetBlockState().FinalizedStateRoot //erigon state root
-	log.Info("(s *Service) Start()", " erigon root.Hex()", root.Hex())
+	//root := s.store.GetBlockState().FinalizedStateRoot //erigon state root
 
-	/*
-		if !s.store.evm.HasStateDB(root) {
-			if !s.config.AllowSnapsync {
-				return errors.New("fullsync isn't possible because state root is missing")
-			}
-			root = hash.Zero
-		}
-	*/
-
-	//_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
-
-	// start blocks processor
-	//s.blockProcTasks.Start(1)
-
-	// start p2p
-	//StartENRUpdater(s, s.p2pServer.LocalNode())
 	s.handler.Start(s.p2pServer.MaxPeers)
-	log.Info("s.handler.Start(s.p2pServer.MaxPeers) after")
 
 	// start emitters
 	for _, em := range s.emitters {
 		em.Start()
 	}
-	log.Info("s.handler.Start(s.p2pServer.MaxPeers)", "for _, em := range s.emitters", "after")
 
 	s.verWatcher.Start()
 
@@ -464,7 +445,6 @@ func (s *Service) Start() error {
 		s.stopped = true
 	}
 
-	log.Info("(s *Service) Start()", "returns", "nil")
 	return nil
 }
 

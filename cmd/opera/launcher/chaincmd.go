@@ -36,19 +36,19 @@ The import command imports events from RLP-encoded files.
 Events are fully verified by default, unless overridden by --check=false flag.`,
 			},
 			/*
-			{
-				Action:    utils.MigrateFlags(importEvm),
-				Name:      "evm",
-				Usage:     "Import EVM storage",
-				ArgsUsage: "<filename> (<filename 2> ... <filename N>)",
-				Flags: []cli.Flag{
-					DataDirFlag,
-				},
-				Description: `
-    opera import evm
+						{
+							Action:    utils.MigrateFlags(importEvm),
+							Name:      "evm",
+							Usage:     "Import EVM storage",
+							ArgsUsage: "<filename> (<filename 2> ... <filename N>)",
+							Flags: []cli.Flag{
+								DataDirFlag,
+							},
+							Description: `
+			    opera import evm
 
-The import command imports EVM storage (trie nodes, code, preimages) from files.`,
-			},
+			The import command imports EVM storage (trie nodes, code, preimages) from files.`,
+						},
 			*/
 		},
 	}
@@ -99,26 +99,26 @@ EVM export mode is configured with --export.evm.mode.
 		},
 	}
 	/*
-	checkCommand = cli.Command{
-		Name:     "check",
-		Usage:    "Check blockchain",
-		Category: "MISCELLANEOUS COMMANDS",
+		checkCommand = cli.Command{
+			Name:     "check",
+			Usage:    "Check blockchain",
+			Category: "MISCELLANEOUS COMMANDS",
 
-		Subcommands: []cli.Command{
-			{
-				Name:   "evm",
-				Usage:  "Check EVM storage",
-				Action: utils.MigrateFlags(checkEvm),
-				Flags: []cli.Flag{
-					DataDirFlag,
+			Subcommands: []cli.Command{
+				{
+					Name:   "evm",
+					Usage:  "Check EVM storage",
+					Action: utils.MigrateFlags(checkEvm),
+					Flags: []cli.Flag{
+						DataDirFlag,
+					},
+					Description: `
+	    opera check evm
+
+
+	Checks EVM storage roots and code hashes
+	`,
 				},
-				Description: `
-    opera check evm
-
-
-Checks EVM storage roots and code hashes
-`,
 			},
-		},
-	}*/
+		}*/
 )
