@@ -15,7 +15,7 @@ import (
 
 	//	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	//	"github.com/ethereum/go-ethereum/ethdb"

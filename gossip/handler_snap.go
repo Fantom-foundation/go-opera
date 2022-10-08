@@ -26,7 +26,8 @@ import (
 type snapHandler handler
 
 func (h *snapHandler) Chain() snap.BlockChain {
-	panic("(h *snapHandler) Chain() snap.BlockChain")
+	return h.chain
+	//panic("(h *snapHandler) Chain() snap.BlockChain")
 }
 
 // RunPeer is invoked when a peer joins on the `snap` protocol.
