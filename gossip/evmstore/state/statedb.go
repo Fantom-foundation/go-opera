@@ -537,68 +537,14 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	if obj := s.stateObjects[addr]; obj != nil {
 		return obj
 	}
-	// If no live objects are available, attempt to use snapshots
-	/*
-		var (
-			data *Account
-			err  error
-		)
-	*/
-
-	/*
-		if s.snap != nil {
-			if metrics.EnabledExpensive {
-				defer func(start time.Time) { s.SnapshotAccountReads += time.Since(start) }(time.Now())
-			}
-			var acc *snapshot.Account
-			if acc, err = s.snap.Account(crypto.HashData(s.hasher, addr.Bytes())); err == nil {
-				if acc == nil {
-					return nil
-				}
-				data = &Account{
-					Nonce:    acc.Nonce,
-					Balance:  acc.Balance,
-					CodeHash: acc.CodeHash,
-					Root:     common.BytesToHash(acc.Root),
-				}
-				if len(data.CodeHash) == 0 {
-					data.CodeHash = emptyCodeHash
-				}
-				if data.Root == (common.Hash{}) {
-					data.Root = emptyRoot
-				}
-			}
-		}
-	*/
-	// If snapshot unavailable or reading from it failed, load from the database
-	/*
-		if s.snap == nil || err != nil {
-			if metrics.EnabledExpensive {
-				defer func(start time.Time) { s.AccountReads += time.Since(start) }(time.Now())
-			}
-			enc, err := s.trie.TryGet(addr.Bytes())
-			if err != nil {
-				s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
-				return nil
-			}
-			if len(enc) == 0 {
-				return nil
-			}
-			data = new(Account)
-			if err := rlp.DecodeBytes(enc, data); err != nil {
-				log.Error("Failed to decode state object", "addr", addr, "err", err)
-				return nil
-			}
-		}
-		}
-	*/
-
+	
 	eAccount, err := s.stateReader.ReadAccountData(ecommon.Address(addr))
 	if err != nil {
 		s.setError(err)
 		return nil
 	}
 	if eAccount == nil {
+
 		stateObject, _ := s.createObject(addr)
 		return stateObject
 	}

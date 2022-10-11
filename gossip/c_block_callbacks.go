@@ -448,6 +448,9 @@ func consensusCallbackBeginBlockFn(
 					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
+					// write block idx to syncStage progress
+					
+
 					// Commit erigon rw tx
 					if err := tx.Commit(); err != nil {
 						panic(err)

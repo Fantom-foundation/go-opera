@@ -32,6 +32,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -104,8 +105,9 @@ type Backend interface {
 	GetOriginatedFee(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
 }
 
-func GetAPIs(apiBackend Backend) []rpc.API {
+func GetAPIs(apiBackend Backend, db kv.RoDB) []rpc.API {
 	nonceLock := new(AddrLocker)
+
 	orig := []rpc.API{
 		{
 			Namespace: "eth",
@@ -115,7 +117,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicBlockChainAPI(apiBackend),
+			Service:   NewPublicBlockChainAPI(apiBackend, db),
 			Public:    true,
 		}, {
 			Namespace: "dag",
@@ -169,7 +171,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "ftm",
 			Version:   "1.0",
-			Service:   NewPublicBlockChainAPI(apiBackend),
+			Service:   NewPublicBlockChainAPI(apiBackend, db),
 			Public:    true,
 		}, {
 			Namespace: "ftm",

@@ -45,6 +45,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -52,6 +53,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
+	ecommon "github.com/ledgerwatch/erigon/common"
 )
 
 var (
@@ -627,11 +631,12 @@ func (s *PrivateAccountAPI) Unpair(ctx context.Context, url string, pin string) 
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
 	b Backend
+	db kv.RoDB
 }
 
 // NewPublicBlockChainAPI creates a new Ethereum blockchain API.
-func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
-	return &PublicBlockChainAPI{b}
+func NewPublicBlockChainAPI(b Backend, db kv.RoDB) *PublicBlockChainAPI {
+	return &PublicBlockChainAPI{b, db}
 }
 
 // CurrentEpoch returns current epoch number.
@@ -682,11 +687,23 @@ func (s *PublicBlockChainAPI) BlockNumber() hexutil.Uint64 {
 // given block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta
 // block numbers are also allowed.
 func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
-	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-	if state == nil || err != nil {
-		return nil, err
+	tx, err := s.db.BeginRo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getBalance cannot open tx: %w", err)
 	}
-	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
+
+	defer tx.Rollback()
+
+	acc, err := estate.NewPlainStateReader(tx).ReadAccountData(ecommon.Address(address))
+	if err != nil {
+		return nil, fmt.Errorf("cant get a balance for account %x: %w", address.String(), err)
+	}
+	if acc == nil {
+		// Special case - non-existent account is assumed to have zero balance
+		return (*hexutil.Big)(big.NewInt(0)), nil
+	}
+
+	return (*hexutil.Big)(acc.Balance.ToBig()), nil	
 }
 
 // AccountResult is result struct for GetProof
