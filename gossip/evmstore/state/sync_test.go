@@ -16,6 +16,7 @@
 
 package state
 
+/*
 import (
 	"bytes"
 	"math/big"
@@ -485,3 +486,4 @@ func TestIncompleteStateSync(t *testing.T) {
 		}
 	}
 }
+*/

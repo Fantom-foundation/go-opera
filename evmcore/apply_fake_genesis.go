@@ -51,18 +51,24 @@ func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map
 }
 
 func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
+	/*
 	root, err = statedb.Commit(clean)
 	if err != nil {
 		return
 	}
+	*/
+	/*
 	err = statedb.Database().TrieDB().Commit(root, false, nil)
 	if err != nil {
 		return
 	}
+	*/
 
+	/*
 	if !clean {
 		err = statedb.Database().TrieDB().Cap(0)
 	}
+	*/
 
 	return
 }

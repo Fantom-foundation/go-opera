@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package state
-
+/*
 import (
 	"encoding/json"
 	"fmt"
@@ -232,3 +232,4 @@ func (s *StateDB) IteratorDump(opts *DumpConfig) IteratorDump {
 	iterator.Next = s.DumpToCollector(iterator, opts)
 	return *iterator
 }
+*/

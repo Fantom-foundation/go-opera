@@ -23,7 +23,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	//"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -148,11 +148,13 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	// state
+	/*
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	if err != nil {
 		b.Fatalf("cannot create statedb: %v", err)
 	}
-	genesisBlock := MustApplyFakeGenesis(statedb, FakeGenesisTime, map[common.Address]*big.Int{
+	*/
+	genesisBlock := MustApplyFakeGenesis(nil, FakeGenesisTime, map[common.Address]*big.Int{
 		benchRootAddr: benchRootFunds,
 	})
 	genesisBlock.GasLimit = 1000000

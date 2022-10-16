@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package state
-
+/*
 import (
 	"math/big"
 	"testing"
@@ -108,3 +108,4 @@ func TestCopyClose(t *testing.T) {
 		t.Fatal("Copy trie should not return nil")
 	}
 }
+*/

@@ -16,6 +16,7 @@
 
 package evmcore
 
+/*
 import (
 	"sync/atomic"
 
@@ -91,3 +92,4 @@ func precacheTransaction(msg types.Message, config *params.ChainConfig, gaspool 
 	_, err := ApplyMessage(evm, msg, gaspool)
 	return err
 }
+*/

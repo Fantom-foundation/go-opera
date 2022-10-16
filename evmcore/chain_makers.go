@@ -222,11 +222,13 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
+		/*
 		statedb, err := state.New(parent.Root, state.NewDatabase(db), nil)
 		if err != nil {
 			panic(err)
 		}
-		block, receipt := genblock(i, parent, statedb)
+		*/
+		block, receipt := genblock(i, parent, nil)
 		blocks[i] = block
 		receipts[i] = receipt
 		parent = block

@@ -16,6 +16,7 @@
 
 package state
 
+/*
 import (
 	"bytes"
 	"fmt"
@@ -152,3 +153,4 @@ func (it *NodeIterator) retrieve() bool {
 	}
 	return true
 }
+*/

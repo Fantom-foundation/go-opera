@@ -78,7 +78,7 @@ type stateObject struct {
 	dbErr error
 
 	// Write caches.
-	trie Trie // storage trie, which becomes non-nil on first access
+	//trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
@@ -168,16 +168,19 @@ func (s *stateObject) touch() {
 		s.db.journal.dirty(s.address)
 	}
 }
-
+/*
 func (s *stateObject) getTrie(db Database) Trie {
 	if s.trie == nil {
 		// Try fetching from prefetcher first
 		// We don't prefetch empty tries
+		/*
 		if s.data.Root != emptyRoot && s.db.prefetcher != nil {
 			// When the miner is creating the pending state, there is no
 			// prefetcher
 			s.trie = s.db.prefetcher.trie(s.data.Root)
 		}
+		*/
+		/*
 		if s.trie == nil {
 			var err error
 			s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
@@ -189,6 +192,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 	}
 	return s.trie
 }
+*/
 
 // GetState retrieves a value from the account storage trie.
 func (s *stateObject) GetState(key common.Hash) common.Hash {
@@ -260,7 +264,7 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
 }
 
 // SetState updates a value in account storage.
-func (s *stateObject) SetState(db Database, key, value common.Hash) {
+func (s *stateObject) SetState(key, value common.Hash) {
 	// If the fake storage is set, put the temporary state update here.
 	if s.fakeStorage != nil {
 		s.fakeStorage[key] = value
@@ -312,9 +316,11 @@ func (s *stateObject) finalise(prefetch bool) {
 			slotsToPrefetch = append(slotsToPrefetch, common.CopyBytes(key[:])) // Copy needed for closure
 		}
 	}
+	/*
 	if s.db.prefetcher != nil && prefetch && len(slotsToPrefetch) > 0 && s.data.Root != emptyRoot {
 		s.db.prefetcher.prefetch(s.data.Root, slotsToPrefetch)
 	}
+	*/
 	if len(s.dirtyStorage) > 0 {
 		s.dirtyStorage = make(Storage)
 	}
@@ -322,6 +328,7 @@ func (s *stateObject) finalise(prefetch bool) {
 
 // updateTrie writes cached storage modifications into the object's storage trie.
 // It will return nil if the trie has not been loaded and no changes have been made
+/*
 func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
 	s.finalise(false) // Don't prefetch any more, pull directly if need be
@@ -375,8 +382,10 @@ func (s *stateObject) updateTrie(db Database) Trie {
 	}
 	return tr
 }
+*/
 
 // UpdateRoot sets the trie root to the current root hash of
+/*
 func (s *stateObject) updateRoot(db Database) {
 	// If nothing changed, don't bother with hashing anything
 	if s.updateTrie(db) == nil {
@@ -388,9 +397,11 @@ func (s *stateObject) updateRoot(db Database) {
 	}
 	s.data.Root = s.trie.Hash()
 }
+*/
 
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
+/*
 func (s *stateObject) CommitTrie(db Database) error {
 	// If nothing changed, don't bother with hashing anything
 	if s.updateTrie(db) == nil {
@@ -409,6 +420,7 @@ func (s *stateObject) CommitTrie(db Database) error {
 	}
 	return err
 }
+*/
 
 // AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
@@ -447,9 +459,6 @@ func (s *stateObject) setBalance(amount *big.Int) {
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject := newObject(db, s.address, s.data)
-	if s.trie != nil {
-		stateObject.trie = db.db.CopyTrie(s.trie)
-	}
 	stateObject.code = s.code
 	stateObject.dirtyStorage = s.dirtyStorage.Copy()
 	stateObject.originStorage = s.originStorage.Copy()
