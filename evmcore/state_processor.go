@@ -17,6 +17,7 @@
 package evmcore
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -96,6 +97,13 @@ func (p *StateProcessor) Process(
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
+
+	// commit state changes to db
+	if err := statedb.CommitBlock(stateWriter); err != nil {
+		return nil, nil, nil, errors.New("could not execute commit block")
+	}
+
+
 	return
 }
 
@@ -132,7 +140,7 @@ func applyTransaction(
 		onNewLog(l, statedb)
 	}
 
-	if err := statedb.FinalizeTx(&params.Rules{}, stateWriter); err != nil {
+	if err := statedb.SoftFinalize(stateWriter); err != nil {
 		panic(err)
 	}
 	*usedGas += result.UsedGas

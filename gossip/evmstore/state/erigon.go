@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 
 	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
@@ -16,18 +15,31 @@ func (sdb *StateDB) WithStateReader(stateReader estate.StateReader) {
 	sdb.stateReader = stateReader
 }
 
-// FinalizeTx should be called after every transaction.
-func (sdb *StateDB) FinalizeTx(chainRules *params.Rules, stateWriter estate.StateWriter) error {
-	/*
-		for addr, bi := range sdb.balanceInc {
-			if !bi.transferred {
-				sdb.getStateObject(addr)
-			}
-		}
-	*/
+// CommitBlock finalizes the state by removing the self destructed objects
+// and clears the journal as well as the refunds.
+func (sdb *StateDB) CommitBlock(stateWriter estate.StateWriter) error {
+	return sdb.makeWriteSet(stateWriter)
+}
+
+func (sdb *StateDB) makeWriteSet(stateWriter estate.StateWriter) error {
 	for addr := range sdb.journal.dirties {
-		so, exist := sdb.stateObjects[addr]
-		if !exist {
+		sdb.stateObjectsDirty[addr] = struct{}{}
+	}
+	for addr, stateObject := range sdb.stateObjects {
+		_, isDirty := sdb.stateObjectsDirty[addr]
+		if err := updateAccount(stateWriter, addr, stateObject, isDirty); err != nil {
+			return err
+		}
+	}
+	// Invalidate journal because reverting across transactions is not allowed.
+	sdb.clearJournalAndRefund()
+	return nil
+}
+
+// SoftFinalize should be called after every transaction.
+func (sdb *StateDB) SoftFinalize(stateWriter estate.StateWriter) error {
+	for addr := range sdb.journal.dirties {
+		if _, exist := sdb.stateObjects[addr]; !exist {
 			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
 			// That tx goes out of gas, and although the notion of 'touched' does not exist there, the
 			// touch-event will still be recorded in the journal. Since ripeMD is a special snowflake,
@@ -36,11 +48,7 @@ func (sdb *StateDB) FinalizeTx(chainRules *params.Rules, stateWriter estate.Stat
 			// Thus, we can safely ignore it here
 			continue
 		}
-		// TODO fto deal with first argument of updateAccount
-		if err := updateAccount(true, stateWriter, addr, so, true); err != nil {
-			return err
-		}
-
+		
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Invalidate journal because reverting across transactions is not allowed.
@@ -49,19 +57,36 @@ func (sdb *StateDB) FinalizeTx(chainRules *params.Rules, stateWriter estate.Stat
 }
 
 // TODO test it properly
-func updateAccount(EIPEnabled bool, stateWriter estate.StateWriter, addr common.Address, stateObject *stateObject, isDirty bool) error {
-	emptyRemoval := EIPEnabled && stateObject.empty()
-	// TODO handle account removal
+func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObject *stateObject, isDirty bool) error {
+	
+	// transform state.Accoount to erigon Account
+	account := &stateObject.data
+	isContract := !IsEmptyCodeHash(stateObject.CodeHash()) && !account.IsEmptyRoot()
+
+	eAccount := transformStateAccount(account, isContract)
+	eAddr := ecommon.Address(addr)
+
+	emptyRemoval := stateObject.empty()
+
+	if stateObject.suicided || (isDirty && emptyRemoval) {
+		if err := stateWriter.DeleteAccount(ecommon.Address(addr), &eAccount); err != nil {
+			return err
+		}
+		stateObject.deleted = true
+	}
 
 	if isDirty && !stateObject.suicided && !emptyRemoval {
 		stateObject.deleted = false
 
-		account := &stateObject.data
-		isContract := !IsEmptyCodeHash(stateObject.CodeHash()) && !account.IsEmptyRoot()
+		if stateObject.code != nil && stateObject.dirtyCode {
+			if err := stateWriter.UpdateAccountCode(eAddr, eAccount.Incarnation, eAccount.CodeHash, stateObject.code); err != nil {
+				return err
+			}
+		}
 
-		eAccount := transformStateAccount(account, isContract)
+		// consider to add CreateAccount
 
-		if err := stateWriter.UpdateAccountData(ecommon.Address(addr), &eAccount, &eAccount); err != nil {
+		if err := stateWriter.UpdateAccountData(eAddr, &eAccount, &eAccount); err != nil {
 			return err
 		}
 

@@ -126,6 +126,7 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 		Idx: epoch - 1,
 	})
 
+
 	var owner common.Address
 	if num != 0 {
 		owner = validators[0].Address
