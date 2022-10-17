@@ -129,7 +129,7 @@ func readPlainStateOnce(
 
 // GenerateHashedStatePut does the same thing as GenerateHashedStateLoad but in a different manner using tx.Put method. It iterates over kv.Plainstate records and fill in kv.HashedAccounts and kv.HashedStorage records.
 // TODO make benches to decide what is the most efficient methode to use either GenerateHashedStatePut or GenerateHashedStateLoad
-/*
+
 func GenerateHashedStatePut(tx kv.RwTx) error {
 	c, err := tx.Cursor(kv.PlainState)
 	if err != nil {
@@ -169,4 +169,4 @@ func GenerateHashedStatePut(tx kv.RwTx) error {
 
 	return nil
 }
-*/
+

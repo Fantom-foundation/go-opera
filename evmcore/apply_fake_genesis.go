@@ -17,12 +17,15 @@
 package evmcore
 
 import (
+	"fmt"
 	"crypto/ecdsa"
 	"math"
 	"math/big"
 	"math/rand"
 	"time"
+	"context"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -30,47 +33,64 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
+
 )
 
 var FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
 
 // ApplyFakeGenesis writes or updates the genesis block in db.
-func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map[common.Address]*big.Int) (*EvmBlock, error) {
+func ApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Address]*big.Int) (*EvmBlock, error) {
+	
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	defer tx.Rollback()
+
+	statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
+	
 	for acc, balance := range balances {
 		statedb.SetBalance(acc, balance)
 	}
 
+	if err := statedb.CommitBlock(estate.NewPlainStateWriter(tx, nil, 0)); err != nil {
+		return nil, err
+	}
+
+	if err := tx.ClearBucket(kv.HashedAccounts); err != nil {
+		return nil, fmt.Errorf("clear HashedAccounts bucket: %w", err)
+	}
+	if err := tx.ClearBucket(kv.HashedStorage); err != nil {
+		return nil, fmt.Errorf("clear HashedStorage bucket: %w", err)
+	}
+	if err := tx.ClearBucket(kv.TrieOfAccounts); err != nil {
+		return nil, fmt.Errorf("clear TrieOfAccounts bucket: %w", err)
+	}
+	if err := tx.ClearBucket(kv.TrieOfStorage); err != nil {
+		return nil, fmt.Errorf("clear TrieOfStorage bucket: %w", err)
+	}
+
+	if err := erigon.GenerateHashedStatePut(tx); err != nil {
+		return nil, err
+	}
+
 	// initial block
-	root, err := flush(statedb, true)
+	root, err := erigon.CalcRoot("FakeGenesis", tx)
 	if err != nil {
 		return nil, err
 	}
-	block := genesisBlock(time, root)
+
+	tx.Commit()
+	
+
+	block := genesisBlock(time, common.Hash(root))
 
 	return block, nil
-}
-
-func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
-	/*
-	root, err = statedb.Commit(clean)
-	if err != nil {
-		return
-	}
-	*/
-	/*
-	err = statedb.Database().TrieDB().Commit(root, false, nil)
-	if err != nil {
-		return
-	}
-	*/
-
-	/*
-	if !clean {
-		err = statedb.Database().TrieDB().Cap(0)
-	}
-	*/
-
-	return
 }
 
 // genesisBlock makes genesis block with pretty hash.
@@ -89,8 +109,8 @@ func genesisBlock(time inter.Timestamp, root common.Hash) *EvmBlock {
 }
 
 // MustApplyFakeGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map[common.Address]*big.Int) *EvmBlock {
-	block, err := ApplyFakeGenesis(statedb, time, balances)
+func MustApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Address]*big.Int) *EvmBlock {
+	block, err := ApplyFakeGenesis(db, time, balances)
 	if err != nil {
 		log.Crit("ApplyFakeGenesis", "err", err)
 	}

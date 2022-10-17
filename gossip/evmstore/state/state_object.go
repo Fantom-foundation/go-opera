@@ -168,6 +168,7 @@ func (s *stateObject) touch() {
 		s.db.journal.dirty(s.address)
 	}
 }
+
 /*
 func (s *stateObject) getTrie(db Database) Trie {
 	if s.trie == nil {
@@ -179,8 +180,8 @@ func (s *stateObject) getTrie(db Database) Trie {
 			// prefetcher
 			s.trie = s.db.prefetcher.trie(s.data.Root)
 		}
-		*/
-		/*
+*/
+/*
 		if s.trie == nil {
 			var err error
 			s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
@@ -317,9 +318,9 @@ func (s *stateObject) finalise(prefetch bool) {
 		}
 	}
 	/*
-	if s.db.prefetcher != nil && prefetch && len(slotsToPrefetch) > 0 && s.data.Root != emptyRoot {
-		s.db.prefetcher.prefetch(s.data.Root, slotsToPrefetch)
-	}
+		if s.db.prefetcher != nil && prefetch && len(slotsToPrefetch) > 0 && s.data.Root != emptyRoot {
+			s.db.prefetcher.prefetch(s.data.Root, slotsToPrefetch)
+		}
 	*/
 	if len(s.dirtyStorage) > 0 {
 		s.dirtyStorage = make(Storage)

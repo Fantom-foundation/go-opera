@@ -17,19 +17,23 @@
 package evmcore
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+
 
 	estate "github.com/ledgerwatch/erigon/core/state"
 )
@@ -187,7 +191,7 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
-func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Database, n int, gen func(int, *BlockGen)) ([]*EvmBlock, []types.Receipts, DummyChain) {
+func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db kv.RwDB, n int, gen func(int, *BlockGen)) ([]*EvmBlock, []types.Receipts, DummyChain) {
 	if config == nil {
 		config = params.AllEthashProtocolChanges
 	}
@@ -196,8 +200,16 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		headers: map[common.Hash]*EvmHeader{},
 	}
 
+	tx, errBegin := db.BeginRw(context.Background())
+	if errBegin != nil {
+		panic(errBegin)
+	}
+	defer tx.Rollback()
+
 	blocks, receipts := make([]*EvmBlock, n), make([]types.Receipts, n)
-	genblock := func(i int, parent *EvmBlock, statedb *state.StateDB) (*EvmBlock, types.Receipts) {
+	genblock := func(i int, parent *EvmBlock, statedb *state.StateDB,
+		stateReader estate.StateReader,
+		plainStateWriter *estate.PlainStateWriter, generateTrace bool) (*EvmBlock, types.Receipts, error) {
 		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config}
 		b.header = makeHeader(parent, statedb)
 
@@ -210,25 +222,68 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 			EvmHeader: *b.header,
 		}
 
-		// Write state changes to db
-		root, err := flush(statedb, config.IsEIP158(b.header.Number))
-		if err != nil {
-			panic(fmt.Sprintf("state flush error: %v", err))
+		// write state changes into PlainState
+		if err := statedb.CommitBlock(plainStateWriter); err != nil {
+			return nil, nil, fmt.Errorf("call to CommitBlock to plainStateWriter: %w", err)
 		}
 
-		b.header = block.Header()
-		block.Root = root
+		if err := tx.ClearBucket(kv.HashedAccounts); err != nil {
+			return nil, nil, fmt.Errorf("clear HashedAccounts bucket: %w", err)
+		}
+		if err := tx.ClearBucket(kv.HashedStorage); err != nil {
+			return nil, nil, fmt.Errorf("clear HashedStorage bucket: %w", err)
+		}
+		if err := tx.ClearBucket(kv.TrieOfAccounts); err != nil {
+			return nil, nil, fmt.Errorf("clear TrieOfAccounts bucket: %w", err)
+		}
+		if err := tx.ClearBucket(kv.TrieOfStorage); err != nil {
+			return nil, nil, fmt.Errorf("clear TrieOfStorage bucket: %w", err)
+		}
 
-		return block, b.receipts
+		if err := erigon.GenerateHashedStatePut(tx); err != nil {
+			return nil, nil, fmt.Errorf("unable to generate hashed state: %w", err)
+		}
+
+		if generateTrace {
+			fmt.Printf("State after %d================\n", b.header.Number)
+			if err := tx.ForEach(kv.HashedAccounts, nil, func(k, v []byte) error {
+				fmt.Printf("%x: %x\n", k, v)
+				return nil
+			}); err != nil {
+				return nil, nil, fmt.Errorf("print state: %w", err)
+			}
+			fmt.Printf("..................\n")
+			if err := tx.ForEach(kv.HashedStorage, nil, func(k, v []byte) error {
+				fmt.Printf("%x: %x\n", k, v)
+				return nil
+			}); err != nil {
+				return nil, nil, fmt.Errorf("print state: %w", err)
+			}
+			fmt.Printf("===============================\n")
+		}
+
+
+
+		if root, err := erigon.CalcRoot("GenerateChain", tx); err == nil {
+			block.Root = common.Hash(root)
+		} else {
+			return nil, nil, fmt.Errorf("could not to calculate state root %w", err)
+		}
+
+
+		b.header = block.Header()
+		
+
+		return block, b.receipts, nil
 	}
 	for i := 0; i < n; i++ {
-		/*
-		statedb, err := state.New(parent.Root, state.NewDatabase(db), nil)
+		stateReader := estate.NewPlainStateReader(tx)
+		plainStateWriter := estate.NewPlainStateWriter(tx, nil, parent.NumberU64()+uint64(i)+1)
+		statedb := state.NewWithStateReader(stateReader)
+		block, receipt, err := genblock(i, parent, statedb, stateReader, plainStateWriter, false)
 		if err != nil {
 			panic(err)
 		}
-		*/
-		block, receipt := genblock(i, parent, nil)
 		blocks[i] = block
 		receipts[i] = receipt
 		parent = block
@@ -257,7 +312,7 @@ func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
 }
 
 // makeHeaderChain creates a deterministic chain of headers rooted at parent.
-func makeHeaderChain(parent *EvmHeader, n int, db ethdb.Database, seed int) []*EvmHeader {
+func makeHeaderChain(parent *EvmHeader, n int, db kv.RwDB, seed int) []*EvmHeader {
 	block := &EvmBlock{}
 	block.EvmHeader = *parent
 
@@ -270,7 +325,7 @@ func makeHeaderChain(parent *EvmHeader, n int, db ethdb.Database, seed int) []*E
 }
 
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
-func makeBlockChain(parent *EvmBlock, n int, db ethdb.Database, seed int) []*EvmBlock {
+func makeBlockChain(parent *EvmBlock, n int, db kv.RwDB, seed int) []*EvmBlock {
 	blocks, _, _ := GenerateChain(params.TestChainConfig, parent, db, n, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
 	})

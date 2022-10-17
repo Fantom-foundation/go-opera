@@ -24,15 +24,15 @@ import (
 	"sort"
 	"time"
 
-//	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
+	//	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
 	"github.com/ethereum/go-ethereum/common"
-//	"github.com/ethereum/go-ethereum/core/rawdb"
+	//	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-//	"github.com/ethereum/go-ethereum/log"
-//	"github.com/ethereum/go-ethereum/metrics"
-//	"github.com/ethereum/go-ethereum/rlp"
-//	"github.com/ethereum/go-ethereum/trie"
+	//	"github.com/ethereum/go-ethereum/log"
+	//	"github.com/ethereum/go-ethereum/metrics"
+	//	"github.com/ethereum/go-ethereum/rlp"
+	//	"github.com/ethereum/go-ethereum/trie"
 
 	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
@@ -72,7 +72,7 @@ type StateDB struct {
 	//prefetcher   *triePrefetcher
 	originalRoot common.Hash // The pre-state root, before any changes were made
 	//trie         Trie
-	hasher       crypto.KeccakState
+	hasher crypto.KeccakState
 
 	//snaps         *snapshot.Tree
 	//snap          snapshot.Snapshot
@@ -228,7 +228,6 @@ func (s *StateDB) Logs() []*types.Log {
 	}
 	return logs
 }
-
 
 // Preimages returns a list of SHA3 preimages that have been submitted.
 /*
@@ -400,7 +399,6 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
 	return false
 }
 
-
 /*
  * SETTERS
  */
@@ -535,7 +533,7 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	if obj := s.stateObjects[addr]; obj != nil {
 		return obj
 	}
-	
+
 	eAccount, err := s.stateReader.ReadAccountData(ecommon.Address(addr))
 	if err != nil {
 		s.setError(err)
@@ -704,7 +702,6 @@ func (s *StateDB) Copy() *StateDB {
 	// However, it doesn't cost us much to copy an empty list, so we do it anyway
 	// to not blow up if we ever decide copy it in the middle of a transaction
 	state.accessList = s.accessList.Copy()
-
 
 	return state
 }

@@ -270,7 +270,3 @@ func (b *GenesisBuilder) Build(db kv.RwDB, head genesis.Header) *genesisstore.St
 		return nil
 	}, db)
 }
-
-
-
-

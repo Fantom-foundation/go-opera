@@ -18,19 +18,19 @@ package evmcore
 
 import (
 	"crypto/ecdsa"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"testing"
 
-	//"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
+
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -129,6 +129,7 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 
 func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	// Create the database in memory or in a temporary directory.
+	/*
 	var db ethdb.Database
 	if !disk {
 		db = rawdb.NewMemoryDatabase()
@@ -144,25 +145,23 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 		}
 		defer db.Close()
 	}
+	*/
 
+	db := memdb.New()
+	
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	// state
-	/*
-	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
-	if err != nil {
-		b.Fatalf("cannot create statedb: %v", err)
-	}
-	*/
-	genesisBlock := MustApplyFakeGenesis(nil, FakeGenesisTime, map[common.Address]*big.Int{
+	genesisBlock := MustApplyFakeGenesis(db, FakeGenesisTime, map[common.Address]*big.Int{
 		benchRootAddr: benchRootFunds,
 	})
 	genesisBlock.GasLimit = 1000000
+
 
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.
 	b.ReportAllocs()
 	b.ResetTimer()
-
+	
 	_, _, _ = GenerateChain(nil, genesisBlock, db, b.N, gen)
 }

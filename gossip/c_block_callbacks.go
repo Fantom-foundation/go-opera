@@ -449,7 +449,6 @@ func consensusCallbackBeginBlockFn(
 					blockInsertTimer.UpdateSince(start)
 
 					// write block idx to syncStage progress
-					
 
 					// Commit erigon rw tx
 					if err := tx.Commit(); err != nil {

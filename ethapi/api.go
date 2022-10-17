@@ -54,8 +54,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 
-	estate "github.com/ledgerwatch/erigon/core/state"
 	ecommon "github.com/ledgerwatch/erigon/common"
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 var (
@@ -630,7 +630,7 @@ func (s *PrivateAccountAPI) Unpair(ctx context.Context, url string, pin string) 
 // PublicBlockChainAPI provides an API to access the Ethereum blockchain.
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicBlockChainAPI struct {
-	b Backend
+	b  Backend
 	db kv.RoDB
 }
 
@@ -703,7 +703,7 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 		return (*hexutil.Big)(big.NewInt(0)), nil
 	}
 
-	return (*hexutil.Big)(acc.Balance.ToBig()), nil	
+	return (*hexutil.Big)(acc.Balance.ToBig()), nil
 }
 
 // AccountResult is result struct for GetProof

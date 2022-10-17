@@ -103,7 +103,6 @@ func (p *StateProcessor) Process(
 		return nil, nil, nil, errors.New("could not execute commit block")
 	}
 
-
 	return
 }
 

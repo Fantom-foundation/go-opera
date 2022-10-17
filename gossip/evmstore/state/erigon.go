@@ -48,7 +48,7 @@ func (sdb *StateDB) SoftFinalize(stateWriter estate.StateWriter) error {
 			// Thus, we can safely ignore it here
 			continue
 		}
-		
+
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
 	// Invalidate journal because reverting across transactions is not allowed.
@@ -58,7 +58,7 @@ func (sdb *StateDB) SoftFinalize(stateWriter estate.StateWriter) error {
 
 // TODO test it properly
 func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObject *stateObject, isDirty bool) error {
-	
+
 	// transform state.Accoount to erigon Account
 	account := &stateObject.data
 	isContract := !IsEmptyCodeHash(stateObject.CodeHash()) && !account.IsEmptyRoot()
