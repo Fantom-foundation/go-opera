@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"github.com/c2h5oh/datasize"
 	"sort"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/common"
 )
 
 type sortableBufferEntry struct {
@@ -103,8 +105,8 @@ func (b *appendSortableBuffer) writeIntoTable(db kv.RwDB, table string) error {
 
 	defer c.Close()
 
-	log.Info("writeIntoTable", "Iterate over sorted non duplicated buf key-value pairs and write them into ", fmt.Sprintf("table: %s", table))
-
+	log.Info("Iterate over sorted non duplicated buf key-value pairs and write them into ", table)
+	start := time.Now()
 	records := 0
 	for _, entry := range b.sortedBuf {
 		if err := c.Append(entry.key, entry.value); err != nil {
@@ -113,7 +115,8 @@ func (b *appendSortableBuffer) writeIntoTable(db kv.RwDB, table string) error {
 		records += 1
 	}
 
-	log.Info("writeIntoTable", "Number of records written", records)
+	elapsed := common.PrettyDuration(time.Since(start))
+	log.Info("Writing data into table from sorted buffer completed", "Number of records written", records, "elapsed", elapsed)
 
 	return tx.Commit()
 }
