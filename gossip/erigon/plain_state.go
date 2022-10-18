@@ -109,7 +109,7 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 
 // MakeChainDatabase open a database using the flags passed to the client and will hard crash if it fails.
 func MakeChainDatabase(logger logger.Instance) kv.RwDB {
-	chainDb, err := openDatabase(logger, kv.ChainDB)
+	chainDb, err := openDatabase(logger, kv.TxPoolDB)
 	if err != nil {
 		Fatalf("Could not open database: %v", err)
 	}
