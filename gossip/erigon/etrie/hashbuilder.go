@@ -151,21 +151,17 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		reader = hb.sha
 	}
 
-
-
-
 	fmt.Printf("completeLeafHash hb.lenPrefix[:pt]: %x\n", []byte(hb.lenPrefix[:pt]))
 	if _, err := writer.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
-
 
 	fmt.Printf("completeLeafHash hb.keyPrefix[:kp]: %x\n", []byte(hb.keyPrefix[:kp]))
 	if _, err := writer.Write(hb.keyPrefix[:kp]); err != nil {
 		return err
 	}
 	hb.b[0] = compact0
-	
+
 	fmt.Printf("completeLeafHash writing1 hb.b[:]: %x\n", hb.b[:])
 	if _, err := writer.Write(hb.b[:]); err != nil {
 		return err
@@ -178,12 +174,11 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		}
 		ni += 2
 	}
-    // see encodeBytesAsRlpToWriter prints
+	// see encodeBytesAsRlpToWriter prints
 	if err := val.ToDoubleRLP(writer, hb.prefixBuf[:]); err != nil {
 		return err
 	}
 
-	
 	if reader != nil {
 		hb.hashBuf[0] = 0x80 + common.HashLength
 		fmt.Printf("completeLeafHash if reader not nil, hb.hashBuf: %x\n ", hb.hashBuf)
@@ -192,7 +187,6 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 		}
 		fmt.Printf("completeLeafHash after reader.Read, hashBuf[1:]: %x\n", hb.hashBuf[1:])
 	}
-
 
 	return nil
 }

@@ -1,22 +1,20 @@
 package erigon
 
 import (
-	"time"
 	"bytes"
 	"fmt"
 	"sync"
-
+	"time"
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/VictoriaMetrics/fastcache"
-	
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // diskLayer is a low level persistent snapshot built on top of a key-value store.
@@ -67,8 +65,6 @@ func hashData(input []byte) common.Hash {
 	return hash
 }
 
-
-
 // journalProgress persists the generator stats into the database to resume later.
 func journalProgress(db ethdb.KeyValueWriter, marker []byte, stats *generatorStats) {
 	// Write out the generator marker. Note it's a standalone disk layer generator
@@ -101,8 +97,6 @@ func journalProgress(db ethdb.KeyValueWriter, marker []byte, stats *generatorSta
 	log.Debug("Journalled generator progress", "progress", logstr)
 	rawdb.WriteSnapshotGenerator(db, blob)
 }
-
-
 
 func generateSnapshot(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash) *diskLayer {
 	// Create a new disk layer with an initialized state marker at zero

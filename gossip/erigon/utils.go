@@ -1,16 +1,14 @@
 package erigon
 
 import (
-	"os"
-	"runtime"
-	"path/filepath"
-	"io"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
 
 	"os/user"
-
 )
-
 
 func homeDir() string {
 	if home := os.Getenv("HOME"); home != "" {
@@ -29,7 +27,7 @@ func defaultDataDir() string {
 		switch runtime.GOOS {
 		case "darwin":
 			return filepath.Join(home, "Library", "Lachesis")
-	    // linux
+			// linux
 		default:
 			return filepath.Join(home, ".opera")
 		}
@@ -37,7 +35,6 @@ func defaultDataDir() string {
 	// As we cannot guess a stable location, return empty and handle later
 	return ""
 }
-
 
 // Fatalf formats a message to standard error and exits the program.
 // The message is also printed to standard output if standard error

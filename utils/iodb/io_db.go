@@ -1,8 +1,8 @@
 package iodb
 
 import (
-	"io"
 	"fmt"
+	"io"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"

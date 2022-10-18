@@ -3,9 +3,9 @@ package launcher
 import (
 	"context"
 	//"fmt"
+	"fmt"
 	"path"
 	"time"
-	"fmt"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -29,7 +29,6 @@ func readErigon(_ *cli.Context) error {
 		return fmt.Errorf("unable to begin transaction, err: %q", err)
 	}
 	defer tx.Rollback()
-
 
 	if err := erigon.ReadErigonTableNoDups(kv.PlainState, tx); err != nil {
 		return fmt.Errorf("unable to read from Erigon table, err: %q", err)
@@ -69,10 +68,9 @@ func writeErigon(ctx *cli.Context) error {
 
 	log.Info("Getting LastBlock")
 	lastBlockIdx := gdb.GetBlockState().LastBlock.Idx
-	mptFlag := ctx.String(traversalMode.Name)
 
 	log.Info("Generate Erigon Plain State...")
-	if err := erigon.GeneratePlainState(mptFlag, root, chaindb, db, lastBlockIdx); err != nil {
+	if err := erigon.GeneratePlainState(root, chaindb, db, lastBlockIdx); err != nil {
 		return err
 	}
 	log.Info("Generation of Erigon Plain State is complete", "elapsed", common.PrettyDuration(time.Since(start)))

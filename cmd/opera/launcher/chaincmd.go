@@ -3,7 +3,6 @@ package launcher
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"gopkg.in/urfave/cli.v1"
-
 	//"github.com/Fantom-foundation/go-opera/gossip/erigon"
 )
 
@@ -13,12 +12,7 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
-	traversalMode = cli.StringFlag{
-		Name:  "traversal.mode",
-		Usage: `Traversal mode ("mpt" or "snap")`,
-		Value: "snap",
-	}
-	
+
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
@@ -135,9 +129,6 @@ Checks EVM storage roots and code hashes
 				Name:   "write",
 				Usage:  "Write EVM accounts to erigon database",
 				Action: utils.MigrateFlags(writeErigon),
-				Flags: []cli.Flag{
-					traversalMode,
-				},
 				Description: `
    				opera erigon write
 				`,
@@ -150,9 +141,6 @@ Checks EVM storage roots and code hashes
    				opera erigon read
 				`,
 			},
-		},
-		Flags: []cli.Flag{
-			traversalMode,
 		},
 
 		Description: `
@@ -184,10 +172,6 @@ Checks EVM storage roots and code hashes
 				`,
 			},
 		},
-		Flags: []cli.Flag{
-			traversalMode,
-		},
-
 		Description: `
 		opera preimages
 	

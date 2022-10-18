@@ -3,9 +3,9 @@ package erigon
 import (
 	"encoding/binary"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"time"
-	"path/filepath"
 
 	"context"
 

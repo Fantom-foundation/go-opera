@@ -1,14 +1,18 @@
 package erigon
 
 import (
-	"errors"
 	"bytes"
+	"context"
+	"errors"
+	"fmt"
 	"github.com/c2h5oh/datasize"
 	"sort"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
+
 type sortableBufferEntry struct {
 	key   []byte
 	value []byte
@@ -81,3 +85,35 @@ func (b *appendSortableBuffer) Reset() {
 	b.size = 0
 }
 
+// writeIntoTable writes data into Erigon table from sorted buffer
+func (b *appendSortableBuffer) writeIntoTable(db kv.RwDB, table string) error {
+
+	// start erigon write tx
+	tx, err := db.BeginRw(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	c, err := tx.RwCursor(table)
+	if err != nil {
+		return err
+	}
+
+	defer c.Close()
+
+	log.Info("writeIntoTable", "Iterate over sorted non duplicated buf key-value pairs and write them into ", fmt.Sprintf("table: %s", table))
+
+	records := 0
+	for _, entry := range b.sortedBuf {
+		if err := c.Append(entry.key, entry.value); err != nil {
+			return err
+		}
+		records += 1
+	}
+
+	log.Info("writeIntoTable", "Number of records written", records)
+
+	return tx.Commit()
+}

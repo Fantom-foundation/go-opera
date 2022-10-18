@@ -1,8 +1,8 @@
 package rlphacks
 
 import (
-	"io"
 	"fmt"
+	"io"
 )
 
 type RlpSerializableBytes []byte

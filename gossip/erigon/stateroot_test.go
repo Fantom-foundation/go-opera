@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"testing"
 	"regexp"
+	"testing"
 
 	"github.com/holiman/uint256"
 
@@ -24,17 +24,14 @@ import (
 	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	eaccounts "github.com/ledgerwatch/erigon/core/types/accounts"
-	
-
 )
 
 var (
 	// emptyRoot is the known root hash of an empty trie.
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	
+
 	// emptyCode is the known hash of the empty EVM bytecode.
 	emptyCode = crypto.Keccak256Hash(nil)
-
 )
 
 /*  TestPlan
@@ -308,9 +305,9 @@ func generateStateAccountsWithStorage(t *testing.T, numAccounts int) ([]common.A
 	accounts := make([]state.Account, numAccounts)
 	accStorage := make([]map[common.Hash]string, numAccounts)
 	addr := make([]common.Address, numAccounts)
-	for i:=0; i < numAccounts; i++ {
+	for i := 0; i < numAccounts; i++ {
 		accounts[i], addr[i] = randomStateAccount(t)
-		key, value := common.Hash{uint8(i*100)}, addr[i].Hex()
+		key, value := common.Hash{uint8(i * 100)}, addr[i].Hex()
 		accStorage[i][key] = value
 	}
 
@@ -327,9 +324,7 @@ func makeSnapTree()  {
 }
 */
 
-
-
-func TestCompareLegacyErigonStateRoots(t *testing.T){
+func TestCompareLegacyErigonStateRoots(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
 		triedb = trie.NewDatabase(diskdb)
@@ -339,7 +334,7 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	stTrie.Update([]byte("key-1"), []byte("val-1")) // 0x1314700b81afc49f94db3623ef1df38f3ed18b73a1b7ea2f6c095118cf6118a0
 	stTrie.Update([]byte("key-2"), []byte("val-2")) // 0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371
 	stTrie.Update([]byte("key-3"), []byte("val-3")) // 0x51c71a47af0695957647fb68766d0becee77e953df17c29b3c2f25436f055c78
-	stRoot, err := stTrie.Commit(nil)                              // Root: 0xddefcd9376dd029653ef384bd2f0a126bb755fe84fdcc9e7cf421ba454f2bc67
+	stRoot, err := stTrie.Commit(nil)               // Root: 0xddefcd9376dd029653ef384bd2f0a126bb755fe84fdcc9e7cf421ba454f2bc67
 	require.NoError(t, err)
 
 	stMap := make(map[string]string)
@@ -347,16 +342,11 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	stMap["key-2"] = "val-2"
 	stMap["key-3"] = "val-3"
 
-
-
 	accMap := make(map[string]*snapshot.Account)
 	accTrie, _ := trie.NewSecure(common.Hash{}, triedb)
 	acc := &snapshot.Account{Balance: big.NewInt(1), Root: stTrie.Hash().Bytes(), CodeHash: emptyCode.Bytes()}
 	_ = transformSnapAccount(acc, false)
-	
 
-	
-	
 	val, _ := rlp.EncodeToBytes(acc)
 	accTrie.Update([]byte("acc-1"), val) // 0x9250573b9c18c664139f3b6a7a8081b7d8f8916a8fcc5d94feec6c29f5fd4e9e
 	accMap[string(val)] = acc
@@ -390,8 +380,6 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 	snaptree, err := snapshot.New(diskdb, trie.NewDatabase(diskdb), 256, root, false, false, false)
 	require.NoError(t, err)
 
-
-
 	accIt, err := snaptree.AccountIterator(root, common.Hash{})
 	require.NoError(t, err)
 	defer accIt.Release()
@@ -403,31 +391,31 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 		t.Log("addr", addr)
 		require.True(t, isValidAddress(addr))
 		t.Log("accIt.Hash()", accIt.Hash())
-		t.Log("accIt.Account().Hash()",  hashData(accIt.Account()))
+		t.Log("accIt.Account().Hash()", hashData(accIt.Account()))
 		key := string(accIt.Account())
 		_, ok := accMap[key]
 		require.True(t, ok)
 
 		/*
-		if bytes.Equal(acc.Root, stTrie.Hash().Bytes()) {
-			
-			stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
-			//require.Equal(t, accIt.Hash().Hex(), "0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371")
-			require.NoError(t, err)
-			defer stIt.Release()
-			for stIt.Next() {
-				t.Log("stIt.Hash()", stIt.Hash())
-				t.Log("hashData([]byte(key-2))", hashData([]byte("key-2")))
-				t.Log("hashData([]byte(key-2)).Bytes()", string(hashData([]byte("key-2")).Bytes()))
-				t.Log("hashData([]byte(val-2))", hashData([]byte("val-2")))
-				t.Log("stIt.Hash().String()", stIt.Hash())
-				t.Log("stIt.Slot().String()", string(stIt.Slot()))
-				val2, ok := stMap["key-2"]
-				require.True(t, ok)
-				require.Equal(t, val2, string(stIt.Slot()))
-				require.Equal(t, hashData(stIt.Slot()), stIt.Hash())
+			if bytes.Equal(acc.Root, stTrie.Hash().Bytes()) {
+
+				stIt, err := snaptree.StorageIterator(root, accIt.Hash(), common.Hash{})
+				//require.Equal(t, accIt.Hash().Hex(), "0x18a0f4d79cff4459642dd7604f303886ad9d77c30cf3d7d7cedb3a693ab6d371")
+				require.NoError(t, err)
+				defer stIt.Release()
+				for stIt.Next() {
+					t.Log("stIt.Hash()", stIt.Hash())
+					t.Log("hashData([]byte(key-2))", hashData([]byte("key-2")))
+					t.Log("hashData([]byte(key-2)).Bytes()", string(hashData([]byte("key-2")).Bytes()))
+					t.Log("hashData([]byte(val-2))", hashData([]byte("val-2")))
+					t.Log("stIt.Hash().String()", stIt.Hash())
+					t.Log("stIt.Slot().String()", string(stIt.Slot()))
+					val2, ok := stMap["key-2"]
+					require.True(t, ok)
+					require.Equal(t, val2, string(stIt.Slot()))
+					require.Equal(t, hashData(stIt.Slot()), stIt.Hash())
+				}
 			}
-		}
 		*/
 	}
 
@@ -441,25 +429,18 @@ func TestCompareLegacyErigonStateRoots(t *testing.T){
 
 	*/
 
-
 }
 
+//base := generateSnapshot(diskdb, triedb, 16, root)
+//_ = &snapshot.Tree{
+//	layers: map[common.Hash]snapshot{
+//		base.root: base,
+//	},
+//}
 
-
-	
-
-	
-	//base := generateSnapshot(diskdb, triedb, 16, root)
-	//_ = &snapshot.Tree{
-	//	layers: map[common.Hash]snapshot{
-	//		base.root: base,
-	//	},
-	//}
-
-	// TestStorageIteratorTraversalValues
-	// TestGenerateExistentStateWithWrongStorage
-	// TestGenerateExistentStateWithWrongAccounts(t *testing.T) {
-
+// TestStorageIteratorTraversalValues
+// TestGenerateExistentStateWithWrongStorage
+// TestGenerateExistentStateWithWrongAccounts(t *testing.T) {
 
 func transformSnapAccount(account *snapshot.Account, isContractAcc bool) eaccounts.Account {
 	eAccount := accounts.NewAccount()
@@ -478,8 +459,7 @@ func transformSnapAccount(account *snapshot.Account, isContractAcc bool) eaccoun
 	return eAccount
 }
 
-
 func isValidAddress(v string) bool {
-    re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
-    return re.MatchString(v)
+	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+	return re.MatchString(v)
 }

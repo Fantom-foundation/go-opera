@@ -1,12 +1,14 @@
 package erigon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/ledgerwatch/erigon/common"
 
+	ecommon "github.com/ledgerwatch/erigon/common"
 )
 
 func WriteSenders(tx kv.Putter, preimages map[common.Hash][]byte) error {
@@ -19,16 +21,23 @@ func WriteSenders(tx kv.Putter, preimages map[common.Hash][]byte) error {
 			return fmt.Errorf("failed to store preimages: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
-/*
-func ReadSenderAddress(tx kv.Getter, key common.Hash) (common.Address, error) {
-	val, err := tx.GetOne(kv.Senders, key.Bytes()); 
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to store block senders: %w", err)
+func addressFromPreimage(db kv.RwDB, accHash common.Hash) (ecommon.Address, error) {
+	var addr ecommon.Address
+	if err := db.View(context.Background(), func(tx kv.Tx) error {
+		val, err := tx.GetOne(kv.Senders, accHash.Bytes())
+		if err != nil {
+			return err
+		}
+		addr = ecommon.BytesToAddress(val)
+
+		return nil
+	}); err != nil {
+		return ecommon.Address{}, nil
 	}
-	return common.BytesToAddress(val), nil
+
+	return addr, nil
 }
-*/

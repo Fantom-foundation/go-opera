@@ -234,7 +234,6 @@ func exportGenesis(ctx *cli.Context) error {
 	var blocksHash hash.Hash
 	var evmHash hash.Hash
 
-	
 	if from < 1 {
 		// avoid underflow
 		from = 1
@@ -242,82 +241,82 @@ func exportGenesis(ctx *cli.Context) error {
 	if to > gdb.GetEpoch() {
 		to = gdb.GetEpoch()
 	}
-	
+
 	toBlock := idx.Block(0)
 	fromBlock := idx.Block(0)
 	/*
-	{
-		log.Info("Exporting epochs", "from", from, "to", to)
-		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.EpochsSection, tmpPath)
-		if err != nil {
-			return err
-		}
-		for i := to; i >= from; i-- {
-			er := gdb.GetFullEpochRecord(i)
-			if er == nil {
-				log.Warn("No epoch record", "epoch", i)
-				break
-			}
-			b, _ := rlp.EncodeToBytes(ier.LlrIdxFullEpochRecord{
-				LlrFullEpochRecord: *er,
-				Idx:                i,
-			})
-			_, err := writer.Write(b)
+		{
+			log.Info("Exporting epochs", "from", from, "to", to)
+			writer := newUnitWriter(plain)
+			err := writer.Start(header, genesisstore.EpochsSection, tmpPath)
 			if err != nil {
 				return err
 			}
-			if i == from {
-				fromBlock = er.BlockState.LastBlock.Idx
+			for i := to; i >= from; i-- {
+				er := gdb.GetFullEpochRecord(i)
+				if er == nil {
+					log.Warn("No epoch record", "epoch", i)
+					break
+				}
+				b, _ := rlp.EncodeToBytes(ier.LlrIdxFullEpochRecord{
+					LlrFullEpochRecord: *er,
+					Idx:                i,
+				})
+				_, err := writer.Write(b)
+				if err != nil {
+					return err
+				}
+				if i == from {
+					fromBlock = er.BlockState.LastBlock.Idx
+				}
+				if i == to {
+					toBlock = er.BlockState.LastBlock.Idx
+				}
 			}
-			if i == to {
-				toBlock = er.BlockState.LastBlock.Idx
+			epochsHash, err = writer.Flush()
+			if err != nil {
+				return err
 			}
+			log.Info("Exported epochs", "hash", epochsHash.String())
 		}
-		epochsHash, err = writer.Flush()
-		if err != nil {
-			return err
-		}
-		log.Info("Exported epochs", "hash", epochsHash.String())
-	}
 	*/
 
 	/*
-	if fromBlock < 1 {
-		// avoid underflow
-		fromBlock = 1
-	}
-	{
-		log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
-		writer := newUnitWriter(plain)
-		err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
-		if err != nil {
-			return err
+		if fromBlock < 1 {
+			// avoid underflow
+			fromBlock = 1
 		}
-		for i := toBlock; i >= fromBlock; i-- {
-			br := gdb.GetFullBlockRecord(i)
-			if br == nil {
-				log.Warn("No block record", "block", i)
-				break
-			}
-			if i%200000 == 0 {
-				log.Info("Exporting blocks", "last", i)
-			}
-			b, _ := rlp.EncodeToBytes(ibr.LlrIdxFullBlockRecord{
-				LlrFullBlockRecord: *br,
-				Idx:                i,
-			})
-			_, err := writer.Write(b)
+		{
+			log.Info("Exporting blocks", "from", fromBlock, "to", toBlock)
+			writer := newUnitWriter(plain)
+			err := writer.Start(header, genesisstore.BlocksSection, tmpPath)
 			if err != nil {
 				return err
 			}
+			for i := toBlock; i >= fromBlock; i-- {
+				br := gdb.GetFullBlockRecord(i)
+				if br == nil {
+					log.Warn("No block record", "block", i)
+					break
+				}
+				if i%200000 == 0 {
+					log.Info("Exporting blocks", "last", i)
+				}
+				b, _ := rlp.EncodeToBytes(ibr.LlrIdxFullBlockRecord{
+					LlrFullBlockRecord: *br,
+					Idx:                i,
+				})
+				_, err := writer.Write(b)
+				if err != nil {
+					return err
+				}
+			}
+			blocksHash, err = writer.Flush()
+			if err != nil {
+				return err
+			}
+			log.Info("Exported blocks", "hash", blocksHash.String())
 		}
-		blocksHash, err = writer.Flush()
-		if err != nil {
-			return err
-		}
-		log.Info("Exported blocks", "hash", blocksHash.String())
-	}
 
 	*/
 

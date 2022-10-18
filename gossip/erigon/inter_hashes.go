@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
 	"github.com/Fantom-foundation/go-opera/gossip/erigon/benchtrie"
-	
+	"github.com/Fantom-foundation/go-opera/gossip/erigon/etrie"
+
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/interfaces"
 	"github.com/ledgerwatch/erigon/common"
-
 
 	"github.com/ledgerwatch/log/v3"
 )
@@ -181,7 +180,7 @@ func ComputeStateRoot(logPrefix string, db kv.RwDB, cfg TrieCfg,
 
 }
 
-// for debugging purposes, TODO make it private 
+// for debugging purposes, TODO make it private
 /*
 func RegenerateIntermediateHashes(logPrefix string,
 	db kv.RwTx, cfg TrieCfg,
@@ -201,7 +200,7 @@ func RegenerateIntermediateHashes(logPrefix string,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
-    
+
 	loader := etrie.NewFlatDBTrieLoader(logPrefix)
 	if err := loader.Reset(etrie.NewRetainList(0), accTrieCollectorFunc,
 		stTrieCollectorFunc, false); err != nil {
@@ -250,7 +249,7 @@ func RegenerateIntermediateHashesBench(logPrefix string,
 		etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollectorBench(stTrieCollector)
-    
+
 	loader := benchtrie.NewFlatDBTrieLoader(logPrefix)
 	if err := loader.Reset(benchtrie.NewRetainList(0), accTrieCollectorFunc,
 		stTrieCollectorFunc, false); err != nil {
