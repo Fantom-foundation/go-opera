@@ -2,6 +2,7 @@ package erigon
 
 import (
 	"compress/gzip"
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -12,7 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
+
 	"github.com/ledgerwatch/erigon/common"
+	ecommon "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/crypto"
 )
 
@@ -58,7 +61,7 @@ func WritePreimagesToSenders(db kv.RwDB) error {
 		buf.Put(key.Bytes(), val)
 	}
 
-	log.Info("Reading preimages and writing preimages to buf completed",  "elapsed", common.PrettyDuration(time.Since(start)))
+	log.Info("Reading preimages and writing preimages to buf completed", "elapsed", common.PrettyDuration(time.Since(start)))
 
 	// Sort data in buffer
 	log.Info("Buffer length", "is", buf.Len())
@@ -69,4 +72,21 @@ func WritePreimagesToSenders(db kv.RwDB) error {
 	log.Info("Sorting data in buf completed", "elapsed", common.PrettyDuration(time.Since(start)))
 	// sorting items in buffer to write into erigon kv.Senders efficiently
 	return buf.writeIntoTable(db, kv.Senders)
+}
+
+func addressFromPreimage(db kv.RwDB, accHash common.Hash) (ecommon.Address, error) {
+	var addr ecommon.Address
+	if err := db.View(context.Background(), func(tx kv.Tx) error {
+		val, err := tx.GetOne(kv.Senders, accHash.Bytes())
+		if err != nil {
+			return err
+		}
+		addr = ecommon.BytesToAddress(val)
+
+		return nil
+	}); err != nil {
+		return ecommon.Address{}, nil
+	}
+
+	return addr, nil
 }

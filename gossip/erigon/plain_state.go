@@ -160,17 +160,16 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Snapshot traversal started", "root", root.Hex())
 	var (
-		start                               = time.Now()
-		accounts                            uint64
-		missingAddresses                    int
-		missingContractCode                 int
-		validContractAccounts               int
-		validNonContractAccounts            int
-		invalidAccounts1                    int
-		invalidAccounts2                    int
-		storageRecords                      int
-		matchedAccounts, notMatchedAccounts uint64
-		logEvery                            = time.NewTicker(60 * time.Second)
+		start                    = time.Now()
+		accounts                 uint64
+		missingAddresses         int
+		missingContractCode      int
+		validContractAccounts    int
+		validNonContractAccounts int
+		invalidAccounts1         int
+		invalidAccounts2         int
+		storageRecords           int
+		logEvery                 = time.NewTicker(60 * time.Second)
 	)
 
 	defer logEvery.Stop()
@@ -268,8 +267,6 @@ func traverseSnapshot(diskdb ethdb.KeyValueStore, root common.Hash, db kv.RwDB) 
 
 	log.Info("Snapshot traversal is complete", "accounts", accounts,
 		"elapsed", common.PrettyDuration(time.Since(start)), "missingContractCode", missingContractCode)
-
-	log.Info("Preimages matching is complete", "Matched Accounts", matchedAccounts, "Not Matched Accounts", notMatchedAccounts)
 
 	log.Info("Valid", "Contract accounts: ", validContractAccounts, "Storage records", storageRecords, "Valid non contract accounts", validNonContractAccounts,
 		"invalid accounts1", invalidAccounts1, "invalid accounts2", invalidAccounts2)

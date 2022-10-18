@@ -104,7 +104,7 @@ func (b *appendSortableBuffer) writeIntoTable(db kv.RwDB, table string) error {
 
 	defer c.Close()
 
-	log.Info("Iterate over sorted non duplicated buf key-value pairs and write them into ", table)
+	log.Info("Iterate over sorted non duplicated buf key-value pairs", "and write them into", table)
 	start := time.Now()
 	records := 0
 	for _, entry := range b.sortedBuf {

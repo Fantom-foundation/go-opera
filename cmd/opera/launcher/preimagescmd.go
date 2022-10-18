@@ -47,6 +47,5 @@ func readPreimagesCmd(_ *cli.Context) error {
 		return err
 	}
 
-	// TODO handle flags
 	return nil
 }
