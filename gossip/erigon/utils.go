@@ -29,7 +29,7 @@ func defaultDataDir() string {
 			return filepath.Join(home, "Library", "Lachesis")
 			// linux
 		default:
-			return filepath.Join(home, ".opera")
+			return filepath.Join("/var/data", ".opera")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later
