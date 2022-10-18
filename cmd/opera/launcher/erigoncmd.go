@@ -49,7 +49,7 @@ func writeErigon(ctx *cli.Context) error {
 
 	cfg := makeAllConfigs(ctx)
 
-	rawProducer := integration.DBProducer(path.Join("/var/data/.opera", "chaindata"), cacheScaler(ctx))
+	rawProducer := integration.DBProducer(path.Join(cfg.Node.DataDir, "chaindata"), cacheScaler(ctx))
 
 	gdb, err := makeRawGossipStore(rawProducer, cfg)
 	if err != nil {
