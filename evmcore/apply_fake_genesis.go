@@ -17,13 +17,13 @@
 package evmcore
 
 import (
-	"fmt"
+	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
 	"time"
-	"context"
 
 	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
@@ -37,14 +37,13 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	estate "github.com/ledgerwatch/erigon/core/state"
-
 )
 
 var FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
 
 // ApplyFakeGenesis writes or updates the genesis block in db.
 func ApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Address]*big.Int) (*EvmBlock, error) {
-	
+
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		panic(err)
@@ -53,7 +52,7 @@ func ApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Addr
 	defer tx.Rollback()
 
 	statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
-	
+
 	for acc, balance := range balances {
 		statedb.SetBalance(acc, balance)
 	}
@@ -86,7 +85,6 @@ func ApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Addr
 	}
 
 	tx.Commit()
-	
 
 	block := genesisBlock(time, common.Hash(root))
 

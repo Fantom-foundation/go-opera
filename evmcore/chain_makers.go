@@ -22,9 +22,9 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
-	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -33,7 +33,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
-
 
 	estate "github.com/ledgerwatch/erigon/core/state"
 )
@@ -262,17 +261,13 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db kv.RwDB, n i
 			fmt.Printf("===============================\n")
 		}
 
-
-
 		if root, err := erigon.CalcRoot("GenerateChain", tx); err == nil {
 			block.Root = common.Hash(root)
 		} else {
 			return nil, nil, fmt.Errorf("could not to calculate state root %w", err)
 		}
 
-
 		b.header = block.Header()
-		
 
 		return block, b.receipts, nil
 	}

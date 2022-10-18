@@ -169,4 +169,3 @@ func GenerateHashedStatePut(tx kv.RwTx) error {
 
 	return nil
 }
-

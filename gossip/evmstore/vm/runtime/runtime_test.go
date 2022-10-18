@@ -25,16 +25,18 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/tracers"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/asm"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 func TestDefaults(t *testing.T) {
@@ -103,7 +105,8 @@ func TestExecute(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	_, tx := memdb.NewTestTx(t)
+	state := state.NewWithStateReader(estate.NewDbStateReader(tx))
 	address := common.HexToAddress("0x0a")
 	state.SetCode(address, []byte{
 		byte(vm.PUSH1), 10,
@@ -158,10 +161,11 @@ func BenchmarkCall(b *testing.B) {
 	}
 }
 func benchmarkEVM_Create(bench *testing.B, code string) {
+	_, tx := memdb.NewTestTx(bench)
 	var (
-		statedb, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-		sender     = common.BytesToAddress([]byte("sender"))
-		receiver   = common.BytesToAddress([]byte("receiver"))
+		statedb  = state.NewWithStateReader(estate.NewPlainState(tx, 1))
+		sender   = common.BytesToAddress([]byte("sender"))
+		receiver = common.BytesToAddress([]byte("receiver"))
 	)
 
 	statedb.CreateAccount(sender)
@@ -346,18 +350,20 @@ func (s *stepCounter) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, co
 func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode string, b *testing.B) {
 	cfg := new(Config)
 	setDefaults(cfg)
-	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	_, tx := memdb.NewTestTx(b)
+	cfg.State = state.NewWithStateReader(estate.NewPlainState(tx, 1))
 	cfg.GasLimit = gas
-	if len(tracerCode) > 0 {
-		tracer, err := tracers.New(tracerCode, new(tracers.Context))
-		if err != nil {
-			b.Fatal(err)
-		}
-		cfg.EVMConfig = vm.Config{
-			Debug:  true,
-			Tracer: tracer,
-		}
-	}
+	/*
+		if len(tracerCode) > 0 {
+			tracer, err := tracers.New(tracerCode, new(tracers.Context))
+			if err != nil {
+				b.Fatal(err)
+			}
+			cfg.EVMConfig = vm.Config{
+				Debug:  true,
+				Tracer: tracer,
+			}
+		}*/
 	var (
 		destination = common.BytesToAddress([]byte("contract"))
 		vmenv       = NewEnv(cfg)
@@ -840,9 +846,10 @@ func TestRuntimeJSTracer(t *testing.T) {
 		byte(vm.SELFDESTRUCT),
 	}
 	main := common.HexToAddress("0xaa")
+	_, tx := memdb.NewTestTx(t)
 	for i, jsTracer := range jsTracers {
 		for j, tc := range tests {
-			statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+			statedb := state.NewWithStateReader(estate.NewDbStateReader(tx))
 			statedb.SetCode(main, tc.code)
 			statedb.SetCode(common.HexToAddress("0xbb"), calleeCode)
 			statedb.SetCode(common.HexToAddress("0xcc"), calleeCode)
@@ -884,7 +891,8 @@ func TestJSTracerCreateTx(t *testing.T) {
 	exit: function(res) { this.exits++ }}`
 	code := []byte{byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.RETURN)}
 
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	_, tx := memdb.NewTestTx(t)
+	statedb := state.NewWithStateReader(estate.NewDbStateReader(tx))
 	tracer, err := tracers.New(jsTracer, new(tracers.Context))
 	if err != nil {
 		t.Fatal(err)

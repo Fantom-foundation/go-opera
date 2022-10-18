@@ -16,19 +16,20 @@
 
 package vm
 
-/*
 import (
 	"math"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/params"
-)
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 
+	estate "github.com/ledgerwatch/erigon/core/state"
+)
 
 func TestMemoryGasCost(t *testing.T) {
 	tests := []struct {
@@ -81,30 +82,34 @@ var eip2200Tests = []struct {
 
 func TestEIP2200(t *testing.T) {
 	for i, tt := range eip2200Tests {
-		address := common.BytesToAddress([]byte("contract"))
+		i, tt := i, tt
 
-		statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-		statedb.CreateAccount(address)
-		statedb.SetCode(address, hexutil.MustDecode(tt.input))
-		statedb.SetState(address, common.Hash{}, common.BytesToHash([]byte{tt.original}))
-		statedb.Finalise(true) // Push the state into the "original" slot
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			address := common.BytesToAddress([]byte("contract"))
+			_, tx := memdb.NewTestTx(t)
 
-		vmctx := BlockContext{
-			CanTransfer: func(StateDB, common.Address, *big.Int) bool { return true },
-			Transfer:    func(StateDB, common.Address, common.Address, *big.Int) {},
-		}
-		vmenv := NewEVM(vmctx, TxContext{}, statedb, params.AllEthashProtocolChanges, Config{ExtraEips: []int{2200}})
+			statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
+			statedb.CreateAccount(address)
+			statedb.SetCode(address, hexutil.MustDecode(tt.input))
+			statedb.SetState(address, common.Hash{}, common.BytesToHash([]byte{tt.original}))
+			statedb.CommitBlock(estate.NewPlainStateWriter(tx, tx, 0))
 
-		_, gas, err := vmenv.Call(AccountRef(common.Address{}), address, nil, tt.gaspool, new(big.Int))
-		if err != tt.failure {
-			t.Errorf("test %d: failure mismatch: have %v, want %v", i, err, tt.failure)
-		}
-		if used := tt.gaspool - gas; used != tt.used {
-			t.Errorf("test %d: gas used mismatch: have %v, want %v", i, used, tt.used)
-		}
-		if refund := vmenv.StateDB.GetRefund(); refund != tt.refund {
-			t.Errorf("test %d: gas refund mismatch: have %v, want %v", i, refund, tt.refund)
-		}
+			vmctx := BlockContext{
+				CanTransfer: func(StateDB, common.Address, *big.Int) bool { return true },
+				Transfer:    func(StateDB, common.Address, common.Address, *big.Int) {},
+			}
+			vmenv := NewEVM(vmctx, TxContext{}, statedb, params.AllEthashProtocolChanges, Config{ExtraEips: []int{2200}})
+
+			_, gas, err := vmenv.Call(AccountRef(common.Address{}), address, nil, tt.gaspool, new(big.Int))
+			if err != tt.failure {
+				t.Errorf("test %d: failure mismatch: have %v, want %v", i, err, tt.failure)
+			}
+			if used := tt.gaspool - gas; used != tt.used {
+				t.Errorf("test %d: gas used mismatch: have %v, want %v", i, used, tt.used)
+			}
+			if refund := vmenv.StateDB.GetRefund(); refund != tt.refund {
+				t.Errorf("test %d: gas refund mismatch: have %v, want %v", i, refund, tt.refund)
+			}
+		})
 	}
 }
-*/

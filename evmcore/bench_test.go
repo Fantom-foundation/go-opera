@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
-	
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -128,27 +127,9 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 }
 
 func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
-	// Create the database in memory or in a temporary directory.
-	/*
-	var db ethdb.Database
-	if !disk {
-		db = rawdb.NewMemoryDatabase()
-	} else {
-		dir, err := ioutil.TempDir("", "eth-core-bench")
-		if err != nil {
-			b.Fatalf("cannot create temporary directory: %v", err)
-		}
-		defer os.RemoveAll(dir)
-		db, err = rawdb.NewLevelDBDatabase(dir, 128, 128, "", false)
-		if err != nil {
-			b.Fatalf("cannot create temporary database: %v", err)
-		}
-		defer db.Close()
-	}
-	*/
-
+	// Create the database in memory or in a temporary directory.q
 	db := memdb.New()
-	
+
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	// state
@@ -157,11 +138,10 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	})
 	genesisBlock.GasLimit = 1000000
 
-
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.
 	b.ReportAllocs()
 	b.ResetTimer()
-	
+
 	_, _, _ = GenerateChain(nil, genesisBlock, db, b.N, gen)
 }

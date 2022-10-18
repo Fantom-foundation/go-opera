@@ -24,9 +24,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	estate "github.com/ledgerwatch/erigon/core/state"
+	"github.com/ledgerwatch/erigon/ethdb/olddb"
 )
 
 // Config is a basic type specifying certain configuration flags for running
@@ -46,6 +49,8 @@ type Config struct {
 	BaseFee     *big.Int
 
 	State     *state.StateDB
+	r         estate.StateReader
+	w         estate.StateWriter
 	GetHashFn func(n uint64) common.Hash
 }
 
@@ -111,7 +116,12 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		db := olddb.NewObjectDatabase(memdb.New())
+		defer db.Close()
+		cfg.r = estate.NewDbStateReader(db)
+		cfg.w = estate.NewDbStateWriter(db, 0)
+
+		cfg.State = state.NewWithStateReader(cfg.r)
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -144,7 +154,11 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
+		db := olddb.NewObjectDatabase(memdb.New())
+		defer db.Close()
+		cfg.r = estate.NewDbStateReader(db)
+		cfg.w = estate.NewDbStateWriter(db, 0)
+		cfg.State = state.NewWithStateReader(cfg.r)
 	}
 	var (
 		vmenv  = NewEnv(cfg)
