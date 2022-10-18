@@ -74,27 +74,5 @@ func writeErigon(ctx *cli.Context) error {
 		return err
 	}
 	log.Info("Generation of Erigon Plain State is complete", "elapsed", common.PrettyDuration(time.Since(start)))
-
-	/*
-
-		log.Info("Generate Erigon Hash State")
-		if err := erigon.GenerateHashedState("HashedState", db, context.Background()); err != nil {
-			log.Error("GenerateHashedState error: ", err)
-			return err
-		}
-		log.Info("Generation Hash State is complete")
-
-		log.Info("Generate Intermediate Hashes state and compute State Root")
-		trieCfg := erigon.StageTrieCfg(db, true, true, "")
-		hash, err := erigon.ComputeStateRoot("Intermediate Hashes", db, trieCfg)
-		if err != nil {
-			log.Error("GenerateIntermediateHashes error: ", err)
-			return err
-		}
-		log.Info(fmt.Sprintf("[%s] Trie root", "GenerateStateRoot"), "hash", hash.Hex())
-		log.Info("Generation of Intermediate Hashes state and computation of State Root Complete")
-
-		log.Info("Writing of EVM accounts into Erigon database completed", "elapsed", common.PrettyDuration(time.Since(start)))
-	*/
 	return nil
 }
