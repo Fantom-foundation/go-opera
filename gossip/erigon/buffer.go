@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"github.com/c2h5oh/datasize"
 	"sort"
 	"time"
