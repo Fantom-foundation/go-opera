@@ -3,6 +3,7 @@ package genesisstore
 import (
 	"io"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 
@@ -19,21 +20,23 @@ type FilesMap func(string) (io.Reader, error)
 
 // Store is a node persistent storage working over a physical zip archive.
 type Store struct {
-	fMap  FilesMap
-	head  genesis.Header
-	close func() error
-	db    kv.RwDB
+	fMap    FilesMap
+	head    genesis.Header
+	close   func() error
+	db      kv.RwDB
+	statedb *state.StateDB
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(fMap FilesMap, head genesis.Header, close func() error, db kv.RwDB) *Store {
+func NewStore(fMap FilesMap, head genesis.Header, close func() error, db kv.RwDB, statedb *state.StateDB) *Store {
 	return &Store{
 		fMap:     fMap,
 		head:     head,
 		close:    close,
 		db:       db,
+		statedb:  statedb,
 		Instance: logger.New("genesis-store"),
 	}
 }
@@ -46,4 +49,8 @@ func (s *Store) Close() error {
 
 func (s *Store) DB() kv.RwDB {
 	return s.db
+}
+
+func (s *Store) StateDB() *state.StateDB {
+	return s.statedb
 }

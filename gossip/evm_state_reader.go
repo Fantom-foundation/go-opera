@@ -18,18 +18,21 @@ import (
 type EvmStateReader struct {
 	*ServiceFeed
 
-	store *Store
-	gpo   *gasprice.Oracle
+	statedb *state.StateDB
+	store   *Store
+	gpo     *gasprice.Oracle
 }
 
+// TODO: remove it, it is not used anywhere
 func NewEvmStateReader(s *Store) *EvmStateReader {
 	return &EvmStateReader{
 		store: s,
 	}
 }
 
-func (s *Service) GetEvmStateReader() *EvmStateReader {
+func (s *Service) GetEvmStateReader(statedb *state.StateDB) *EvmStateReader {
 	return &EvmStateReader{
+		statedb:     statedb,
 		ServiceFeed: &s.feed,
 		store:       s.store,
 		gpo:         s.gpo,
@@ -138,6 +141,6 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	return evmBlock
 }
 
-func (r *EvmStateReader) StateAt(root common.Hash) *state.StateDB {
-	return r.store.evm.StateDB(hash.Hash(root))
+func (r *EvmStateReader) StateDB() *state.StateDB {
+	return r.statedb
 }

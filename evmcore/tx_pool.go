@@ -138,7 +138,7 @@ const (
 type StateReader interface {
 	CurrentBlock() *EvmBlock
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
-	StateAt(root common.Hash) *state.StateDB
+	StateDB() *state.StateDB
 	MinGasPrice() *big.Int
 	EffectiveMinTip() *big.Int
 	MaxGasLimit() uint64
@@ -228,6 +228,9 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
 type TxPool struct {
+	// erigon
+	db kv.RwDB
+
 	config      TxPoolConfig
 	chainconfig *params.ChainConfig
 	chain       StateReader
@@ -276,6 +279,7 @@ func NewTxPool(db kv.RwDB, config TxPoolConfig, chainconfig *params.ChainConfig,
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
+		db:              db,
 		config:          config,
 		chainconfig:     chainconfig,
 		chain:           chain,
@@ -1305,21 +1309,13 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
 
-	statedb := pool.chain.StateAt(newHead.Root)
-	/*
-		statedb, err := pool.chain.StateAt(newHead.Root)
-		if err != nil && pool.currentState == nil {
-			log.Debug("Failed to access EVM state", "block", newHead.Number, "root", newHead.Root, "err", err)
-			statedb, err = pool.chain.StateAt(common.Hash{})
-		}
-		if err != nil {
-			log.Error("Failed to reset txpool state", "block", newHead.Number, "root", newHead.Root, "err", err)
-			return
-		}
-	*/
+	statedb := pool.chain.StateDB()
+	if statedb == nil {
+		panic("statedb is nil")
+	}
 
 	pool.currentState = statedb
-	pool.pendingNonces = newTxNoncer(statedb)
+	pool.pendingNonces = newTxNoncer(statedb, pool.db)
 	pool.currentMaxGas = pool.chain.MaxGasLimit()
 
 	// Inject any transactions discarded due to reorgs

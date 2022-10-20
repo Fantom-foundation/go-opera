@@ -17,25 +17,33 @@
 package evmcore
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 // txNoncer is a tiny virtual state database to manage the executable nonces of
 // accounts in the pool, falling back to reading from a real state database if
 // an account is unknown.
 type txNoncer struct {
+	db       kv.RoDB
 	fallback *state.StateDB
 	nonces   map[common.Address]uint64
 	lock     sync.Mutex
 }
 
 // newTxNoncer creates a new virtual state database to track the pool nonces.
-func newTxNoncer(statedb *state.StateDB) *txNoncer {
+func newTxNoncer(statedb *state.StateDB, db kv.RoDB) *txNoncer {
 	return &txNoncer{
-		fallback: statedb.Copy(),
+		db:       db,
+		fallback: statedb,
 		nonces:   make(map[common.Address]uint64),
 	}
 }
@@ -47,6 +55,15 @@ func (txn *txNoncer) get(addr common.Address) uint64 {
 	// state will mutate db even for read access.
 	txn.lock.Lock()
 	defer txn.lock.Unlock()
+
+	roTx, err := txn.db.BeginRo(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	defer roTx.Rollback()
+
+	txn.fallback.SetStateReader(estate.NewPlainStateReader(roTx))
 
 	if _, ok := txn.nonces[addr]; !ok {
 		txn.nonces[addr] = txn.fallback.GetNonce(addr)
@@ -68,6 +85,15 @@ func (txn *txNoncer) set(addr common.Address, nonce uint64) {
 func (txn *txNoncer) setIfLower(addr common.Address, nonce uint64) {
 	txn.lock.Lock()
 	defer txn.lock.Unlock()
+
+	roTx, err := txn.db.BeginRo(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	defer roTx.Rollback()
+
+	txn.fallback.SetStateReader(estate.NewPlainStateReader(roTx))
 
 	if _, ok := txn.nonces[addr]; !ok {
 		txn.nonces[addr] = txn.fallback.GetNonce(addr)

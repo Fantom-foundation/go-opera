@@ -69,12 +69,11 @@ func DefaultBlockProc() BlockProc {
 }
 
 func (b *GenesisBuilder) GetStateDB() *state.StateDB {
-	/*
-		if b.tmpStateDB == nil {
-			tmpEvmStore := evmstore.NewStore(b.tmpDB, evmstore.LiteStoreConfig())
-			b.tmpStateDB, _ = tmpEvmStore.StateDB(hash.Zero)
-		}*/
-	return b.tmpStateDB
+	if b.tmpStateDB == nil {
+		panic("statedb is empty")
+	}
+	statedb := b.tmpStateDB.Copy()
+	return statedb
 }
 
 func (b *GenesisBuilder) AddBalance(acc common.Address, balance *big.Int) {
@@ -237,7 +236,7 @@ func (f *memFile) Close() error {
 	return nil
 }
 
-func (b *GenesisBuilder) Build(db kv.RwDB, head genesis.Header) *genesisstore.Store {
+func (b *GenesisBuilder) Build(db kv.RwDB, statedb *state.StateDB, head genesis.Header) *genesisstore.Store {
 	return genesisstore.NewStore(func(name string) (io.Reader, error) {
 		buf := &memFile{bytes.NewBuffer(nil)}
 		switch name {
@@ -268,5 +267,5 @@ func (b *GenesisBuilder) Build(db kv.RwDB, head genesis.Header) *genesisstore.St
 	}, head, func() error {
 		*b = GenesisBuilder{}
 		return nil
-	}, db)
+	}, db, b.GetStateDB())
 }

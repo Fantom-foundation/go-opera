@@ -54,6 +54,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 )
 
 type ServiceFeed struct {
@@ -159,14 +161,14 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(db kv.RwDB, stack *node.Node, config Config, store *Store, blockProc BlockProc,
+func NewService(db kv.RwDB, statedb *state.StateDB, stack *node.Node, config Config, store *Store, blockProc BlockProc,
 	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
 	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
-	svc, err := newService(db, config, store, blockProc, engine, dagIndexer, newTxPool)
+	svc, err := newService(db, statedb, config, store, blockProc, engine, dagIndexer, newTxPool)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +184,7 @@ func NewService(db kv.RwDB, stack *node.Node, config Config, store *Store, block
 	return svc, nil
 }
 
-func newService(db kv.RwDB, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func newService(db kv.RwDB, statedb *state.StateDB, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		blockProcTasksDone: make(chan struct{}),
@@ -224,7 +226,7 @@ func newService(db kv.RwDB, config Config, store *Store, blockProc BlockProc, en
 	svc.checkers = makeCheckers(config.HeavyCheck, txSigner, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create tx pool
-	stateReader := svc.GetEvmStateReader()
+	stateReader := svc.GetEvmStateReader(statedb)
 	svc.txpool = newTxPool(stateReader)
 
 	// init dialCandidates

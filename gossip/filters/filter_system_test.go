@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -34,13 +33,25 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
+
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	"github.com/ledgerwatch/erigon/ethdb/olddb"
+
 )
 
+func testConfig() Config {
+	return Config{
+		IndexedLogsBlockRangeLimit:   1000,
+		UnindexedLogsBlockRangeLimit: 1000,
+	}
+}
+
 type testBackend struct {
-	db         ethdb.Database
+	db         *olddb.ObjectDatabase
 	logIndex   *topicsdb.Index
 	blocksFeed *notify.Feed
 	txsFeed    *notify.Feed
@@ -49,7 +60,7 @@ type testBackend struct {
 
 func newTestBackend() *testBackend {
 	return &testBackend{
-		db:         rawdb.NewMemoryDatabase(),
+		db:         olddb.NewObjectDatabase(memdb.New()),
 		logIndex:   topicsdb.New(memorydb.New()),
 		blocksFeed: new(notify.Feed),
 		txsFeed:    new(notify.Feed),
@@ -57,7 +68,7 @@ func newTestBackend() *testBackend {
 	}
 }
 
-func (b *testBackend) ChainDb() ethdb.Database {
+func (b *testBackend) ChainDb() *olddb.ObjectDatabase {
 	return b.db
 }
 
@@ -145,15 +156,16 @@ func (b *testBackend) GetTxPosition(txid common.Hash) *evmstore.TxPosition {
 // - one that is created after the second cutoff moment (blockHashes[cutoff2:])
 func TestBlockSubscription(t *testing.T) {
 	t.Parallel()
+	db := memdb.NewTestDB(t)
 
 	var (
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend, testConfig())
 
-		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
-		genesis     = evmcore.MustApplyFakeGenesis(statedb, evmcore.FakeGenesisTime, map[common.Address]*big.Int{})
+
+		genesis     = evmcore.MustApplyFakeGenesis(db,  evmcore.FakeGenesisTime, map[common.Address]*big.Int{})
 		chain, _, _ = evmcore.GenerateChain(
-			params.TestChainConfig, genesis, backend.db, 10, nil)
+			params.TestChainConfig, genesis, db, 10, nil)
 		chainEvents = []evmcore.ChainHeadNotify{}
 	)
 

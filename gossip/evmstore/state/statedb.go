@@ -144,7 +144,6 @@ func NewWithStateReader(stateReader estate.StateReader) *StateDB {
 		accessList:          newAccessList(),
 		hasher:              crypto.NewKeccakState(),
 	}
-
 }
 
 func NewWithRoot(root common.Hash) *StateDB {
@@ -160,37 +159,9 @@ func NewWithRoot(root common.Hash) *StateDB {
 	}
 }
 
-/*
-func NewWithSnapLayers(root common.Hash, db Database, snaps *snapshot.Tree, layers int) (*StateDB, error) {
-	tr, err := db.OpenTrie(root)
-	if err != nil {
-		return nil, err
-	}
-	sdb := &StateDB{
-		db:                  db,
-		trie:                tr,
-		originalRoot:        root,
-		snaps:               snaps,
-		stateObjects:        make(map[common.Address]*stateObject),
-		stateObjectsPending: make(map[common.Address]struct{}),
-		stateObjectsDirty:   make(map[common.Address]struct{}),
-		logs:                make(map[common.Hash][]*types.Log),
-		preimages:           make(map[common.Hash][]byte),
-		journal:             newJournal(),
-		accessList:          newAccessList(),
-		hasher:              crypto.NewKeccakState(),
-		snapMaxLayers:       layers,
-	}
-	if sdb.snaps != nil {
-		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
-			sdb.snapDestructs = make(map[common.Hash]struct{})
-			sdb.snapAccounts = make(map[common.Hash][]byte)
-			sdb.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
-		}
-	}
-	return sdb, nil
+func (s *StateDB) SetStateReader(stateReader estate.StateReader) {
+	s.stateReader = stateReader
 }
-*/
 
 // setError remembers the first non-nil error it is called with.
 func (s *StateDB) setError(err error) {
@@ -528,6 +499,7 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 // the object is not found or was deleted in this execution context. If you need
 // to differentiate between non-existent/just-deleted, use getDeletedStateObject.
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
+	var account Account
 
 	// Prefer live objects if any is available
 	if obj := s.stateObjects[addr]; obj != nil {
@@ -539,14 +511,14 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 		s.setError(err)
 		return nil
 	}
-	if eAccount == nil {
 
+	if eAccount == nil {
 		stateObject, _ := s.createObject(addr)
 		return stateObject
 	}
 
 	// convert from erigon type to Account type
-	account := transformErigonAccount(eAccount)
+	account = transformErigonAccount(eAccount)
 
 	// Insert into the live set
 	obj := newObject(s, addr, account)

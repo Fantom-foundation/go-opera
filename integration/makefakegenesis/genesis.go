@@ -142,7 +142,7 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 		panic(err)
 	}
 
-	return builder.Build(db, genesis.Header{
+	return builder.Build(db, builder.GetStateDB(), genesis.Header{
 		GenesisID:   builder.CurrentHash(),
 		NetworkID:   rules.NetworkID,
 		NetworkName: rules.Name,
