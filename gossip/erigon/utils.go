@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-
-	"os/user"
 )
 
 func homeDir() string {
@@ -22,7 +20,7 @@ func homeDir() string {
 	return "/var/data/"
 }
 
-func defaultDataDir() string {
+func DefaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	home := homeDir()
 	if home != "" {

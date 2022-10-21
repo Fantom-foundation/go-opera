@@ -52,7 +52,7 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 	}
 	var db kv.RwDB
 
-	dbPath := filepath.Join(defaultDataDir(), "erigon", name)
+	dbPath := filepath.Join(DefaultDataDir(), "erigon", name)
 
 	var openFunc func(exclusive bool) (kv.RwDB, error)
 	logger.Log.Info("Opening Database", "label", name, "path", dbPath)
@@ -88,7 +88,7 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = migrator.Apply(db, defaultDataDir()); err != nil {
+		if err = migrator.Apply(db, DefaultDataDir()); err != nil {
 			return nil, err
 		}
 		db.Close()

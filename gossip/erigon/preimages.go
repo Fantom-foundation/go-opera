@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -19,12 +20,13 @@ import (
 	"github.com/ledgerwatch/erigon/crypto"
 )
 
-// THis path denotes path to preimages in profiling6 server
-const defaultPreimagesPath = "/var/data/preimages/preimages.gz"
+
 
 // WritePreimagesToSenders writes preimages to erigon kv.Senders table
 func WritePreimagesToSenders(db kv.RwDB) error {
 
+	// THis path denotes path to preimages in profiling6 server
+	defaultPreimagesPath := filepath.Join(DefaultDataDir(), "/preimages/preimages.gz")
 	start := time.Now()
 	log.Info("Reading preimages", "from file", defaultPreimagesPath)
 
