@@ -20,7 +20,7 @@ import (
 )
 
 // THis path denotes path to preimages in profiling6 server
-const defaultPreimagesPath = "/root/preimages/preimages.gz"
+const defaultPreimagesPath = "/var/data/preimages/preimages.gz"
 
 // WritePreimagesToSenders writes preimages to erigon kv.Senders table
 func WritePreimagesToSenders(db kv.RwDB) error {
