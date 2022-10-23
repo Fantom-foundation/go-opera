@@ -186,10 +186,6 @@ func (s *stateObject) GetState(key common.Hash) common.Hash {
 
 // GetCommittedState retrieves a value from the committed account storage trie.
 func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
-	// If the fake storage is set, only lookup the state here(in the debugging mode)
-	if s.fakeStorage != nil {
-		return s.fakeStorage[key]
-	}
 	// If we have a pending write or clean cached, return that
 	if value, pending := s.pendingStorage[key]; pending {
 		return value
@@ -259,6 +255,10 @@ func (s *stateObject) SetState(key, value common.Hash) {
 	s.setState(key, value)
 }
 
+func (s *stateObject) setState(key, value common.Hash) {
+	s.dirtyStorage[key] = value
+}
+
 // SetStorage replaces the entire state storage with the given one.
 //
 // After this function is called, all original state will be ignored and state
@@ -275,10 +275,6 @@ func (s *stateObject) SetStorage(storage map[common.Hash]common.Hash) {
 	}
 	// Don't bother journal since this function should only be used for
 	// debugging and the `fake` storage won't be committed to database.
-}
-
-func (s *stateObject) setState(key, value common.Hash) {
-	s.dirtyStorage[key] = value
 }
 
 // AddBalance adds amount to s's balance.

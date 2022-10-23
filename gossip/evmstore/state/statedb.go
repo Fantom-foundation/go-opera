@@ -23,7 +23,6 @@ import (
 	"sort"
 	"time"
 
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -63,7 +62,7 @@ type StateDB struct {
 	stateReader estate.StateReader
 
 	originalRoot common.Hash // The pre-state root, before any changes were made
-	hasher crypto.KeccakState
+	hasher       crypto.KeccakState
 
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects        map[common.Address]*stateObject
@@ -238,7 +237,7 @@ func (s *StateDB) GetCode(addr common.Address) []byte {
 
 func (s *StateDB) GetCodeSize(addr common.Address) int {
 	stateObject := s.getStateObject(addr)
-	if stateObject == nil {
+	if stateObject == nil || stateObject.deleted {
 		return 0
 	}
 

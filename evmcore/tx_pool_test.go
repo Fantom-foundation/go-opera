@@ -17,8 +17,8 @@
 package evmcore
 
 import (
-	"errors"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -309,7 +309,6 @@ func testSetNonce(pool *TxPool, addr common.Address, nonce uint64) {
 	pool.mu.Unlock()
 }
 
-
 func TestInvalidTransactions(t *testing.T) {
 	t.Parallel()
 
@@ -346,7 +345,6 @@ func TestInvalidTransactions(t *testing.T) {
 		t.Error("expected", nil, "got", err)
 	}
 }
-
 
 func TestTransactionQueue(t *testing.T) {
 	t.Parallel()
@@ -405,7 +403,6 @@ func TestTransactionQueue2(t *testing.T) {
 	}
 }
 
-
 func TestTransactionNegativeValue(t *testing.T) {
 	t.Parallel()
 
@@ -420,7 +417,6 @@ func TestTransactionNegativeValue(t *testing.T) {
 	}
 }
 
-
 func TestTransactionTipAboveFeeCap(t *testing.T) {
 	t.Parallel()
 
@@ -433,7 +429,6 @@ func TestTransactionTipAboveFeeCap(t *testing.T) {
 		t.Error("expected", ErrTipAboveFeeCap, "got", err)
 	}
 }
-
 
 func TestTransactionVeryHighValues(t *testing.T) {
 	t.Parallel()
@@ -1504,7 +1499,6 @@ func TestTransactionPoolRepricing(t *testing.T) {
 	}
 }
 
-
 // Tests that setting the transaction pool gas price to a higher value correctly
 // discards everything cheaper (legacy & dynamic fee) than that and moves any
 // gapped transactions back from the pending pool to the queue.
@@ -1631,7 +1625,6 @@ func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 }
-
 
 // Tests that setting the transaction pool gas price to a higher value does not
 // remove local transactions (legacy & dynamic fee).
