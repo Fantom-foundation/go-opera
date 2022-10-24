@@ -461,6 +461,7 @@ func (pool *TxPool) Nonce(addr common.Address) uint64 {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
+	log.Info("(pool *TxPool) Nonce")
 	return pool.pendingNonces.get(addr)
 }
 
@@ -655,6 +656,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
+		log.Info("validateTx", "from", from, "currentState.Nonce(from)", pool.currentState.GetNonce(from),  "tx.Nonce()", tx.Nonce())
 		return ErrNonceTooLow
 	}
 	// Transactor should have enough funds to cover the costs

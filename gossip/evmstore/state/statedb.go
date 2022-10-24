@@ -106,6 +106,19 @@ type StateDB struct {
 	SnapshotStorageReads time.Duration
 	SnapshotCommits      time.Duration
 }
+func New() *StateDB {
+	return &StateDB{
+		stateObjects:        make(map[common.Address]*stateObject),
+		stateObjectsPending: make(map[common.Address]struct{}),
+		stateObjectsDirty:   make(map[common.Address]struct{}),
+		logs:                make(map[common.Hash][]*types.Log),
+		journal:             newJournal(),
+		accessList:          newAccessList(),
+		hasher:              crypto.NewKeccakState(),
+	}
+}
+	
+
 
 func NewWithStateReader(stateReader estate.StateReader) *StateDB {
 	return &StateDB{

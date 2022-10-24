@@ -457,6 +457,7 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 // and release it after the transaction has been submitted to the tx pool
 func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *TransactionArgs, passwd string) (*types.Transaction, error) {
 	// Look up the wallet containing the requested signer
+	log.Info("(s *PrivateAccountAPI) signTransaction")
 	account := accounts.Account{Address: args.from()}
 	wallet, err := s.am.Find(account)
 	if err != nil {
@@ -476,6 +477,7 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *Transacti
 // tries to sign it with the key associated with args.From. If the given
 // passwd isn't able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args TransactionArgs, passwd string) (common.Hash, error) {
+	log.Info("(s *PrivateAccountAPI) SendTransaction")
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -582,6 +584,7 @@ func (s *PrivateAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Byt
 // SignAndSendTransaction was renamed to SendTransaction. This method is deprecated
 // and will be removed in the future. It primary goal is to give clients time to update.
 func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args TransactionArgs, passwd string) (common.Hash, error) {
+	log.Info("(s *PrivateAccountAPI) SignAndSendTransaction")
 	return s.SendTransaction(ctx, args, passwd)
 }
 
@@ -1077,6 +1080,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		hi  uint64
 		cap uint64
 	)
+	log.Info("DoEstimateGas")
 	// Use zero address if sender unspecified.
 	if args.From == nil {
 		args.From = new(common.Address)

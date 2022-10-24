@@ -43,7 +43,7 @@ type txNoncer struct {
 func newTxNoncer(statedb *state.StateDB, db kv.RoDB) *txNoncer {
 	return &txNoncer{
 		db:       db,
-		fallback: statedb,
+		fallback: statedb.Copy(),
 		nonces:   make(map[common.Address]uint64),
 	}
 }

@@ -77,6 +77,7 @@ func (arg *TransactionArgs) data() []byte {
 
 // setDefaults fills in default values for unspecified tx fields.
 func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
+	log.Info("(args *TransactionArgs) setDefaults")
 	if args.GasPrice != nil && (args.MaxFeePerGas != nil || args.MaxPriorityFeePerGas != nil) {
 		return errors.New("both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified")
 	}
@@ -122,6 +123,9 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 	}
 	if args.Nonce == nil {
 		nonce, err := b.GetPoolNonce(ctx, args.from())
+		log.Info("(args *TransactionArgs) setDefaults", "nonce", nonce)
+
+
 		if err != nil {
 			return err
 		}

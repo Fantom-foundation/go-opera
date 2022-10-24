@@ -28,6 +28,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // EthAPIBackend implements ethapi.Backend.
@@ -107,6 +109,7 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 
 // StateAndHeaderByNumberOrHash returns evm state and block header by block number or block hash, err if not exists.
 func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *evmcore.EvmHeader, error) {
+	log.Info("(b *EthAPIBackend) StateAndHeaderByNumberOrHash")
 	var header *evmcore.EvmHeader
 	if number, ok := blockNrOrHash.Number(); ok && (number == rpc.LatestBlockNumber || number == rpc.PendingBlockNumber) {
 		header = &b.state.CurrentBlock().EvmHeader
@@ -124,9 +127,13 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb := b.svc.store.evm.StateDB(hash.Hash(header.Root))
+	//stateDb := b.svc.store.evm.StateDB(hash.Hash(header.Root))
+	statedb := b.state.StateDB().Copy()
+	// statedb := state.New()  panic occured
+	log.Info("(b *EthAPIBackend) StateAndHeaderByNumberOrHash", "statedb.GetNonce(from)", statedb.GetNonce(common.HexToAddress("0x239fa7623354ec26520de878b52f13fe84b06971")))
 
-	return stateDb, header, nil
+
+	return statedb, header, nil
 }
 
 // decodeShortEventID decodes ShortID
@@ -391,6 +398,7 @@ func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 }
 
 func (b *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	log.Info("func (b *EthAPIBackend) GetPoolNonce(")
 	return b.svc.txpool.Nonce(addr), nil
 }
 
