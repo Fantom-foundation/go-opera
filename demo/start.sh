@@ -26,6 +26,7 @@ do
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
     --syncmode full \
+    --erigonid=${ACC} \
 	--verbosity=3 --tracing >> opera$i.log 2>&1)&
 
     echo -e "\tnode$i ok"

@@ -21,6 +21,7 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -31,6 +32,9 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	futils "github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/vecmt"
+
+	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 var (
@@ -175,6 +179,7 @@ func loadAllConfigs(file string, cfg *config) error {
 }
 
 func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
+
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
@@ -182,7 +187,17 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 
-		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		var erigonDBId uint
+		if ctx.GlobalIsSet(ErigonDBIdFlag.Name) {
+			erigonDBId = uint(ctx.GlobalInt(ErigonDBIdFlag.Name))
+		}
+
+		genesisKV := erigon.MakeChainDatabase(logger.New("fakenet-chain-db"), kv.ChainDB, erigonDBId)
+
+		// used to store evm state
+		chainKV := erigon.MakeChainDatabase(logger.New("consensus-kv"), kv.ConsensusDB, erigonDBId)
+
+		return makefakegenesis.FakeGenesisStore(genesisKV, chainKV, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
 		genesisPath := ctx.GlobalString(GenesisFlag.Name)
 

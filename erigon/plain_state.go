@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"path/filepath"
+	"strconv"
 
 	"github.com/c2h5oh/datasize"
 
@@ -24,19 +25,28 @@ import (
 var emptyCode = crypto.Keccak256(nil)
 
 // openDatabase opens lmdb database using specified label
-func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
-	var name string
+func openDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) (db kv.RwDB, err error) {
+	var (
+		name string
+	)
+
 	switch label {
-	case kv.ChainDB:
+	case kv.ChainDB: //genesisKV
 		name = "chaindata"
 	case kv.TxPoolDB:
 		name = "txpool"
-	case kv.ConsensusDB: //fakenet
+	case kv.ConsensusDB: //chainKV
 		name = "consensusDB"
 	default:
 		name = "test"
 	}
-	var db kv.RwDB
+
+	switch {
+	case erigonDbId > 0:
+		id := strconv.Itoa(int(erigonDbId))
+		name += id
+	default:
+	}
 
 	dbPath := filepath.Join(DefaultDataDir(), "erigon", name)
 
@@ -53,7 +63,7 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 		}
 		return opts.Open()
 	}
-	var err error
+
 	db, err = openFunc(false)
 	if err != nil {
 		return nil, err
@@ -90,12 +100,12 @@ func openDatabase(logger logger.Instance, label kv.Label) (kv.RwDB, error) {
 		return nil, err
 	}
 
-	return db, nil
+	return
 }
 
 // MakeChainDatabase opens a database and it crashes if it fails to open
-func MakeChainDatabase(logger logger.Instance, label kv.Label) kv.RwDB {
-	chainDb, err := openDatabase(logger, label)
+func MakeChainDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) kv.RwDB {
+	chainDb, err := openDatabase(logger, label, erigonDbId)
 	if err != nil {
 		utils.Fatalf("Could not open database: %v", err)
 	}
