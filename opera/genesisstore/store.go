@@ -20,24 +20,25 @@ type FilesMap func(string) (io.Reader, error)
 
 // Store is a node persistent storage working over a physical zip archive.
 type Store struct {
-	fMap    FilesMap
-	head    genesis.Header
-	close   func() error
-	db      kv.RwDB
-	statedb *state.StateDB
+	fMap               FilesMap
+	head               genesis.Header
+	close              func() error
+	genesisKV, chainKV kv.RwDB
+	statedb            *state.StateDB
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(fMap FilesMap, head genesis.Header, close func() error, db kv.RwDB, statedb *state.StateDB) *Store {
+func NewStore(fMap FilesMap, head genesis.Header, close func() error, genesisKV, chainKV kv.RwDB, statedb *state.StateDB) *Store {
 	return &Store{
-		fMap:     fMap,
-		head:     head,
-		close:    close,
-		db:       db,
-		statedb:  statedb,
-		Instance: logger.New("genesis-store"),
+		fMap:      fMap,
+		head:      head,
+		close:     close,
+		genesisKV: genesisKV,
+		chainKV:   chainKV,
+		statedb:   statedb,
+		Instance:  logger.New("genesis-store"),
 	}
 }
 
@@ -47,8 +48,8 @@ func (s *Store) Close() error {
 	return s.close()
 }
 
-func (s *Store) DB() kv.RwDB {
-	return s.db
+func (s *Store) KVs() (kv.RwDB, kv.RwDB) {
+	return s.genesisKV, s.chainKV
 }
 
 func (s *Store) StateDB() *state.StateDB {

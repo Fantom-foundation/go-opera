@@ -17,7 +17,6 @@
 package evmcore
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -96,11 +95,6 @@ func (p *StateProcessor) Process(
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
-	}
-
-	// commit state changes to db
-	if err := statedb.CommitBlock(stateWriter); err != nil {
-		return nil, nil, nil, errors.New("could not execute commit block")
 	}
 
 	return

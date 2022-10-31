@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/eventcheck"
@@ -114,7 +113,6 @@ type Service struct {
 	accountManager *accounts.Manager
 
 	// application
-	db                  kv.RwDB
 	store               *Store
 	engine              lachesis.Consensus
 	dagIndexer          *vecmt.Index
@@ -161,14 +159,14 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(db kv.RwDB, statedb *state.StateDB, stack *node.Node, config Config, store *Store, blockProc BlockProc,
+func NewService(statedb *state.StateDB, stack *node.Node, config Config, store *Store, blockProc BlockProc,
 	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
 	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
-	svc, err := newService(db, statedb, config, store, blockProc, engine, dagIndexer, newTxPool)
+	svc, err := newService(statedb, config, store, blockProc, engine, dagIndexer, newTxPool)
 	if err != nil {
 		return nil, err
 	}
@@ -179,12 +177,11 @@ func NewService(db kv.RwDB, statedb *state.StateDB, stack *node.Node, config Con
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 	svc.haltCheck = haltCheck
-	svc.db = db
 
 	return svc, nil
 }
 
-func newService(db kv.RwDB, statedb *state.StateDB, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func newService(statedb *state.StateDB, config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		blockProcTasksDone: make(chan struct{}),
@@ -393,7 +390,7 @@ func (s *Service) Protocols() []p2p.Protocol {
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	apis := ethapi.GetAPIs(s.EthAPI, s.db)
+	apis := ethapi.GetAPIs(s.EthAPI, s.store.evm.ChainKV())
 
 	apis = append(apis, []rpc.API{
 		{

@@ -273,7 +273,9 @@ func lachesisMain(ctx *cli.Context) error {
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
-	genesisStore.DB().Close()
+	genesisKV, chainKV := genesisStore.KVs()
+	genesisKV.Close()
+	chainKV.Close()
 	return nil
 }
 
@@ -282,7 +284,8 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
-	db, statedb := genesisStore.DB(), genesisStore.StateDB()
+	genesisKV, chainKV := genesisStore.KVs()
+	statedb := genesisStore.StateDB()
 
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
 	if err := os.MkdirAll(chaindataDir, 0700); err != nil {
@@ -293,7 +296,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		gv := genesisStore.Genesis()
 		g = &gv
 	}
-	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(db, integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(genesisKV, chainKV, integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
 	if genesisStore != nil {
 		_ = genesisStore.Close()
 	}
@@ -340,7 +343,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 			cfg.TxPool.Journal = stack.ResolvePath(cfg.TxPool.Journal)
 		}
 
-		return evmcore.NewTxPool(db, cfg.TxPool, reader.Config(), reader)
+		return evmcore.NewTxPool(chainKV, cfg.TxPool, reader.Config(), reader)
 	}
 	haltCheck := func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool {
 		stop := ctx.GlobalIsSet(ExitWhenAgeFlag.Name) && ctx.GlobalDuration(ExitWhenAgeFlag.Name) >= time.Since(age)
@@ -354,7 +357,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		}
 		return false
 	}
-	svc, err := gossip.NewService(db, statedb, stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
+	svc, err := gossip.NewService(statedb, stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}

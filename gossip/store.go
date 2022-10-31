@@ -11,11 +11,14 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
+	"github.com/ledgerwatch/erigon-lib/kv"
+
 	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
+
 	//"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
@@ -94,11 +97,11 @@ func NewMemStore() *Store {
 	dbs := flushable.NewSyncedPool(mems, []byte{0})
 	cfg := LiteStoreConfig()
 
-	return NewStore(dbs, cfg)
+	return NewStore(dbs, cfg, nil, nil)
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
+func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *Store {
 	mainDB, err := dbs.OpenDB("gossip")
 	if err != nil {
 		log.Crit("Failed to open DB", "name", "gossip", "err", err)
@@ -115,7 +118,8 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig) *Store {
 	table.MigrateTables(&s.table, s.mainDB)
 
 	s.initCache()
-	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
+
+	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM, genesisKV, chainKV)
 
 	if err := s.migrateData(); err != nil {
 		s.Log.Crit("Failed to migrate Gossip DB", "err", err)

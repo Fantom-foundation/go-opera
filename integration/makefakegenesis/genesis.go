@@ -9,12 +9,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/Fantom-foundation/go-opera/erigon"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
+	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
 	"github.com/Fantom-foundation/go-opera/opera/contracts/driver/drivercall"
@@ -35,7 +36,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
-	//estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 var (
@@ -47,22 +47,29 @@ func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
 	return evmcore.FakeKey(int(n))
 }
 
-func FakeGenesisStore(db kv.RwDB, num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
-	return FakeGenesisStoreWithRules(db, num, balance, stake, opera.FakeNetRules())
+func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
+	return FakeGenesisStoreWithRules(num, balance, stake, opera.FakeNetRules())
 }
 
-func FakeGenesisStoreWithRules(db kv.RwDB, num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
-	return FakeGenesisStoreWithRulesAndStart(db, num, balance, stake, rules, 2, 1)
+func FakeGenesisStoreWithRules(num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
+	return FakeGenesisStoreWithRulesAndStart(num, balance, stake, rules, 2, 1)
 }
 
-func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+	// used to store genesis only
+	genesisKV := erigon.MakeChainDatabase(logger.New("fakenet-chain-db"), kv.ChainDB)
+
+	// used to store evm state
+	chainKV := erigon.MakeChainDatabase(logger.New("consensus-kv"), kv.ConsensusDB)
+
 	// start erigon RW transaction for genesis block
-	tx, err := db.BeginRw(context.Background())
+	tx, err := genesisKV.BeginRw(context.Background())
 	if err != nil {
 		panic(err)
 	}
+	defer tx.Rollback()
 
-	builder := makegenesis.NewGenesisBuilder(memorydb.New(), tx)
+	builder := makegenesis.NewGenesisBuilder(tx)
 
 	validators := GetFakeValidators(num)
 
@@ -142,7 +149,7 @@ func FakeGenesisStoreWithRulesAndStart(db kv.RwDB, num idx.Validator, balance, s
 		panic(err)
 	}
 
-	return builder.Build(db, builder.GetStateDB(), genesis.Header{
+	return builder.Build(genesisKV, chainKV, builder.GetStateDB(), genesis.Header{
 		GenesisID:   builder.CurrentHash(),
 		NetworkID:   rules.NetworkID,
 		NetworkName: rules.Name,

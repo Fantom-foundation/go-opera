@@ -125,7 +125,6 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 		nonce, err := b.GetPoolNonce(ctx, args.from())
 		log.Info("(args *TransactionArgs) setDefaults", "nonce", nonce)
 
-
 		if err != nil {
 			return err
 		}

@@ -29,6 +29,8 @@ import (
 
 	//"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 const nominalSize uint = 1
@@ -47,6 +49,7 @@ type Store struct {
 		Txs         kvdb.Store `table:"X"`
 	}
 
+	genesisKV, chainKV kv.RwDB
 	//EvmDb    ethdb.Database
 	//EvmState state.Database
 	EvmLogs *topicsdb.Index
@@ -73,7 +76,7 @@ const (
 )
 
 // NewStore creates store over key-value db.
-func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
+func NewStore(mainDB kvdb.Store, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDB:   mainDB,
@@ -83,6 +86,8 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig) *Store {
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
+	s.genesisKV = genesisKV
+	s.chainKV = chainKV
 
 	/*
 		s.EvmDb = rawdb.NewDatabase(
@@ -294,4 +299,12 @@ func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 		return nil
 	}
 	return cache
+}
+
+func (s *Store) GenesisKV() kv.RwDB {
+	return s.genesisKV
+}
+
+func (s *Store) ChainKV() kv.RwDB {
+	return s.chainKV
 }

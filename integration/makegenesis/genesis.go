@@ -9,7 +9,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -20,7 +19,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -34,13 +32,8 @@ import (
 )
 
 type GenesisBuilder struct {
-	tmpDB kvdb.Store
-
-	tmpEvmStore *evmstore.Store
 	tmpStateDB  *state.StateDB
-
 	stateWriter estate.StateWriter
-
 	totalSupply *big.Int
 
 	blocks       []ibr.LlrIdxFullBlockRecord
@@ -114,15 +107,12 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 	return er.Hash()
 }
 
-func NewGenesisBuilder(tmpDb kvdb.Store, tx kv.RwTx) *GenesisBuilder {
-	tmpEvmStore := evmstore.NewStore(tmpDb, evmstore.LiteStoreConfig())
-	statedb := tmpEvmStore.StateDB(hash.Zero)
+func NewGenesisBuilder(tx kv.RwTx) *GenesisBuilder {
+	statedb := state.New()
 	statedb.WithStateReader(estate.NewPlainStateReader(tx))
 	// initiate stateWriter to write changes into erigon tables after each transaction
 	stateWriter := estate.NewPlainStateWriter(tx, nil, 0) // 0 or 1 ?
 	return &GenesisBuilder{
-		tmpDB:       tmpDb,
-		tmpEvmStore: tmpEvmStore,
 		tmpStateDB:  statedb,
 		stateWriter: stateWriter,
 		totalSupply: new(big.Int),
@@ -171,6 +161,10 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(tx kv.RwTx, blockProc BlockProc, gene
 	// Execute post-internal transactions
 	internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, b.tmpStateDB)
 	evmProcessor.Execute(internalTxs)
+
+	if err := b.tmpStateDB.CommitBlock(b.stateWriter); err != nil {
+		panic(err)
+	}
 
 	evmBlock, skippedTxs, receipts := evmProcessor.Finalize(tx)
 	for _, r := range receipts {
@@ -236,7 +230,7 @@ func (f *memFile) Close() error {
 	return nil
 }
 
-func (b *GenesisBuilder) Build(db kv.RwDB, statedb *state.StateDB, head genesis.Header) *genesisstore.Store {
+func (b *GenesisBuilder) Build(genesisKV, chainKV kv.RwDB, statedb *state.StateDB, head genesis.Header) *genesisstore.Store {
 	return genesisstore.NewStore(func(name string) (io.Reader, error) {
 		buf := &memFile{bytes.NewBuffer(nil)}
 		switch name {
@@ -249,16 +243,17 @@ func (b *GenesisBuilder) Build(db kv.RwDB, statedb *state.StateDB, head genesis.
 				_ = rlp.Encode(buf, b.epochs[i])
 			}
 		case genesisstore.EvmSection:
-			tx, err := db.BeginRo(context.Background())
+			tx, err := genesisKV.BeginRo(context.Background())
 			if err != nil {
 				return nil, err
 			}
-			defer tx.Rollback()
 
 			_, err = erigon.Write(buf, tx)
 			if err != nil {
 				return nil, err
 			}
+
+			tx.Rollback()
 		}
 		if buf.Len() == 0 {
 			return nil, errors.New("not found")
@@ -267,5 +262,5 @@ func (b *GenesisBuilder) Build(db kv.RwDB, statedb *state.StateDB, head genesis.
 	}, head, func() error {
 		*b = GenesisBuilder{}
 		return nil
-	}, db, b.GetStateDB())
+	}, genesisKV, chainKV, b.GetStateDB())
 }

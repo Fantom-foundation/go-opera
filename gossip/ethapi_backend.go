@@ -132,7 +132,6 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	// statedb := state.New()  panic occured
 	log.Info("(b *EthAPIBackend) StateAndHeaderByNumberOrHash", "statedb.GetNonce(from)", statedb.GetNonce(common.HexToAddress("0x239fa7623354ec26520de878b52f13fe84b06971")))
 
-
 	return statedb, header, nil
 }
 

@@ -13,7 +13,7 @@ import (
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(db kv.RwDB, g genesis.Genesis) (genesisHash hash.Hash, err error) {
+func (s *Store) ApplyGenesis(_, _ kv.RwDB, g genesis.Genesis) (genesisHash hash.Hash, err error) {
 	// write epochs
 	var topEr *ier.LlrIdxFullEpochRecord
 	g.Epochs.ForEach(func(er ier.LlrIdxFullEpochRecord) bool {
@@ -43,10 +43,12 @@ func (s *Store) ApplyGenesis(db kv.RwDB, g genesis.Genesis) (genesisHash hash.Ha
 	})
 
 	// write EVM items
+	/* i dont think it is required
 	err = s.evm.ApplyGenesis(db, g)
 	if err != nil {
 		return genesisHash, err
 	}
+	*/
 
 	// write LLR state
 	s.setLlrState(LlrState{

@@ -29,7 +29,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
@@ -74,7 +73,6 @@ type ExtendedTxPosition struct {
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
 		BeginBlock: consensusCallbackBeginBlockFn(
-			s.db,
 			s.blockProcTasks,
 			&s.blockProcWg,
 			&s.blockBusyFlag,
@@ -91,7 +89,6 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 // consensusCallbackBeginBlockFn takes only necessaries for block processing and
 // makes lachesis.BeginBlockFn.
 func consensusCallbackBeginBlockFn(
-	db kv.RwDB,
 	parallelTasks *workers.Workers,
 	wg *sync.WaitGroup,
 	blockBusyFlag *uint32,
@@ -123,15 +120,6 @@ func consensusCallbackBeginBlockFn(
 				log.Crit("Failed to open StateDB", "err", err)
 			}
 		*/
-
-		// start new RW transaction
-		tx, err := db.BeginRw(context.Background())
-		if err != nil {
-			panic(err)
-		}
-		// defer tx.Rollback()
-
-		statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
 
 		evmStateReader := &EvmStateReader{
 			ServiceFeed: feed,
@@ -254,6 +242,17 @@ func consensusCallbackBeginBlockFn(
 
 				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
 				sealing := sealer.EpochSealing()
+
+				chainKV := store.evm.ChainKV()
+
+				// start new RW transaction
+				tx, err := chainKV.BeginRw(context.Background())
+				if err != nil {
+					panic(err)
+				}
+
+				statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
+
 				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
 				onNewLogAll := func(l *types.Log) {
 					txListener.OnNewLog(l)
@@ -275,13 +274,18 @@ func consensusCallbackBeginBlockFn(
 					})
 				}
 
-				stateWriter := estate.NewPlainStateWriter(tx, tx, uint64(blockCtx.Idx))
+				stateWriter := estate.NewPlainStateWriter(tx, nil, uint64(blockCtx.Idx))
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, stateWriter, evmStateReader, onNewLogAll, es.Rules)
 				substart := time.Now()
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 				preInternalReceipts := evmProcessor.Execute(preInternalTxs)
+
+				if err := statedb.CommitBlock(stateWriter); err != nil {
+					panic(err)
+				}
+
 				bs = txListener.Finalize()
 				for _, r := range preInternalReceipts {
 					if r.Status == 0 {
@@ -298,9 +302,26 @@ func consensusCallbackBeginBlockFn(
 					txListener.Update(bs, es)
 				}
 
+				if err := tx.Commit(); err != nil {
+					panic(err)
+				}
+
 				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 				blockFn := func() {
+
 					// Execute post-internal transactions
+					log.Info("blockFn")
+					tx, err := chainKV.BeginRw(context.Background())
+					if err != nil {
+						panic(err)
+					}
+
+					defer tx.Rollback()
+
+					stateWriter := estate.NewPlainStateWriter(tx, nil, uint64(blockCtx.Idx))
+					statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
+
+					evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, stateWriter, evmStateReader, onNewLogAll, es.Rules)
 					internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
 					internalReceipts := evmProcessor.Execute(internalTxs)
 					for _, r := range internalReceipts {
@@ -329,6 +350,10 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					_ = evmProcessor.Execute(txs)
+
+					if err := statedb.CommitBlock(stateWriter); err != nil {
+						panic(err)
+					}
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize(tx)
 					block.SkippedTxs = skippedTxs
@@ -447,8 +472,6 @@ func consensusCallbackBeginBlockFn(
 					snapshotCommitTimer.Update(statedb.SnapshotCommits)
 					blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
-
-					// write block idx to syncStage progress
 
 					// Commit erigon rw tx
 					if err := tx.Commit(); err != nil {

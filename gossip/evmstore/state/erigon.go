@@ -8,6 +8,8 @@ import (
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // WithStateReader sets erigon stateReader on StateDB
@@ -30,6 +32,7 @@ func (sdb *StateDB) makeWriteSet(stateWriter estate.StateWriter) error {
 		if err := updateAccount(stateWriter, addr, stateObject, isDirty); err != nil {
 			return err
 		}
+		log.Info("CommitBlock", "updateAccount(addr)", addr.Hex())
 	}
 	// Invalidate journal because reverting across transactions is not allowed.
 	sdb.clearJournalAndRefund()
@@ -50,7 +53,9 @@ func (sdb *StateDB) SoftFinalize(stateWriter estate.StateWriter) error {
 		}
 
 		sdb.stateObjectsDirty[addr] = struct{}{}
+		log.Info("SoftFinalize", "stateObjectsDirty[addr]", addr.Hex())
 	}
+
 	// Invalidate journal because reverting across transactions is not allowed.
 	sdb.clearJournalAndRefund()
 	return nil
