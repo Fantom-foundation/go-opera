@@ -43,12 +43,10 @@ func (s *Store) ApplyGenesis(_, _ kv.RwDB, g genesis.Genesis) (genesisHash hash.
 	})
 
 	// write EVM items
-	/* i dont think it is required
-	err = s.evm.ApplyGenesis(db, g)
+	err = s.evm.ApplyGenesis(g)
 	if err != nil {
 		return genesisHash, err
 	}
-	*/
 
 	// write LLR state
 	s.setLlrState(LlrState{

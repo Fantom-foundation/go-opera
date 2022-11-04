@@ -17,8 +17,6 @@ import (
 type mapmutation struct {
 	puts   map[string]map[string][]byte // table -> key -> value ie. blocks -> hash -> blockBod
 	db     kv.RwTx
-	quit   <-chan struct{}
-	clean  func()
 	mu     sync.RWMutex
 	size   int
 	count  uint64
@@ -33,19 +31,10 @@ type mapmutation struct {
 // defer batch.Rollback()
 // ... some calculations on `batch`
 // batch.Commit()
-func NewHashBatch(tx kv.RwTx, quit <-chan struct{}, tmpdir string) *mapmutation {
-	clean := func() {}
-	if quit == nil {
-		ch := make(chan struct{})
-		clean = func() { close(ch) }
-		quit = ch
-	}
-
+func NewHashBatch(tx kv.RwTx, tmpdir string) *mapmutation {
 	return &mapmutation{
 		db:     tx,
 		puts:   make(map[string]map[string][]byte),
-		quit:   quit,
-		clean:  clean,
 		tmpdir: tmpdir,
 	}
 }
@@ -208,12 +197,12 @@ func (m *mapmutation) ForAmount(bucket string, prefix []byte, amount uint32, wal
 	return m.db.ForAmount(bucket, prefix, amount, walker)
 }
 
-func (m *mapmutation) Delete(table string, k []byte) error {
+func (m *mapmutation) Delete(table string, k, _ []byte) error {
 	return m.Put(table, k, nil)
 }
 
 func (m *mapmutation) doCommit(tx kv.RwTx) error {
-	logEvery := time.NewTicker(30 * time.Second)
+	logEvery := time.NewTicker(1 * time.Second)
 	defer logEvery.Stop()
 	count := 0
 	total := float64(m.count)
@@ -231,7 +220,7 @@ func (m *mapmutation) doCommit(tx kv.RwTx) error {
 				tx.CollectMetrics()
 			}
 		}
-		if err := collector.Load(m.db, table, etl.IdentityLoadFunc, etl.TransformArgs{Quit: m.quit}); err != nil {
+		if err := collector.Load(m.db, table, etl.IdentityLoadFunc, etl.TransformArgs{Quit: nil}); err != nil {
 			return err
 		}
 	}
@@ -253,7 +242,6 @@ func (m *mapmutation) Commit() error {
 	m.puts = map[string]map[string][]byte{}
 	m.size = 0
 	m.count = 0
-	m.clean()
 	return nil
 }
 
@@ -264,7 +252,6 @@ func (m *mapmutation) Rollback() {
 	m.size = 0
 	m.count = 0
 	m.size = 0
-	m.clean()
 }
 
 func (m *mapmutation) Close() {

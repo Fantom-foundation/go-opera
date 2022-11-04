@@ -29,6 +29,7 @@ import (
 
 	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
+	"github.com/ledgerwatch/erigon/ethdb"
 )
 
 type revision struct {
@@ -60,6 +61,7 @@ func (n *proofList) Delete(key []byte) error {
 type StateDB struct {
 	// erigon field
 	stateReader estate.StateReader
+	db          ethdb.Database
 
 	originalRoot common.Hash // The pre-state root, before any changes were made
 	hasher       crypto.KeccakState
@@ -122,6 +124,19 @@ func New() *StateDB {
 func NewWithStateReader(stateReader estate.StateReader) *StateDB {
 	return &StateDB{
 		stateReader:         stateReader,
+		stateObjects:        make(map[common.Address]*stateObject),
+		stateObjectsPending: make(map[common.Address]struct{}),
+		stateObjectsDirty:   make(map[common.Address]struct{}),
+		logs:                make(map[common.Hash][]*types.Log),
+		journal:             newJournal(),
+		accessList:          newAccessList(),
+		hasher:              crypto.NewKeccakState(),
+	}
+}
+
+func NewWithDatabase(db ethdb.Database) *StateDB {
+	return &StateDB{
+		db:                  db,
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),

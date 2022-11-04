@@ -133,6 +133,7 @@ func applyTransaction(
 		onNewLog(l, statedb)
 	}
 
+	// uopdate the state with pending changes
 	if err := statedb.SoftFinalize(stateWriter); err != nil {
 		panic(err)
 	}

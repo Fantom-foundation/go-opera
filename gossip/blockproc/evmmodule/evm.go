@@ -127,6 +127,8 @@ func (p *OperaEVMProcessor) Finalize(tx kv.RwTx) (evmBlock *evmcore.EvmBlock, sk
 		panic(err)
 	}
 
+	// TODO add RegenerateIntermediateHashes or incrementIntemediateHashes
+
 	// Compute erigon state root
 	stateRoot, err := erigon.CalcRoot("", tx)
 	if err != nil {

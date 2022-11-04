@@ -156,6 +156,7 @@ func (s *Store) Close() {
 
 	_ = s.mainDB.Close()
 	_ = s.closeEpochStore()
+	s.evm.Close()
 }
 
 func (s *Store) IsCommitNeeded() bool {

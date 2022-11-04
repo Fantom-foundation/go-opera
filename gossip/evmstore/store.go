@@ -30,6 +30,8 @@ import (
 	//"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 
+	"github.com/ledgerwatch/erigon/ethdb"
+
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -51,8 +53,8 @@ type Store struct {
 
 	genesisKV, chainKV kv.RwDB
 	//EvmDb    ethdb.Database
-	//EvmState state.Database
-	EvmLogs *topicsdb.Index
+	EvmState ethdb.Database
+	EvmLogs  *topicsdb.Index
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -112,6 +114,11 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.Cache.ReceiptsSize, s.cfg.Cache.ReceiptsBlocks)
 	s.cache.TxPositions = s.makeCache(nominalSize*uint(s.cfg.Cache.TxPositions), s.cfg.Cache.TxPositions)
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
+}
+
+func (s *Store) Close() {
+	s.genesisKV.Close()
+	s.chainKV.Close()
 }
 
 func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {

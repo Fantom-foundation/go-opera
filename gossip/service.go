@@ -390,7 +390,7 @@ func (s *Service) Protocols() []p2p.Protocol {
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	apis := ethapi.GetAPIs(s.EthAPI, s.store.evm.ChainKV())
+	apis := ethapi.GetAPIs(s.EthAPI, s.store.evm.GenesisKV())
 
 	apis = append(apis, []rpc.API{
 		{

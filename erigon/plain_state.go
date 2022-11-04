@@ -34,7 +34,7 @@ func openDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) (db k
 	case kv.ChainDB: //genesisKV
 		name = "chaindata"
 	case kv.TxPoolDB:
-		name = "txpool"
+		name = "txpool" // tempDB
 	case kv.ConsensusDB: //chainKV
 		name = "consensusDB"
 	default:

@@ -16,8 +16,8 @@
 
 package state
 
-/*
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -25,8 +25,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
+	//"github.com/ethereum/go-ethereum/rlp"
+	//"github.com/ethereum/go-ethereum/trie"
+	ecommon "github.com/ledgerwatch/erigon/common"
+	"github.com/ledgerwatch/erigon/common/dbutils"
+
+	"github.com/ledgerwatch/erigon/core/types/accounts"
+	"github.com/ledgerwatch/erigon/crypto"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 // DumpConfig is a set of options to control what portions of the statewill be
@@ -58,6 +65,7 @@ type DumpAccount struct {
 	Address   *common.Address        `json:"address,omitempty"` // Address only present in iterative (line-by-line) mode
 	SecureKey hexutil.Bytes          `json:"key,omitempty"`     // If we don't have address, we can output the key
 
+	Raw Account `json:"-"`
 }
 
 // Dump represents the full dump in a collected format, as one large map.
@@ -125,8 +133,126 @@ func (d iterativeDump) OnRoot(root common.Hash) {
 
 // DumpToCollector iterates the state according to the given options and inserts
 // the items into a collector for aggregation or serialization.
-func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []byte) {
-	// Sanitize the input to allow nil configs
+func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx) (nextKey []byte) {
+
+	var emptyCodeHash = crypto.Keccak256Hash(nil)
+	var emptyHash = common.Hash{}
+	var accountList []*DumpAccount
+	var addrList []common.Address
+	var incarnationList []uint64
+
+	// addr -> compositeKey -> value
+	addrCompKeyValueMap := make(map[ecommon.Address]map[string][]byte)
+
+	c, err := tx.Cursor(kv.PlainState)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
+	start := time.Now()
+	storageCount, accountCount := 0, 0
+	log.Info("PlainState dumping started")
+	logEvery := time.NewTicker(20 * time.Second)
+	defer logEvery.Stop()
+
+	dc.OnRoot(emptyHash) // We do not calculate the root
+
+	for k, v, e := c.First(); k != nil; k, v, e = c.Next() {
+		if e != nil {
+			panic(e)
+		}
+
+		select {
+		case <-logEvery.C:
+			log.Info("Plainstate dumping in progress", "at", k, "accounts", accountCount, "storage", storageCount,
+				"elapsed", common.PrettyDuration(time.Since(start)))
+		default:
+		}
+
+		switch {
+		case len(k) == ecommon.AddressLength+ecommon.IncarnationLength+ecommon.HashLength:
+			// handle account storage
+			addr, _, _ := dbutils.PlainParseCompositeStorageKey(k)
+			addrCompKeyValueMap[addr] = make(map[string][]byte)
+			addrCompKeyValueMap[addr][string(k)] = v
+			storageCount++
+		case len(k) == ecommon.AddressLength:
+			// handle non contract account
+			acc := accounts.NewAccount()
+			if err := acc.DecodeForStorage(v); err != nil {
+				panic(err)
+			}
+
+			// TODO add incarnation
+			account := DumpAccount{
+				Balance:  acc.Balance.ToBig().String(),
+				Nonce:    acc.Nonce,
+				Root:     hexutil.Bytes(emptyHash[:]), // We cannot provide historical storage hash
+				CodeHash: hexutil.Bytes(emptyCodeHash[:]),
+				Storage:  make(map[common.Hash]string),
+			}
+
+			accountList = append(accountList, &account)
+			addrList = append(addrList, common.BytesToAddress(k))
+			incarnationList = append(incarnationList, acc.Incarnation)
+
+			accountCount++
+		default:
+			panic("key is corrupt")
+		}
+	}
+
+	for i, addr := range addrList {
+		account := accountList[i]
+		incarnation := incarnationList[i]
+		storagePrefix := dbutils.PlainGenerateStoragePrefix(addr[:], incarnation)
+
+		// handle contract code
+		if incarnation > 0 {
+			codeHash, err := s.db.GetOne(kv.PlainContractCode, storagePrefix)
+			if err != nil {
+				panic(err)
+			}
+			if codeHash != nil {
+				account.CodeHash = codeHash
+			} else {
+				account.CodeHash = emptyCodeHash[:]
+			}
+
+			if codeHash != nil && !bytes.Equal(codeHash, emptyCodeHash[:]) {
+				var code []byte
+				if code, err = s.db.GetOne(kv.Code, codeHash); err != nil {
+					panic(err)
+				}
+				account.Code = code
+			}
+		}
+
+		// storage := address + inc + key -> value
+		//TODO think about account.Root
+		// handle contract storage
+		if compositeKeyValMap, ok := addrCompKeyValueMap[ecommon.Address(addr)]; ok {
+			for compositeKey, storageValue := range compositeKeyValMap {
+				_, _, storageKey := dbutils.PlainParseCompositeStorageKey([]byte(compositeKey))
+				account.Storage[common.Hash(storageKey)] = string(storageValue)
+			}
+		}
+
+		dc.OnAccount(addr, *account)
+	}
+
+	log.Info("Plainstate dumping complete", "accounts", accountCount, "storageCount", storageCount,
+		"elapsed", common.PrettyDuration(time.Since(start)))
+
+	return
+}
+
+// open PlainState cursor for reading with wha
+
+// dependign on len of key
+
+/*
 	if conf == nil {
 		conf = new(DumpConfig)
 	}
@@ -200,13 +326,14 @@ func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []
 
 	return nextKey
 }
+*/
 
 // RawDump returns the entire state an a single large object
 func (s *StateDB) RawDump(opts *DumpConfig) Dump {
 	dump := &Dump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	s.DumpToCollector(dump, opts)
+	s.DumpToCollector(dump, opts, nil)
 	return *dump
 }
 
@@ -222,7 +349,7 @@ func (s *StateDB) Dump(opts *DumpConfig) []byte {
 
 // IterativeDump dumps out accounts as json-objects, delimited by linebreaks on stdout
 func (s *StateDB) IterativeDump(opts *DumpConfig, output *json.Encoder) {
-	s.DumpToCollector(iterativeDump{output}, opts)
+	s.DumpToCollector(iterativeDump{output}, opts, nil)
 }
 
 // IteratorDump dumps out a batch of accounts starts with the given start key
@@ -230,7 +357,6 @@ func (s *StateDB) IteratorDump(opts *DumpConfig) IteratorDump {
 	iterator := &IteratorDump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	iterator.Next = s.DumpToCollector(iterator, opts)
+	iterator.Next = s.DumpToCollector(iterator, opts, nil)
 	return *iterator
 }
-*/
