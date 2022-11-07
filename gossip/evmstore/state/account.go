@@ -21,7 +21,7 @@ func newAccount() *Account {
 	account.Nonce = 0
 	account.Balance = big.NewInt(0)
 	account.Root = emptyRoot
-	account.CodeHash =  emptyCodeHash
+	account.CodeHash = emptyCodeHash
 	return account
 }
 
@@ -32,7 +32,6 @@ func (a *Account) Copy(image *Account) {
 	copy(a.CodeHash[:], image.CodeHash[:])
 	//a.Incarnation = image.Incarnation
 }
-
 
 func (a *Account) IsEmptyCodeHash() bool {
 	return IsEmptyCodeHash(a.CodeHash)

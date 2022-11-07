@@ -99,9 +99,17 @@ func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
-
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, data Account) *stateObject {
+func newObject(db *StateDB, address common.Address, data *Account) *stateObject {
+	so := stateObject{
+		db:             db,
+		address:        address,
+		addrHash:       crypto.Keccak256Hash(address[:]),
+		originStorage:  make(Storage),
+		pendingStorage: make(Storage),
+		dirtyStorage:   make(Storage),
+	}
+	so.data.Copy(data)
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
 	}
@@ -111,15 +119,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Root == (common.Hash{}) {
 		data.Root = emptyRoot
 	}
-	return &stateObject{
-		db:             db,
-		address:        address,
-		addrHash:       crypto.Keccak256Hash(address[:]),
-		data:           data,
-		originStorage:  make(Storage),
-		pendingStorage: make(Storage),
-		dirtyStorage:   make(Storage),
-	}
+	return &so
 }
 
 // EncodeRLP implements rlp.Encoder.
@@ -293,7 +293,7 @@ func (s *stateObject) setBalance(amount *big.Int) {
 }
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
-	stateObject := newObject(db, s.address, s.data)
+	stateObject := newObject(db, s.address, &s.data)
 	stateObject.code = s.code
 	stateObject.dirtyStorage = s.dirtyStorage.Copy()
 	stateObject.originStorage = s.originStorage.Copy()

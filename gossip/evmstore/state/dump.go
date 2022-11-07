@@ -174,7 +174,9 @@ func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx
 		case len(k) == ecommon.AddressLength+ecommon.IncarnationLength+ecommon.HashLength:
 			// handle account storage
 			addr, _, _ := dbutils.PlainParseCompositeStorageKey(k)
-			addrCompKeyValueMap[addr] = make(map[string][]byte)
+			if _, ok := addrCompKeyValueMap[addr]; !ok {
+				addrCompKeyValueMap[addr] = make(map[string][]byte)
+			}
 			addrCompKeyValueMap[addr][string(k)] = v
 			storageCount++
 		case len(k) == ecommon.AddressLength:
@@ -329,17 +331,17 @@ func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx
 */
 
 // RawDump returns the entire state an a single large object
-func (s *StateDB) RawDump(opts *DumpConfig) Dump {
+func (s *StateDB) RawDump(opts *DumpConfig, tx kv.RwTx) Dump {
 	dump := &Dump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	s.DumpToCollector(dump, opts, nil)
+	s.DumpToCollector(dump, opts, tx)
 	return *dump
 }
 
 // Dump returns a JSON string representing the entire state as a single json-object
-func (s *StateDB) Dump(opts *DumpConfig) []byte {
-	dump := s.RawDump(opts)
+func (s *StateDB) Dump(opts *DumpConfig, tx kv.RwTx) []byte {
+	dump := s.RawDump(opts, tx)
 	json, err := json.MarshalIndent(dump, "", "    ")
 	if err != nil {
 		fmt.Println("Dump err", err)

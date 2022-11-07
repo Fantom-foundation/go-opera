@@ -71,6 +71,8 @@ type StateDB struct {
 	stateObjectsPending map[common.Address]struct{} // State objects finalized but not yet written to the trie
 	stateObjectsDirty   map[common.Address]struct{} // State objects modified in the current execution
 
+	nilAccounts map[common.Address]struct{} // Remember non-existent account to avoid reading them again
+
 	// DB error.
 	// State objects are used by the consensus core and VM which are
 	// unable to deal with database-level errors. Any error that occurs
@@ -114,6 +116,7 @@ func New() *StateDB {
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
+		nilAccounts:         make(map[common.Address]struct{}),
 		logs:                make(map[common.Hash][]*types.Log),
 		journal:             newJournal(),
 		accessList:          newAccessList(),
@@ -127,6 +130,7 @@ func NewWithStateReader(stateReader estate.StateReader) *StateDB {
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
+		nilAccounts:         make(map[common.Address]struct{}),
 		logs:                make(map[common.Hash][]*types.Log),
 		journal:             newJournal(),
 		accessList:          newAccessList(),
@@ -140,6 +144,7 @@ func NewWithDatabase(db ethdb.Database) *StateDB {
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
+		nilAccounts:         make(map[common.Address]struct{}),
 		logs:                make(map[common.Hash][]*types.Log),
 		journal:             newJournal(),
 		accessList:          newAccessList(),
@@ -153,6 +158,7 @@ func NewWithRoot(root common.Hash) *StateDB {
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
+		nilAccounts:         make(map[common.Address]struct{}),
 		logs:                make(map[common.Hash][]*types.Log),
 		journal:             newJournal(),
 		accessList:          newAccessList(),
@@ -220,20 +226,21 @@ func (s *StateDB) SubRefund(gas uint64) {
 // Exist reports whether the given account address exists in the state.
 // Notably this also returns true for suicided accounts.
 func (s *StateDB) Exist(addr common.Address) bool {
-	return s.getStateObject(addr) != nil
+	so := s.getStateObject(addr)
+	return so != nil && !so.deleted
 }
 
 // Empty returns whether the state object is either non-existent
 // or empty according to the EIP161 specification (balance = nonce = code = 0)
 func (s *StateDB) Empty(addr common.Address) bool {
 	so := s.getStateObject(addr)
-	return so == nil || so.empty()
+	return so == nil || so.deleted || so.empty()
 }
 
 // GetBalance retrieves the balance from the given address or 0 if object not found
 func (s *StateDB) GetBalance(addr common.Address) *big.Int {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
+	if stateObject != nil && !stateObject.deleted {
 		return stateObject.Balance()
 	}
 	return common.Big0
@@ -241,7 +248,7 @@ func (s *StateDB) GetBalance(addr common.Address) *big.Int {
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
+	if stateObject != nil && !stateObject.deleted {
 		return stateObject.Nonce()
 	}
 
@@ -255,8 +262,7 @@ func (s *StateDB) TxIndex() int {
 
 func (s *StateDB) GetCode(addr common.Address) []byte {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
-		//return stateObject.Code(s.db)
+	if stateObject != nil && !stateObject.deleted {
 		return stateObject.Code()
 	}
 	return nil
@@ -282,7 +288,7 @@ func (s *StateDB) GetCodeSize(addr common.Address) int {
 
 func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 	stateObject := s.getStateObject(addr)
-	if stateObject == nil {
+	if stateObject == nil || stateObject.deleted {
 		return common.Hash{}
 	}
 	return common.BytesToHash(stateObject.CodeHash())
@@ -291,7 +297,7 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 // GetState retrieves a value from the given account's storage trie.
 func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
+	if stateObject != nil && !stateObject.deleted {
 		return stateObject.GetState(hash)
 	}
 	return common.Hash{}
@@ -300,7 +306,7 @@ func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 // GetCommittedState retrieves a value from the given account's committed storage trie.
 func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
+	if stateObject != nil && !stateObject.deleted {
 		return stateObject.GetCommittedState(hash)
 	}
 	return common.Hash{}
@@ -308,10 +314,11 @@ func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) commo
 
 func (s *StateDB) HasSuicided(addr common.Address) bool {
 	stateObject := s.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.suicided
+	if stateObject == nil || stateObject.deleted {
+		return false
 	}
-	return false
+
+	return stateObject.suicided
 }
 
 /*
@@ -378,7 +385,7 @@ func (s *StateDB) SetStorage(addr common.Address, storage map[common.Hash]common
 // getStateObject will return a non-nil account after Suicide.
 func (s *StateDB) Suicide(addr common.Address) bool {
 	stateObject := s.getStateObject(addr)
-	if stateObject == nil {
+	if stateObject == nil || stateObject.deleted {
 		return false
 	}
 	s.journal.append(suicideChange{
@@ -399,11 +406,13 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 // the object is not found or was deleted in this execution context. If you need
 // to differentiate between non-existent/just-deleted, use getDeletedStateObject.
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
-	var account Account
-
 	// Prefer live objects if any is available
 	if obj := s.stateObjects[addr]; obj != nil {
 		return obj
+	}
+
+	if _, ok := s.nilAccounts[addr]; ok {
+		return s.createObject(addr, nil)
 	}
 
 	eAccount, err := s.stateReader.ReadAccountData(ecommon.Address(addr))
@@ -413,15 +422,15 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	}
 
 	if eAccount == nil {
-		stateObject, _ := s.createObject(addr)
-		return stateObject
+		s.nilAccounts[addr] = struct{}{}
+		return s.createObject(addr, nil)
 	}
 
 	// convert from erigon type to Account type
-	account = transformErigonAccount(eAccount)
+	account := transformErigonAccount(eAccount)
 
 	// Insert into the live set
-	obj := newObject(s, addr, account)
+	obj := newObject(s, addr, &account)
 	s.setStateObject(obj)
 	return obj
 }
@@ -433,37 +442,26 @@ func (s *StateDB) setStateObject(object *stateObject) {
 // GetOrNewStateObject retrieves a state object or create a new state object if nil.
 func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := s.getStateObject(addr)
-	if stateObject == nil {
-		stateObject, _ = s.createObject(addr)
+	if stateObject == nil || stateObject.deleted {
+		fmt.Println("GetOrNewStateObject, if stateObject == nil || stateObject.deleted", "addr", addr, "stateObject == nil", stateObject == nil, "stateObject.deleted", stateObject.deleted)
+		stateObject = s.createObject(addr, stateObject /* previous */)
 	}
 	return stateObject
 }
 
 // createObject creates a new state object. If there is an existing account with
 // the given address, it is overwritten and returned as the second return value.
-func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
+func (s *StateDB) createObject(addr common.Address, previous *stateObject) (newobj *stateObject) {
 	//prev = s.getDeletedStateObject(addr) // Note, prev might have been deleted, we need that!
+	newobj = newObject(s, addr, newAccount())
 
-	/*
-		var prevdestruct bool
-		if s.snap != nil && prev != nil {
-			_, prevdestruct = s.snapDestructs[prev.addrHash]
-			if !prevdestruct {
-				s.snapDestructs[prev.addrHash] = struct{}{}
-			}
-		}
-	*/
-	newobj = newObject(s, addr, Account{})
-	if prev == nil {
+	if previous == nil {
 		s.journal.append(createObjectChange{account: &addr})
 	} else {
-		s.journal.append(resetObjectChange{prev: prev, prevdestruct: false})
+		s.journal.append(resetObjectChange{prev: previous, prevdestruct: false})
 	}
 	s.setStateObject(newobj)
-	if prev != nil && !prev.deleted {
-		return newobj, prev
-	}
-	return newobj, nil
+	return newobj
 }
 
 // CreateAccount explicitly creates a state object. If a state object with the address
@@ -477,9 +475,10 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (s *StateDB) CreateAccount(addr common.Address) {
-	newObj, prev := s.createObject(addr)
-	if prev != nil {
-		newObj.setBalance(prev.data.Balance)
+	previous := s.getStateObject(addr)
+	newObj := s.createObject(addr, previous)
+	if previous != nil {
+		newObj.setBalance(previous.data.Balance)
 	}
 }
 
@@ -651,4 +650,17 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
+}
+
+// Reset clears out all ephemeral state objects from the state db, but keeps
+// the underlying state trie to avoid reloading data for the next operations.
+func (s *StateDB) Reset() {
+	s.stateObjects = make(map[common.Address]*stateObject)
+	s.stateObjectsDirty = make(map[common.Address]struct{})
+	s.thash = common.Hash{}
+	s.txIndex = 0
+	s.logs = make(map[common.Hash][]*types.Log)
+	s.logSize = 0
+	s.clearJournalAndRefund()
+	s.accessList = newAccessList()
 }

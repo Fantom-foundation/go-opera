@@ -116,12 +116,10 @@ func (s *Store) initCache() {
 	s.cache.EvmBlocks = s.makeCache(s.cfg.Cache.EvmBlocksSize, s.cfg.Cache.EvmBlocksNum)
 }
 
-
 func (s *Store) Close() {
 	//s.genesisKV.Close()
 	//s.chainKV.Close()
 }
-
 
 func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
 	/*

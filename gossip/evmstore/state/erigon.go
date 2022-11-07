@@ -142,6 +142,10 @@ func transformStateAccount(account *Account, isContractAcc bool) accounts.Accoun
 
 // this is temporary solution, evaluate which account model to use
 func transformErigonAccount(eAccount *accounts.Account) Account {
+	if eAccount == nil {
+		acc := accounts.NewAccount()
+		eAccount = &acc
+	}
 	var account Account
 	account.Nonce = eAccount.Nonce
 	account.Balance = eAccount.Balance.ToBig()

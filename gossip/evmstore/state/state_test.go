@@ -16,34 +16,48 @@
 
 package state
 
-/*
 import (
 	"bytes"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
+
+	"github.com/stretchr/testify/suite"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+
+	estate "github.com/ledgerwatch/erigon/core/state"
+	//ecommon "github.com/ledgerwatch/erigon/common"
 )
 
-type stateTest struct {
-	db    ethdb.Database
+type IntegrationTestSuite struct {
+	suite.Suite
+
+	kv    kv.RwDB
+	tx    kv.RwTx
 	state *StateDB
+	r     estate.StateReader
+	w     estate.StateWriter
 }
 
-func newStateTest() *stateTest {
-	db := rawdb.NewMemoryDatabase()
-	sdb, _ := New(common.Hash{}, NewDatabase(db), nil)
-	return &stateTest{db: db, state: sdb}
+func (s *IntegrationTestSuite) SetupTest() {
+	_, s.tx = memdb.NewTestTx(s.T())
+
+	s.r = estate.NewPlainStateReader(s.tx)
+	s.w = estate.NewPlainStateWriterNoHistory(s.tx)
+	s.state = NewWithStateReader(s.r)
 }
 
-func TestDump(t *testing.T) {
-	db := rawdb.NewMemoryDatabase()
-	sdb, _ := New(common.Hash{}, NewDatabaseWithConfig(db, nil), nil)
-	s := &stateTest{db: db, state: sdb}
+func (s *IntegrationTestSuite) TearDownSuite() {
+	s.tx.Rollback()
+}
 
+//TODO fix it:  add root of storage trie
+/*
+func (s *IntegrationTestSuite) TestDump() {
 	// generate a few entries
 	obj1 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
@@ -52,13 +66,24 @@ func TestDump(t *testing.T) {
 	obj3 := s.state.GetOrNewStateObject(common.BytesToAddress([]byte{0x02}))
 	obj3.SetBalance(big.NewInt(44))
 
+	eAcc1 := transformStateAccount(&obj1.data, false)
+	eAcc2 := transformStateAccount(&obj2.data, false)
+
 	// write some of them to the trie
-	s.state.updateStateObject(obj1)
-	s.state.updateStateObject(obj2)
-	s.state.Commit(false)
+	err := s.w.UpdateAccountData(ecommon.Address(obj1.address), &eAcc1, &eAcc1)
+	s.Require().NoError(err)
+	err = s.w.UpdateAccountData(ecommon.Address(obj2.address), &eAcc2, &eAcc2)
+	s.Require().NoError(err)
+
+	err = s.state.CommitBlock(s.w)
+	s.Require().NoError(err)
+
+	// check that dump contains the state objects that are in trie
 
 	// check that DumpToCollector contains the state objects that are in trie
-	got := string(s.state.Dump(nil))
+	got := string(s.state.Dump(nil, s.tx))
+	s.T().Log("got", got)
+	s.Require().Equal(2,3)
 	want := `{
     "root": "71edff0130dd2385947095001c73d9e28d862fc286fca2b922ca6f6f3cddfdd2",
     "accounts": {
@@ -87,34 +112,47 @@ func TestDump(t *testing.T) {
     }
 }`
 	if got != want {
-		t.Errorf("DumpToCollector mismatch:\ngot: %s\nwant: %s\n", got, want)
+		s.T().Errorf("DumpToCollector mismatch:\ngot: %s\nwant: %s\n", got, want)
 	}
 }
+*/
 
-func TestNull(t *testing.T) {
-	s := newStateTest()
+func (s *IntegrationTestSuite) TestNull() {
 	address := common.HexToAddress("0x823140710bf13990e4500136726d8b55")
 	s.state.CreateAccount(address)
 	//value := common.FromHex("0x823140710bf13990e4500136726d8b55")
-	var value common.Hash
+	value := common.Hash{}
 
 	s.state.SetState(address, common.Hash{}, value)
-	s.state.Commit(false)
 
-	if value := s.state.GetState(address, common.Hash{}); value != (common.Hash{}) {
-		t.Errorf("expected empty current value, got %x", value)
-	}
-	if value := s.state.GetCommittedState(address, common.Hash{}); value != (common.Hash{}) {
-		t.Errorf("expected empty committed value, got %x", value)
-	}
+	err := s.state.CommitBlock(s.w)
+	s.Require().NoError(err)
+
+	value = s.state.GetCommittedState(address, common.Hash{})
+	s.Require().Equal(value, common.Hash{}, "expected empty hash. got %x", value)
 }
 
-func TestSnapshot(t *testing.T) {
+func (s *IntegrationTestSuite) TestTouchDelete() {
+	s.state.GetOrNewStateObject(common.Address{})
+
+	err := s.state.CommitBlock(s.w)
+	s.Require().NoError(err)
+
+	s.state.Reset()
+
+	snapshot := s.state.Snapshot()
+	s.state.AddBalance(common.Address{}, big.NewInt(0))
+
+	s.Require().Len(s.state.journal.dirties, 1)
+	s.state.RevertToSnapshot(snapshot)
+	s.Require().Len(s.state.journal.dirties, 0)
+}
+
+func (s *IntegrationTestSuite) TestSnapshot() {
 	stateobjaddr := common.BytesToAddress([]byte("aa"))
 	var storageaddr common.Hash
 	data1 := common.BytesToHash([]byte{42})
 	data2 := common.BytesToHash([]byte{43})
-	s := newStateTest()
 
 	// snapshot the genesis state
 	genesis := s.state.Snapshot()
@@ -128,30 +166,26 @@ func TestSnapshot(t *testing.T) {
 	s.state.RevertToSnapshot(snapshot)
 
 	if v := s.state.GetState(stateobjaddr, storageaddr); v != data1 {
-		t.Errorf("wrong storage value %v, want %v", v, data1)
+		s.T().Errorf("wrong storage value %v, want %v", v, data1)
 	}
 	if v := s.state.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
-		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
+		s.T().Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
 	}
 
 	// revert up to the genesis state and ensure correct content
 	s.state.RevertToSnapshot(genesis)
 	if v := s.state.GetState(stateobjaddr, storageaddr); v != (common.Hash{}) {
-		t.Errorf("wrong storage value %v, want %v", v, common.Hash{})
+		s.T().Errorf("wrong storage value %v, want %v", v, common.Hash{})
 	}
 	if v := s.state.GetCommittedState(stateobjaddr, storageaddr); v != (common.Hash{}) {
-		t.Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
+		s.T().Errorf("wrong committed storage value %v, want %v", v, common.Hash{})
 	}
 }
 
-func TestSnapshotEmpty(t *testing.T) {
-	s := newStateTest()
-	s.state.RevertToSnapshot(s.state.Snapshot())
-}
-
-/*
 func TestSnapshot2(t *testing.T) {
-	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
+	_, tx := memdb.NewTestTx(t)
+	w := estate.NewPlainState(tx, 1)
+	state := NewWithStateReader(estate.NewPlainState(tx, 1))
 
 	stateobjaddr0 := common.BytesToAddress([]byte("so0"))
 	stateobjaddr1 := common.BytesToAddress([]byte("so1"))
@@ -163,8 +197,10 @@ func TestSnapshot2(t *testing.T) {
 	state.SetState(stateobjaddr0, storageaddr, data0)
 	state.SetState(stateobjaddr1, storageaddr, data1)
 
-	// db, trie are already non-empty values
+	// db  are already non-empty values
+	t.Log("state.getStateObject")
 	so0 := state.getStateObject(stateobjaddr0)
+
 	so0.SetBalance(big.NewInt(42))
 	so0.SetNonce(43)
 	so0.SetCode(crypto.Keccak256Hash([]byte{'c', 'a', 'f', 'e'}), []byte{'c', 'a', 'f', 'e'})
@@ -172,8 +208,10 @@ func TestSnapshot2(t *testing.T) {
 	so0.deleted = false
 	state.setStateObject(so0)
 
-	root, _ := state.Commit(false)
-	state, _ = New(root, state.db, state.snaps)
+	err := state.CommitBlock(w)
+	if err != nil {
+		t.Fatal("error while commting a state", err)
+	}
 
 	// and one with deleted == true
 	so1 := state.getStateObject(stateobjaddr1)
@@ -185,7 +223,7 @@ func TestSnapshot2(t *testing.T) {
 	state.setStateObject(so1)
 
 	so1 = state.getStateObject(stateobjaddr1)
-	if so1 != nil {
+	if so1 != nil && !so1.deleted {
 		t.Fatalf("deleted object not nil when getting")
 	}
 
@@ -193,20 +231,23 @@ func TestSnapshot2(t *testing.T) {
 	state.RevertToSnapshot(snapshot)
 
 	so0Restored := state.getStateObject(stateobjaddr0)
+	if so0Restored == nil {
+		t.Fatal("so0Restored is nil")
+	}
+
 	// Update lazily-loaded values before comparing.
-	so0Restored.GetState(state.db, storageaddr)
-	so0Restored.Code(state.db)
+	so0Restored.GetState(storageaddr)
+	so0Restored.Code()
 	// non-deleted is equal (restored)
 	compareStateObjects(so0Restored, so0, t)
 
 	// deleted should be nil, both before and after restore of state copy
 	so1Restored := state.getStateObject(stateobjaddr1)
-	if so1Restored != nil {
+	if so1Restored != nil && !so1Restored.deleted {
 		t.Fatalf("deleted object not nil after restoring snapshot: %+v", so1Restored)
 	}
 }
-*/
-/*
+
 func compareStateObjects(so0, so1 *stateObject, t *testing.T) {
 	if so0.Address() != so1.Address() {
 		t.Fatalf("Address mismatch: have %v, want %v", so0.address, so1.address)
@@ -254,4 +295,7 @@ func compareStateObjects(so0, so1 *stateObject, t *testing.T) {
 		}
 	}
 }
-*/
+
+func TestIntegrationTestSuite(t *testing.T) {
+	suite.Run(t, new(IntegrationTestSuite))
+}
