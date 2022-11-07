@@ -225,7 +225,7 @@ func TestIndexSearchShortCircuits(t *testing.T) {
 	},
 	}
 
-	index := New(memorydb.NewProducer(""))
+	index := New(memorydb.New())
 
 	for _, l := range testdata {
 		err := index.Push(l)
