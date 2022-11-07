@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -314,7 +315,7 @@ func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) commo
 
 func (s *StateDB) HasSuicided(addr common.Address) bool {
 	stateObject := s.getStateObject(addr)
-	if stateObject == nil || stateObject.deleted {
+	if stateObject == nil || stateObject.deleted || stateObject.created {
 		return false
 	}
 
@@ -394,6 +395,7 @@ func (s *StateDB) Suicide(addr common.Address) bool {
 		prevbalance: new(big.Int).Set(stateObject.Balance()),
 	})
 	stateObject.markSuicided()
+	stateObject.created = false
 	stateObject.data.Balance = new(big.Int)
 
 	return true
@@ -474,11 +476,32 @@ func (s *StateDB) createObject(addr common.Address, previous *stateObject) (newo
 //   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
-func (s *StateDB) CreateAccount(addr common.Address) {
+func (s *StateDB) CreateAccount(addr common.Address, contractCreation bool) {
+	var prevInc uint64
 	previous := s.getStateObject(addr)
+	if contractCreation {
+		if previous != nil && previous.suicided {
+			prevInc = previous.data.Incarnation
+		} else {
+			inc, err := s.stateReader.ReadAccountIncarnation(ecommon.Address(addr))
+			if err != nil {
+				log.Error("error while ReadAccountIncarnation", "err", err)
+			}
+			if err == nil {
+				prevInc = inc
+			}
+		}
+	}
 	newObj := s.createObject(addr, previous)
 	if previous != nil {
 		newObj.setBalance(previous.data.Balance)
+	}
+
+	if contractCreation {
+		newObj.created = true
+		newObj.data.Incarnation = prevInc + 1
+	} else {
+		newObj.suicided = false
 	}
 }
 

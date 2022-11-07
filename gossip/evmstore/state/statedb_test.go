@@ -122,7 +122,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "CreateAccount",
 			fn: func(a testAction, s *StateDB) {
-				s.CreateAccount(addr)
+				s.CreateAccount(addr, true)
 			},
 		},
 		{

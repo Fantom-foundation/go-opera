@@ -91,7 +91,8 @@ type stateObject struct {
 	// during the "update" phase of the state transition.
 	dirtyCode bool // true if the code was updated
 	suicided  bool
-	deleted   bool
+	deleted   bool // true if object has been deleted during the lifetime of this object
+	created   bool // true if this object represents a newly created contract
 }
 
 // empty returns whether the account is considered empty.
@@ -173,6 +174,10 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
 	if value, cached := s.originStorage[key]; cached {
 		return value
 	}
+
+	if s.created {
+		return common.Hash{}
+	}
 	// If no live objects are available, attempt to use snapshots
 	var (
 		enc   []byte
@@ -198,6 +203,8 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
 	var value common.Hash
 	if len(enc) > 0 {
 		value.SetBytes(enc)
+	} else {
+		return common.Hash{}
 	}
 
 	/* TODO check

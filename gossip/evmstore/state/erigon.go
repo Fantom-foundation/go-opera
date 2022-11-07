@@ -80,7 +80,7 @@ func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObj
 		stateObject.deleted = true
 	}
 
-	if isDirty && !stateObject.suicided && !emptyRemoval {
+	if isDirty && (stateObject.created || !stateObject.suicided)  && !emptyRemoval {
 		stateObject.deleted = false
 
 		if stateObject.code != nil && stateObject.dirtyCode {
@@ -89,7 +89,12 @@ func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObj
 			}
 		}
 
-		// consider to add CreateAccount
+		if stateObject.created {
+			// works only with change sets
+			if err := stateWriter.CreateContract(eAddr); err != nil {
+				return err
+			}
+		}
 
 		if err := stateWriter.UpdateAccountData(eAddr, &eAccount, &eAccount); err != nil {
 			return err
@@ -102,6 +107,7 @@ func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObj
 	}
 	return nil
 }
+
 
 // updateAccountStorage writes cached storage modifications into the object's storage trie.
 // writes storage to kv.Plainstate

@@ -119,7 +119,7 @@ func (s *IntegrationTestSuite) TestDump() {
 
 func (s *IntegrationTestSuite) TestNull() {
 	address := common.HexToAddress("0x823140710bf13990e4500136726d8b55")
-	s.state.CreateAccount(address)
+	s.state.CreateAccount(address, true)
 	//value := common.FromHex("0x823140710bf13990e4500136726d8b55")
 	value := common.Hash{}
 

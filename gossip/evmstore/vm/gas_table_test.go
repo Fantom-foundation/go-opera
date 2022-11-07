@@ -89,7 +89,7 @@ func TestEIP2200(t *testing.T) {
 			_, tx := memdb.NewTestTx(t)
 
 			statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
-			statedb.CreateAccount(address)
+			statedb.CreateAccount(address, true)
 			statedb.SetCode(address, hexutil.MustDecode(tt.input))
 			statedb.SetState(address, common.Hash{}, common.BytesToHash([]byte{tt.original}))
 			statedb.CommitBlock(estate.NewPlainStateWriter(tx, tx, 0))
