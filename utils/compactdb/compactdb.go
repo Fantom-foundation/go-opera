@@ -54,9 +54,9 @@ func addToPrefix(prefix *big.Int, diff *big.Int, size int) []byte {
 	return append(res, end...)
 }
 
-func Compact(db kvdb.Store, loggingName string) error {
+func Compact(unprefixedDB kvdb.Store, loggingName string) error {
 	lastLog := time.Time{}
-	compact := func(b int, start, end []byte) error {
+	compact := func(db kvdb.Store, b int, start, end []byte) error {
 		if len(loggingName) != 0 && time.Since(lastLog) > time.Second*16 {
 			log.Info("Compacting DB", "name", loggingName, "until", hexutils.BytesToHex(append([]byte{byte(b)}, end...)))
 			lastLog = time.Now()
@@ -65,7 +65,7 @@ func Compact(db kvdb.Store, loggingName string) error {
 	}
 
 	for b := 0; b < 256; b++ {
-		prefixed := table.New(db, []byte{byte(b)})
+		prefixed := table.New(unprefixedDB, []byte{byte(b)})
 		first := firstKey(prefixed)
 		if first == nil {
 			continue
@@ -85,7 +85,7 @@ func Compact(db kvdb.Store, loggingName string) error {
 		diff := new(big.Int).Sub(lastBn, firstBn)
 		if diff.Cmp(big.NewInt(10000)) < 0 {
 			// short circuit if too few keys
-			err := compact(b, nil, nil)
+			err := compact(prefixed, b, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -94,7 +94,7 @@ func Compact(db kvdb.Store, loggingName string) error {
 		var prev []byte
 		for i := 32; i >= 1; i-- {
 			until := addToPrefix(firstBn, new(big.Int).Div(diff, big.NewInt(int64(i))), keySize)
-			err := compact(b, prev, until)
+			err := compact(prefixed, b, prev, until)
 			if err != nil {
 				return err
 			}
