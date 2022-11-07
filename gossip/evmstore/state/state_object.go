@@ -99,26 +99,6 @@ func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
-// Account is the Ethereum consensus representation of accounts.
-// These objects are stored in the main account trie.
-type Account struct {
-	Nonce    uint64
-	Balance  *big.Int
-	Root     common.Hash // merkle root of the storage trie
-	CodeHash []byte
-}
-
-func (a *Account) IsEmptyCodeHash() bool {
-	return IsEmptyCodeHash(a.CodeHash)
-}
-
-func IsEmptyCodeHash(codeHash []byte) bool {
-	return len(codeHash) == 0 && bytes.Equal(codeHash, emptyCodeHash)
-}
-
-func (a *Account) IsEmptyRoot() bool {
-	return a.Root == emptyRoot || a.Root == common.Hash{}
-}
 
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
