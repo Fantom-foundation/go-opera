@@ -37,6 +37,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 				return
 			}
 			if rec.topicsCount < uint8(len(pattern)-1) {
+				gonext = true
 				return
 			}
 
