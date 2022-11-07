@@ -262,10 +262,9 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 					return err
 				}
 				toMove[dbLocatorOf(e.New)] = true
-				newDbName := "tmp/" + e.New.Name
 				newDB = batched.Wrap(newDB)
 				defer newDB.Close()
-				newHumanName := path.Join(string(e.New.Type), e.New.Name)
+				newHumanName := path.Join("tmp", string(e.New.Type), e.New.Name)
 				log.Info("Copying DB table", "req", e.Req, "old_db", oldHumanName, "old_table", e.Old.Table,
 					"new_db", newHumanName, "new_table", e.New.Table)
 				oldTable := table.New(oldDB, []byte(e.Old.Table))
