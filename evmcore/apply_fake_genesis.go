@@ -57,7 +57,7 @@ func ApplyFakeGenesis(db kv.RwDB, time inter.Timestamp, balances map[common.Addr
 		statedb.SetBalance(acc, balance)
 	}
 
-	if err := statedb.CommitBlock(estate.NewPlainStateWriter(tx, nil, 0)); err != nil {
+	if err := statedb.CommitBlock(estate.NewPlainStateWriterNoHistory(tx)); err != nil {
 		return nil, err
 	}
 

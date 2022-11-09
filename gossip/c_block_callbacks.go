@@ -274,7 +274,7 @@ func consensusCallbackBeginBlockFn(
 					})
 				}
 
-				stateWriter := estate.NewPlainStateWriter(tx, nil, uint64(blockCtx.Idx))
+				stateWriter := estate.NewPlainStateWriterNoHistory(tx)
 				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, stateWriter, evmStateReader, onNewLogAll, es.Rules)
 				substart := time.Now()
 
@@ -318,7 +318,7 @@ func consensusCallbackBeginBlockFn(
 
 					defer tx.Rollback()
 
-					stateWriter := estate.NewPlainStateWriter(tx, nil, uint64(blockCtx.Idx))
+					stateWriter := estate.NewPlainStateWriterNoHistory(tx)
 					statedb := state.NewWithStateReader(estate.NewPlainStateReader(tx))
 
 					evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, stateWriter, evmStateReader, onNewLogAll, es.Rules)

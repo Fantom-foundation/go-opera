@@ -273,7 +273,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db kv.RwDB, n i
 	}
 	for i := 0; i < n; i++ {
 		stateReader := estate.NewPlainStateReader(tx)
-		plainStateWriter := estate.NewPlainStateWriter(tx, nil, parent.NumberU64()+uint64(i)+1)
+		plainStateWriter := estate.NewPlainStateWriterNoHistory(tx)
 		statedb := state.NewWithStateReader(stateReader)
 		block, receipt, err := genblock(i, parent, statedb, stateReader, plainStateWriter, false)
 		if err != nil {

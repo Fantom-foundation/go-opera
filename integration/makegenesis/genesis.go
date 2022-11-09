@@ -111,7 +111,7 @@ func NewGenesisBuilder(tx kv.RwTx) *GenesisBuilder {
 	statedb := state.New()
 	statedb.WithStateReader(estate.NewPlainStateReader(tx))
 	// initiate stateWriter to write changes into erigon tables after each transaction
-	stateWriter := estate.NewPlainStateWriter(tx, nil, 0) // 0 or 1 ?
+	stateWriter := estate.NewPlainStateWriterNoHistory(tx) // 0 or 1 ?
 	return &GenesisBuilder{
 		tmpStateDB:  statedb,
 		stateWriter: stateWriter,
