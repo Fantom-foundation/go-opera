@@ -29,8 +29,8 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 
+	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
-	//ecommon "github.com/ledgerwatch/erigon/common"
 )
 
 type IntegrationTestSuite struct {
@@ -146,6 +146,159 @@ func (s *IntegrationTestSuite) TestTouchDelete() {
 	s.Require().Len(s.state.journal.dirties, 1)
 	s.state.RevertToSnapshot(snapshot)
 	s.Require().Len(s.state.journal.dirties, 0)
+}
+
+func (s *IntegrationTestSuite) TestStateObjectWithNilAccounts() {
+	addr := common.BytesToAddress([]byte("aa"))
+
+	_, ok := s.state.nilAccounts[addr]
+	s.Require().False(ok)
+	so := s.state.getStateObject(addr)
+	_, ok = s.state.nilAccounts[addr]
+	s.Require().True(ok)
+
+	so1, exist := s.state.stateObjects[addr]
+	s.Require().True(exist)
+	compareStateObjects(so, so1, s.T())
+}
+
+func (s *IntegrationTestSuite) TestCreateAccount() {
+
+	addr := common.BytesToAddress([]byte("aa"))
+	so := s.state.getStateObject(addr)
+	so.setBalance(big.NewInt(232323))
+
+	inc, err := s.state.stateReader.ReadAccountIncarnation(ecommon.Address(addr))
+	s.Require().NoError(err)
+	s.Require().Equal(inc, uint64(0))
+
+	erigonAcc := transformStateAccount(&so.data, true)
+	s.Require().NoError(s.w.UpdateAccountData(ecommon.Address(addr), nil, &erigonAcc))
+	s.Require().NoError(s.w.DeleteAccount(ecommon.Address(addr), &erigonAcc))
+
+	inc, err = s.state.stateReader.ReadAccountIncarnation(ecommon.Address(addr))
+	s.Require().NoError(err)
+	s.Require().Equal(inc, uint64(1))
+
+	s.state.CreateAccount(addr, true)
+
+	so1 := s.state.getStateObject(addr)
+	s.Require().True(so1.created)
+	s.Require().Equal(so1.data.Incarnation, uint64(2))
+	s.Require().Equal(so1.Balance().Cmp(so.Balance()), 0)
+
+	addr2 := common.BytesToAddress([]byte("bb"))
+	s.state.SetNonce(addr2, 50)
+	so2 := s.state.getStateObject(addr2)
+	erigonAcc2 := transformStateAccount(&so2.data, false)
+
+	inc, err = s.state.stateReader.ReadAccountIncarnation(ecommon.Address(addr2))
+	s.Require().NoError(err)
+	s.Require().Equal(inc, uint64(0))
+
+	s.Require().NoError(s.w.UpdateAccountData(ecommon.Address(addr2), nil, &erigonAcc2))
+	s.Require().NoError(s.w.DeleteAccount(ecommon.Address(addr2), &erigonAcc2))
+
+	s.state.CreateAccount(addr, false)
+
+	so3 := s.state.getStateObject(addr2)
+	s.Require().False(so3.created)
+	s.Require().Equal(so3.data.Incarnation, uint64(0))
+	s.Require().Equal(so2.Balance().Cmp(so3.Balance()), 0)
+}
+
+func (s *IntegrationTestSuite) TestUpdateReadAccountData() {
+	addr := common.BytesToAddress([]byte("aa"))
+	so := s.state.getStateObject(addr)
+	so.setBalance(big.NewInt(232323))
+	erigonAcc := transformStateAccount(&so.data, false)
+	s.Require().NoError(s.w.UpdateAccountData(ecommon.Address(addr), nil, &erigonAcc))
+	expErigonAcc, err := s.state.stateReader.ReadAccountData(ecommon.Address(addr))
+	s.Require().NoError(err)
+	s.Require().NotNil(expErigonAcc)
+	expOperaAcc := transformErigonAccount(expErigonAcc)
+	compareAccounts(&so.data, &expOperaAcc, s.T())
+
+	addr1 := common.BytesToAddress([]byte("bb"))
+	so1 := s.state.getStateObject(addr1)
+	erigonAcc1 := transformStateAccount(&so1.data, false)
+	s.Require().NoError(s.w.UpdateAccountData(ecommon.Address(addr), nil, &erigonAcc1))
+	s.Require().NoError(s.w.DeleteAccount(ecommon.Address(addr1), &erigonAcc1))
+	expErigonAcc1, err := s.state.stateReader.ReadAccountData(ecommon.Address(addr1))
+	s.Require().NoError(err)
+	s.Require().Nil(expErigonAcc1)
+}
+
+// add couple more cases
+func (s *IntegrationTestSuite) TestUpdateAccountCode() {
+
+	acc, addr := randomStateAccount(s.T(), true)
+	erigonAcc := transformStateAccount(acc, true)
+	s.Require().NoError(s.w.UpdateAccountCode(ecommon.Address(addr), erigonAcc.Incarnation, erigonAcc.CodeHash, acc.CodeHash))
+	code, err := s.state.stateReader.ReadAccountCode(ecommon.Address(addr), erigonAcc.Incarnation, erigonAcc.CodeHash)
+	s.Require().NoError(err)
+	s.Require().NotNil(code)
+	s.Require().True(bytes.Equal(code, acc.CodeHash))
+
+	acc1, addr1 := randomStateAccount(s.T(), true)
+	erigonAcc1 := transformStateAccount(acc1, true)
+	s.Require().NoError(s.w.UpdateAccountCode(ecommon.Address(addr1), erigonAcc1.Incarnation, erigonAcc1.CodeHash, nil))
+	code1, err := s.state.stateReader.ReadAccountCode(ecommon.Address(addr1), erigonAcc1.Incarnation, erigonAcc.CodeHash)
+	s.Require().NoError(err)
+	s.Require().Equal(code1, []byte{0x0})
+
+	acc2, addr2 := randomStateAccount(s.T(), true)
+	erigonAcc2 := transformStateAccount(acc2, true)
+	s.Require().NoError(s.w.UpdateAccountCode(ecommon.Address(addr2), erigonAcc2.Incarnation, erigonAcc2.CodeHash, nil))
+	code2, err := s.state.stateReader.ReadAccountCode(ecommon.Address(addr1), erigonAcc1.Incarnation, ecommon.HexToHash("random"))
+	s.Require().NoError(err)
+	s.Require().Nil(code2)
+}
+
+// test UpdateAccountStorage
+func (s *IntegrationTestSuite) TestStateObjectUpdateTrie() {
+	contract := common.HexToAddress("0x71dd1027069078091B3ca48093B00E4735B20624")
+	storageKey := common.HexToHash("0x0e4c0e7175f9d22279a4f63ff74f7fa28b7a954a6454debaa62ce43dd9132541")
+	storageValue := common.HexToHash("0x016345785d8a0000")
+
+	s.state.SetState(contract, storageKey, storageValue)
+	so := s.state.getStateObject(contract)
+	s.Require().Len(so.dirtyStorage, 1)
+	s.Require().Len(so.originStorage, 0)
+
+	s.Require().NoError(so.updateTrie(s.w, so.data.Incarnation))
+
+	so = s.state.getStateObject(contract)
+	s.Require().Len(so.dirtyStorage, 1)
+	s.Require().Len(so.originStorage, 1)
+
+	eKey := ecommon.Hash(storageKey)
+	storageByteValue, err := s.state.stateReader.ReadAccountStorage(ecommon.Address(contract), so.data.Incarnation, &eKey)
+	s.Require().NoError(err)
+	expStorageValue := common.BytesToHash(storageByteValue)
+	s.Require().Equal(storageValue, expStorageValue)
+
+	// set invalidInc while ReadAccountStorage
+	contract1 := common.HexToAddress("0x71dd1027069078091B3ca48093B00E4735B20625")
+	storageKey1 := common.HexToHash("0x0e4c0e7175f9d22279a4f63ff74f7fa28b7a954a6454debaa62ce43dd9132542")
+	storageValue1 := common.HexToHash("0x016345785d8a00001")
+
+	s.state.SetState(contract1, storageKey1, storageValue1)
+	so = s.state.getStateObject(contract1)
+	s.Require().Len(so.dirtyStorage, 1)
+	s.Require().Len(so.originStorage, 0)
+
+	s.Require().NoError(so.updateTrie(s.w, so.data.Incarnation))
+
+	so = s.state.getStateObject(contract1)
+	s.Require().Len(so.dirtyStorage, 1)
+	s.Require().Len(so.originStorage, 1)
+
+	eKey1 := ecommon.Hash(storageKey1)
+	invalidInc := so.data.Incarnation + 1
+	expStorageValue1, err := s.state.stateReader.ReadAccountStorage(ecommon.Address(contract1), invalidInc, &eKey1)
+	s.Require().Nil(expStorageValue1)
+	s.Require().NoError(err)
 }
 
 func (s *IntegrationTestSuite) TestSnapshot() {

@@ -10,10 +10,10 @@ import (
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
-	Nonce    uint64
-	Balance  *big.Int
-	Root     common.Hash // merkle root of the storage trie
-	CodeHash []byte
+	Nonce       uint64
+	Balance     *big.Int
+	Root        common.Hash // merkle root of the storage trie
+	CodeHash    []byte
 	Incarnation uint64 // denotes the number of time conctract account has been selfdestructed, 0 for non contract account, > 0 for contract account
 }
 

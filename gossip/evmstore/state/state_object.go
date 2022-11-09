@@ -97,7 +97,7 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	return s.data.Nonce == uint64(0) && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
 // newObject creates a state object.
@@ -111,14 +111,11 @@ func newObject(db *StateDB, address common.Address, data *Account) *stateObject 
 		dirtyStorage:   make(Storage),
 	}
 	so.data.Copy(data)
-	if data.Balance == nil {
-		data.Balance = new(big.Int)
+	if so.data.CodeHash == nil {
+		so.data.CodeHash = emptyCodeHash
 	}
-	if data.CodeHash == nil {
-		data.CodeHash = emptyCodeHash
-	}
-	if data.Root == (common.Hash{}) {
-		data.Root = emptyRoot
+	if so.data.Root == (common.Hash{}) {
+		so.data.Root = emptyRoot
 	}
 	return &so
 }
@@ -157,8 +154,7 @@ func (s *stateObject) GetState(key common.Hash) common.Hash {
 		return s.fakeStorage[key]
 	}
 	// If we have a dirty value for this state entry, return it
-	value, dirty := s.dirtyStorage[key]
-	if dirty {
+	if value, dirty := s.dirtyStorage[key]; dirty {
 		return value
 	}
 	// Otherwise return the entry's original value

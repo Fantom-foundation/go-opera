@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 
 	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
@@ -296,10 +296,10 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 }
 
 // GetState retrieves a value from the given account's storage trie.
-func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
+func (s *StateDB) GetState(addr common.Address, key common.Hash) common.Hash {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil && !stateObject.deleted {
-		return stateObject.GetState(hash)
+		return stateObject.GetState(key)
 	}
 	return common.Hash{}
 }
@@ -445,7 +445,6 @@ func (s *StateDB) setStateObject(object *stateObject) {
 func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := s.getStateObject(addr)
 	if stateObject == nil || stateObject.deleted {
-		fmt.Println("GetOrNewStateObject, if stateObject == nil || stateObject.deleted", "addr", addr, "stateObject == nil", stateObject == nil, "stateObject.deleted", stateObject.deleted)
 		stateObject = s.createObject(addr, stateObject /* previous */)
 	}
 	return stateObject
@@ -513,6 +512,7 @@ func (s *StateDB) Copy() *StateDB {
 		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
+		nilAccounts:         make(map[common.Address]struct{}, len(s.nilAccounts)),
 		refund:              s.refund,
 		logs:                make(map[common.Hash][]*types.Log, len(s.logs)),
 		logSize:             s.logSize,
@@ -549,6 +549,9 @@ func (s *StateDB) Copy() *StateDB {
 			state.stateObjects[addr] = s.stateObjects[addr].deepCopy(state)
 		}
 		state.stateObjectsDirty[addr] = struct{}{}
+	}
+	for addr := range s.nilAccounts {
+		state.nilAccounts[addr] = struct{}{}
 	}
 	for hash, logs := range s.logs {
 		cpy := make([]*types.Log, len(logs))
@@ -686,4 +689,13 @@ func (s *StateDB) Reset() {
 	s.logSize = 0
 	s.clearJournalAndRefund()
 	s.accessList = newAccessList()
+}
+
+func (s *StateDB) Print() {
+	for addr, stateObject := range s.stateObjects {
+		_, isDirty := s.stateObjectsDirty[addr]
+		_, isDirty2 := s.journal.dirties[addr]
+
+		printAccount(addr, stateObject, isDirty || isDirty2)
+	}
 }

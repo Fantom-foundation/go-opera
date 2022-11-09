@@ -1,7 +1,9 @@
 package state
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 
 	ecommon "github.com/ledgerwatch/erigon/common"
 	estate "github.com/ledgerwatch/erigon/core/state"
@@ -80,7 +82,7 @@ func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObj
 		stateObject.deleted = true
 	}
 
-	if isDirty && (stateObject.created || !stateObject.suicided)  && !emptyRemoval {
+	if isDirty && (stateObject.created || !stateObject.suicided) && !emptyRemoval {
 		stateObject.deleted = false
 
 		if stateObject.code != nil && stateObject.dirtyCode {
@@ -96,24 +98,47 @@ func updateAccount(stateWriter estate.StateWriter, addr common.Address, stateObj
 			}
 		}
 
-		if err := stateWriter.UpdateAccountData(eAddr, &eAccount, &eAccount); err != nil {
+		if err := stateWriter.UpdateAccountData(eAddr, nil, &eAccount); err != nil {
 			return err
 		}
 
-		if err := stateObject.updateAccountStorage(stateWriter, eAccount.GetIncarnation()); err != nil {
+		if err := stateObject.updateTrie(stateWriter, eAccount.GetIncarnation()); err != nil {
 			return err
 		}
 
 	}
 	return nil
+
 }
 
+func printAccount(addr common.Address, stateObject *stateObject, isDirty bool) {
+	emptyRemoval := stateObject.empty()
+	if stateObject.suicided || (isDirty && emptyRemoval) {
+		fmt.Printf("delete: %x\n", addr)
+	}
+	if isDirty && (stateObject.created || !stateObject.suicided) && !emptyRemoval {
+		// Write any contract code associated with the state object
+		if stateObject.code != nil && stateObject.dirtyCode {
+			fmt.Printf("UpdateCode: %x,%x\n", addr, stateObject.CodeHash())
+		}
+		if stateObject.created {
+			fmt.Printf("CreateContract: %x\n", addr)
+		}
+		stateObject.printTrie()
+		if stateObject.data.Balance.IsUint64() {
+			fmt.Printf("UpdateAccountData: %x, balance=%d, nonce=%d\n", addr, stateObject.data.Balance.Uint64(), stateObject.data.Nonce)
+		} else {
+			div := big.NewInt(1_000_000_000)
+			fmt.Printf("UpdateAccountData: %x, balance=%d*%d, nonce=%d\n", addr, big.NewInt(0).Div(stateObject.data.Balance, div).Uint64(), div.Uint64(), stateObject.data.Nonce)
+		}
+	}
+}
 
-// updateAccountStorage writes cached storage modifications into the object's storage trie.
+// updateTrie writes cached storage modifications into the object's storage trie.
 // writes storage to kv.Plainstate
 // to make sure WriteAccountStorage writes storage correctly
 // TODO make some tests
-func (so *stateObject) updateAccountStorage(stateWriter estate.StateWriter, incarnation uint64) error {
+func (so *stateObject) updateTrie(stateWriter estate.StateWriter, incarnation uint64) error {
 	for key, value := range so.dirtyStorage {
 		original := so.originStorage[key]
 		so.originStorage[key] = value
@@ -125,6 +150,12 @@ func (so *stateObject) updateAccountStorage(stateWriter estate.StateWriter, inca
 		}
 	}
 	return nil
+}
+
+func (so *stateObject) printTrie() {
+	for key, value := range so.dirtyStorage {
+		fmt.Printf("WriteAccountStorage: %x,%x,%s\n", so.address, key, value.Hex())
+	}
 }
 
 // transformStateAccount transforms state.Account into erigon account representation (https://github.com/ledgerwatch/erigon/blob/devel/docs/programmers_guide/guide.md)

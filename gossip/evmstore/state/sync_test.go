@@ -29,6 +29,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	estate "github.com/ledgerwatch/erigon/core/state"
 )
 
 // testAccount is the data associated with an account used by the state tests.
@@ -40,10 +43,15 @@ type testAccount struct {
 }
 
 // makeTestState create a sample test state to test node-wise reconstruction.
-func makeTestState() (Database, common.Hash, []*testAccount) {
+func makeTestState(t *testing.T) (common.Hash, []*testAccount) {
 	// Create an empty state
-	db := NewDatabase(rawdb.NewMemoryDatabase())
-	state, _ := New(common.Hash{}, db, nil)
+	//db := NewDatabase(rawdb.NewMemoryDatabase())
+	_, tx := memdb.NewTestTx(t)
+	r, w := estate.NewPlainStateReader(tx), estate.NewPlainStateWriterNoHistory(tx)
+	//state, _ := New(common.Hash{}, db, nil)
+	state := NewWithStateReader(r)
+
+
 
 	// Fill it with some arbitrary data
 	var accounts []*testAccount
@@ -64,16 +72,18 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 		if i%5 == 0 {
 			for j := byte(0); j < 5; j++ {
 				hash := crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j})
-				obj.SetState(db, hash, hash)
+				obj.SetState(hash, hash)
 			}
 		}
-		state.updateStateObject(obj)
+		if err := state.CommitBlock(w); err != nil {
+			t.Fatal("Could not CommitBlock")
+
+		}
 		accounts = append(accounts, acc)
 	}
-	root, _ := state.Commit(false)
 
 	// Return the generated state
-	return db, root, accounts
+	return common.Hash{}, accounts
 }
 
 // checkStateAccounts cross references a reconstructed state with an expected

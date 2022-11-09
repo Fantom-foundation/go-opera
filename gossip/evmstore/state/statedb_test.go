@@ -105,7 +105,6 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 				binary.BigEndian.PutUint16(key[:], uint16(a.args[0]))
 				binary.BigEndian.PutUint16(val[:], uint16(a.args[1]))
 				s.SetState(addr, key, val)
-				fmt.Println("setState", "key", key, "val", val)
 			},
 			args: make([]int64, 2),
 		},
