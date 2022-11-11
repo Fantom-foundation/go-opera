@@ -1,5 +1,5 @@
 //go:build gofuzz
-//+build gofuzz
+// +build gofuzz
 
 package gossip
 

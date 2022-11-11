@@ -1,6 +1,7 @@
 package iodb
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
@@ -10,6 +11,7 @@ import (
 )
 
 func Write(writer io.Writer, it kvdb.Iterator) error {
+	i := 0
 	for it.Next() {
 		_, err := writer.Write(bigendian.Uint32ToBytes(uint32(len(it.Key()))))
 		if err != nil {
@@ -27,7 +29,9 @@ func Write(writer io.Writer, it kvdb.Iterator) error {
 		if err != nil {
 			return err
 		}
+		i += 1
 	}
+	fmt.Printf("iodb.Write i: %d\n", i)
 	return nil
 }
 

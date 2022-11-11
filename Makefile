@@ -19,7 +19,10 @@ opera-image:
 	docker build \
     	    --network=host \
     	    -f ./docker/Dockerfile.opera -t "opera:$(TAG)" .
-
+erigon:
+	./build/opera preimages write
+	./build/opera erigon write
+	./build/opera erigon read
 .PHONY: test
 test:
 	go test ./...

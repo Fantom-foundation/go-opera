@@ -3,6 +3,7 @@ package launcher
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"gopkg.in/urfave/cli.v1"
+	//"github.com/Fantom-foundation/go-opera/gossip/erigon"
 )
 
 var (
@@ -11,6 +12,7 @@ var (
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt" or "none")`,
 		Value: "mpt",
 	}
+
 	importCommand = cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
@@ -115,5 +117,64 @@ Checks EVM storage roots and code hashes
 `,
 			},
 		},
+	}
+
+	erigonCommand = cli.Command{
+		Name:     "erigon",
+		Usage:    "Write/Read EVM data into/from Erigon kv.PlainState table",
+		Category: "MISCELLANEOUS COMMANDS",
+		//Action: utils.MigrateFlags(writeEVMToErigon),
+		Subcommands: []cli.Command{
+			{
+				Name:   "write",
+				Usage:  "Write EVM accounts to erigon database",
+				Action: utils.MigrateFlags(writeErigon),
+				Description: `
+   				opera erigon write
+				`,
+			},
+			{
+				Name:   "read",
+				Usage:  "Read EVM accounts from erigon database",
+				Action: utils.MigrateFlags(readErigon),
+				Description: `
+   				opera erigon read
+				`,
+			},
+		},
+
+		Description: `
+		opera erigon
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
+	}
+
+	preimagesCommand = cli.Command{
+		Name:     "preimages",
+		Usage:    "Write/Read preimages into/from Erigon kv.Senders table",
+		Category: "MISCELLANEOUS COMMANDS",
+		//Action: utils.MigrateFlags(writeEVMToErigon),
+		Subcommands: []cli.Command{
+			{
+				Name:   "write",
+				Usage:  "Write preimages to erigon table",
+				Action: utils.MigrateFlags(writePreimagesCmd),
+				Description: `
+   				opera preimages write
+				`,
+			},
+			{
+				Name:   "read",
+				Usage:  "Read EVM preimages from erigon table",
+				Action: utils.MigrateFlags(readPreimagesCmd),
+				Description: `
+   				opera preimages read
+				`,
+			},
+		},
+		Description: `
+		opera preimages
+	
+	The erigon command iterates over MPT data and flushes it into Erigon tables`,
 	}
 )

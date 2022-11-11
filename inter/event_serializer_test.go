@@ -368,7 +368,7 @@ func FakeEvent(txsNum, mpsNum, bvsNum int, ersNum bool) *EventPayload {
 		// MPs are serialized with RLP, so no need to test extensively
 		mps = append(mps, MisbehaviourProof{
 			EventsDoublesign: &EventsDoublesign{
-				Pair: [2]SignedEventLocator{SignedEventLocator{}, SignedEventLocator{}},
+				Pair: [2]SignedEventLocator{{}, {}},
 			},
 			BlockVoteDoublesign: nil,
 			WrongBlockVote:      nil,
