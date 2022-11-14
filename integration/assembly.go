@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -21,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
+	"github.com/Fantom-foundation/go-opera/utils/compactdb"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
@@ -143,6 +145,16 @@ func CheckStateInitialized(chaindataDir string, cfg DBsConfig) error {
 	return dbs.Close()
 }
 
+func compactDB(typ multidb.TypeName, name string, producer kvdb.DBProducer) error {
+	humanName := path.Join(string(typ), name)
+	db, err := producer.OpenDB(name)
+	defer db.Close()
+	if err != nil {
+		return err
+	}
+	return compactdb.Compact(db, humanName)
+}
+
 func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg Configs) (*abft.Lachesis, *vecmt.Index, *gossip.Store, *abft.Store, gossip.BlockProc, func() error, error) {
 	// Genesis processing
 	if genesisProc {
@@ -163,6 +175,17 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 		}
 		_ = dbs.Close()
 		setGenesisComplete(chaindataDir)
+	}
+	// Compact DBs after first launch
+	if genesisProc {
+		genesisProducers, _ := SupportedDBs(chaindataDir, cfg.DBs.GenesisCache)
+		for typ, p := range genesisProducers {
+			for _, name := range p.Names() {
+				if err := compactDB(typ, name, p); err != nil {
+					return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+				}
+			}
+		}
 	}
 	// Check DBs are synced
 	{

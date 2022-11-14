@@ -15,6 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/utils/compactdb"
 )
 
 var (
@@ -127,30 +128,35 @@ func compact(ctx *cli.Context) error {
 	producers := makeCheckedDBsProducers(cfg)
 	for typ, p := range producers {
 		for _, name := range p.Names() {
-			humanName := path.Join(string(typ), name)
-			db, err := p.OpenDB(name)
-			defer db.Close()
-			if err != nil {
-				log.Error("Cannot open db or db does not exists", "db", humanName)
+			if err := compactDB(typ, name, p); err != nil {
 				return err
 			}
-
-			log.Info("Stats before compaction", "db", humanName)
-			showDbStats(db)
-
-			log.Info("Triggering compaction", "db", humanName)
-			for b := byte(0); b < 255; b++ {
-				log.Trace("Compacting chain database", "db", humanName, "range", fmt.Sprintf("0x%0.2X-0x%0.2X", b, b+1))
-				if err := db.Compact([]byte{b}, []byte{b + 1}); err != nil {
-					log.Error("Database compaction failed", "err", err)
-					return err
-				}
-			}
-
-			log.Info("Stats after compaction", "db", humanName)
-			showDbStats(db)
 		}
 	}
+
+	return nil
+}
+
+func compactDB(typ multidb.TypeName, name string, producer kvdb.DBProducer) error {
+	humanName := path.Join(string(typ), name)
+	db, err := producer.OpenDB(name)
+	defer db.Close()
+	if err != nil {
+		log.Error("Cannot open db or db does not exists", "db", humanName)
+		return err
+	}
+
+	log.Info("Stats before compaction", "db", humanName)
+	showDbStats(db)
+
+	err = compactdb.Compact(db, humanName)
+	if err != nil {
+		log.Error("Database compaction failed", "err", err)
+		return err
+	}
+
+	log.Info("Stats after compaction", "db", humanName)
+	showDbStats(db)
 
 	return nil
 }

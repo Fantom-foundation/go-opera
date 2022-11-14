@@ -16,6 +16,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/utils/compactdb"
 )
 
 func dbTransform(ctx *cli.Context) error {
@@ -255,16 +256,17 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 				}
 				oldDB = batched.Wrap(oldDB)
 				defer oldDB.Close()
+				oldHumanName := path.Join(string(e.Old.Type), e.Old.Name)
 				newDB, err := tmpDbTypes[e.New.Type].OpenDB(e.New.Name)
 				if err != nil {
 					return err
 				}
 				toMove[dbLocatorOf(e.New)] = true
-				newDbName := "tmp/" + e.New.Name
 				newDB = batched.Wrap(newDB)
 				defer newDB.Close()
-				log.Info("Copying DB table", "req", e.Req, "old_db_type", e.Old.Type, "old_db_name", e.Old.Name, "old_table", e.Old.Table,
-					"new_db_type", e.New.Type, "new_db_name", newDbName, "new_table", e.New.Table)
+				newHumanName := path.Join("tmp", string(e.New.Type), e.New.Name)
+				log.Info("Copying DB table", "req", e.Req, "old_db", oldHumanName, "old_table", e.Old.Table,
+					"new_db", newHumanName, "new_table", e.New.Table)
 				oldTable := table.New(oldDB, []byte(e.Old.Table))
 				newTable := table.New(newDB, []byte(e.New.Table))
 				it := oldTable.NewIterator(nil, nil)
@@ -287,6 +289,11 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 					}
 					keys = keys[:0]
 					values = values[:0]
+				}
+				err = compactdb.Compact(newTable, newHumanName)
+				if err != nil {
+					log.Error("Database compaction failed", "err", err)
+					return err
 				}
 				return nil
 			}()
