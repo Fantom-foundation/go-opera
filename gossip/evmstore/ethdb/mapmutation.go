@@ -1,4 +1,4 @@
-package erigon
+package ethdb
 
 import (
 	"context"
@@ -197,7 +197,7 @@ func (m *mapmutation) ForAmount(bucket string, prefix []byte, amount uint32, wal
 	return m.db.ForAmount(bucket, prefix, amount, walker)
 }
 
-func (m *mapmutation) Delete(table string, k, _ []byte) error {
+func (m *mapmutation) Delete(table string, k []byte, v []byte) error {
 	return m.Put(table, k, nil)
 }
 

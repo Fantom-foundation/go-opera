@@ -8,18 +8,21 @@ import (
 
 	//"github.com/Fantom-foundation/lachesis-base/kvdb"
 
-	"github.com/ledgerwatch/erigon/ethdb"
+	//"github.com/ledgerwatch/erigon/ethdb"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 
 	"github.com/Fantom-foundation/go-opera/erigon"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/ethdb"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/ledgerwatch/erigon-lib/kv"
 	//"github.com/ledgerwatch/erigon/ethdb/olddb"
 
 	estate "github.com/ledgerwatch/erigon/core/state"
+	erigonethdb "github.com/ledgerwatch/erigon/ethdb"
 
 	"github.com/c2h5oh/datasize"
 )
@@ -46,7 +49,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 	// state is stored through ethdb batches
 	path := filepath.Join(erigon.DefaultDataDir(), "erigon", "batch")
 	//batch = olddb.NewHashBatch(tx, nil, path, nil, nil)
-	batch := erigon.NewHashBatch(tx, path)
+	batch := ethdb.NewHashBatch(tx, path)
 
 	defer func() {
 		tx.Rollback()
@@ -87,7 +90,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 	log.Info("ApplyGenesis", "stateRoot", root.Hex())
 	*/
 
-	src := state.NewWithDatabase(ethdb.Database(batch))
+	src := state.NewWithDatabase(erigonethdb.Database(batch))
 	dst := state.NewWithStateReader(estate.NewPlainStateReader(tx))
 
 	src.DumpToCollector(&stateWriter{dst, 0}, nil, tx)

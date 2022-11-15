@@ -5,32 +5,23 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	//	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	//	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 
-	//	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	//	"github.com/ethereum/go-ethereum/ethdb"
-	//	"github.com/ethereum/go-ethereum/trie"
-	//	"github.com/syndtr/goleveldb/leveldb/opt"
-
-	//"github.com/Fantom-foundation/go-opera/inter"
-	//"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 
-	//"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 
-	"github.com/ledgerwatch/erigon/ethdb"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore/ethdb"
+	erigonethdb "github.com/ledgerwatch/erigon/ethdb"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
@@ -52,9 +43,9 @@ type Store struct {
 	}
 
 	genesisKV, chainKV kv.RwDB
-	//EvmDb    ethdb.Database
-	EvmState ethdb.Database
-	EvmLogs  *topicsdb.Index
+	EvmDb              erigonethdb.Database
+	EvmState           state.Database // includes caching mechanism (DBStateReader)
+	EvmLogs            *topicsdb.Index
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -90,24 +81,18 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *S
 	table.MigrateTables(&s.table, s.mainDB)
 	s.genesisKV = genesisKV
 	s.chainKV = chainKV
-
-	/*
-		s.EvmDb = rawdb.NewDatabase(
-			kvdb2ethdb.Wrap(
-				nokeyiserr.Wrap(
-					s.table.Evm)))
-		s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
-			Cache:     cfg.Cache.EvmDatabase / opt.MiB,
-			Journal:   cfg.Cache.TrieCleanJournal,
-			Preimages: cfg.EnablePreimageRecording,
-		})
-	*/
+	s.initEVMDB(chainKV) // consider to add genesisKV as well, or merge genesisKV and chainKV
 
 	s.EvmLogs = topicsdb.New(s.table.Logs)
 
 	s.initCache()
 
 	return s
+}
+
+func (s *Store) initEVMDB(chainKV kv.RwDB) {
+	s.EvmDb = ethdb.NewObjectDatabase(chainKV)
+	s.EvmState = state.NewDatabase(s.EvmDb)
 }
 
 func (s *Store) initCache() {

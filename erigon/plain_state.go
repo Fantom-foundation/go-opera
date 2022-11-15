@@ -113,6 +113,7 @@ func MakeChainDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) 
 }
 
 // Write iterates over erigon kv.PlainState records and populates io.Writer
+// TODO iterate over not only plainstate as well as other tables
 func Write(writer io.Writer, tx kv.Tx) (accounts int, err error) {
 	c, err := tx.Cursor(kv.PlainState)
 	if err != nil {
