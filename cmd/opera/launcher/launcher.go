@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
@@ -188,6 +189,7 @@ func initFlags() {
 
 // init the CLI app.
 func init() {
+	discfilter.Enable()
 	overrideFlags()
 	overrideParams()
 

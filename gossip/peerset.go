@@ -179,6 +179,19 @@ func (ps *peerSet) Peer(id string) *peer {
 	return ps.peers[id]
 }
 
+func (ps *peerSet) UselessNum() int {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	num := 0
+	for _, p := range ps.peers {
+		if p.Useless() {
+			num++
+		}
+	}
+	return num
+}
+
 // PeersWithoutEvent retrieves a list of peers that do not have a given event in
 // their set of known hashes so it might be propagated to them.
 func (ps *peerSet) PeersWithoutEvent(e hash.Event) []*peer {

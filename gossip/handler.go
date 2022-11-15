@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 
@@ -281,7 +283,7 @@ func newHandler(
 		},
 		PeerEpoch: func(peer string) idx.Epoch {
 			p := h.peers.Peer(peer)
-			if p == nil {
+			if p == nil || p.Useless() {
 				return 0
 			}
 			return p.progress.Epoch
@@ -317,7 +319,7 @@ func newHandler(
 		},
 		PeerBlock: func(peer string) idx.Block {
 			p := h.peers.Peer(peer)
-			if p == nil {
+			if p == nil || p.Useless() {
 				return 0
 			}
 			return p.progress.LastBlockIdx
@@ -358,7 +360,7 @@ func newHandler(
 		},
 		PeerBlock: func(peer string) idx.Block {
 			p := h.peers.Peer(peer)
-			if p == nil {
+			if p == nil || p.Useless() {
 				return 0
 			}
 			return p.progress.LastBlockIdx
@@ -396,7 +398,7 @@ func newHandler(
 		},
 		PeerEpoch: func(peer string) idx.Epoch {
 			p := h.peers.Peer(peer)
-			if p == nil {
+			if p == nil || p.Useless() {
 				return 0
 			}
 			return p.progress.Epoch
@@ -780,6 +782,22 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Error("Snapshot extension barrier failed", "err", err)
 		return err
 	}
+	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
+	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
+		useless = true
+		discfilter.Ban(p.ID())
+	}
+	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
+		// don't allow more than 10% of useless peers
+		return p2p.DiscTooManyPeers
+	}
+	if !p.Peer.Info().Network.Trusted && useless {
+		if h.peers.UselessNum() >= h.maxPeers/10 {
+			// don't allow more than 10% of useless peers
+			return p2p.DiscTooManyPeers
+		}
+		p.SetUseless()
+	}
 
 	h.peerWG.Add(1)
 	defer h.peerWG.Done()
@@ -791,6 +809,9 @@ func (h *handler) handle(p *peer) error {
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
+		if !useless {
+			discfilter.Ban(p.ID())
+		}
 		return err
 	}
 
@@ -1349,9 +1370,16 @@ func (h *handler) BroadcastEvent(event *inter.EventPayload, passed time.Duration
 
 	fullRecipients := h.decideBroadcastAggressiveness(event.Size(), passed, len(peers))
 
-	// Broadcast of full event to a subset of peers
-	fullBroadcast := peers[:fullRecipients]
-	hashBroadcast := peers[fullRecipients:]
+	// Exclude low quality peers from fullBroadcast
+	var fullBroadcast = make([]*peer, 0, fullRecipients)
+	var hashBroadcast = make([]*peer, 0, len(peers))
+	for _, p := range peers {
+		if !p.Useless() && len(fullBroadcast) < fullRecipients {
+			fullBroadcast = append(fullBroadcast, p)
+		} else {
+			hashBroadcast = append(hashBroadcast, p)
+		}
+	}
 	for _, peer := range fullBroadcast {
 		peer.AsyncSendEvents(inter.EventPayloads{event}, peer.queue)
 	}
