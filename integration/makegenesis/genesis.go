@@ -247,12 +247,12 @@ func (b *GenesisBuilder) Build(genesisKV, chainKV kv.RwDB, statedb *state.StateD
 			if err != nil {
 				return nil, err
 			}
-
+			// writing EVM accounts to buf
+			// TODO conder to write not only EVM accoounts as well as kv.Code, kv.IncarnationMap into buf as well
 			_, err = erigon.Write(buf, tx)
 			if err != nil {
 				return nil, err
 			}
-
 			tx.Rollback()
 		}
 		if buf.Len() == 0 {

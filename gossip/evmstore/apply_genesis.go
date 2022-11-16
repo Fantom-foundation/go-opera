@@ -2,16 +2,10 @@ package evmstore
 
 import (
 	"context"
-	"math/rand"
 	"os"
 	"path/filepath"
 
-	//"github.com/Fantom-foundation/lachesis-base/kvdb"
-
-	//"github.com/ledgerwatch/erigon/ethdb"
-
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 
 	"github.com/Fantom-foundation/go-opera/erigon"
@@ -19,10 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
-	//"github.com/ledgerwatch/erigon/ethdb/olddb"
-
-	estate "github.com/ledgerwatch/erigon/core/state"
-	erigonethdb "github.com/ledgerwatch/erigon/ethdb"
 
 	"github.com/c2h5oh/datasize"
 )
@@ -30,14 +20,10 @@ import (
 const batchSizeStr = "256M"
 
 // ApplyGenesis writes initial state.
+// TODO consider to write not only Plainstate EVM accounts into EVMDB but also kv.Code kv.IncarnationMap records as well
 func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 
-	r := rand.Intn(100)
-
-	tempDB := erigon.MakeChainDatabase(logger.New("tempDB"), kv.TxPoolDB, uint(r))
-	defer tempDB.Close()
-
-	tx, err := tempDB.BeginRw(context.Background())
+	tx, err := s.EvmDb.RwKV().BeginRw(context.Background())
 	if err != nil {
 		return err
 	}
@@ -45,10 +31,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 	var batchSize datasize.ByteSize
 	must(batchSize.UnmarshalText([]byte(batchSizeStr)))
 
-	//var batch ethdb.DbWithPendingMutations
-	// state is stored through ethdb batches
 	path := filepath.Join(erigon.DefaultDataDir(), "erigon", "batch")
-	//batch = olddb.NewHashBatch(tx, nil, path, nil, nil)
 	batch := ethdb.NewHashBatch(tx, path)
 
 	defer func() {
@@ -81,19 +64,6 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 	if err := batch.Commit(); err != nil {
 		return err
 	}
-
-	/* TODO make it match with Genesis stateroot
-	root, err := erigon.CalcRoot("ApplyGenesis, stateRoot", tx)
-	if err != nil {
-		return err
-	}
-	log.Info("ApplyGenesis", "stateRoot", root.Hex())
-	*/
-
-	src := state.NewWithDatabase(erigonethdb.Database(batch))
-	dst := state.NewWithStateReader(estate.NewPlainStateReader(tx))
-
-	src.DumpToCollector(&stateWriter{dst, 0}, nil, tx)
 
 	return nil
 }
