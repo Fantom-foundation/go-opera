@@ -2,7 +2,6 @@ package launcher
 
 import (
 	"compress/gzip"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -311,13 +310,7 @@ func exportGenesis(ctx *cli.Context) error {
 			return err
 		}
 
-		tx, err := db.BeginRo(context.Background())
-		if err != nil {
-			return err
-		}
-		tx.Rollback()
-
-		_, err = erigon.Write(writer, tx)
+		_, err = erigon.Write(writer, db)
 		if err != nil {
 			return err
 		}

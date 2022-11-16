@@ -144,7 +144,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	genesis := genStore.Genesis()
 
 	store := NewMemStore()
-	_, err := store.ApplyGenesis(db, genesis)
+	_, err := store.ApplyGenesis(genesis)
 	if err != nil {
 		panic(err)
 	}

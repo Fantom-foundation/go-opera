@@ -97,11 +97,11 @@ func NewMemStore() *Store {
 	dbs := flushable.NewSyncedPool(mems, []byte{0})
 	cfg := LiteStoreConfig()
 
-	return NewStore(dbs, cfg, nil, nil)
+	return NewStore(dbs, cfg, nil)
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *Store {
+func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig, chainKV kv.RwDB) *Store {
 	mainDB, err := dbs.OpenDB("gossip")
 	if err != nil {
 		log.Crit("Failed to open DB", "name", "gossip", "err", err)
@@ -119,7 +119,7 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig, genesisKV, chainKV 
 
 	s.initCache()
 
-	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM, genesisKV, chainKV)
+	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM, chainKV)
 
 	if err := s.migrateData(); err != nil {
 		s.Log.Crit("Failed to migrate Gossip DB", "err", err)

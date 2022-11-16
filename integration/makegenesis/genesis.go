@@ -2,7 +2,6 @@ package makegenesis
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"math/big"
@@ -243,17 +242,15 @@ func (b *GenesisBuilder) Build(genesisKV, chainKV kv.RwDB, statedb *state.StateD
 				_ = rlp.Encode(buf, b.epochs[i])
 			}
 		case genesisstore.EvmSection:
-			tx, err := genesisKV.BeginRo(context.Background())
-			if err != nil {
-				return nil, err
-			}
+
 			// writing EVM accounts to buf
 			// TODO conder to write not only EVM accoounts as well as kv.Code, kv.IncarnationMap into buf as well
-			_, err = erigon.Write(buf, tx)
+			_, err := erigon.Write(buf, genesisKV)
 			if err != nil {
 				return nil, err
 			}
-			tx.Rollback()
+
+			genesisKV.Close()
 		}
 		if buf.Len() == 0 {
 			return nil, errors.New("not found")
@@ -262,5 +259,5 @@ func (b *GenesisBuilder) Build(genesisKV, chainKV kv.RwDB, statedb *state.StateD
 	}, head, func() error {
 		*b = GenesisBuilder{}
 		return nil
-	}, genesisKV, chainKV, b.GetStateDB())
+	}, chainKV, b.GetStateDB())
 }

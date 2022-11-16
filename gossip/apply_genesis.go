@@ -8,12 +8,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
-
-	"github.com/ledgerwatch/erigon-lib/kv"
+	//"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(_, _ kv.RwDB, g genesis.Genesis) (genesisHash hash.Hash, err error) {
+func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err error) {
 	// write epochs
 	var topEr *ier.LlrIdxFullEpochRecord
 	g.Epochs.ForEach(func(er ier.LlrIdxFullEpochRecord) bool {

@@ -105,7 +105,7 @@ type Backend interface {
 	GetOriginatedFee(ctx context.Context, vid idx.ValidatorID) (*big.Int, error)
 }
 
-func GetAPIs(apiBackend Backend, db kv.RoDB) []rpc.API {
+func GetAPIs(apiBackend Backend, db kv.RwDB) []rpc.API {
 	nonceLock := new(AddrLocker)
 
 	orig := []rpc.API{

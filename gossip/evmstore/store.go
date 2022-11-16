@@ -42,10 +42,10 @@ type Store struct {
 		Txs         kvdb.Store `table:"X"`
 	}
 
-	genesisKV, chainKV kv.RwDB
-	EvmDb              erigonethdb.Database
-	EvmState           state.Database // includes caching mechanism (DBStateReader)
-	EvmLogs            *topicsdb.Index
+	chainKV  kv.RwDB
+	EvmDb    erigonethdb.Database
+	EvmState state.Database // includes caching mechanism (DBStateReader)
+	EvmLogs  *topicsdb.Index
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -69,7 +69,7 @@ const (
 )
 
 // NewStore creates store over key-value db.
-func NewStore(mainDB kvdb.Store, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *Store {
+func NewStore(mainDB kvdb.Store, cfg StoreConfig, chainKV kv.RwDB) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDB:   mainDB,
@@ -79,7 +79,6 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig, genesisKV, chainKV kv.RwDB) *S
 	}
 
 	table.MigrateTables(&s.table, s.mainDB)
-	s.genesisKV = genesisKV
 	s.chainKV = chainKV
 	s.initEVMDB(chainKV) // consider to add genesisKV as well, or merge genesisKV and chainKV
 
@@ -291,10 +290,6 @@ func (s *Store) makeCache(weight uint, size int) *wlru.Cache {
 		return nil
 	}
 	return cache
-}
-
-func (s *Store) GenesisKV() kv.RwDB {
-	return s.genesisKV
 }
 
 func (s *Store) ChainKV() kv.RwDB {

@@ -274,9 +274,7 @@ func lachesisMain(ctx *cli.Context) error {
 	defer nodeClose()
 	startNode(ctx, node)
 	node.Wait()
-	genesisKV, chainKV := genesisStore.KVs()
-	genesisKV.Close()
-	chainKV.Close()
+	genesisStore.ChainKV().Close()
 	return nil
 }
 
@@ -285,7 +283,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
 
-	genesisKV, chainKV := genesisStore.KVs()
+	chainKV := genesisStore.ChainKV()
 	statedb := genesisStore.StateDB()
 
 	chaindataDir := path.Join(cfg.Node.DataDir, "chaindata")
@@ -297,7 +295,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		gv := genesisStore.Genesis()
 		g = &gv
 	}
-	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(genesisKV, chainKV, integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
+	engine, dagIndex, gdb, cdb, blockProc := integration.MakeEngine(chainKV, integration.DBProducer(chaindataDir, cfg.cachescale), g, cfg.AppConfigs())
 	if genesisStore != nil {
 		_ = genesisStore.Close()
 	}
