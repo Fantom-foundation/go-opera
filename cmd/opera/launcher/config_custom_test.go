@@ -44,7 +44,7 @@ func TestConfigFile(t *testing.T) {
 		"Empty":   {},
 		"Default": asDefault,
 		"UserDefined": {enode.MustParse(
-			"enr:-HW4QIEFxJwyZzPQJPE2DbQpEu7FM1Gv99VqJ3CbLb22fm9_V9cfdZdSBpZCyrEb5UfMeC6k9WT0iaaeAjRcuzCfr4yAgmlkgnY0iXNlY3AyNTZrMaECps0D9hhmXEN5BMgVVe0xT5mpYU9zv4YxCdTApmfP-l0",
+			"enr:-J-4QJmPmUmu14Pn7gUtRNfKHaWFQpcX6fgqrNheDSWUN6giKtix8Lh6EKfymTdXCI5HKGmyl0C5eOKvem5xdC70hLEBgmlkgnY0gmlwhMCoAQKFb3BlcmHHxoQHxfIKgIlzZWNwMjU2azGhAjYQROWoAXivxhtYYBXGXzQrBTAHGJT9XPP69oUzDDWwhHNuYXDAg3RjcIITuoN1ZHCCE7o",
 		)},
 	} {
 		t.Run(name+"BootstrapNodes", func(t *testing.T) {
