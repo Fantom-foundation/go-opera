@@ -28,7 +28,7 @@ var (
 	emptyHash     = common.Hash{}
 )
 
-func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, err error))) error {
+func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, err error)), onlyRoots bool) error {
 	log.Info("Checking every node hash")
 	nodeIt := s.table.Evm.NewIterator(nil, nil)
 	defer nodeIt.Release()
@@ -68,7 +68,11 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 		}
 	}
 
-	log.Info("Checking presence of every node")
+	if onlyRoots {
+		log.Info("Checking presence of every root")
+	} else {
+		log.Info("Checking presence of every node")
+	}
 	var (
 		visitedHashes   = make([]common.Hash, 0, 1000000)
 		visitedI        = 0
@@ -88,7 +92,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 	forEachState(func(root common.Hash) (found bool, err error) {
 		stateTrie, err := s.EvmState.OpenTrie(root)
 		found = stateTrie != nil && err == nil
-		if !found {
+		if !found || onlyRoots {
 			return
 		}
 
