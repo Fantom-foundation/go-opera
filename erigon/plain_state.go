@@ -3,114 +3,16 @@ package erigon
 import (
 	"context"
 	"io"
-	"path/filepath"
-	"strconv"
 
-	"github.com/c2h5oh/datasize"
-
-	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
-	elog "github.com/ledgerwatch/log/v3"
-
-	"github.com/ledgerwatch/erigon/migrations"
-	"github.com/ledgerwatch/erigon/params"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
 
 var emptyCode = crypto.Keccak256(nil)
-
-// openDatabase opens lmdb database using specified label
-func openDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) (db kv.RwDB, err error) {
-	var (
-		name string
-	)
-
-	switch label {
-	case kv.ChainDB: //genesisKV
-		name = "chaindata"
-	case kv.TxPoolDB:
-		name = "txpool" // tempDB
-	case kv.ConsensusDB: //chainKV
-		name = "consensusDB"
-	default:
-		name = "test"
-	}
-
-	switch {
-	case erigonDbId > 0:
-		id := strconv.Itoa(int(erigonDbId))
-		name += id
-	default:
-	}
-
-	dbPath := filepath.Join(DefaultDataDir(), "erigon", name)
-
-	var openFunc func(exclusive bool) (kv.RwDB, error)
-	logger.Log.Info("Opening Erigon Database", "label", name, "path", dbPath)
-	elog := elog.New()
-	openFunc = func(exclusive bool) (kv.RwDB, error) {
-		opts := mdbx.NewMDBX(elog).Path(dbPath).Label(label).DBVerbosity( /*config.DatabaseVerbosity*/ 0).MapSize(6 * datasize.TB)
-		if exclusive {
-			opts = opts.Exclusive()
-		}
-		if label == kv.ChainDB {
-			opts = opts.PageSize( /*config.MdbxPageSize.Bytes()*/ 100000000000)
-		}
-		return opts.Open()
-	}
-
-	db, err = openFunc(false)
-	if err != nil {
-		return nil, err
-	}
-	migrator := migrations.NewMigrator(label)
-	if err := migrator.VerifyVersion(db); err != nil {
-		return nil, err
-	}
-
-	has, err := migrator.HasPendingMigrations(db)
-	if err != nil {
-		return nil, err
-	}
-	if has {
-		elog.Info("Re-Opening DB in exclusive mode to apply migrations")
-		db.Close()
-		db, err = openFunc(true)
-		if err != nil {
-			return nil, err
-		}
-		if err = migrator.Apply(db, DefaultDataDir()); err != nil {
-			return nil, err
-		}
-		db.Close()
-		db, err = openFunc(false)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err := db.Update(context.Background(), func(tx kv.RwTx) (err error) {
-		return params.SetErigonVersion(tx, params.VersionKeyCreated)
-	}); err != nil {
-		return nil, err
-	}
-
-	return
-}
-
-// MakeChainDatabase opens a database and it crashes if it fails to open
-func MakeChainDatabase(logger logger.Instance, label kv.Label, erigonDbId uint) kv.RwDB {
-	chainDb, err := openDatabase(logger, label, erigonDbId)
-	if err != nil {
-		utils.Fatalf("Could not open database: %v", err)
-	}
-	return chainDb
-}
 
 // Write iterates over erigon kv.PlainState records and populates io.Writer
 // TODO iterate over not only plainstate as well as other tables kv.Code etc
@@ -153,5 +55,6 @@ func Write(writer io.Writer, genesisKV kv.RwDB) (accounts int, err error) {
 		accounts++
 	}
 
+	log.Info("Erigon write", "Plainstate Iterations count", accounts)
 	return accounts, nil
 }

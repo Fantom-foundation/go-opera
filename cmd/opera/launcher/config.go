@@ -187,15 +187,16 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 
+		// TODO delete erigonDBId
 		var erigonDBId uint
 		if ctx.GlobalIsSet(ErigonDBIdFlag.Name) {
 			erigonDBId = uint(ctx.GlobalInt(ErigonDBIdFlag.Name))
 		}
 
-		genesisKV := erigon.MakeChainDatabase(logger.New("fakenet-chain-db"), kv.ChainDB, erigonDBId)
+		genesisKV := erigon.MakeChainDatabase(logger.New("consensus-db"), kv.ConsensusDB, true, erigonDBId)
 
 		// used to store evm state
-		chainKV := erigon.MakeChainDatabase(logger.New("consensus-kv"), kv.ConsensusDB, erigonDBId)
+		chainKV := erigon.MakeChainDatabase(logger.New("chain-kv"), kv.ChainDB, false, erigonDBId)
 
 		return makefakegenesis.FakeGenesisStore(genesisKV, chainKV, num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):

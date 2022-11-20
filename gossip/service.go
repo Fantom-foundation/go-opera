@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 	"github.com/ethereum/go-ethereum/accounts"
 	//"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/event"
@@ -429,7 +430,20 @@ func (s *Service) Start() error {
 	if s.store.evm.IsEvmSnapshotPaused() && !s.config.AllowSnapsync {
 		return errors.New("cannot halt snapsync and start fullsync")
 	}
-	//root := s.store.GetBlockState().FinalizedStateRoot //erigon state root
+	root := s.store.GetBlockState().FinalizedStateRoot //erigon state root
+	/*
+		if !s.store.evm.HasStateDB(root) {
+			if !s.config.AllowSnapsync {
+				return errors.New("fullsync isn't possible because state root is missing")
+			}
+			root = hash.Zero
+		}
+	*/
+
+	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
+
+	// start blocks processor
+	s.blockProcTasks.Start(1)
 
 	s.handler.Start(s.p2pServer.MaxPeers)
 

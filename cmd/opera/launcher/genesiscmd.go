@@ -298,7 +298,7 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
-	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB, 0)
+	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB, false, 0)
 	defer db.Close()
 
 	if mode != "none" {

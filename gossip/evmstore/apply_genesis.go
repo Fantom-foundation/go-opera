@@ -15,6 +15,8 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/c2h5oh/datasize"
+
+	gethethdb "github.com/ethereum/go-ethereum/ethdb"
 )
 
 const batchSizeStr = "256M"
@@ -65,7 +67,37 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 		return err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	roTx, err := s.EvmDb.RwKV().BeginRo(context.Background())
+	if err != nil {
+		return err
+	}
+
+	defer roTx.Rollback()
+
+	// legacy StateDB
+	//
+	dst, err := s.StateDB(hash.Hash{})
+	if err != nil {
+		return
+	}
+
+	state.DumpToCollector(&stateWriter{dst, 0}, nil, roTx)
+	root, err := dst.Commit(true)
+	if err != nil {
+		return
+	}
+
 	return nil
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 type stateWriter struct {
@@ -88,10 +120,4 @@ func (w *stateWriter) OnAccount(addr common.Address, acc state.DumpAccount) {
 		w.dst.SetState(addr, k, common.HexToHash(v))
 	}
 	w.accs++
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

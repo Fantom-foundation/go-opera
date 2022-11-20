@@ -22,6 +22,7 @@ import (
 	//"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
 	"github.com/Fantom-foundation/go-opera/utils/switchable"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -126,6 +127,21 @@ func NewStore(dbs kvdb.FlushableDBProducer, cfg StoreConfig, chainKV kv.RwDB) *S
 	}
 
 	return s
+}
+
+func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
+	err = s.generateSnapshotAt(s.evm, root, true, async)
+	if err != nil {
+		s.Log.Error("EVM snapshot", "at", root, "err", err)
+	} else {
+		gen, _ := s.evm.SnapsGenerating()
+		s.Log.Info("EVM snapshot", "at", root, "generating", gen)
+	}
+	return err
+}
+
+func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, rebuild, async bool) (err error) {
+	return evmStore.GenerateEvmSnapshot(root, rebuild, async)
 }
 
 func (s *Store) initCache() {

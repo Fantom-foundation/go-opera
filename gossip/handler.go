@@ -49,6 +49,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -224,12 +225,9 @@ func newHandler(
 	}
 	h.started.Add(1)
 
-	// TODO: configure it
-	/*
-		var (
-			configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
-		)
-	*/
+	var (
+		configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
+	)
 
 	var err error
 	h.chain, err = newEthBlockChain(c.s)
@@ -237,21 +235,19 @@ func newHandler(
 		return nil, err
 	}
 
-	/*
-		stateDb := h.store.EvmStore().EvmDb
-		var stateBloom *trie.SyncBloom
-		if false {
-			// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
-			// sync is requested. The downloader is responsible for deallocating the state
-			// bloom when it's done.
-			// Note: we don't enable it if snap-sync is performed, since it's very heavy
-			// and the heal-portion of the snap sync is much lighter than fast. What we particularly
-			// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
-			// indexing the entire trie
-			stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
-		}
-		h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
-	*/
+	stateDb := h.store.EvmStore().LegacyEvmDb
+	var stateBloom *trie.SyncBloom
+	if false {
+		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
+		// sync is requested. The downloader is responsible for deallocating the state
+		// bloom when it's done.
+		// Note: we don't enable it if snap-sync is performed, since it's very heavy
+		// and the heal-portion of the snap sync is much lighter than fast. What we particularly
+		// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
+		// indexing the entire trie
+		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
+	}
+	h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
@@ -640,6 +636,7 @@ func (h *handler) unregisterPeer(id string) {
 }
 
 func (h *handler) Start(maxPeers int) {
+	h.snapsyncStageTick()
 	h.maxPeers = maxPeers
 
 	// broadcast transactions
@@ -666,8 +663,8 @@ func (h *handler) Start(maxPeers int) {
 	// start sync handlers
 	go h.txsyncLoop()
 	h.loopsWg.Add(2)
-	//	go h.snapsyncStateLoop()
-	//	go h.snapsyncStageLoop()
+	go h.snapsyncStateLoop()
+	go h.snapsyncStageLoop()
 	h.dagFetcher.Start()
 	h.txFetcher.Start()
 	h.checkers.Heavycheck.Start()
@@ -722,6 +719,7 @@ func (h *handler) Stop() {
 	}
 
 	// Wait for the subscription loops to come down.
+	h.loopsWg.Wait()
 
 	h.msgSemaphore.Terminate()
 	// Quit the sync loop.
@@ -739,6 +737,107 @@ func (h *handler) Stop() {
 	h.peerWG.Wait()
 
 	log.Info("Fantom protocol stopped")
+}
+
+func (h *handler) snapsyncStageTick() {
+	// check if existing snapsync process can be resulted
+	h.updateSnapsyncStage()
+	llrs := h.store.GetLlrState()
+	if h.syncStatus.Is(ssSnaps) {
+		for i := 0; i < 3; i++ {
+			epoch := llrs.LowestEpochToFill - 1 - idx.Epoch(i)
+			if epoch <= h.store.GetEpoch() {
+				continue
+			}
+			bs, _ := h.store.GetHistoryBlockEpochState(epoch)
+			if bs == nil {
+				continue
+			}
+			/*
+				if !h.store.evm.HasStateDB(bs.FinalizedStateRoot) {
+					continue
+				}
+			*/
+			if llrs.LowestBlockToFill <= bs.LastBlock.Idx {
+				continue
+			}
+			if time.Since(bs.LastBlock.Time.Time()) > snapsyncMinEndAge {
+				continue
+			}
+			// cancel snapsync activity to prevent race condition
+			done := make(chan struct{})
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				snapsyncCancelCmd: &snapsyncCancelCmd{done},
+			}
+			<-done
+			// finalize snapsync
+			if err := h.process.SwitchEpochTo(epoch); err != nil {
+				h.Log.Error("Failed to result snapsync", "epoch", epoch, "block", bs.LastBlock.Idx, "err", err)
+			} else {
+				h.Log.Info("Snapsync is finalized at", "epoch", epoch, "block", bs.LastBlock.Idx, "root", bs.FinalizedStateRoot)
+				// switch state to non-snapsync and thus not allow ssSnaps ever again
+				h.syncStatus.Set(ssEvmSnapGen)
+			}
+		}
+	}
+	// push new data into an existing snapsync process
+	if h.syncStatus.Is(ssSnaps) {
+		lastEpoch := llrs.LowestEpochToFill - 1
+		lastBs, _ := h.store.GetHistoryBlockEpochState(lastEpoch)
+		if lastBs != nil && time.Since(lastBs.LastBlock.Time.Time()) < snapsyncMaxStartAge {
+			h.snapState.updatesCh <- snapsyncStateUpd{
+				snapsyncEpochUpd: &snapsyncEpochUpd{
+					epoch: lastEpoch,
+					root:  common.Hash(lastBs.FinalizedStateRoot),
+				},
+			}
+		}
+	}
+	// resume events downloading if events sync is enabled
+	if h.syncStatus.Is(ssEvents) {
+		h.dagLeecher.Resume()
+		h.brLeecher.Pause()
+	} else {
+		h.dagLeecher.Pause()
+		h.brLeecher.Resume()
+	}
+}
+
+func (h *handler) updateSnapsyncStage() {
+	// never allow fullsync while EVM snap is still generating, as it may lead to a race condition
+	snapGenOngoing, _ := h.store.evm.SnapsGenerating()
+	//fullsyncPossibleEver := h.store.evm.HasStateDB(h.store.GetBlockState().FinalizedStateRoot)
+	//fullsyncPossibleNow := fullsyncPossibleEver && !snapGenOngoing
+	fullsyncPossibleNow := !snapGenOngoing
+	// never allow to stop fullsync as it may lead to a race condition due to overwritten EVM snapshot by snapsync
+	snapsyncPossible := h.config.AllowSnapsync && (h.syncStatus.Is(ssUnknown) || h.syncStatus.Is(ssSnaps))
+	//snapsyncNeeded := !fullsyncPossibleEver || time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
+	snapsyncNeeded := time.Since(h.store.GetEpochState().EpochStart.Time()) > snapsyncMinEndAge
+
+	if snapsyncPossible && snapsyncNeeded {
+		h.syncStatus.Set(ssSnaps)
+	} else if snapGenOngoing {
+		h.syncStatus.Set(ssEvmSnapGen)
+	} else if fullsyncPossibleNow {
+		if !h.syncStatus.Is(ssEvents) {
+			h.Log.Info("Start/Switch to fullsync mode...")
+		}
+		h.syncStatus.Set(ssEvents)
+	}
+}
+
+func (h *handler) snapsyncStageLoop() {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	defer h.loopsWg.Done()
+	for {
+		select {
+		case <-ticker.C:
+			h.snapsyncStageTick()
+		case <-h.snapState.quit:
+			return
+		}
+	}
 }
 
 func (h *handler) myProgress() PeerProgress {

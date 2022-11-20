@@ -23,6 +23,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/ethdb"
 	erigonethdb "github.com/ledgerwatch/erigon/ethdb"
 
+	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	gethethdb "github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -46,6 +50,8 @@ type Store struct {
 	EvmDb    erigonethdb.Database
 	EvmState state.Database // includes caching mechanism (DBStateReader)
 	EvmLogs  *topicsdb.Index
+
+	LegacyEvmDb gethethdb.Database
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -81,8 +87,12 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig, chainKV kv.RwDB) *Store {
 	table.MigrateTables(&s.table, s.mainDB)
 	s.chainKV = chainKV
 	s.initEVMDB(chainKV) // consider to add genesisKV as well, or merge genesisKV and chainKV
-
 	s.EvmLogs = topicsdb.New(s.table.Logs)
+
+	s.LegacyEvmDb = rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				s.table.Evm)))
 
 	s.initCache()
 
@@ -106,21 +116,6 @@ func (s *Store) Close() {
 }
 
 func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
-	/*
-		if s.Snaps != nil {
-			return errors.New("EVM snapshot is already opened")
-		}
-		s.Snaps, err = snapshot.New(
-			s.EvmDb,
-			s.EvmState.TrieDB(),
-			s.cfg.Cache.EvmSnap/opt.MiB,
-			root,
-			async,
-			rebuild,
-			false)
-		return
-	*/
-	// TODO: deal with snaps
 	return errors.New("EVM snapshot is not implemented yet")
 }
 
@@ -143,6 +138,11 @@ func (s *Store) IsEvmSnapshotPaused() bool {
 	// return rawdb.ReadSnapshotDisabled(s.table.Evm)
 	// TODO: deal with snaps
 	return false
+}
+
+func (s *Store) SnapsGenerating() (bool, error) {
+	// TODO: deal with snaps
+	return false, nil
 }
 
 // Commit changes.

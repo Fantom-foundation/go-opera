@@ -100,11 +100,5 @@ type AncientStore interface {
 // Database contains all the methods required by the high level database to not
 // only access the key-value data store but also the chain freezer.
 type Database interface {
-	//Reader
-	//Writer
-	Batcher
-	//Iteratee
-	//Stater
-	//Compacter
 	erigonethdb.Database
 }

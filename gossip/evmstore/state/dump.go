@@ -133,7 +133,7 @@ func (d iterativeDump) OnRoot(root common.Hash) {
 
 // DumpToCollector iterates the state according to the given options and inserts
 // the items into a collector for aggregation or serialization.
-func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx) (nextKey []byte) {
+func DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.Tx) (nextKey []byte) {
 
 	var emptyCodeHash = crypto.Keccak256Hash(nil)
 	var emptyHash = common.Hash{}
@@ -212,7 +212,7 @@ func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx
 
 		// handle contract code
 		if incarnation > 0 {
-			codeHash, err := s.db.GetOne(kv.PlainContractCode, storagePrefix)
+			codeHash, err := tx.GetOne(kv.PlainContractCode, storagePrefix)
 			if err != nil {
 				panic(err)
 			}
@@ -224,7 +224,7 @@ func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx
 
 			if codeHash != nil && !bytes.Equal(codeHash, emptyCodeHash[:]) {
 				var code []byte
-				if code, err = s.db.GetOne(kv.Code, codeHash); err != nil {
+				if code, err = tx.GetOne(kv.Code, codeHash); err != nil {
 					panic(err)
 				}
 				account.Code = code
@@ -331,17 +331,17 @@ func (s *StateDB) DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.RwTx
 */
 
 // RawDump returns the entire state an a single large object
-func (s *StateDB) RawDump(opts *DumpConfig, tx kv.RwTx) Dump {
+func RawDump(opts *DumpConfig, tx kv.RwTx) Dump {
 	dump := &Dump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	s.DumpToCollector(dump, opts, tx)
+	DumpToCollector(dump, opts, tx)
 	return *dump
 }
 
 // Dump returns a JSON string representing the entire state as a single json-object
-func (s *StateDB) Dump(opts *DumpConfig, tx kv.RwTx) []byte {
-	dump := s.RawDump(opts, tx)
+func DumpToJSON(opts *DumpConfig, tx kv.RwTx) []byte {
+	dump := RawDump(opts, tx)
 	json, err := json.MarshalIndent(dump, "", "    ")
 	if err != nil {
 		fmt.Println("Dump err", err)
@@ -351,7 +351,7 @@ func (s *StateDB) Dump(opts *DumpConfig, tx kv.RwTx) []byte {
 
 // IterativeDump dumps out accounts as json-objects, delimited by linebreaks on stdout
 func (s *StateDB) IterativeDump(opts *DumpConfig, output *json.Encoder) {
-	s.DumpToCollector(iterativeDump{output}, opts, nil)
+	DumpToCollector(iterativeDump{output}, opts, nil)
 }
 
 // IteratorDump dumps out a batch of accounts starts with the given start key
@@ -359,6 +359,6 @@ func (s *StateDB) IteratorDump(opts *DumpConfig) IteratorDump {
 	iterator := &IteratorDump{
 		Accounts: make(map[common.Address]DumpAccount),
 	}
-	iterator.Next = s.DumpToCollector(iterator, opts, nil)
+	iterator.Next = DumpToCollector(iterator, opts, nil)
 	return *iterator
 }
