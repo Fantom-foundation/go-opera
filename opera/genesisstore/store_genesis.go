@@ -51,7 +51,7 @@ func (s *Store) Blocks() genesis.Blocks {
 
 func (s Blocks) ForEach(fn func(ibr.LlrIdxFullBlockRecord) bool) {
 	for i := 1000; i >= 0; i-- {
-		f, err := s.fMap(getSectionName(BlocksSection, i))
+		f, err := s.fMap(BlocksSection(i))
 		if err != nil {
 			continue
 		}
@@ -78,7 +78,7 @@ func (s *Store) Epochs() genesis.Epochs {
 
 func (s Epochs) ForEach(fn func(ier.LlrIdxFullEpochRecord) bool) {
 	for i := 1000; i >= 0; i-- {
-		f, err := s.fMap(getSectionName(EpochsSection, i))
+		f, err := s.fMap(EpochsSection(i))
 		if err != nil {
 			continue
 		}
@@ -105,7 +105,7 @@ func (s *Store) RawEvmItems() genesis.EvmItems {
 
 func (s RawEvmItems) ForEach(fn func(key, value []byte) bool) {
 	for i := 1000; i >= 0; i-- {
-		f, err := s.fMap(getSectionName(EvmSection, i))
+		f, err := s.fMap(EvmSection(i))
 		if err != nil {
 			continue
 		}
