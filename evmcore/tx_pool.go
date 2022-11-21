@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/cyberbono3/go-opera/utils/signers/gsignercache"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 

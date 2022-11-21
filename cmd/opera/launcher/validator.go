@@ -6,9 +6,9 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+	"github.com/cyberbono3/go-opera/integration/makefakegenesis"
+	"github.com/cyberbono3/go-opera/inter/validatorpk"
 )
 
 var validatorIDFlag = cli.UintFlag{

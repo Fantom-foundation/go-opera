@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
+	"github.com/cyberbono3/go-opera/gossip"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/syndtr/goleveldb/leveldb/opt"

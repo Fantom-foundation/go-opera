@@ -21,19 +21,19 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/erigon"
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	futils "github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/vecmt"
+	"github.com/cyberbono3/go-opera/erigon"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+	"github.com/cyberbono3/go-opera/gossip/gasprice"
+	"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/integration/makefakegenesis"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/opera/genesisstore"
+	futils "github.com/cyberbono3/go-opera/utils"
+	"github.com/cyberbono3/go-opera/vecmt"
 
-	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/cyberbono3/go-opera/logger"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -193,7 +193,7 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 			erigonDBId = uint(ctx.GlobalInt(ErigonDBIdFlag.Name))
 		}
 
-		genesisKV := erigon.MakeChainDatabase(logger.New("consensus-db"), kv.ConsensusDB, true, erigonDBId)
+		genesisKV := erigon.MakeChainDatabase(logger.New("consensus-db"), kv.ConsensusDB, false, erigonDBId)
 
 		// used to store evm state
 		chainKV := erigon.MakeChainDatabase(logger.New("chain-kv"), kv.ChainDB, false, erigonDBId)

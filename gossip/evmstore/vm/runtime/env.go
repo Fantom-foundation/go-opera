@@ -17,8 +17,8 @@
 package runtime
 
 import (
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 )
 
 func NewEnv(cfg *Config) *vm.EVM {

@@ -17,9 +17,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
 )
 
 var (

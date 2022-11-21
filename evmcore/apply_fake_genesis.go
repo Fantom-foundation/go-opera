@@ -25,14 +25,14 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/erigon"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/erigon"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 

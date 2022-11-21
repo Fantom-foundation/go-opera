@@ -5,7 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
+	"github.com/cyberbono3/go-opera/inter/validatorpk"
 )
 
 var (

@@ -7,11 +7,11 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/utils/wgmutex"
-	"github.com/Fantom-foundation/go-opera/valkeystore"
-	"github.com/Fantom-foundation/go-opera/vecmt"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/utils/wgmutex"
+	"github.com/cyberbono3/go-opera/valkeystore"
+	"github.com/cyberbono3/go-opera/vecmt"
 )
 
 type emitterWorldProc struct {

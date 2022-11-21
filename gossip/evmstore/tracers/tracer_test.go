@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/params"

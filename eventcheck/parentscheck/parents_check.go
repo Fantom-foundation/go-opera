@@ -5,7 +5,7 @@ import (
 
 	base "github.com/Fantom-foundation/lachesis-base/eventcheck/parentscheck"
 
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter"
 )
 
 var (

@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/snap/snapstream/snapleecher"
+	"github.com/cyberbono3/go-opera/gossip/protocols/snap/snapstream/snapleecher"
 )
 
 // PublicDownloaderAPI provides an API which gives information about the current synchronisation status.

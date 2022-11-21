@@ -11,10 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/cyberbono3/go-opera/eventcheck/epochcheck"
+	"github.com/cyberbono3/go-opera/eventcheck/gaspowercheck"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/utils"
 )
 
 const (

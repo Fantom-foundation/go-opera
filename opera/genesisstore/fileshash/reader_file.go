@@ -10,7 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 
-	"github.com/Fantom-foundation/go-opera/utils/ioread"
+	"github.com/cyberbono3/go-opera/utils/ioread"
 )
 
 var (

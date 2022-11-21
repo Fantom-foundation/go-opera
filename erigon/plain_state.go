@@ -1,7 +1,6 @@
 package erigon
 
 import (
-	"context"
 	"io"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
@@ -16,14 +15,7 @@ var emptyCode = crypto.Keccak256(nil)
 
 // Write iterates over erigon kv.PlainState records and populates io.Writer
 // TODO iterate over not only plainstate as well as other tables kv.Code etc
-func Write(writer io.Writer, genesisKV kv.RwDB) (accounts int, err error) {
-
-	tx, err := genesisKV.BeginRo(context.Background())
-	if err != nil {
-		return 0, err
-	}
-
-	defer tx.Rollback()
+func Write(writer io.Writer, tx kv.Tx) (accounts int, err error) {
 
 	c, err := tx.Cursor(kv.PlainState)
 	if err != nil {

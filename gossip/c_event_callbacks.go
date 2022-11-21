@@ -11,12 +11,12 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-opera/eventcheck"
-	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
-	"github.com/Fantom-foundation/go-opera/utils/concurrent"
+	"github.com/cyberbono3/go-opera/eventcheck"
+	"github.com/cyberbono3/go-opera/eventcheck/epochcheck"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/utils/concurrent"
 )
 
 var (

@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/dag/dagstream"
+	"github.com/cyberbono3/go-opera/gossip/protocols/dag/dagstream"
 )
 
 func TestLeecherNoDeadlocks(t *testing.T) {

@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/tracers"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/tracers"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"

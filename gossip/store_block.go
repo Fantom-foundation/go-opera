@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter"
 )
 
 func (s *Store) GetGenesisID() *hash.Hash {

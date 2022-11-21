@@ -21,10 +21,10 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -34,9 +34,9 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ledgerwatch/erigon-lib/kv"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
 )
 
 // PeerProgress is synchronization status of a peer

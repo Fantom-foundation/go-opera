@@ -3,16 +3,16 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
-	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/gossip/gasprice"
+	"github.com/cyberbono3/go-opera/opera"
 )
 
 type EvmStateReader struct {

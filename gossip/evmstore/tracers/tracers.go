@@ -21,7 +21,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/tracers/internal/tracers"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/tracers/internal/tracers"
 )
 
 // all contains all the built in JavaScript tracers by name.

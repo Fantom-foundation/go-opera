@@ -17,11 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream"
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/dag/dagstream"
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/epochpacks/epstream"
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/gossip/protocols/blockrecords/brstream"
+	"github.com/cyberbono3/go-opera/gossip/protocols/blockvotes/bvstream"
+	"github.com/cyberbono3/go-opera/gossip/protocols/dag/dagstream"
+	"github.com/cyberbono3/go-opera/gossip/protocols/epochpacks/epstream"
+	"github.com/cyberbono3/go-opera/inter"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	"github.com/Fantom-foundation/lachesis-base/utils/workers"
 
-	"github.com/Fantom-foundation/go-opera/inter/ibr"
+	"github.com/cyberbono3/go-opera/inter/ibr"
 )
 
 var (

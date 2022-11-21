@@ -12,12 +12,12 @@ import (
 	//"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
 	"github.com/ethereum/go-ethereum/common"
 	//"github.com/ethereum/go-ethereum/core/rawdb"
-	//"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	//"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	//"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	//"github.com/ethereum/go-ethereum/log"
 	//"github.com/ethereum/go-ethereum/rlp"
-	//"github.com/Fantom-foundation/go-opera/utils/iodb"
+	//"github.com/cyberbono3/go-opera/utils/iodb"
 )
 
 var (

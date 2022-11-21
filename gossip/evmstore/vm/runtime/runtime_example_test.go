@@ -19,7 +19,7 @@ package runtime_test
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm/runtime"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm/runtime"
 	"github.com/ethereum/go-ethereum/common"
 )
 

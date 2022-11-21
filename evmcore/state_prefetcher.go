@@ -20,12 +20,12 @@ package evmcore
 import (
 	"sync/atomic"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/cyberbono3/go-opera/utils/signers/gsignercache"
 )
 
 // statePrefetcher is a basic Prefetcher, which blindly executes a block on top

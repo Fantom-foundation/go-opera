@@ -21,7 +21,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"

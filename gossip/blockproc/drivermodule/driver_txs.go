@@ -5,21 +5,21 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/drivertype"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driver/drivercall"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driver/driverpos"
+	"github.com/cyberbono3/go-opera/gossip/blockproc"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter/drivertype"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/inter/validatorpk"
+	"github.com/cyberbono3/go-opera/opera"
+	"github.com/cyberbono3/go-opera/opera/contracts/driver"
+	"github.com/cyberbono3/go-opera/opera/contracts/driver/drivercall"
+	"github.com/cyberbono3/go-opera/opera/contracts/driver/driverpos"
 )
 
 const (

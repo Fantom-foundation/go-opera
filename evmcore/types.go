@@ -17,10 +17,11 @@
 package evmcore
 
 import (
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
-	"github.com/ethereum/go-ethereum/core/types"
 	"time"
+
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // StateDB is an EVM database for full state querying.

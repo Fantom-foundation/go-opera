@@ -13,7 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Fantom-foundation/go-opera/utils/ioread"
+	"github.com/cyberbono3/go-opera/utils/ioread"
 )
 
 type dropableFile struct {

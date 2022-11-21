@@ -27,16 +27,16 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
-	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/cyberbono3/go-opera/gossip/evmstore"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/evmpruner"
+	"github.com/cyberbono3/go-opera/integration"
 )
 
 var (

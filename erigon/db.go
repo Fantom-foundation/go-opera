@@ -13,7 +13,7 @@ import (
 	"github.com/ledgerwatch/erigon/migrations"
 	"github.com/ledgerwatch/erigon/params"
 
-	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/cyberbono3/go-opera/logger"
 
 	"github.com/c2h5oh/datasize"
 

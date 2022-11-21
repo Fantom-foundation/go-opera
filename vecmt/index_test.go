@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter"
 )
 
 var (

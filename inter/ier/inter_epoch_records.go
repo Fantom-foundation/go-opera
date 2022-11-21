@@ -4,7 +4,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
 )
 
 type LlrFullEpochRecord struct {

@@ -20,15 +20,15 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
-	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
+	"github.com/cyberbono3/go-opera/utils/signers/gsignercache"
+	"github.com/cyberbono3/go-opera/utils/signers/internaltx"
 
 	estate "github.com/ledgerwatch/erigon/core/state"
 )

@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+
 	//"path"
 	"strings"
 	"syscall"
@@ -23,12 +24,13 @@ import (
 	"github.com/status-im/keycard-go/hexutils"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	//"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	"github.com/Fantom-foundation/go-opera/utils/ioread"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+
+	//"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/opera/genesisstore"
+	"github.com/cyberbono3/go-opera/utils/ioread"
 )
 
 /*

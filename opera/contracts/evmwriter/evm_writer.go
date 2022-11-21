@@ -5,12 +5,12 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/vm"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/vm"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
+	"github.com/cyberbono3/go-opera/opera/contracts/driver"
 )
 
 var (

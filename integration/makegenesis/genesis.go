@@ -5,27 +5,28 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"context"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/drivermodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
-	"github.com/Fantom-foundation/go-opera/inter/ibr"
-	"github.com/Fantom-foundation/go-opera/inter/ier"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/gossip/blockproc"
+	"github.com/cyberbono3/go-opera/gossip/blockproc/drivermodule"
+	"github.com/cyberbono3/go-opera/gossip/blockproc/eventmodule"
+	"github.com/cyberbono3/go-opera/gossip/blockproc/evmmodule"
+	"github.com/cyberbono3/go-opera/gossip/blockproc/sealmodule"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/inter/ibr"
+	"github.com/cyberbono3/go-opera/inter/ier"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/opera/genesisstore"
 
-	"github.com/Fantom-foundation/go-opera/erigon"
+	"github.com/cyberbono3/go-opera/erigon"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"
 )
@@ -243,14 +244,18 @@ func (b *GenesisBuilder) Build(genesisKV, chainKV kv.RwDB, statedb *state.StateD
 			}
 		case genesisstore.EvmSection:
 
-			// writing EVM accounts to buf
-			// TODO conder to write not only EVM accoounts as well as kv.Code, kv.IncarnationMap into buf as well
-			_, err := erigon.Write(buf, genesisKV)
+			tx, err := genesisKV.BeginRo(context.Background())
 			if err != nil {
 				return nil, err
 			}
 
-			genesisKV.Close()
+			// writing EVM accounts to buf
+			// TODO conder to write not only EVM accoounts as well as kv.Code, kv.IncarnationMap into buf as well
+			if _, err := erigon.Write(buf, tx); err != nil {
+				return nil, err
+			}
+
+			tx.Rollback()
 		}
 		if buf.Len() == 0 {
 			return nil, errors.New("not found")

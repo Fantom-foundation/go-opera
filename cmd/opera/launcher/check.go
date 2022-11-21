@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/inter"
 )
 
 func checkEvm(ctx *cli.Context) error {

@@ -16,12 +16,12 @@ import (
 	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/cyberbono3/go-opera/gossip/evmstore"
+	"github.com/cyberbono3/go-opera/logger"
 
-	//"github.com/Fantom-foundation/go-opera/utils/adapters/snap2kvdb"
-	"github.com/Fantom-foundation/go-opera/utils/rlpstore"
-	"github.com/Fantom-foundation/go-opera/utils/switchable"
+	//"github.com/cyberbono3/go-opera/utils/adapters/snap2kvdb"
+	"github.com/cyberbono3/go-opera/utils/rlpstore"
+	"github.com/cyberbono3/go-opera/utils/switchable"
 	"github.com/ethereum/go-ethereum/common"
 )
 

@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state/snapshot"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state/snapshot"
 	com "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"

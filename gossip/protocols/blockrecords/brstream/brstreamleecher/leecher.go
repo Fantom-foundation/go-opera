@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/gossip/basestream/basestreamleecher/basepeerleecher"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
-	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
+	"github.com/cyberbono3/go-opera/gossip/protocols/blockrecords/brstream"
 )
 
 // Leecher is responsible for requesting BRs based on lexicographic BRs streams

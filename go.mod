@@ -1,5 +1,4 @@
-module github.com/Fantom-foundation/go-opera
-
+module github.com/cyberbono3/go-opera
 go 1.18
 
 require (

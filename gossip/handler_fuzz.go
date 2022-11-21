@@ -15,12 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/integration/makefakegenesis"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/opera"
+	"github.com/cyberbono3/go-opera/utils"
+	"github.com/cyberbono3/go-opera/utils/signers/gsignercache"
 )
 
 const (

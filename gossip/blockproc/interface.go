@@ -1,14 +1,14 @@
 package blockproc
 
 import (
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
-	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/inter/iblockproc"
+	"github.com/cyberbono3/go-opera/opera"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	estate "github.com/ledgerwatch/erigon/core/state"

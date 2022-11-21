@@ -1,8 +1,8 @@
 package rlpstore
 
 import (
-	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/cyberbono3/go-opera/logger"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 

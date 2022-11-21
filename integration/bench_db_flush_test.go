@@ -16,11 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/vecmt"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/integration/makefakegenesis"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/utils"
+	"github.com/cyberbono3/go-opera/vecmt"
 )
 
 func BenchmarkFlushDBs(b *testing.B) {

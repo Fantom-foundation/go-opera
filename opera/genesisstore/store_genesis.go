@@ -7,10 +7,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-opera/inter/ibr"
-	"github.com/Fantom-foundation/go-opera/inter/ier"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/utils/iodb"
+	"github.com/cyberbono3/go-opera/inter/ibr"
+	"github.com/cyberbono3/go-opera/inter/ier"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/utils/iodb"
 )
 
 type (

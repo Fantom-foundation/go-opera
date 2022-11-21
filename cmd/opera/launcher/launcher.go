@@ -21,19 +21,19 @@ import (
 
 	evmetrics "github.com/ethereum/go-ethereum/metrics"
 
-	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
-	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
-	"github.com/Fantom-foundation/go-opera/debug"
-	"github.com/Fantom-foundation/go-opera/evmcore"
-	"github.com/Fantom-foundation/go-opera/flags"
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	"github.com/Fantom-foundation/go-opera/utils/errlock"
-	"github.com/Fantom-foundation/go-opera/valkeystore"
-	_ "github.com/Fantom-foundation/go-opera/version"
+	"github.com/cyberbono3/go-opera/cmd/opera/launcher/metrics"
+	"github.com/cyberbono3/go-opera/cmd/opera/launcher/tracing"
+	"github.com/cyberbono3/go-opera/debug"
+	"github.com/cyberbono3/go-opera/evmcore"
+	"github.com/cyberbono3/go-opera/flags"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/gossip/emitter"
+	"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/opera/genesisstore"
+	"github.com/cyberbono3/go-opera/utils/errlock"
+	"github.com/cyberbono3/go-opera/valkeystore"
+	_ "github.com/cyberbono3/go-opera/version"
 )
 
 const (

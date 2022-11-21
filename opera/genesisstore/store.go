@@ -3,9 +3,9 @@ package genesisstore
 import (
 	"io"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/logger"
+	"github.com/cyberbono3/go-opera/opera/genesis"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 )

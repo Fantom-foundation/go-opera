@@ -36,17 +36,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Fantom-foundation/go-opera/gossip/contract/driver100"
-	"github.com/Fantom-foundation/go-opera/gossip/contract/driverauth100"
-	"github.com/Fantom-foundation/go-opera/gossip/contract/netinit100"
-	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
-	"github.com/Fantom-foundation/go-opera/logger"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driver"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/driverauth"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/evmwriter"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/netinit"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/sfc"
-	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/cyberbono3/go-opera/gossip/contract/driver100"
+	"github.com/cyberbono3/go-opera/gossip/contract/driverauth100"
+	"github.com/cyberbono3/go-opera/gossip/contract/netinit100"
+	"github.com/cyberbono3/go-opera/gossip/contract/sfc100"
+	"github.com/cyberbono3/go-opera/logger"
+	"github.com/cyberbono3/go-opera/opera/contracts/driver"
+	"github.com/cyberbono3/go-opera/opera/contracts/driverauth"
+	"github.com/cyberbono3/go-opera/opera/contracts/evmwriter"
+	"github.com/cyberbono3/go-opera/opera/contracts/netinit"
+	"github.com/cyberbono3/go-opera/opera/contracts/sfc"
+	"github.com/cyberbono3/go-opera/utils"
 )
 
 func TestSFC(t *testing.T) {

@@ -18,10 +18,10 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/status-im/keycard-go/hexutils"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
-	"github.com/Fantom-foundation/go-opera/vecmt"
+	"github.com/cyberbono3/go-opera/gossip"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/utils/adapters/vecmt2dagidx"
+	"github.com/cyberbono3/go-opera/vecmt"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 )

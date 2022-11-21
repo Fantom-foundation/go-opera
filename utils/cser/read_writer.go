@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-opera/utils/bits"
-	"github.com/Fantom-foundation/go-opera/utils/fast"
+	"github.com/cyberbono3/go-opera/utils/bits"
+	"github.com/cyberbono3/go-opera/utils/fast"
 )
 
 var (

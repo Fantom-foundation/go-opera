@@ -5,18 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/state"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	//"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/opera/genesis"
 
-	"github.com/Fantom-foundation/go-opera/erigon"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore/ethdb"
+	"github.com/cyberbono3/go-opera/erigon"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/ethdb"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/c2h5oh/datasize"
-
-	gethethdb "github.com/ethereum/go-ethereum/ethdb"
 )
 
 const batchSizeStr = "256M"
@@ -71,15 +70,18 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 		return err
 	}
 
+	/*
 	roTx, err := s.EvmDb.RwKV().BeginRo(context.Background())
 	if err != nil {
 		return err
 	}
 
 	defer roTx.Rollback()
+	*/
 
 	// legacy StateDB
 	//
+	/*
 	dst, err := s.StateDB(hash.Hash{})
 	if err != nil {
 		return
@@ -90,6 +92,7 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
 	if err != nil {
 		return
 	}
+	*/
 
 	return nil
 }

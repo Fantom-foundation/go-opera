@@ -5,8 +5,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
-	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/cyberbono3/go-opera/inter"
+	"github.com/cyberbono3/go-opera/opera"
 )
 
 type ValidatorEpochStateV0 struct {

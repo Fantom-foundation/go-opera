@@ -9,27 +9,30 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
 	//"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/urfave/cli.v1"
 
-	//"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter/ibr"
-	"github.com/Fantom-foundation/go-opera/inter/ier"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
-	"github.com/Fantom-foundation/go-opera/opera/genesisstore/fileshash"
-	"github.com/Fantom-foundation/go-opera/utils/devnullfile"
-	//"github.com/Fantom-foundation/go-opera/utils/iodb"
-	"github.com/Fantom-foundation/go-opera/erigon"
-	"github.com/Fantom-foundation/go-opera/logger"
+	//"github.com/cyberbono3/go-opera/gossip/evmstore"
+	"github.com/cyberbono3/go-opera/integration"
+	"github.com/cyberbono3/go-opera/inter/ibr"
+	"github.com/cyberbono3/go-opera/inter/ier"
+	"github.com/cyberbono3/go-opera/opera/genesis"
+	"github.com/cyberbono3/go-opera/opera/genesisstore"
+	"github.com/cyberbono3/go-opera/opera/genesisstore/fileshash"
+	"github.com/cyberbono3/go-opera/utils/devnullfile"
+
+	//"github.com/cyberbono3/go-opera/utils/iodb"
+	"github.com/cyberbono3/go-opera/erigon"
+	"github.com/cyberbono3/go-opera/logger"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
@@ -298,6 +301,7 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
+	// ToDO pick the valid Label 
 	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB, false, 0)
 	defer db.Close()
 
@@ -310,7 +314,14 @@ func exportGenesis(ctx *cli.Context) error {
 			return err
 		}
 
-		_, err = erigon.Write(writer, db)
+		tx, err := db.BeginRo(context.Background())
+		if err != nil {
+			return err
+		}
+
+		defer tx.Rollback()
+
+		_, err = erigon.Write(writer, tx)
 		if err != nil {
 			return err
 		}
