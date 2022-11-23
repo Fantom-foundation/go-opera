@@ -1,8 +1,9 @@
 module github.com/cyberbono3/go-opera
+
 go 1.18
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-00010101000000-000000000000
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20220103160934-6b4931c60582
 	github.com/VictoriaMetrics/fastcache v1.9.0
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/cespare/cp v1.1.1
@@ -107,6 +108,7 @@ replace github.com/ledgerwatch/erigon => github.com/ledgerwatch/erigon v1.9.7-0.
 
 replace github.com/dvyukov/go-fuzz => github.com/guzenok/go-fuzz v0.0.0-20210103140116-f9104dfb626f
 
-replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20221008155630-9ddbb81e268c
+//replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20221008155630-9ddbb81e268c
+replace github.com/ethereum/go-ethereum => github.com/cyberbono3/go-ethereum v0.0.0-20221123085146-1750df14aeb1
 
 replace github.com/Fantom-foundation/lachesis-base => github.com/cyberbono3/lachesis-base v0.0.0-20220721185149-47bc10eaa83b

@@ -5,14 +5,14 @@
 package mock
 
 import (
+	hash "github.com/Fantom-foundation/lachesis-base/hash"
+	idx "github.com/Fantom-foundation/lachesis-base/inter/idx"
+	pos "github.com/Fantom-foundation/lachesis-base/inter/pos"
 	evmcore "github.com/cyberbono3/go-opera/evmcore"
 	inter "github.com/cyberbono3/go-opera/inter"
 	validatorpk "github.com/cyberbono3/go-opera/inter/validatorpk"
 	opera "github.com/cyberbono3/go-opera/opera"
 	vecmt "github.com/cyberbono3/go-opera/vecmt"
-	hash "github.com/Fantom-foundation/lachesis-base/hash"
-	idx "github.com/Fantom-foundation/lachesis-base/inter/idx"
-	pos "github.com/Fantom-foundation/lachesis-base/inter/pos"
 	common "github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
 	event "github.com/ethereum/go-ethereum/event"

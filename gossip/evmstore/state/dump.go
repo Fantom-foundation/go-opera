@@ -193,6 +193,7 @@ func DumpToCollector(dc DumpCollector, conf *DumpConfig, tx kv.Tx) (nextKey []by
 				Root:     hexutil.Bytes(emptyHash[:]), // We cannot provide historical storage hash
 				CodeHash: hexutil.Bytes(emptyCodeHash[:]),
 				Storage:  make(map[common.Hash]string),
+				Raw:      transformErigonAccount(&acc),
 			}
 
 			accountList = append(accountList, &account)

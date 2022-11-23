@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -301,7 +301,7 @@ func exportGenesis(ctx *cli.Context) error {
 		log.Info("Exported blocks", "hash", blocksHash.String())
 	}
 
-	// ToDO pick the valid Label 
+	// ToDO pick the valid Label
 	db := erigon.MakeChainDatabase(logger.New("main-chain-db"), kv.ChainDB, false, 0)
 	defer db.Close()
 

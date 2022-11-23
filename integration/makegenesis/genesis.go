@@ -2,10 +2,10 @@ package makegenesis
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"math/big"
-	"context"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/cyberbono3/go-opera/gossip/evmstore/state"

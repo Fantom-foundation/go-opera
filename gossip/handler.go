@@ -237,6 +237,9 @@ func newHandler(
 	}
 
 	stateDb := h.store.EvmStore().LegacyEvmDb
+	batch := stateDb.NewBatch()
+	batch.Put([]byte{'a'}, []byte{'b'})
+
 	var stateBloom *trie.SyncBloom
 	if false {
 		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast

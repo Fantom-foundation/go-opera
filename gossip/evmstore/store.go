@@ -8,26 +8,29 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/prque"
-
-	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
-	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/cyberbono3/go-opera/logger"
-	"github.com/cyberbono3/go-opera/topicsdb"
-
-	"github.com/cyberbono3/go-opera/utils/rlpstore"
 
 	"github.com/cyberbono3/go-opera/gossip/evmstore/ethdb"
+	"github.com/cyberbono3/go-opera/gossip/evmstore/state"
+	"github.com/cyberbono3/go-opera/logger"
+	"github.com/cyberbono3/go-opera/topicsdb"
+	"github.com/cyberbono3/go-opera/utils/rlpstore"
+
 	erigonethdb "github.com/ledgerwatch/erigon/ethdb"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/prque"
+	gethstate "github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/core/types"
+	gethethdb "github.com/ethereum/go-ethereum/ethdb"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/cyberbono3/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	gethethdb "github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 const nominalSize uint = 1
@@ -51,7 +54,9 @@ type Store struct {
 	EvmState state.Database // includes caching mechanism (DBStateReader)
 	EvmLogs  *topicsdb.Index
 
-	LegacyEvmDb gethethdb.Database
+	// TODO find the way to drop them
+	LegacyEvmDb    gethethdb.Database
+	LegacyEvmState gethstate.Database
 
 	cache struct {
 		TxPositions *wlru.Cache `cache:"-"` // store by pointer
@@ -89,19 +94,26 @@ func NewStore(mainDB kvdb.Store, cfg StoreConfig, chainKV kv.RwDB) *Store {
 	s.initEVMDB(chainKV) // consider to add genesisKV as well, or merge genesisKV and chainKV
 	s.EvmLogs = topicsdb.New(s.table.Logs)
 
-	s.LegacyEvmDb = rawdb.NewDatabase(
-		kvdb2ethdb.Wrap(
-			nokeyiserr.Wrap(
-				s.table.Evm)))
-
 	s.initCache()
 
 	return s
 }
 
 func (s *Store) initEVMDB(chainKV kv.RwDB) {
+
 	s.EvmDb = ethdb.NewObjectDatabase(chainKV)
 	s.EvmState = state.NewDatabase(s.EvmDb)
+
+	s.LegacyEvmDb = rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				s.table.Evm)))
+	s.LegacyEvmState = gethstate.NewDatabaseWithConfig(s.LegacyEvmDb, &trie.Config{
+		Cache:     s.cfg.Cache.EvmDatabase / opt.MiB,
+		Journal:   s.cfg.Cache.TrieCleanJournal,
+		Preimages: s.cfg.EnablePreimageRecording,
+	})
+
 }
 
 func (s *Store) initCache() {
