@@ -11,6 +11,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/dbcounter"
 )
 
 func decodePair(b []byte) (uint32, uint32) {
@@ -62,7 +64,7 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 	const duration = time.Millisecond * 400
 
 	// fill DB with data
-	memdb := memorydb.New()
+	memdb := dbcounter.WrapStore(memorydb.New(), "", false)
 	for i := uint32(0); i < prefixes; i++ {
 		for j := uint32(0); j < keys; j++ {
 			key := append(bigendian.Uint32ToBytes(i), bigendian.Uint32ToBytes(j)...)
@@ -145,4 +147,6 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 	time.Sleep(duration)
 	atomic.StoreUint32(&stop, 1)
 	wg.Wait()
+	switchable.Release()
+	require.NoError(memdb.Close())
 }
