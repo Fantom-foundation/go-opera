@@ -118,5 +118,6 @@ func (s RawEvmItems) ForEach(fn func(key, value []byte) bool) {
 		if it.Error() != nil {
 			log.Crit("Failed to decode RawEvmItems genesis section", "err", it.Error())
 		}
+		it.Release()
 	}
 }

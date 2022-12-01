@@ -157,6 +157,9 @@ func (s *Store) Close() {
 		return nil
 	}
 
+	if s.snapshotedEVMDB != nil {
+		s.snapshotedEVMDB.Release()
+	}
 	_ = table.CloseTables(&s.table)
 	table.MigrateTables(&s.table, nil)
 	table.MigrateCaches(&s.cache, setnil)
