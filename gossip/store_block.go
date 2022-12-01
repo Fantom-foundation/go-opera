@@ -174,6 +174,10 @@ func (s *Store) SetEpochBlock(b idx.Block, e idx.Epoch) {
 }
 
 func (s *Store) FindBlockEpoch(b idx.Block) idx.Epoch {
+	if c, ok := s.cache.Blocks.Get(b); ok {
+		return c.(*inter.Block).Atropos.Epoch()
+	}
+
 	it := s.table.EpochBlocks.NewIterator(nil, (math.MaxUint64 - b).Bytes())
 	defer it.Release()
 	if !it.Next() {
