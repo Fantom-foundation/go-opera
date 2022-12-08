@@ -93,6 +93,9 @@ type (
 		// RPCGasCap is the global gas cap for eth-call variants.
 		RPCGasCap uint64 `toml:",omitempty"`
 
+		// RPCEVMTimeout is the global timeout for eth-call.
+		RPCEVMTimeout time.Duration
+
 		// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 		// send-transction variants. The unit is ether.
 		RPCTxFeeCap float64 `toml:",omitempty"`
@@ -204,6 +207,8 @@ func DefaultConfig(scale cachescale.Func) Config {
 			RandomTxHashesSendPeriod: 20 * time.Second,
 			PeerCache:                DefaultPeerCacheConfig(scale),
 		},
+
+		RPCEVMTimeout: 5 * time.Second,
 
 		GPO: gasprice.Config{
 			MaxGasPrice:      gasprice.DefaultMaxGasPrice,

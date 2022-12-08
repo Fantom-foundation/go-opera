@@ -156,6 +156,7 @@ func initFlags() {
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 		RPCGlobalGasCapFlag,
+		RPCGlobalEVMTimeoutFlag,
 		RPCGlobalTxFeeCapFlag,
 		RPCGlobalTimeoutFlag,
 	}
