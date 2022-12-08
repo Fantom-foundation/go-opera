@@ -50,7 +50,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/ethdb2kvdb"
-	"github.com/Fantom-foundation/go-opera/utils/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )

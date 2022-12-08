@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/utils/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
 func lastKey(db kvdb.Store) []byte {
