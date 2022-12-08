@@ -114,7 +114,7 @@ func transform(m transformTask) error {
 		keys = keys[:0]
 	}
 	// compact the new DB
-	if err := compactdb.Compact(dst, m.name); err != nil {
+	if err := compactdb.Compact(dst, m.name, 16*opt.GiB); err != nil {
 		return err
 	}
 	return nil

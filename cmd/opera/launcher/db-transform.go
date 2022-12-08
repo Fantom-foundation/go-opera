@@ -10,12 +10,13 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
@@ -267,8 +268,8 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 				newHumanName := path.Join("tmp", string(e.New.Type), e.New.Name)
 				log.Info("Copying DB table", "req", e.Req, "old_db", oldHumanName, "old_table", e.Old.Table,
 					"new_db", newHumanName, "new_table", e.New.Table)
-				oldTable := table.New(oldDB, []byte(e.Old.Table))
-				newTable := table.New(newDB, []byte(e.New.Table))
+				oldTable := utils.NewTableOrSelf(oldDB, []byte(e.Old.Table))
+				newTable := utils.NewTableOrSelf(newDB, []byte(e.New.Table))
 				it := oldTable.NewIterator(nil, nil)
 				defer it.Release()
 
@@ -290,7 +291,7 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 					keys = keys[:0]
 					values = values[:0]
 				}
-				err = compactdb.Compact(newTable, newHumanName)
+				err = compactdb.Compact(newTable, newHumanName, 16*opt.GiB)
 				if err != nil {
 					log.Error("Database compaction failed", "err", err)
 					return err

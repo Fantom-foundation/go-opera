@@ -1,105 +1,99 @@
 package compactdb
 
 import (
-	"bytes"
+	"errors"
 	"math/big"
-	"time"
+	"strconv"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/status-im/keycard-go/hexutils"
+
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
-func isEmptyDB(db kvdb.Iteratee) bool {
-	it := db.NewIterator(nil, nil)
-	defer it.Release()
-	return !it.Next()
+type contCompacter struct {
+	kvdb.Store
+	prev []byte
 }
 
-func firstKey(db kvdb.Store) []byte {
-	it := db.NewIterator(nil, nil)
-	defer it.Release()
-	if !it.Next() {
+func (s *contCompacter) Compact(_ []byte, limit []byte) error {
+	err := s.Store.Compact(s.prev, limit)
+	if err != nil {
+		return err
+	}
+	s.prev = limit
+	return nil
+}
+
+func compact(db *contCompacter, prefix []byte, iters int) error {
+	// use heuristic to locate tables
+	nonEmptyPrefixes := make([]byte, 0, 256)
+	for b := 0; b < 256; b++ {
+		if !isEmptyDB(table.New(db, append(prefix, byte(b)))) {
+			nonEmptyPrefixes = append(nonEmptyPrefixes, byte(b))
+		}
+	}
+	if len(nonEmptyPrefixes) == 0 {
 		return nil
 	}
-	return it.Key()
-}
-
-func lastKey(db kvdb.Store) []byte {
-	var start []byte
-	for {
-		for b := 0xff; b >= 0; b-- {
-			if !isEmptyDB(table.New(db, append(start, byte(b)))) {
-				start = append(start, byte(b))
-				break
-			}
-			if b == 0 {
-				return start
-			}
-		}
-	}
-}
-
-func addToPrefix(prefix *big.Int, diff *big.Int, size int) []byte {
-	endBn := new(big.Int).Set(prefix)
-	endBn.Add(endBn, diff)
-	if len(endBn.Bytes()) > size {
-		// overflow
-		return bytes.Repeat([]byte{0xff}, size)
-	}
-	end := endBn.Bytes()
-	res := make([]byte, size-len(end), size)
-	return append(res, end...)
-}
-
-func Compact(unprefixedDB kvdb.Store, loggingName string) error {
-	lastLog := time.Time{}
-	compact := func(db kvdb.Store, b int, start, end []byte) error {
-		if len(loggingName) != 0 && time.Since(lastLog) > time.Second*16 {
-			log.Info("Compacting DB", "name", loggingName, "until", hexutils.BytesToHex(append([]byte{byte(b)}, end...)))
-			lastLog = time.Now()
-		}
-		return db.Compact(start, end)
-	}
-
-	for b := 0; b < 256; b++ {
-		prefixed := table.New(unprefixedDB, []byte{byte(b)})
-		first := firstKey(prefixed)
-		if first == nil {
-			continue
-		}
-		last := lastKey(prefixed)
-		if last == nil {
-			continue
-		}
-		keySize := len(last)
-		if keySize < len(first) {
-			keySize = len(first)
-		}
-		first = common.RightPadBytes(first, keySize-len(first))
-		last = common.RightPadBytes(last, keySize-len(last))
-		firstBn := new(big.Int).SetBytes(first)
-		lastBn := new(big.Int).SetBytes(last)
-		diff := new(big.Int).Sub(lastBn, firstBn)
-		if diff.Cmp(big.NewInt(10000)) < 0 {
-			// short circuit if too few keys
-			err := compact(prefixed, b, nil, nil)
-			if err != nil {
+	if len(nonEmptyPrefixes) != 1 && len(nonEmptyPrefixes) < 50 {
+		// compact each table individually
+		for _, b := range nonEmptyPrefixes {
+			if err := compact(db, append(prefix, b), iters); err != nil {
 				return err
 			}
-			continue
 		}
-		var prev []byte
-		for i := 32; i >= 1; i-- {
-			until := addToPrefix(firstBn, new(big.Int).Div(diff, big.NewInt(int64(i))), keySize)
-			err := compact(prefixed, b, prev, until)
-			if err != nil {
-				return err
-			}
-			prev = common.CopyBytes(until)
+		return nil
+	}
+
+	// once a table is located, split the range into *iters* chunks for compaction
+	prefixed := utils.NewTableOrSelf(db, append(prefix))
+	first, _, diff := keysRange(prefixed)
+	if diff.Cmp(big.NewInt(int64(iters+10000))) < 0 {
+		// skip if too few keys and compact it along with next range
+		return nil
+	}
+	firstBn := new(big.Int).SetBytes(first)
+	for i := iters; i >= 1; i-- {
+		until := addToKey(firstBn, new(big.Int).Div(diff, big.NewInt(int64(i))), len(first))
+		if err := prefixed.Compact(nil, until); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func Compact(db kvdb.Store, loggingName string, sizePerIter uint64) error {
+	loggedDB := &loggedCompacter{
+		Store: db,
+		name:  loggingName,
+		quit:  make(chan struct{}),
+	}
+	loggedDB.StartLogging()
+	defer loggedDB.StopLogging()
+
+	// scale number of iterations based on total DB size and sizePerIter
+	diskSizeStr, err := db.Stat("disk.size")
+	if err != nil {
+		return err
+	}
+	var nDiskSize int64
+	if nDiskSize, err = strconv.ParseInt(diskSizeStr, 10, 64); err != nil || nDiskSize < 0 {
+		return errors.New("bad syntax of disk size entry")
+	}
+
+	iters := uint64(nDiskSize) / sizePerIter
+	if iters <= 1 {
+		// short circuit if too few iterations
+		return loggedDB.Compact(nil, nil)
+	}
+
+	compacter := &contCompacter{
+		Store: loggedDB,
+	}
+	err = compact(compacter, []byte{}, int(iters))
+	if err != nil {
+		return err
+	}
+	return compacter.Compact(nil, nil)
 }
