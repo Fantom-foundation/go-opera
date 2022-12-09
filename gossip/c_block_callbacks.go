@@ -388,17 +388,18 @@ func consensusCallbackBeginBlockFn(
 					updateLowestEpochToFill(es.Epoch, store)
 
 					// Update the metrics touched during block processing
-					accountReadTimer.Update(statedb.AccountReads)
-					storageReadTimer.Update(statedb.StorageReads)
-					accountUpdateTimer.Update(statedb.AccountUpdates)
-					storageUpdateTimer.Update(statedb.StorageUpdates)
-					snapshotAccountReadTimer.Update(statedb.SnapshotAccountReads)
-					snapshotStorageReadTimer.Update(statedb.SnapshotStorageReads)
-					accountHashTimer.Update(statedb.AccountHashes)
-					storageHashTimer.Update(statedb.StorageHashes)
-					triehash := statedb.AccountHashes + statedb.StorageHashes
-					trieproc := statedb.SnapshotAccountReads + statedb.AccountReads + statedb.AccountUpdates
-					trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
+					sm := statedb.Measurements()
+					accountReadTimer.Update(sm.AccountReads)
+					storageReadTimer.Update(sm.StorageReads)
+					accountUpdateTimer.Update(sm.AccountUpdates)
+					storageUpdateTimer.Update(sm.StorageUpdates)
+					snapshotAccountReadTimer.Update(sm.SnapshotAccountReads)
+					snapshotStorageReadTimer.Update(sm.SnapshotStorageReads)
+					accountHashTimer.Update(sm.AccountHashes)
+					storageHashTimer.Update(sm.StorageHashes)
+					triehash := sm.AccountHashes + sm.StorageHashes
+					trieproc := sm.SnapshotAccountReads + sm.AccountReads + sm.AccountUpdates
+					trieproc += sm.SnapshotStorageReads + sm.StorageReads + sm.StorageUpdates
 					blockExecutionTimer.Update(time.Since(executionStart) - trieproc - triehash)
 
 					// Update the metrics touched by new block
@@ -422,10 +423,10 @@ func consensusCallbackBeginBlockFn(
 					store.commitEVM(false)
 
 					// Update the metrics touched during block commit
-					accountCommitTimer.Update(statedb.AccountCommits)
-					storageCommitTimer.Update(statedb.StorageCommits)
-					snapshotCommitTimer.Update(statedb.SnapshotCommits)
-					blockWriteTimer.Update(time.Since(commitStart) - statedb.AccountCommits - statedb.StorageCommits - statedb.SnapshotCommits)
+					accountCommitTimer.Update(sm.AccountCommits)
+					storageCommitTimer.Update(sm.StorageCommits)
+					snapshotCommitTimer.Update(sm.SnapshotCommits)
+					blockWriteTimer.Update(time.Since(commitStart) - sm.AccountCommits - sm.StorageCommits - sm.SnapshotCommits)
 					blockInsertTimer.UpdateSince(start)
 
 					now := time.Now()

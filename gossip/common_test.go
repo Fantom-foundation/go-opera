@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -373,7 +372,7 @@ func (env *testEnv) ReadOnly() *bind.CallOpts {
 	return &bind.CallOpts{}
 }
 
-func (env *testEnv) State() *state.StateDB {
+func (env *testEnv) State() evmcore.StateDB {
 	statedb, _ := env.store.evm.StateDB(env.store.GetBlockState().FinalizedStateRoot)
 	return statedb
 }
@@ -430,7 +429,7 @@ func (env *testEnv) HeaderByNumber(ctx context.Context, number *big.Int) (*types
 // callContract implements common code between normal and pending contract calls.
 // state is modified during execution, make sure to copy it if necessary.
 func (env *testEnv) callContract(
-	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, state *state.StateDB,
+	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, state evmcore.StateDB,
 ) (
 	ret []byte, usedGas uint64, failed bool, err error,
 ) {
@@ -445,8 +444,7 @@ func (env *testEnv) callContract(
 		call.Value = new(big.Int)
 	}
 	// Set infinite balance to the fake caller account.
-	from := state.GetOrNewStateObject(call.From)
-	from.SetBalance(big.NewInt(math.MaxInt64))
+	state.SetBalance(call.From, big.NewInt(math.MaxInt64))
 
 	msg := callmsg{call}
 

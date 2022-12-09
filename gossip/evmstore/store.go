@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -268,8 +269,9 @@ func (s *Store) Cap() {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
+func (s *Store) StateDB(from hash.Hash) (evmcore.StateDB, error) {
+	statedb, err := state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
+	return evmcore.ToStateDB(statedb), err
 }
 
 // HasStateDB returns if state database exists

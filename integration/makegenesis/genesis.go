@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
@@ -34,7 +33,7 @@ type GenesisBuilder struct {
 	dbs kvdb.DBProducer
 
 	tmpEvmStore *evmstore.Store
-	tmpStateDB  *state.StateDB
+	tmpStateDB  evmcore.StateDB
 
 	totalSupply *big.Int
 
@@ -63,7 +62,7 @@ func DefaultBlockProc() BlockProc {
 	}
 }
 
-func (b *GenesisBuilder) GetStateDB() *state.StateDB {
+func (b *GenesisBuilder) GetStateDB() evmcore.StateDB {
 	if b.tmpStateDB == nil {
 		tmpEvmStore := evmstore.NewStore(b.dbs, evmstore.LiteStoreConfig())
 		b.tmpStateDB, _ = tmpEvmStore.StateDB(hash.Zero)
