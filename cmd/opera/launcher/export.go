@@ -138,7 +138,11 @@ func exportEvmKeys(ctx *cli.Context) error {
 	keysDB := batched.Wrap(keysDB_)
 	defer keysDB.Close()
 
-	it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
+	evmDb := gdb.EvmStore().EvmDb
+	if evmDb == nil {
+		panic("unknown EvmDb format")
+	}
+	it := evmDb.NewIterator(nil, nil)
 	// iterate only over MPT data
 	it = mptAndPreimageIterator{it}
 	defer it.Release()

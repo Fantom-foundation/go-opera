@@ -376,7 +376,12 @@ func exportGenesis(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)
+
+		evmDb := gdb.EvmStore().EvmDb
+		if evmDb == nil {
+			panic("unknown EvmDb format")
+		}
+		it := evmDb.NewIterator(nil, nil)
 		if mode == "mpt" {
 			// iterate only over MPT data
 			it = mptIterator{it}

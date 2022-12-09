@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -69,7 +68,6 @@ func DefaultConfig() Config {
 type PublicFilterAPI struct {
 	config    Config
 	backend   Backend
-	chainDb   ethdb.Database
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
@@ -80,7 +78,6 @@ func NewPublicFilterAPI(backend Backend, cfg Config) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		config:  cfg,
 		backend: backend,
-		chainDb: backend.ChainDb(),
 		events:  NewEventSystem(backend),
 		filters: make(map[rpc.ID]*filter),
 	}

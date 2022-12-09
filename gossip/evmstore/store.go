@@ -103,6 +103,7 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) initEVMDB() {
+	// NOTE: keep EvmDb nil if it is not legacy MPT format
 	s.EvmDb = rawdb.NewDatabase(
 		kvdb2ethdb.Wrap(
 			nokeyiserr.Wrap(
