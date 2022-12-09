@@ -411,7 +411,7 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 		log.Crit("Invalid flag", "flag", CacheFlag.Name, "err", fmt.Sprintf("minimum cache size is %d MB", baseSize))
 	}
 	if totalMemory != 0 && targetCache > maxCache {
-		log.Warn(fmt.Sprintf("Requested cache size exceeds 60%% of availible memory. Reducing cache size to %d MB.", maxCache))
+		log.Warn(fmt.Sprintf("Requested cache size exceeds 60%% of available memory. Reducing cache size to %d MB.", maxCache))
 		targetCache = maxCache
 	}
 
