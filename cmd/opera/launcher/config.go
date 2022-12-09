@@ -386,34 +386,34 @@ func setDBConfigStr(cfg integration.DBsConfig, cacheRatio cachescale.Func, prese
 		utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
 	}
 	// sanity check
-	if preset != reversePresetName(cfg) {
+	if preset != reversePresetName(cfg.Routing) {
 		log.Error("Preset name cannot be reversed")
 	}
 	return cfg
 }
 
-func reversePresetName(cfg integration.DBsConfig) string {
-	pbl1 := integration.Pbl1DBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
-	ldb1 := integration.Ldb1DBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
-	ldbLegacy := integration.LdbLegacyDBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
-	pblLegacy := integration.PblLegacyDBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
-	if cfg.Routing.Equal(pbl1.Routing) {
+func reversePresetName(cfg integration.RoutingConfig) string {
+	pbl1 := integration.Pbl1RoutingConfig()
+	ldb1 := integration.Ldb1RoutingConfig()
+	ldbLegacy := integration.LdbLegacyRoutingConfig()
+	pblLegacy := integration.PblLegacyRoutingConfig()
+	if cfg.Equal(pbl1) {
 		return "pbl-1"
 	}
-	if cfg.Routing.Equal(ldb1.Routing) {
+	if cfg.Equal(ldb1) {
 		return "ldb-1"
 	}
-	if cfg.Routing.Equal(ldbLegacy.Routing) {
+	if cfg.Equal(ldbLegacy) {
 		return "legacy-ldb"
 	}
-	if cfg.Routing.Equal(pblLegacy.Routing) {
+	if cfg.Equal(pblLegacy) {
 		return "legacy-pbl"
 	}
 	return ""
 }
 
 func memorizeDBPreset(cfg *config) {
-	preset := reversePresetName(cfg.DBs)
+	preset := reversePresetName(cfg.DBs.Routing)
 	pPath := path.Join(cfg.Node.DataDir, "chaindata", "preset")
 	if len(preset) != 0 {
 		futils.FilePut(pPath, []byte(preset), true)
