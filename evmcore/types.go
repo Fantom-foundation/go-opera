@@ -104,6 +104,15 @@ func ToStateDB(statedb *state.StateDB) StateDB {
 	return &stateWrapper{statedb}
 }
 
+func IsMptStateDB(st StateDB) (statedb *state.StateDB, ok bool) {
+	if wrapper, is := st.(*stateWrapper); is {
+		statedb = wrapper.StateDB
+		ok = true
+		return
+	}
+	return
+}
+
 // stateWrapper casts *state.StateDB to StateDB interface.
 type stateWrapper struct {
 	*state.StateDB
