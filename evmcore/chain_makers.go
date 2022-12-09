@@ -22,10 +22,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -39,7 +37,7 @@ type BlockGen struct {
 	parent  *EvmBlock
 	chain   []*EvmBlock
 	header  *EvmHeader
-	statedb *state.StateDB
+	statedb StateDB
 
 	gasPool  *GasPool
 	txs      []*types.Transaction
@@ -100,7 +98,7 @@ func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
 	b.statedb.Prepare(tx.Hash(), len(b.txs))
 	blockContext := NewEVMBlockContext(b.header, bc, nil)
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, b.statedb, b.config, opera.DefaultVMConfig)
-	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, func(log *types.Log, db *state.StateDB) {})
+	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, func(log *types.Log, db StateDB) {})
 	if err != nil {
 		panic(err)
 	}
@@ -185,7 +183,11 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
-func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Database, n int, gen func(int, *BlockGen)) ([]*EvmBlock, []types.Receipts, DummyChain) {
+func GenerateChain(
+	config *params.ChainConfig, parent *EvmBlock, n int, stateAt func(common.Hash) StateDB, gen func(int, *BlockGen),
+) (
+	[]*EvmBlock, []types.Receipts, DummyChain,
+) {
 	if config == nil {
 		config = params.AllEthashProtocolChanges
 	}
@@ -195,7 +197,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 	}
 
 	blocks, receipts := make([]*EvmBlock, n), make([]types.Receipts, n)
-	genblock := func(i int, parent *EvmBlock, statedb *state.StateDB) (*EvmBlock, types.Receipts) {
+	genblock := func(i int, parent *EvmBlock, statedb StateDB) (*EvmBlock, types.Receipts) {
 		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config}
 		b.header = makeHeader(parent, statedb)
 
@@ -219,11 +221,10 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 
 		return block, b.receipts
 	}
+
 	for i := 0; i < n; i++ {
-		statedb, err := state.New(parent.Root, state.NewDatabase(db), nil)
-		if err != nil {
-			panic(err)
-		}
+		statedb := stateAt(parent.Root)
+
 		block, receipt := genblock(i, parent, statedb)
 		blocks[i] = block
 		receipts[i] = receipt
@@ -234,7 +235,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 	return blocks, receipts, chain
 }
 
-func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
+func makeHeader(parent *EvmBlock, state StateDB) *EvmHeader {
 	var t inter.Timestamp
 	if parent.Time == 0 {
 		t = 10
@@ -250,27 +251,6 @@ func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
 		Time:       t,
 	}
 	return header
-}
-
-// makeHeaderChain creates a deterministic chain of headers rooted at parent.
-func makeHeaderChain(parent *EvmHeader, n int, db ethdb.Database, seed int) []*EvmHeader {
-	block := &EvmBlock{}
-	block.EvmHeader = *parent
-
-	blocks := makeBlockChain(block, n, db, seed)
-	headers := make([]*EvmHeader, len(blocks))
-	for i, block := range blocks {
-		headers[i] = block.Header()
-	}
-	return headers
-}
-
-// makeBlockChain creates a deterministic chain of blocks rooted at parent.
-func makeBlockChain(parent *EvmBlock, n int, db ethdb.Database, seed int) []*EvmBlock {
-	blocks, _, _ := GenerateChain(params.TestChainConfig, parent, db, n, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
-	})
-	return blocks
 }
 
 type fakeChainReader struct {
