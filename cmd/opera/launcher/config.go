@@ -364,21 +364,82 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachescale.Func) integration.DBsConfig {
 	if ctx.GlobalIsSet(DBPresetFlag.Name) {
 		preset := ctx.GlobalString(DBPresetFlag.Name)
-		switch preset {
-		case "pbl-1":
-			cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		case "ldb-1":
-			cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		case "legacy-ldb":
-			cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		case "legacy-pbl":
-			cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-		default:
-			utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
-		}
+		cfg = setDBConfigStr(cfg, cacheRatio, preset)
 	}
 	if ctx.GlobalIsSet(DBMigrationModeFlag.Name) {
 		cfg.MigrationMode = ctx.GlobalString(DBMigrationModeFlag.Name)
+	}
+	return cfg
+}
+
+func setDBConfigStr(cfg integration.DBsConfig, cacheRatio cachescale.Func, preset string) integration.DBsConfig {
+	switch preset {
+	case "pbl-1":
+		cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	case "ldb-1":
+		cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	case "legacy-ldb":
+		cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	case "legacy-pbl":
+		cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	default:
+		utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
+	}
+	// sanity check
+	if preset != reversePresetName(cfg) {
+		log.Error("Preset name cannot be reversed")
+	}
+	return cfg
+}
+
+func reversePresetName(cfg integration.DBsConfig) string {
+	pbl1 := integration.Pbl1DBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
+	ldb1 := integration.Ldb1DBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
+	ldbLegacy := integration.LdbLegacyDBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
+	pblLegacy := integration.PblLegacyDBsConfig(cachescale.Identity.U64, uint64(utils.MakeDatabaseHandles()))
+	if cfg.Routing.Equal(pbl1.Routing) {
+		return "pbl-1"
+	}
+	if cfg.Routing.Equal(ldb1.Routing) {
+		return "ldb-1"
+	}
+	if cfg.Routing.Equal(ldbLegacy.Routing) {
+		return "legacy-ldb"
+	}
+	if cfg.Routing.Equal(pblLegacy.Routing) {
+		return "legacy-pbl"
+	}
+	return ""
+}
+
+func memorizeDBPreset(cfg *config) {
+	preset := reversePresetName(cfg.DBs)
+	pPath := path.Join(cfg.Node.DataDir, "chaindata", "preset")
+	if len(preset) != 0 {
+		futils.FilePut(pPath, []byte(preset), true)
+	} else {
+		_ = os.Remove(pPath)
+	}
+}
+
+func setDBConfigDefault(cfg config, cacheRatio cachescale.Func) config {
+	if len(cfg.DBs.Routing.Table) == 0 && len(cfg.DBs.GenesisCache.Table) == 0 && len(cfg.DBs.RuntimeCache.Table) == 0 {
+		// Substitute memorized db preset from datadir, unless already set
+		datadirPreset := futils.FileGet(path.Join(cfg.Node.DataDir, "chaindata", "preset"))
+		if len(datadirPreset) != 0 {
+			cfg.DBs = setDBConfigStr(cfg.DBs, cacheRatio, string(datadirPreset))
+		}
+	}
+	// apply default for DB config if it wasn't touched by config file or flags, and there's no datadir's default value
+	dbDefault := integration.DefaultDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	if len(cfg.DBs.Routing.Table) == 0 {
+		cfg.DBs.Routing = dbDefault.Routing
+	}
+	if len(cfg.DBs.GenesisCache.Table) == 0 {
+		cfg.DBs.GenesisCache = dbDefault.GenesisCache
+	}
+	if len(cfg.DBs.RuntimeCache.Table) == 0 {
+		cfg.DBs.RuntimeCache = dbDefault.RuntimeCache
 	}
 	return cfg
 }
@@ -435,17 +496,6 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 			return &cfg, err
 		}
 	}
-	// apply default for DB config if it wasn't touched by config file
-	dbDefault := integration.DefaultDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
-	if len(cfg.DBs.Routing.Table) == 0 {
-		cfg.DBs.Routing = dbDefault.Routing
-	}
-	if len(cfg.DBs.GenesisCache.Table) == 0 {
-		cfg.DBs.GenesisCache = dbDefault.GenesisCache
-	}
-	if len(cfg.DBs.RuntimeCache.Table) == 0 {
-		cfg.DBs.RuntimeCache = dbDefault.RuntimeCache
-	}
 
 	// Apply flags (high priority)
 	var err error
@@ -468,6 +518,9 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		cfg.Emitter.PrevEmittedEventFile.Path = cfg.Node.ResolvePath(path.Join("emitter", fmt.Sprintf("last-%d", cfg.Emitter.Validator.ID)))
 	}
 	setTxPool(ctx, &cfg.TxPool)
+
+	// Process DBs defaults in the end because they are applied only in absence of config or flags
+	cfg = setDBConfigDefault(cfg, cacheRatio)
 
 	if err := cfg.Opera.Validate(); err != nil {
 		return nil, err

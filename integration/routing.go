@@ -13,6 +13,18 @@ type RoutingConfig struct {
 	Table map[string]multidb.Route
 }
 
+func (a RoutingConfig) Equal(b RoutingConfig) bool {
+	if len(a.Table) != len(b.Table) {
+		return false
+	}
+	for k, v := range a.Table {
+		if b.Table[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, scopedProducers map[multidb.TypeName]kvdb.FullDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
 	cachedProducers := make(map[multidb.TypeName]kvdb.FullDBProducer)
 	var flushID []byte

@@ -192,18 +192,6 @@ func translateGossipPrefix(p byte) byte {
 	return p
 }
 
-func equalRoutingConfig(a, b RoutingConfig) bool {
-	if len(a.Table) != len(b.Table) {
-		return false
-	}
-	for k, v := range a.Table {
-		if b.Table[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
 func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string, layout RoutingConfig) error {
 	{ // didn't erase the brackets to avoid massive code changes
 		// migrate DB layout
@@ -308,7 +296,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 			}
 		case "reformat":
 			if oldDBsType == "ldb" {
-				if !equalRoutingConfig(layout, LdbLegacyRoutingConfig()) {
+				if !layout.Equal(LdbLegacyRoutingConfig()) {
 					return errors.New("reformatting DBs: missing --db.preset=legacy-ldb flag")
 				}
 				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "leveldb-fsh", "main"))
@@ -324,7 +312,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 					}
 				}
 			} else {
-				if !equalRoutingConfig(layout, PblLegacyRoutingConfig()) {
+				if !layout.Equal(PblLegacyRoutingConfig()) {
 					return errors.New("reformatting DBs: missing --db.preset=legacy-pbl flag")
 				}
 				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "pebble-fsh", "main"))
