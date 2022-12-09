@@ -83,7 +83,7 @@ func (ds *StoreWithMetrics) meter(refresh time.Duration) {
 			continue
 		}
 		var nDiskSize int64
-		if n, err := fmt.Sscanf(diskSize, "Size(B):%d", &nDiskSize); n != 1 || err != nil {
+		if n, err := fmt.Sscanf(diskSize, "%d", &nDiskSize); n != 1 || err != nil {
 			ds.log.Error("Bad syntax of disk size entry", "size", diskSize)
 			merr = err
 			continue
