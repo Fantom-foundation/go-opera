@@ -158,10 +158,17 @@ func Ldb1RoutingConfig() RoutingConfig {
 				Type: "leveldb-fsh",
 				Name: "main",
 			},
+			"gossip/e": {
+				Type: "leveldb-fsh",
+				Name: "events",
+			},
+			"evm/M": {
+				Type: "leveldb-drc",
+				Name: "evm-data",
+			},
 			"evm-logs": {
-				Type:  "leveldb-fsh",
-				Name:  "main",
-				Table: "L",
+				Type: "leveldb-fsh",
+				Name: "evm-logs",
 			},
 			"gossip-%d": {
 				Type:  "leveldb-fsh",
@@ -181,13 +188,25 @@ func Ldb1RoutingConfig() RoutingConfig {
 func Ldb1RuntimeDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCacheConfig {
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
+			"evm-data": {
+				Cache:   scale(480 * opt.MiB),
+				Fdlimit: fdlimit*480/1400 + 1,
+			},
+			"evm-logs": {
+				Cache:   scale(260 * opt.MiB),
+				Fdlimit: fdlimit*260/1400 + 1,
+			},
 			"main": {
-				Cache:   scale(900 * opt.MiB),
-				Fdlimit: fdlimit*900/1000 + 1,
+				Cache:   scale(320 * opt.MiB),
+				Fdlimit: fdlimit*320/1400 + 1,
+			},
+			"events": {
+				Cache:   scale(240 * opt.MiB),
+				Fdlimit: fdlimit*240/1400 + 1,
 			},
 			"epoch-%d": {
 				Cache:   scale(100 * opt.MiB),
-				Fdlimit: fdlimit*100/1000 + 1,
+				Fdlimit: fdlimit*100/1400 + 1,
 			},
 			"": {
 				Cache:   64 * opt.MiB,
@@ -201,8 +220,20 @@ func Ldb1GenesisDBsCacheConfig(scale func(uint64) uint64, fdlimit uint64) DBsCac
 	return DBsCacheConfig{
 		Table: map[string]DBCacheConfig{
 			"main": {
-				Cache:   scale(3000 * opt.MiB),
-				Fdlimit: fdlimit,
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
+			},
+			"evm-data": {
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
+			},
+			"evm-logs": {
+				Cache:   scale(1000 * opt.MiB),
+				Fdlimit: fdlimit*1000/3000 + 1,
+			},
+			"events": {
+				Cache:   scale(1 * opt.MiB),
+				Fdlimit: fdlimit*1/3000 + 1,
 			},
 			"epoch-%d": {
 				Cache:   scale(1 * opt.MiB),
