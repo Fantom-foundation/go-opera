@@ -15,7 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/utils/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
 var (
@@ -149,7 +149,7 @@ func compactDB(typ multidb.TypeName, name string, producer kvdb.DBProducer) erro
 	log.Info("Stats before compaction", "db", humanName)
 	showDbStats(db)
 
-	err = compactdb.Compact(db, humanName)
+	err = compactdb.Compact(db, humanName, 64*opt.GiB)
 	if err != nil {
 		log.Error("Database compaction failed", "err", err)
 		return err

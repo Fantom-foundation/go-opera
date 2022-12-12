@@ -44,13 +44,14 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/ethdb2kvdb"
-	"github.com/Fantom-foundation/go-opera/utils/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
@@ -2075,7 +2076,7 @@ func (api *PrivateDebugAPI) ChaindbProperty(property string) (string, error) {
 // ChaindbCompact flattens the entire key-value database into a single level,
 // removing all unused slots and merging all keys.
 func (api *PrivateDebugAPI) ChaindbCompact() error {
-	if err := compactdb.Compact(ethdb2kvdb.Wrap(api.b.ChainDb()), "EVM"); err != nil {
+	if err := compactdb.Compact(ethdb2kvdb.Wrap(api.b.ChainDb()), "EVM", 64*opt.GiB); err != nil {
 		log.Error("Database compaction failed", "err", err)
 		return err
 	}

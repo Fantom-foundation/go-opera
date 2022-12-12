@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
-	"github.com/Fantom-foundation/go-opera/utils/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
 func lastKey(db kvdb.Store) []byte {
@@ -114,7 +114,7 @@ func transform(m transformTask) error {
 		keys = keys[:0]
 	}
 	// compact the new DB
-	if err := compactdb.Compact(dst, m.name); err != nil {
+	if err := compactdb.Compact(dst, m.name, 16*opt.GiB); err != nil {
 		return err
 	}
 	return nil
