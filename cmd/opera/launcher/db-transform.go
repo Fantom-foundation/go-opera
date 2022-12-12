@@ -115,6 +115,7 @@ func dbTransform(ctx *cli.Context) error {
 		}
 	}
 
+	memorizeDBPreset(cfg)
 	log.Info("DB transformation is complete")
 
 	return nil
