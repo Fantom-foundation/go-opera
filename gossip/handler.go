@@ -252,7 +252,8 @@ func newHandler(
 		}
 		h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
 	} else {
-		panic("unknown EvmDb format")
+		log.Warn("Snapsync impossible because of unknown EvmDb format.")
+		h.config.AllowSnapsync = false
 	}
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
