@@ -198,7 +198,7 @@ func pruneState(ctx *cli.Context) error {
 
 	evmDb := gdb.EvmStore().EvmDb
 	if evmDb == nil {
-		panic("unknown EvmDb format")
+		return errors.New("only legacy MPT EVM pruning makes sense")
 	}
 
 	pruner, err := evmpruner.NewPruner(evmDb, genesisRoot, root, tmpDir, bloom)
@@ -276,7 +276,7 @@ func traverseState(ctx *cli.Context) error {
 	}
 	chaindb := gdb.EvmStore().EvmDb
 	if chaindb == nil {
-		panic("unknown EvmDb format")
+		return errors.New("only legacy MPT EVM nodes traversing makes sense")
 	}
 
 	if ctx.NArg() > 1 {
@@ -369,7 +369,7 @@ func traverseRawState(ctx *cli.Context) error {
 	}
 	chaindb := gdb.EvmStore().EvmDb
 	if chaindb == nil {
-		panic("unknown EvmDb format")
+		return errors.New("only legacy MPT EVM nodes traversing makes sense")
 	}
 
 	if ctx.NArg() > 1 {

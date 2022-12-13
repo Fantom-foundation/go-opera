@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -140,7 +141,7 @@ func exportEvmKeys(ctx *cli.Context) error {
 
 	evmDb := gdb.EvmStore().EvmDb
 	if evmDb == nil {
-		panic("unknown EvmDb format")
+		return errors.New("only legacy MPT EVM keys export makes sense")
 	}
 	it := evmDb.NewIterator(nil, nil)
 	// iterate only over MPT data

@@ -379,7 +379,7 @@ func exportGenesis(ctx *cli.Context) error {
 
 		evmDb := gdb.EvmStore().EvmDb
 		if evmDb == nil {
-			panic("unknown EvmDb format")
+			return errors.New("genesis should include legacy MPT EVM data only")
 		}
 		it := evmDb.NewIterator(nil, nil)
 		if mode == "mpt" {
