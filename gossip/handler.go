@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
@@ -57,6 +58,7 @@ const (
 	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
 	softLimitItems        = 250                // Target maximum number of events or transactions to request/response
 	hardLimitItems        = softLimitItems * 4 // Maximum number of events or transactions to request/response
+	broadcastThreshold    = 0.1                // The broadcast threshold metric for useless peer
 
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
@@ -783,13 +785,9 @@ func (h *handler) handle(p *peer) error {
 		return err
 	}
 	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
+	if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
 		useless = true
 		discfilter.Ban(p.ID())
-	}
-	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
-		// don't allow more than 10% of useless peers
-		return p2p.DiscTooManyPeers
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
 		if h.peers.UselessNum() >= h.maxPeers/10 {
@@ -920,6 +918,7 @@ func (h *handler) handleTxs(p *peer, txs types.Transactions) {
 func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 	// Mark the hashes as present at the remote node
 	for _, id := range announces {
+		atomic.AddUint64(&p.sentEvents, 1)
 		p.MarkEvent(id)
 	}
 	// filter too high IDs
@@ -947,6 +946,7 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
 	for _, e := range events {
+		atomic.AddUint64(&p.sentEvents, 1)
 		p.MarkEvent(e.ID())
 	}
 	// filter too high events
@@ -989,6 +989,9 @@ func (h *handler) handleMsg(p *peer) error {
 	}
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
+	}
+	if p.GetBroadcastMetric() < broadcastThreshold {
+		return errResp(ErrUseLessPeer, "%v < %v", p.GetBroadcastMetric(), broadcastThreshold)
 	}
 	defer msg.Discard()
 	// Acquire semaphore for serialized messages
@@ -1374,6 +1377,15 @@ func (h *handler) BroadcastEvent(event *inter.EventPayload, passed time.Duration
 	var fullBroadcast = make([]*peer, 0, fullRecipients)
 	var hashBroadcast = make([]*peer, 0, len(peers))
 	for _, p := range peers {
+		// Update peers' broadcast metric
+		useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
+		if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold) {
+			useless = true
+			discfilter.Ban(p.ID())
+		}
+		if !p.Peer.Info().Network.Trusted && useless {
+			p.SetUseless()
+		}
 		if !p.Useless() && len(fullBroadcast) < fullRecipients {
 			fullBroadcast = append(fullBroadcast, p)
 		} else {

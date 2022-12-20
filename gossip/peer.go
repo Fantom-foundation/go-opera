@@ -68,7 +68,9 @@ type peer struct {
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
-	useless uint32
+	useless        uint32
+	sentEvents     uint64
+	receivedEvents uint64
 
 	sync.RWMutex
 }
@@ -79,6 +81,20 @@ func (p *peer) Useless() bool {
 
 func (p *peer) SetUseless() {
 	atomic.StoreUint32(&p.useless, 1)
+}
+
+// 0 would mean that validator doesn't broadcast any events
+// which we previously connected, even though they were expected to do so.
+// 1 would mean that peer behaves 100% as expected
+//
+// only calculate the metric after receiving at least 100 events in term of stable metric calculation
+func (p *peer) GetBroadcastMetric() float64 {
+	sent := atomic.LoadUint64(&p.sentEvents)
+	received := atomic.LoadUint64(&p.receivedEvents)
+	if received <= 100 || sent >= received {
+		return 1.0
+	}
+	return (float64(sent) / float64(received))
 }
 
 func (p *peer) SetProgress(x PeerProgress) {
@@ -325,6 +341,7 @@ func (p *peer) EnqueueSendTransactions(txs types.Transactions, queue chan broadc
 func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	// Mark all the event hashes as known, but ensure we don't overflow our limits
 	for _, hash := range hashes {
+		atomic.AddUint64(&p.receivedEvents, 1)
 		p.knownEvents.Add(hash)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -340,6 +357,7 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 	if p.asyncSendNonEncodedItem(ids, NewEventIDsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, id := range ids {
+			atomic.AddUint64(&p.receivedEvents, 1)
 			p.knownEvents.Add(id)
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -354,6 +372,7 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 func (p *peer) SendEvents(events inter.EventPayloads) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
+		atomic.AddUint64(&p.receivedEvents, 1)
 		p.knownEvents.Add(event.ID())
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -366,6 +385,7 @@ func (p *peer) SendEvents(events inter.EventPayloads) error {
 func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
+		atomic.AddUint64(&p.receivedEvents, 1)
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -380,6 +400,7 @@ func (p *peer) AsyncSendEvents(events inter.EventPayloads, queue chan broadcastI
 	if p.asyncSendNonEncodedItem(events, EventsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, event := range events {
+			atomic.AddUint64(&p.receivedEvents, 1)
 			p.knownEvents.Add(event.ID())
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -397,6 +418,7 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	p.enqueueSendNonEncodedItem(events, EventsMsg, queue)
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
+		atomic.AddUint64(&p.receivedEvents, 1)
 		p.knownEvents.Add(id)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -471,6 +493,7 @@ func (p *peer) RequestEPsStream(r epstream.Request) error {
 func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
+		atomic.AddUint64(&p.receivedEvents, 1)
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
