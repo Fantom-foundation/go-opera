@@ -119,8 +119,8 @@ func (p *peer) GetBroadcastMetric() float64 {
 	p.Lock()
 	defer p.Unlock()
 
-	chosen := p.progress.Epoch - 1 - lastEpochNums
-	// remove all old previous epoch metric
+	chosen := p.progress.Epoch - lastEpochNums
+	// remove all old previous metric epoch before the chosen epoch
 	for key, _ := range p.tracker {
 		if key < chosen {
 			delete(p.tracker, key)
@@ -129,16 +129,20 @@ func (p *peer) GetBroadcastMetric() float64 {
 
 	var sent uint64 = 0
 	var received uint64 = 0
-	var epochNum uint8 = 0
-	for _, e := range p.tracker {
-		sent += e.sentEvents
-		received += e.receivedEvents
-		epochNum++
+	var epochNums uint8 = 0
+	for k, e := range p.tracker {
+		// only count the events metric before the peer's progress epoch
+		if k < p.progress.Epoch {
+			sent += e.sentEvents
+			received += e.receivedEvents
+			epochNums++
+		}
 	}
 
-	if received == 0 || epochNum < lastEpochNums {
+	if received == 0 || epochNums < lastEpochNums || sent >= received {
 		return 1.0
 	}
+
 	return float64(sent) / float64(received)
 }
 
