@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
@@ -918,7 +917,7 @@ func (h *handler) handleTxs(p *peer, txs types.Transactions) {
 func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 	// Mark the hashes as present at the remote node
 	for _, id := range announces {
-		atomic.AddUint64(&p.sentEvents, 1)
+		p.AddSentEvent(id.Epoch())
 		p.MarkEvent(id)
 	}
 	// filter too high IDs
@@ -946,7 +945,7 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
 	for _, e := range events {
-		atomic.AddUint64(&p.sentEvents, 1)
+		p.AddSentEvent(e.Epoch())
 		p.MarkEvent(e.ID())
 	}
 	// filter too high events

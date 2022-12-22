@@ -30,7 +30,8 @@ var (
 )
 
 const (
-	handshakeTimeout = 5 * time.Second
+	handshakeTimeout = 5 * time.Second // handshake timeout
+	lastEpochNums    = 2               // the numbers of epoch to calculate the peer broadcast metric
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -44,6 +45,11 @@ type PeerInfo struct {
 type broadcastItem struct {
 	Code uint64
 	Raw  rlp.RawValue
+}
+
+type eventTracker struct {
+	sentEvents     uint64
+	receivedEvents uint64
 }
 
 type peer struct {
@@ -68,9 +74,8 @@ type peer struct {
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
-	useless        uint32
-	sentEvents     uint64
-	receivedEvents uint64
+	useless uint32
+	tracker map[idx.Epoch]*eventTracker // tracking broadcasting event metric for each epoch
 
 	sync.RWMutex
 }
@@ -83,18 +88,58 @@ func (p *peer) SetUseless() {
 	atomic.StoreUint32(&p.useless, 1)
 }
 
+func (p *peer) AddSentEvent(epoch idx.Epoch) {
+	p.Lock()
+	defer p.Unlock()
+
+	if item, ok := p.tracker[epoch]; ok {
+		item.sentEvents++
+	} else {
+		p.tracker[epoch] = &eventTracker{1, 0}
+	}
+}
+
+func (p *peer) AddReceivedEvent(epoch idx.Epoch) {
+	p.Lock()
+	defer p.Unlock()
+
+	if item, ok := p.tracker[epoch]; ok {
+		item.receivedEvents++
+	} else {
+		p.tracker[epoch] = &eventTracker{0, 1}
+	}
+}
+
 // 0 would mean that validator doesn't broadcast any events
 // which we previously connected, even though they were expected to do so.
 // 1 would mean that peer behaves 100% as expected
 //
-// only calculate the metric after receiving at least 100 events in term of stable metric calculation
+// only calculate the metric in some last recent epoch
 func (p *peer) GetBroadcastMetric() float64 {
-	sent := atomic.LoadUint64(&p.sentEvents)
-	received := atomic.LoadUint64(&p.receivedEvents)
-	if received <= 100 || sent >= received {
+	p.Lock()
+	defer p.Unlock()
+
+	chosen := p.progress.Epoch - 1 - lastEpochNums
+	// remove all old previous epoch metric
+	for key, _ := range p.tracker {
+		if key < chosen {
+			delete(p.tracker, key)
+		}
+	}
+
+	var sent uint64 = 0
+	var received uint64 = 0
+	var epochNum uint8 = 0
+	for _, e := range p.tracker {
+		sent += e.sentEvents
+		received += e.receivedEvents
+		epochNum++
+	}
+
+	if received == 0 || epochNum < lastEpochNums {
 		return 1.0
 	}
-	return (float64(sent) / float64(received))
+	return float64(sent) / float64(received)
 }
 
 func (p *peer) SetProgress(x PeerProgress) {
@@ -135,6 +180,7 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
+		tracker:             make(map[idx.Epoch]*eventTracker),
 	}
 
 	go peer.broadcast(peer.queue)
@@ -341,7 +387,7 @@ func (p *peer) EnqueueSendTransactions(txs types.Transactions, queue chan broadc
 func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	// Mark all the event hashes as known, but ensure we don't overflow our limits
 	for _, hash := range hashes {
-		atomic.AddUint64(&p.receivedEvents, 1)
+		p.AddReceivedEvent(hash.Epoch())
 		p.knownEvents.Add(hash)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -357,7 +403,7 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 	if p.asyncSendNonEncodedItem(ids, NewEventIDsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, id := range ids {
-			atomic.AddUint64(&p.receivedEvents, 1)
+			p.AddReceivedEvent(id.Epoch())
 			p.knownEvents.Add(id)
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -372,7 +418,7 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 func (p *peer) SendEvents(events inter.EventPayloads) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
-		atomic.AddUint64(&p.receivedEvents, 1)
+		p.AddReceivedEvent(event.Epoch())
 		p.knownEvents.Add(event.ID())
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -385,7 +431,7 @@ func (p *peer) SendEvents(events inter.EventPayloads) error {
 func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		atomic.AddUint64(&p.receivedEvents, 1)
+		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -400,7 +446,7 @@ func (p *peer) AsyncSendEvents(events inter.EventPayloads, queue chan broadcastI
 	if p.asyncSendNonEncodedItem(events, EventsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, event := range events {
-			atomic.AddUint64(&p.receivedEvents, 1)
+			p.AddReceivedEvent(event.Epoch())
 			p.knownEvents.Add(event.ID())
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -418,7 +464,7 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	p.enqueueSendNonEncodedItem(events, EventsMsg, queue)
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		atomic.AddUint64(&p.receivedEvents, 1)
+		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -493,7 +539,7 @@ func (p *peer) RequestEPsStream(r epstream.Request) error {
 func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		atomic.AddUint64(&p.receivedEvents, 1)
+		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
