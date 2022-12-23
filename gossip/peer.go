@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hashicorp/golang-lru/simplelru"
 
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream"
@@ -76,6 +77,7 @@ type peer struct {
 
 	useless uint32
 	tracker map[idx.Epoch]*eventTracker // tracking broadcasting event metric for each epoch
+	cache   *simplelru.LRU
 
 	sync.RWMutex
 }
@@ -119,6 +121,9 @@ func (p *peer) GetBroadcastMetric() float64 {
 	p.Lock()
 	defer p.Unlock()
 
+	if rate, ok := p.cache.Get(p.progress.Epoch); ok {
+		return rate.(float64)
+	}
 	chosen := p.progress.Epoch - lastEpochNums
 	// remove all old previous metric epoch before the chosen epoch
 	for key, _ := range p.tracker {
@@ -140,10 +145,13 @@ func (p *peer) GetBroadcastMetric() float64 {
 	}
 
 	if received == 0 || epochNums < lastEpochNums || sent >= received {
+		p.cache.Add(p.progress.Epoch, 1.0)
 		return 1.0
 	}
 
-	return float64(sent) / float64(received)
+	rate := float64(sent) / float64(received)
+	p.cache.Add(p.progress.Epoch, rate)
+	return rate
 }
 
 func (p *peer) SetProgress(x PeerProgress) {
@@ -173,6 +181,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 }
 
 func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
+	cache, _ := simplelru.NewLRU(1, nil)
 	peer := &peer{
 		cfg:                 cfg,
 		Peer:                p,
@@ -185,6 +194,7 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
 		tracker:             make(map[idx.Epoch]*eventTracker),
+		cache:               cache,
 	}
 
 	go peer.broadcast(peer.queue)
