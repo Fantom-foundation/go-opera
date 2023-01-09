@@ -49,7 +49,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 
 			mu.Lock()
 			defer mu.Unlock()
-
+   
 			if prevBlock > 0 {
 				delete(foundByBlock, prevBlock)
 			}
