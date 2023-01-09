@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"sync"
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -16,60 +15,6 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/logger"
 )
-
-// FindInBlocksAsync returns all log records of block range by pattern. 1st pattern element is an address.
-// Fetches log's body async.
-func (tt *Index) FindInBlocksAsync(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
-	if from > to {
-		return
-	}
-
-	pattern, err = limitPattern(pattern)
-	if err != nil {
-		return
-	}
-
-	var wg sync.WaitGroup
-	ready := make(chan *logrec)
-	defer close(ready)
-
-	go func() {
-		failed := false
-		for rec := range ready {
-
-			if failed {
-				wg.Done()
-				continue
-			}
-			if rec.err != nil {
-				err = rec.err
-				failed = true
-				wg.Done()
-				continue
-			}
-
-			logs = append(logs, rec.result)
-			wg.Done()
-		}
-	}()
-
-	onMatched := func(rec *logrec) (gonext bool, err error) {
-		wg.Add(1)
-		go func() {
-			rec.fetch(tt.table.Logrec)
-			ready <- rec
-		}()
-
-		gonext = true
-		return
-	}
-
-	err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
-
-	wg.Wait()
-
-	return
-}
 
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
@@ -124,9 +69,11 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		}
 	}
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 
@@ -232,9 +179,11 @@ func TestIndexSearchShortCircuits(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 
@@ -290,9 +239,11 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
@@ -365,9 +316,11 @@ func TestIndexSearchSimple(t *testing.T) {
 		err error
 	)
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)
@@ -417,9 +370,11 @@ func TestMaxTopicsCount(t *testing.T) {
 	err := index.Push(testdata)
 	require.NoError(t, err)
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		t.Run(dsc, func(t *testing.T) {
 			require := require.New(t)

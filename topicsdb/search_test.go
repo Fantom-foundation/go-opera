@@ -35,9 +35,11 @@ func BenchmarkSearch(b *testing.B) {
 		query = append(query, qq)
 	}
 
+	pooled := WithThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		b.Run(dsc, func(b *testing.B) {
 			b.ResetTimer()
