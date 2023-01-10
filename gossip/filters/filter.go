@@ -49,7 +49,7 @@ type Backend interface {
 	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 	SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription
 
-	EvmLogIndex() *topicsdb.Index
+	EvmLogIndex() topicsdb.Index
 
 	CalcBlockExtApi() bool
 }

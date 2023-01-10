@@ -9,7 +9,7 @@ import (
 
 type logHandler func(rec *logrec) (gonext bool, err error)
 
-func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) error {
+func (tt *index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -101,7 +101,7 @@ func (tt *Index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	return ctx.Err()
 }
 
-func (tt *Index) scanPatternVariant(pos uint8, variant common.Hash, start uint64, onMatched logHandler) {
+func (tt *index) scanPatternVariant(pos uint8, variant common.Hash, start uint64, onMatched logHandler) {
 	prefix := append(variant.Bytes(), posToBytes(pos)...)
 
 	it := tt.table.Topic.NewIterator(prefix, uintToBytes(start))

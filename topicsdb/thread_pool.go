@@ -46,12 +46,12 @@ func getMaxThreads() int {
 	return was
 }
 
-type WithThreadPool struct {
-	*Index
+type withThreadPool struct {
+	*index
 }
 
 // FindInBlocks returns all log records of block range by pattern. 1st pattern element is an address.
-func (tt *WithThreadPool) FindInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
+func (tt *withThreadPool) FindInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash) (logs []*types.Log, err error) {
 	err = tt.ForEachInBlocks(
 		ctx,
 		from, to,
@@ -64,13 +64,8 @@ func (tt *WithThreadPool) FindInBlocks(ctx context.Context, from, to idx.Block, 
 	return
 }
 
-// ForEach matches log records by pattern. 1st pattern element is an address.
-func (tt *WithThreadPool) ForEach(ctx context.Context, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
-	return tt.ForEachInBlocks(ctx, 0, 0, pattern, onLog)
-}
-
 // ForEachInBlocks matches log records of block range by pattern. 1st pattern element is an address.
-func (tt *WithThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
+func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if 0 < to && to < from {
 		return nil
 	}
