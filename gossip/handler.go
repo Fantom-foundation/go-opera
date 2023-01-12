@@ -917,7 +917,9 @@ func (h *handler) handleTxs(p *peer, txs types.Transactions) {
 func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 	// Mark the hashes as present at the remote node
 	for _, id := range announces {
-		p.AddSentEvent(id.Epoch())
+		if !p.knownEvents.Contains(id) {
+			p.AddSentEvent(id.Epoch())
+		}
 		p.MarkEvent(id)
 	}
 	// filter too high IDs
@@ -945,7 +947,9 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
 	for _, e := range events {
-		p.AddSentEvent(e.Epoch())
+		if !p.knownEvents.Contains(e.ID()) {
+			p.AddSentEvent(e.Epoch())
+		}
 		p.MarkEvent(e.ID())
 	}
 	// filter too high events
