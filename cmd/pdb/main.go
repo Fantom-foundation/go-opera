@@ -74,36 +74,39 @@ func main() {
 	// cd work/fantom/go-opera
 	// go run ./cmd/pdb 2>&1 | tee 111.log
 
-	const V = 50
+	const V = 5000
 	// DB WRITE
 
 	var wgWrite sync.WaitGroup
-	wgWrite.Add(V)
-	for i := 0; i < 2; i++ {
-		go func(i int) {
-			defer wgWrite.Done()
-			addr := FakeAddr(i)
+	wgWrite.Add(1)
+	go func() {
+		defer wgWrite.Done()
+		for i := 0; !aborted; i++ {
+			addr := FakeAddr(i % V)
 			topics := []common.Hash{
-				FakeHash(V*i + 1),
-				FakeHash(V*i + 2),
-				FakeHash(V*i + 3),
+				FakeHash(i%V + 1),
+				FakeHash(i%V + 2),
+				FakeHash(i%V + 3),
 			}
-			for !aborted {
-				bn := atomic.AddUint64(&blocks, 1)
-				index.Push(
-					&types.Log{
-						BlockNumber: bn,
-						Address:     addr,
-						Topics:      topics,
-					},
-				)
+			var bn uint64
+			if (i % V) == 0 {
+				bn = atomic.AddUint64(&blocks, 1)
+			} else {
+				bn = atomic.LoadUint64(&blocks)
 			}
-		}(i)
-	}
+			index.Push(
+				&types.Log{
+					BlockNumber: bn,
+					Address:     addr,
+					Topics:      topics,
+				},
+			)
+		}
+	}()
 
 	// DB READ
 	var wgRead sync.WaitGroup
-	for i := uint(0); !aborted; i++ {
+	for i := 0; !aborted; i++ {
 
 		wgRead.Add(1)
 		go func(i int) {
@@ -122,9 +125,9 @@ func main() {
 			defer cancel()
 
 			logs, err := index.FindInBlocks(ctx, bnFrom, bnTo, [][]common.Hash{
-				[]common.Hash{FakeAddr(i).Hash()},
-				[]common.Hash{FakeHash(V*i + 1)},
-				[]common.Hash{FakeHash(V*i + 2)},
+				[]common.Hash{FakeAddr(i % V).Hash()},
+				[]common.Hash{FakeHash(i%V + 1)},
+				[]common.Hash{FakeHash(i%V + 2)},
 			})
 			if err != nil {
 				// panic(err)
@@ -135,7 +138,7 @@ func main() {
 				panic(fmt.Errorf("%d found nothing at block %d - %d", i, bnFrom, bnTo))
 			}
 
-		}(int(i % V))
+		}(i)
 	}
 
 	wgWrite.Wait()
