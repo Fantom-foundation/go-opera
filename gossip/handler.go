@@ -1056,6 +1056,10 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxHashes(p, txHashes)
 
 	case msg.Code == GetEvmTxsMsg:
+		// If peer is doing snapsync (a.k.a not doing fullsync), don't broadcast txs and events to this peer
+		if !p.isFullSync {
+			break
+		}
 		var requests []common.Hash
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
@@ -1108,6 +1112,10 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleEventHashes(p, announces)
 
 	case msg.Code == GetEventsMsg:
+		// If peer is doing snapsync (a.k.a not doing fullsync), don't broadcast txs and events to this peer
+		if !p.isFullSync {
+			break
+		}
 		var requests hash.Events
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
