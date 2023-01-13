@@ -1019,6 +1019,7 @@ func (h *handler) handleMsg(p *peer) error {
 		p.SetProgress(progress)
 
 	case msg.Code == EvmTxsMsg:
+		p.isFullSync = true
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1039,6 +1040,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxs(p, txs)
 
 	case msg.Code == NewEvmTxHashesMsg:
+		p.isFullSync = true
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1075,6 +1077,7 @@ func (h *handler) handleMsg(p *peer) error {
 		})
 
 	case msg.Code == EventsMsg:
+		p.isFullSync = true
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1090,6 +1093,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleEvents(p, events.Bases(), events.Len() > 1)
 
 	case msg.Code == NewEventIDsMsg:
+		p.isFullSync = true
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptEvents() {
 			break
@@ -1156,6 +1160,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == EventsStreamResponse:
+		p.isFullSync = true
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1379,7 +1384,8 @@ func (h *handler) BroadcastEvent(event *inter.EventPayload, passed time.Duration
 	for _, p := range peers {
 		// Update peers' broadcast metric
 		useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-		if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold) {
+		if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold ||
+			(p.isFullSync && time.Since(p.latestProgress.Time()) > progressInterval && p.progress.Less(h.myProgress()))) {
 			useless = true
 			discfilter.Ban(p.ID())
 		}

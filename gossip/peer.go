@@ -31,8 +31,9 @@ var (
 )
 
 const (
-	handshakeTimeout = 5 * time.Second // handshake timeout
-	lastEpochNums    = 2               // the numbers of epoch to calculate the peer broadcast metric
+	handshakeTimeout = 5 * time.Second   // handshake timeout
+	lastEpochNums    = 2                 // the numbers of epoch to calculate the peer broadcast metric
+	progressInterval = 200 * time.Second // peer should be marked as useless if it didn't advance epoch within this time duration
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -69,7 +70,9 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	progress PeerProgress
+	progress       PeerProgress
+	latestProgress inter.Timestamp
+	isFullSync     bool
 
 	snapExt  *snapPeer     // Satellite `snap` connection
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
@@ -158,6 +161,9 @@ func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
+	if p.progress.Less(x) {
+		p.latestProgress = inter.Timestamp(time.Now().UnixNano())
+	}
 	p.progress = x
 }
 
