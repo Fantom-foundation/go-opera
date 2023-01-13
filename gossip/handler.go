@@ -993,9 +993,6 @@ func (h *handler) handleMsg(p *peer) error {
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
-	if p.GetBroadcastMetric() < broadcastThreshold {
-		return errResp(ErrUseLessPeer, "%v < %v", p.GetBroadcastMetric(), broadcastThreshold)
-	}
 	defer msg.Discard()
 	// Acquire semaphore for serialized messages
 	eventsSizeEst := dag.Metric{
