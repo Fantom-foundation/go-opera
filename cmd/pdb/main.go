@@ -24,8 +24,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
 
+// go run ./cmd/pdb 2>&1 | tee 111.log
+
 func init() {
-	debug.SetMaxThreads(10000)
+	debug.SetMaxThreads(250)
 }
 
 func main() {
@@ -42,8 +44,8 @@ func main() {
 	}
 	dbs := pebble.NewProducer(datadir, cacher)
 
-	// index := topicsdb.New(dbs)
-	index := topicsdb.NewWithThreadPool(dbs)
+	index := topicsdb.New(dbs)
+	//index := topicsdb.NewWithThreadPool(dbs)
 	defer index.Close()
 
 	// WATCHDOG
@@ -71,29 +73,20 @@ func main() {
 		}
 	}()
 
-	// cd work/fantom/go-opera
-	// go run ./cmd/pdb 2>&1 | tee 111.log
-
 	const V = 5000
 	// DB WRITE
-
 	var wgWrite sync.WaitGroup
 	wgWrite.Add(1)
 	go func() {
 		defer wgWrite.Done()
 		for i := 0; !aborted; i++ {
-			addr := FakeAddr(i % V)
-			topics := []common.Hash{
-				FakeHash(i%V + 1),
-				FakeHash(i%V + 2),
-				FakeHash(i%V + 3),
-			}
 			var bn uint64
 			if (i % V) == 0 {
 				bn = atomic.AddUint64(&blocks, 1)
 			} else {
 				bn = atomic.LoadUint64(&blocks)
 			}
+			addr, topics := FakeLog(i % V)
 			index.Push(
 				&types.Log{
 					BlockNumber: bn,
@@ -101,13 +94,14 @@ func main() {
 					Topics:      topics,
 				},
 			)
+			time.Sleep(1 * time.Microsecond)
 		}
 	}()
 
 	// DB READ
 	var wgRead sync.WaitGroup
 	for i := 0; !aborted; i++ {
-
+		time.Sleep(1 * time.Microsecond)
 		wgRead.Add(1)
 		go func(i int) {
 			defer wgRead.Done()
@@ -120,29 +114,41 @@ func main() {
 			if bnTo > V {
 				bnFrom = bnTo - V
 			}
+			addr, topics := FakeLog(i)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			logs, err := index.FindInBlocks(ctx, bnFrom, bnTo, [][]common.Hash{
-				[]common.Hash{FakeAddr(i % V).Hash()},
-				[]common.Hash{FakeHash(i%V + 1)},
-				[]common.Hash{FakeHash(i%V + 2)},
+				[]common.Hash{addr.Hash()},
+				[]common.Hash{topics[0]},
+				[]common.Hash{topics[1]},
+				[]common.Hash{topics[2]},
 			})
 			if err != nil {
-				// panic(err)
 				failed++
+			} else {
+				success++
 			}
-			success++
 			if bnTo > V && len(logs) < 1 && false {
 				panic(fmt.Errorf("%d found nothing at block %d - %d", i, bnFrom, bnTo))
 			}
 
-		}(i)
+		}(i % V)
 	}
 
 	wgWrite.Wait()
 	wgRead.Wait()
+}
+
+func FakeLog(n int) (addr common.Address, topics []common.Hash) {
+	addr = FakeAddr(n)
+	topics = []common.Hash{
+		FakeHash(n + 1),
+		FakeHash(n + 2),
+		FakeHash(n + 3),
+	}
+	return
 }
 
 func FakeAddr(n int) (a common.Address) {

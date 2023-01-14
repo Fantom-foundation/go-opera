@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -12,16 +13,31 @@ import (
 )
 
 type pool struct {
-	mu    sync.Mutex
-	sum   int
-	queue []int
+	mu          sync.Mutex
+	initialized bool
+	sum         int
+}
+
+var globalPool pool
+
+func initGlobalPool() {
+	globalPool.mu.Lock()
+	defer globalPool.mu.Unlock()
+
+	if !globalPool.initialized {
+		globalPool.initialized = true
+		globalPool.sum = getMaxThreads()
+	}
 }
 
 func (p *pool) Lock(want int) (got int, release func()) {
+	if !p.initialized {
+		initGlobalPool()
+	}
+
 	if want < 1 {
 		want = 0
 	}
-
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -36,13 +52,10 @@ func (p *pool) Lock(want int) (got int, release func()) {
 	return
 }
 
-var globalPool = &pool{
-	sum: getMaxThreads(),
-}
-
 func getMaxThreads() int {
 	was := debug.SetMaxThreads(10000)
 	debug.SetMaxThreads(was)
+	fmt.Printf(">>>> GlobalPool MaxThreads: %d\n", was)
 	return was
 }
 
