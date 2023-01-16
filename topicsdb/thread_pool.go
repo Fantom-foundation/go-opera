@@ -2,7 +2,6 @@ package topicsdb
 
 import (
 	"context"
-	"fmt"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -12,27 +11,30 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type pool struct {
+const GoroutinesPerThread = 100
+
+// threadPool counts threads in use
+type threadPool struct {
 	mu          sync.Mutex
 	initialized bool
 	sum         int
 }
 
-var globalPool pool
+var globalPool threadPool
 
-func initGlobalPool() {
-	globalPool.mu.Lock()
-	defer globalPool.mu.Unlock()
+func (p *threadPool) init() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	if !globalPool.initialized {
-		globalPool.initialized = true
-		globalPool.sum = getMaxThreads()
+	if !p.initialized {
+		p.initialized = true
+		p.sum = getMaxThreads() * GoroutinesPerThread
 	}
 }
 
-func (p *pool) Lock(want int) (got int, release func()) {
+func (p *threadPool) Lock(want int) (got int, release func()) {
 	if !p.initialized {
-		initGlobalPool()
+		p.init()
 	}
 
 	if want < 1 {
@@ -55,10 +57,10 @@ func (p *pool) Lock(want int) (got int, release func()) {
 func getMaxThreads() int {
 	was := debug.SetMaxThreads(10000)
 	debug.SetMaxThreads(was)
-	fmt.Printf(">>>> GlobalPool MaxThreads: %d\n", was)
 	return was
 }
 
+// withThreadPool wraps the index and limits its threads in use
 type withThreadPool struct {
 	*index
 }
@@ -113,8 +115,12 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 		got, release := globalPool.Lock(threads + len(rest))
 		if got <= threads {
 			release()
-			time.Sleep(time.Microsecond)
-			continue
+			select {
+			case <-time.After(time.Microsecond):
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
 		pattern[splitby] = rest[:got-threads]
