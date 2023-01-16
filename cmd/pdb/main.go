@@ -13,21 +13,20 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-
-	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/pebble"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 )
 
 // go run ./cmd/pdb 2>&1 | tee 111.log
 
 func init() {
-	debug.SetMaxThreads(250)
+	debug.SetMaxThreads(60) // got 'thread exhaustion' when consumes ~20Gb mem
 }
 
 func main() {
@@ -35,6 +34,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("-- DataDir: %s\n", datadir)
 
 	cacheRatio := cachescale.Identity
 	cfg := integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
@@ -44,8 +44,8 @@ func main() {
 	}
 	dbs := pebble.NewProducer(datadir, cacher)
 
-	index := topicsdb.New(dbs)
-	//index := topicsdb.NewWithThreadPool(dbs)
+	index := topicsdb.New(dbs) // origin 'thread exhaustion'
+	// index := topicsdb.NewWithThreadPool(dbs) // threads limit fix
 	defer index.Close()
 
 	// WATCHDOG
@@ -73,13 +73,14 @@ func main() {
 		}
 	}()
 
-	const V = 5000
+	const V = 500
 	// DB WRITE
 	var wgWrite sync.WaitGroup
 	wgWrite.Add(1)
 	go func() {
 		defer wgWrite.Done()
 		for i := 0; !aborted; i++ {
+			time.Sleep(1 * time.Microsecond)
 			var bn uint64
 			if (i % V) == 0 {
 				bn = atomic.AddUint64(&blocks, 1)
@@ -94,11 +95,22 @@ func main() {
 					Topics:      topics,
 				},
 			)
-			time.Sleep(1 * time.Microsecond)
 		}
 	}()
 
 	// DB READ
+	var pattern = make([][]common.Hash, 4)
+	for i := range pattern {
+		pattern[i] = make([]common.Hash, V)
+	}
+	for i := 0; i < V; i++ {
+		addr, topics := FakeLog(i)
+		pattern[0][i] = addr.Hash()
+		pattern[1][i] = topics[0]
+		pattern[2][i] = topics[1]
+		pattern[3][i] = topics[2]
+	}
+
 	var wgRead sync.WaitGroup
 	for i := 0; !aborted; i++ {
 		time.Sleep(1 * time.Microsecond)
@@ -111,27 +123,18 @@ func main() {
 
 			bnFrom := idx.Block(0)
 			bnTo := idx.Block(atomic.AddUint64(&blocks, 1))
-			if bnTo > V {
-				bnFrom = bnTo - V
+			if bnTo > 10 {
+				bnFrom = bnTo - 10
 			}
-			addr, topics := FakeLog(i)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			logs, err := index.FindInBlocks(ctx, bnFrom, bnTo, [][]common.Hash{
-				[]common.Hash{addr.Hash()},
-				[]common.Hash{topics[0]},
-				[]common.Hash{topics[1]},
-				[]common.Hash{topics[2]},
-			})
+			_, err := index.FindInBlocks(ctx, bnFrom, bnTo, pattern)
 			if err != nil {
 				failed++
 			} else {
 				success++
-			}
-			if bnTo > V && len(logs) < 1 && false {
-				panic(fmt.Errorf("%d found nothing at block %d - %d", i, bnFrom, bnTo))
 			}
 
 		}(i % V)
