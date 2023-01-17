@@ -116,7 +116,7 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 		if got <= threads {
 			release()
 			select {
-			case <-time.After(time.Microsecond):
+			case <-time.After(time.Millisecond):
 				continue
 			case <-ctx.Done():
 				return ctx.Err()
