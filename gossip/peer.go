@@ -13,11 +13,11 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hashicorp/golang-lru/simplelru"
 
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockrecords/brstream"
 	"github.com/Fantom-foundation/go-opera/gossip/protocols/blockvotes/bvstream"
@@ -49,11 +49,6 @@ type broadcastItem struct {
 	Raw  rlp.RawValue
 }
 
-type eventTracker struct {
-	sentEvents     uint64
-	receivedEvents uint64
-}
-
 type peer struct {
 	id string
 
@@ -72,15 +67,15 @@ type peer struct {
 
 	progress       PeerProgress
 	latestProgress inter.Timestamp
-	isFullSync     bool
+	fullSync       uint32
 
 	snapExt  *snapPeer     // Satellite `snap` connection
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
 	useless uint32
-	tracker map[idx.Epoch]*eventTracker // tracking broadcasting event metric for each epoch
-	cache   *simplelru.LRU
+	tracker *prque.Prque // Priority queue mapping timestamp to number of broadcasted events to gc
+	rates   *Tracker
 
 	sync.RWMutex
 }
@@ -93,68 +88,46 @@ func (p *peer) SetUseless() {
 	atomic.StoreUint32(&p.useless, 1)
 }
 
-func (p *peer) AddSentEvent(epoch idx.Epoch) {
-	p.Lock()
-	defer p.Unlock()
-
-	if item, ok := p.tracker[epoch]; ok {
-		item.sentEvents++
-	} else {
-		p.tracker[epoch] = &eventTracker{1, 0}
-	}
+func (p *peer) FullSync() bool {
+	return atomic.LoadUint32(&p.fullSync) != 0
 }
 
-func (p *peer) AddReceivedEvent(epoch idx.Epoch) {
-	p.Lock()
-	defer p.Unlock()
-
-	if item, ok := p.tracker[epoch]; ok {
-		item.receivedEvents++
-	} else {
-		p.tracker[epoch] = &eventTracker{0, 1}
-	}
+func (p *peer) SetFullSync() {
+	atomic.StoreUint32(&p.fullSync, 1)
 }
 
-// 0 would mean that validator doesn't broadcast any events
-// which we previously connected, even though they were expected to do so.
-// 1 would mean that peer behaves 100% as expected
-//
-// only calculate the metric in some last recent epoch
-func (p *peer) GetBroadcastMetric() float64 {
+func (p *peer) AddSentEvent(event hash.Event) {
 	p.Lock()
 	defer p.Unlock()
 
-	if rate, ok := p.cache.Get(p.progress.Epoch); ok {
-		return rate.(float64)
-	}
-	chosen := p.progress.Epoch - lastEpochNums
-	// remove all old previous metric epoch before the chosen epoch
-	for key, _ := range p.tracker {
-		if key < chosen {
-			delete(p.tracker, key)
+	p.tracker.Push(event, -time.Now().UnixNano())
+}
+
+// return number of broadcasted events by the peer in the last 2 hours
+func (p *peer) GetBroadcastMetric() (int, error) {
+	p.Lock()
+	defer p.Unlock()
+
+	chosen := time.Now().Add(-2 * time.Hour).UnixNano()
+
+	// prune all the event older than 2 hours
+	old := false
+	for !p.tracker.Empty() {
+		event, at := p.tracker.Pop()
+		if -at > chosen {
+			p.tracker.Push(event, at)
+			break
+		} else {
+			old = true
 		}
 	}
 
-	var sent uint64 = 0
-	var received uint64 = 0
-	var epochNums uint8 = 0
-	for k, e := range p.tracker {
-		// only count the events metric before the peer's progress epoch
-		if k < p.progress.Epoch {
-			sent += e.sentEvents
-			received += e.receivedEvents
-			epochNums++
-		}
+	// return error when all the events are still young
+	if old {
+		return p.tracker.Size(), nil
+	} else {
+		return p.tracker.Size(), errors.New("metric is still not mature enough")
 	}
-
-	if received == 0 || epochNums < lastEpochNums || sent >= received {
-		p.cache.Add(p.progress.Epoch, 1.0)
-		return 1.0
-	}
-
-	rate := float64(sent) / float64(received)
-	p.cache.Add(p.progress.Epoch, rate)
-	return rate
 }
 
 func (p *peer) SetProgress(x PeerProgress) {
@@ -187,7 +160,6 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 }
 
 func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfig) *peer {
-	cache, _ := simplelru.NewLRU(1, nil)
 	peer := &peer{
 		cfg:                 cfg,
 		Peer:                p,
@@ -199,8 +171,7 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
-		tracker:             make(map[idx.Epoch]*eventTracker),
-		cache:               cache,
+		tracker:             prque.New(nil),
 	}
 
 	go peer.broadcast(peer.queue)
@@ -407,7 +378,6 @@ func (p *peer) EnqueueSendTransactions(txs types.Transactions, queue chan broadc
 func (p *peer) SendEventIDs(hashes []hash.Event) error {
 	// Mark all the event hashes as known, but ensure we don't overflow our limits
 	for _, hash := range hashes {
-		p.AddReceivedEvent(hash.Epoch())
 		p.knownEvents.Add(hash)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -423,7 +393,6 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 	if p.asyncSendNonEncodedItem(ids, NewEventIDsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, id := range ids {
-			p.AddReceivedEvent(id.Epoch())
 			p.knownEvents.Add(id)
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -438,7 +407,6 @@ func (p *peer) AsyncSendEventIDs(ids hash.Events, queue chan broadcastItem) {
 func (p *peer) SendEvents(events inter.EventPayloads) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
-		p.AddReceivedEvent(event.Epoch())
 		p.knownEvents.Add(event.ID())
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -451,7 +419,6 @@ func (p *peer) SendEvents(events inter.EventPayloads) error {
 func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()
@@ -466,7 +433,6 @@ func (p *peer) AsyncSendEvents(events inter.EventPayloads, queue chan broadcastI
 	if p.asyncSendNonEncodedItem(events, EventsMsg, queue) {
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, event := range events {
-			p.AddReceivedEvent(event.Epoch())
 			p.knownEvents.Add(event.ID())
 		}
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -484,7 +450,6 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	p.enqueueSendNonEncodedItem(events, EventsMsg, queue)
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 	}
 	for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
@@ -559,7 +524,6 @@ func (p *peer) RequestEPsStream(r epstream.Request) error {
 func (p *peer) SendEventsStream(r dagstream.Response, ids hash.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, id := range ids {
-		p.AddReceivedEvent(id.Epoch())
 		p.knownEvents.Add(id)
 		for p.knownEvents.Cardinality() >= p.cfg.MaxKnownEvents {
 			p.knownEvents.Pop()

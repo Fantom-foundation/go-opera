@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -784,7 +785,7 @@ func (h *handler) handle(p *peer) error {
 		return err
 	}
 	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
+	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
 		useless = true
 		discfilter.Ban(p.ID())
 	}
@@ -918,7 +919,10 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 	// Mark the hashes as present at the remote node
 	for _, id := range announces {
 		if !p.knownEvents.Contains(id) {
-			p.AddSentEvent(id.Epoch())
+			p.AddSentEvent(id)
+			if items, err := p.GetBroadcastMetric(); err != nil {
+				h.peers.rates.Update(p.ID().String(), float64(items))
+			}
 		}
 		p.MarkEvent(id)
 	}
@@ -948,7 +952,10 @@ func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
 	for _, e := range events {
 		if !p.knownEvents.Contains(e.ID()) {
-			p.AddSentEvent(e.Epoch())
+			p.AddSentEvent(e.ID())
+			if items, err := p.GetBroadcastMetric(); err != nil {
+				h.peers.rates.Update(p.ID().String(), float64(items))
+			}
 		}
 		p.MarkEvent(e.ID())
 	}
@@ -1019,7 +1026,7 @@ func (h *handler) handleMsg(p *peer) error {
 		p.SetProgress(progress)
 
 	case msg.Code == EvmTxsMsg:
-		p.isFullSync = true
+		p.SetFullSync()
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1040,7 +1047,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxs(p, txs)
 
 	case msg.Code == NewEvmTxHashesMsg:
-		p.isFullSync = true
+		p.SetFullSync()
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1057,7 +1064,7 @@ func (h *handler) handleMsg(p *peer) error {
 
 	case msg.Code == GetEvmTxsMsg:
 		// If peer is doing snapsync (a.k.a not doing fullsync), don't broadcast txs and events to this peer
-		if !p.isFullSync {
+		if !p.FullSync() {
 			break
 		}
 		var requests []common.Hash
@@ -1081,7 +1088,7 @@ func (h *handler) handleMsg(p *peer) error {
 		})
 
 	case msg.Code == EventsMsg:
-		p.isFullSync = true
+		p.SetFullSync()
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1097,7 +1104,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleEvents(p, events.Bases(), events.Len() > 1)
 
 	case msg.Code == NewEventIDsMsg:
-		p.isFullSync = true
+		p.SetFullSync()
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptEvents() {
 			break
@@ -1113,7 +1120,7 @@ func (h *handler) handleMsg(p *peer) error {
 
 	case msg.Code == GetEventsMsg:
 		// If peer is doing snapsync (a.k.a not doing fullsync), don't broadcast txs and events to this peer
-		if !p.isFullSync {
+		if !p.FullSync() {
 			break
 		}
 		var requests hash.Events
@@ -1168,7 +1175,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == EventsStreamResponse:
-		p.isFullSync = true
+		p.SetFullSync()
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1371,6 +1378,25 @@ func (h *handler) decideBroadcastAggressiveness(size int, passed time.Duration, 
 	return fullRecipients
 }
 
+func (h *handler) nonProgress(p *peer) bool {
+	return time.Since(p.latestProgress.Time()) > progressInterval && p.progress.Less(h.myProgress())
+}
+
+func (h *handler) isMostNonActive(p *peer) bool {
+	peers := &capacitySort{
+		ids:  make([]string, 0, len(h.peers.peers)),
+		caps: make([]int, 0, len(h.peers.peers)),
+	}
+
+	for id := range h.peers.peers {
+		peers.ids = append(peers.ids, id)
+		peers.caps = append(peers.caps, h.peers.rates.Capacity(id))
+	}
+	sort.Sort(peers)
+
+	return len(peers.ids) > 0 && peers.ids[0] == p.id
+}
+
 // BroadcastEvent will either propagate a event to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
 func (h *handler) BroadcastEvent(event *inter.EventPayload, passed time.Duration) int {
@@ -1392,8 +1418,7 @@ func (h *handler) BroadcastEvent(event *inter.EventPayload, passed time.Duration
 	for _, p := range peers {
 		// Update peers' broadcast metric
 		useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-		if !useless && (!eligibleForSnap(p.Peer) || p.GetBroadcastMetric() < broadcastThreshold ||
-			(p.isFullSync && time.Since(p.latestProgress.Time()) > progressInterval && p.progress.Less(h.myProgress()))) {
+		if !useless && (!eligibleForSnap(p.Peer) || (p.FullSync() && (h.nonProgress(p) || h.isMostNonActive(p)))) {
 			useless = true
 			discfilter.Ban(p.ID())
 		}
