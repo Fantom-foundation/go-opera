@@ -22,10 +22,9 @@ type threadPool struct {
 
 var globalPool threadPool
 
+// init threadPool only on demand to give time to other packages
+// call debug.SetMaxThreads() if they need
 func (p *threadPool) init() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if !p.initialized {
 		p.initialized = true
 		p.sum = getMaxThreads() * GoroutinesPerThread
@@ -33,6 +32,9 @@ func (p *threadPool) init() {
 }
 
 func (p *threadPool) Lock(want int) (got int, release func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if !p.initialized {
 		p.init()
 	}
@@ -40,8 +42,6 @@ func (p *threadPool) Lock(want int) (got int, release func()) {
 	if want < 1 {
 		want = 0
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	got = min(p.sum, want)
 	p.sum -= got
