@@ -466,7 +466,7 @@ func (b *EthAPIBackend) RPCTxFeeCap() float64 {
 	return b.svc.config.RPCTxFeeCap
 }
 
-func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
+func (b *EthAPIBackend) EvmLogIndex() topicsdb.Index {
 	return b.svc.store.evm.EvmLogs
 }
 

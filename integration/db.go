@@ -45,7 +45,7 @@ func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName
 	if chaindataDir == "inmemory" || chaindataDir == "" {
 		chaindataDir, _ = ioutil.TempDir("", "opera-tmp")
 	}
-	cacher, err := dbCacheFdlimit(cfg)
+	cacher, err := DbCacheFdlimit(cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create DB cacher: %v", err)
 	}
@@ -83,7 +83,7 @@ func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName
 		}
 }
 
-func dbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
+func DbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
 	fmts := make([]func(req string) (string, error), 0, len(cfg.Table))
 	fmtsCaches := make([]DBCacheConfig, 0, len(cfg.Table))
 	exactTable := make(map[string]DBCacheConfig, len(cfg.Table))

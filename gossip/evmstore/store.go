@@ -42,7 +42,7 @@ type Store struct {
 
 	EvmDb    ethdb.Database
 	EvmState state.Database
-	EvmLogs  *topicsdb.Index
+	EvmLogs  topicsdb.Index
 	Snaps    *snapshot.Tree
 
 	cache struct {
@@ -77,7 +77,7 @@ func NewStore(dbs kvdb.DBProducer, cfg StoreConfig) *Store {
 	}
 
 	s.initEVMDB()
-	s.EvmLogs = topicsdb.New(dbs)
+	s.EvmLogs = topicsdb.NewWithThreadPool(dbs)
 	s.initCache()
 
 	return s

@@ -15,7 +15,7 @@ func BenchmarkSearch(b *testing.B) {
 	topics, recs, topics4rec := genTestData(1000)
 
 	mem := memorydb.NewProducer("")
-	index := New(mem)
+	index := newIndex(mem)
 
 	for _, rec := range recs {
 		err := index.Push(rec)
@@ -35,9 +35,11 @@ func BenchmarkSearch(b *testing.B) {
 		query = append(query, qq)
 	}
 
+	pooled := withThreadPool{index}
+
 	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
-		"sync":  index.FindInBlocks,
-		"async": index.FindInBlocksAsync,
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
 	} {
 		b.Run(dsc, func(b *testing.B) {
 			b.ResetTimer()
