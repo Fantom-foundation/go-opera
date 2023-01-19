@@ -75,7 +75,7 @@ type peer struct {
 
 	useless uint32
 	tracker *prque.Prque // Priority queue mapping timestamp to number of broadcasted events to gc
-	rates   *Tracker
+	rates   *Tracker     // Tracker to hone in on the number of items broadcasting in last hours
 
 	sync.RWMutex
 }
@@ -104,7 +104,7 @@ func (p *peer) AddSentEvent(event hash.Event) {
 }
 
 // return number of broadcasted events by the peer in the last 2 hours
-func (p *peer) GetBroadcastMetric() (int, error) {
+func (p *peer) GetBroadcastEvents() int {
 	p.Lock()
 	defer p.Unlock()
 
@@ -122,11 +122,11 @@ func (p *peer) GetBroadcastMetric() (int, error) {
 		}
 	}
 
-	// return error when all the events are still young
+	// return the initial mean capacity when the metric is still young
 	if old {
-		return p.tracker.Size(), nil
+		return p.tracker.Size()
 	} else {
-		return p.tracker.Size(), errors.New("metric is still not mature enough")
+		return p.rates.Capacity(EventsMsg)
 	}
 }
 

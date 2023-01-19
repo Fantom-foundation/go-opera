@@ -7,26 +7,32 @@ import (
 )
 
 type Tracker struct {
-	broadcastedEventRate float64
+	capacity map[uint64]float64
 
 	lock sync.RWMutex
 }
 
-func (t *Tracker) Update(items float64) {
-	t.broadcastedEventRate = items
-}
-
-func NewTracker(items float64) *Tracker {
+func NewTracker(caps map[uint64]float64) *Tracker {
+	if caps == nil {
+		caps = make(map[uint64]float64)
+	}
 	return &Tracker{
-		broadcastedEventRate: items,
+		capacity: caps,
 	}
 }
 
-func (t *Tracker) Capacity() int {
+func (t *Tracker) Update(kind uint64, items int) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.capacity[kind] = float64(items)
+}
+
+func (t *Tracker) Capacity(kind uint64) int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return roundCapacity(t.broadcastedEventRate)
+	return roundCapacity(t.capacity[kind])
 }
 
 func roundCapacity(cap float64) int {
@@ -71,43 +77,61 @@ func (t *Trackers) Track(id string, tracker *Tracker) error {
 	return nil
 }
 
-func (t *Trackers) Update(id string, items float64) {
+// Update is a helper function to access a specific tracker without having to
+// track it explicitly outside.
+func (t *Trackers) Update(id string, kind uint64, items int) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
 	if tracker := t.trackers[id]; tracker != nil {
-		tracker.Update(items)
+		tracker.Update(kind, items)
 	}
 }
 
-func (t *Trackers) MeanCapacity() float64 {
+// MeanCapacities returns the capacities averaged across all the added trackers.
+// The purpose of the mean capacities are to initialize a new peer with some sane
+// starting values that it will hopefully outperform. If the mean overshoots, the
+// peer will be cut back to minimal capacity and given another chance.
+func (t *Trackers) MeanCapacities() map[uint64]float64 {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	return t.meanCapacity()
+	return t.meanCapacities()
 }
 
-func (t *Trackers) meanCapacity() float64 {
-	capacity := 0.0
+// meanCapacities is the internal lockless version of MeanCapacities used for
+// debug logging.
+func (t *Trackers) meanCapacities() map[uint64]float64 {
+	capacities := make(map[uint64]float64)
 	for _, tt := range t.trackers {
 		tt.lock.RLock()
-		capacity += tt.broadcastedEventRate
+		for key, val := range tt.capacity {
+			capacities[key] += val
+		}
 		tt.lock.RUnlock()
 	}
-	return capacity / float64(len(t.trackers))
+	for key, val := range capacities {
+		capacities[key] = val / float64(len(t.trackers))
+	}
+	return capacities
 }
 
-func (t *Trackers) Capacity(id string) int {
+// Capacity is a helper function to access a specific tracker without having to
+// track it explicitly outside.
+func (t *Trackers) Capacity(id string, kind uint64) int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
 	tracker := t.trackers[id]
 	if tracker == nil {
-		return 1.0
+		return 1
 	}
-	return tracker.Capacity()
+	return tracker.Capacity(kind)
 }
 
+// capacitySort implements the Sort interface, allowing sorting by peer message
+// throughput. Note, callers should use sort.Reverse to get the desired effect
+// of highest capacity being at the front.
 type capacitySort struct {
 	ids  []string
 	caps []int

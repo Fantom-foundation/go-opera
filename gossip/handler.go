@@ -920,9 +920,7 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 	for _, id := range announces {
 		if !p.knownEvents.Contains(id) {
 			p.AddSentEvent(id)
-			if items, err := p.GetBroadcastMetric(); err != nil {
-				h.peers.rates.Update(p.ID().String(), float64(items))
-			}
+			h.peers.rates.Update(p.ID().String(), EventsMsg, p.GetBroadcastEvents())
 		}
 		p.MarkEvent(id)
 	}
@@ -953,9 +951,7 @@ func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	for _, e := range events {
 		if !p.knownEvents.Contains(e.ID()) {
 			p.AddSentEvent(e.ID())
-			if items, err := p.GetBroadcastMetric(); err != nil {
-				h.peers.rates.Update(p.ID().String(), float64(items))
-			}
+			h.peers.rates.Update(p.ID().String(), EventsMsg, p.GetBroadcastEvents())
 		}
 		p.MarkEvent(e.ID())
 	}
@@ -1378,10 +1374,12 @@ func (h *handler) decideBroadcastAggressiveness(size int, passed time.Duration, 
 	return fullRecipients
 }
 
+// nonProgress check if peer didn't advance its epoch for progressInterval seconds, and its epoch is lower than our
 func (h *handler) nonProgress(p *peer) bool {
 	return time.Since(p.latestProgress.Time()) > progressInterval && p.progress.Less(h.myProgress())
 }
 
+// isMostNonActive check if peer is the most non active peer (a.k.a sending utmost least events) in the current tracking peers
 func (h *handler) isMostNonActive(p *peer) bool {
 	peers := &capacitySort{
 		ids:  make([]string, 0, len(h.peers.peers)),
@@ -1390,7 +1388,7 @@ func (h *handler) isMostNonActive(p *peer) bool {
 
 	for id := range h.peers.peers {
 		peers.ids = append(peers.ids, id)
-		peers.caps = append(peers.caps, h.peers.rates.Capacity(id))
+		peers.caps = append(peers.caps, h.peers.rates.Capacity(id, EventsMsg))
 	}
 	sort.Sort(peers)
 

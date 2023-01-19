@@ -152,7 +152,7 @@ func (ps *peerSet) RegisterPeer(p *peer, ext *snap.Peer) error {
 		ps.snapPeers++
 	}
 
-	p.rates = NewTracker(ps.rates.MeanCapacity())
+	p.rates = NewTracker(ps.rates.MeanCapacities())
 	if err := ps.rates.Track(p.id, p.rates); err != nil {
 		ps.lock.Unlock()
 		return err
