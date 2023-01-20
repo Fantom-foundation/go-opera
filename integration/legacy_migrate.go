@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
 func lastKey(db kvdb.Store) []byte {
@@ -111,6 +113,10 @@ func transform(m transformTask) error {
 		}
 		keys = keys[:0]
 	}
+	// compact the new DB
+	if err := compactdb.Compact(dst, m.name, 16*opt.GiB); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -186,22 +192,10 @@ func translateGossipPrefix(p byte) byte {
 	return p
 }
 
-func equalRoutingConfig(a, b RoutingConfig) bool {
-	if len(a.Table) != len(b.Table) {
-		return false
-	}
-	for k, v := range a.Table {
-		if b.Table[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
 func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode string, layout RoutingConfig) error {
 	{ // didn't erase the brackets to avoid massive code changes
 		// migrate DB layout
-		cacheFn, err := dbCacheFdlimit(DBsCacheConfig{
+		cacheFn, err := DbCacheFdlimit(DBsCacheConfig{
 			Table: map[string]DBCacheConfig{
 				"": {
 					Cache:   1024 * opt.MiB,
@@ -302,7 +296,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 			}
 		case "reformat":
 			if oldDBsType == "ldb" {
-				if !equalRoutingConfig(layout, LdbLegacyRoutingConfig()) {
+				if !layout.Equal(LdbLegacyRoutingConfig()) {
 					return errors.New("reformatting DBs: missing --db.preset=legacy-ldb flag")
 				}
 				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "leveldb-fsh", "main"))
@@ -318,7 +312,7 @@ func migrateLegacyDBs(chaindataDir string, dbs kvdb.FlushableDBProducer, mode st
 					}
 				}
 			} else {
-				if !equalRoutingConfig(layout, PblLegacyRoutingConfig()) {
+				if !layout.Equal(PblLegacyRoutingConfig()) {
 					return errors.New("reformatting DBs: missing --db.preset=legacy-pbl flag")
 				}
 				err = os.Rename(path.Join(chaindataDir, "gossip"), path.Join(chaindataDir, "pebble-fsh", "main"))

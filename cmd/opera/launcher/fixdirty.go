@@ -79,7 +79,7 @@ func healDirty(ctx *cli.Context) error {
 		}
 	}
 
-	log.Info("Fixing done")
+	log.Info("Recovery is complete")
 	return nil
 }
 
@@ -92,11 +92,11 @@ func fixDirtyGossipDb(producer kvdb.FlushableDBProducer, cfg *config) (
 	// find the last closed epoch with the state available
 	epochIdx, blockState, epochState := getLastEpochWithState(gdb, maxEpochsToTry)
 	if blockState == nil || epochState == nil {
-		return nil, fmt.Errorf("state for last %d closed epochs is not available", maxEpochsToTry)
+		return nil, fmt.Errorf("state for last %d closed epochs is pruned, recovery isn't possible", maxEpochsToTry)
 	}
 
 	// set the historic state to be the current
-	log.Info("Setting block epoch state", "epoch", epochIdx)
+	log.Info("Reverting to epoch state", "epoch", epochIdx)
 	gdb.SetBlockEpochState(*blockState, *epochState)
 	gdb.FlushBlockEpochState()
 
@@ -125,14 +125,14 @@ func getLastEpochWithState(gdb *gossip.Store, epochsToTry idx.Epoch) (epochIdx i
 	for epochIdx = currentEpoch; epochIdx > endEpoch; epochIdx-- {
 		blockState, epochState = gdb.GetHistoryBlockEpochState(epochIdx)
 		if blockState == nil || epochState == nil {
-			log.Info("Last closed epoch is not available", "epoch", epochIdx)
+			log.Debug("Epoch is not available", "epoch", epochIdx)
 			continue
 		}
 		if !gdb.EvmStore().HasStateDB(blockState.FinalizedStateRoot) {
-			log.Info("State for the last closed epoch is not available", "epoch", epochIdx)
+			log.Debug("EVM state for the epoch is not available", "epoch", epochIdx)
 			continue
 		}
-		log.Info("Last closed epoch with available state found", "epoch", epochIdx)
+		log.Debug("Latest epoch with available state found", "epoch", epochIdx)
 		return epochIdx, blockState, epochState
 	}
 

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
@@ -535,11 +536,15 @@ func (b *EthAPIBackend) RPCGasCap() uint64 {
 	return b.svc.config.RPCGasCap
 }
 
+func (b *EthAPIBackend) RPCEVMTimeout() time.Duration {
+	return b.svc.config.RPCEVMTimeout
+}
+
 func (b *EthAPIBackend) RPCTxFeeCap() float64 {
 	return b.svc.config.RPCTxFeeCap
 }
 
-func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
+func (b *EthAPIBackend) EvmLogIndex() topicsdb.Index {
 	return b.svc.store.evm.EvmLogs
 }
 

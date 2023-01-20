@@ -78,13 +78,17 @@ type LlrEpochPackRLP struct {
 }
 
 func (s *Store) IterateEpochPacksRLP(start idx.Epoch, f func(epoch idx.Epoch, ep rlp.RawValue) bool) {
-	it := s.table.BlockEpochStateHistory.NewIterator(nil, start.Bytes())
-	defer it.Release()
-	for it.Next() {
-		epoch := idx.BytesToEpoch(it.Key())
-
+	for epoch := start; ; epoch++ {
+		key := epoch.Bytes()
+		val, err := s.table.BlockEpochStateHistory.Get(key)
+		if err != nil {
+			s.Log.Crit("Failed to get block-epoch state", "err", err)
+		}
+		if val == nil {
+			break
+		}
 		evs := make([]rlp.RawValue, 0, 20)
-		s.iterateEpochVotesRLP(it.Key(), func(ev rlp.RawValue) bool {
+		s.iterateEpochVotesRLP(key, func(ev rlp.RawValue) bool {
 			evs = append(evs, ev)
 			return len(evs) < maxEpochPackVotes
 		})
@@ -94,7 +98,7 @@ func (s *Store) IterateEpochPacksRLP(start idx.Epoch, f func(epoch idx.Epoch, ep
 		ep := &LlrEpochPackRLP{
 			VotesRLP: evs,
 			Record: LlrIdxFullEpochRecordRLP{
-				RecordRLP: it.Value(),
+				RecordRLP: val,
 				Idx:       epoch,
 			},
 		}

@@ -40,7 +40,7 @@ import (
 
 type testBackend struct {
 	db         ethdb.Database
-	logIndex   *topicsdb.Index
+	logIndex   topicsdb.Index
 	blocksFeed *notify.Feed
 	txsFeed    *notify.Feed
 	logsFeed   *notify.Feed
@@ -49,7 +49,7 @@ type testBackend struct {
 func newTestBackend() *testBackend {
 	return &testBackend{
 		db:         rawdb.NewMemoryDatabase(),
-		logIndex:   topicsdb.New(memorydb.NewProducer("")),
+		logIndex:   topicsdb.NewWithThreadPool(memorydb.NewProducer("")),
 		blocksFeed: new(notify.Feed),
 		txsFeed:    new(notify.Feed),
 		logsFeed:   new(notify.Feed),
@@ -133,8 +133,15 @@ func (b *testBackend) SubscribeNewBlockNotify(ch chan<- evmcore.ChainHeadNotify)
 	return b.blocksFeed.Subscribe(ch)
 }
 
-func (b *testBackend) EvmLogIndex() *topicsdb.Index {
+func (b *testBackend) EvmLogIndex() topicsdb.Index {
 	return b.logIndex
+}
+
+func (b *testBackend) MustPushLogs(recs ...*types.Log) {
+	err := b.logIndex.Push(recs...)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (b *testBackend) GetTxPosition(txid common.Hash) *evmstore.TxPosition {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/asyncflushproducer"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/dbcounter"
 )
 
 type DBsConfig struct {
@@ -44,17 +45,17 @@ func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName
 	if chaindataDir == "inmemory" || chaindataDir == "" {
 		chaindataDir, _ = ioutil.TempDir("", "opera-tmp")
 	}
-	cacher, err := dbCacheFdlimit(cfg)
+	cacher, err := DbCacheFdlimit(cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create DB cacher: %v", err)
 	}
 
-	leveldbFsh := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-fsh"), cacher)
-	leveldbFlg := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-flg"), cacher)
-	leveldbDrc := leveldb.NewProducer(path.Join(chaindataDir, "leveldb-drc"), cacher)
-	pebbleFsh := pebble.NewProducer(path.Join(chaindataDir, "pebble-fsh"), cacher)
-	pebbleFlg := pebble.NewProducer(path.Join(chaindataDir, "pebble-flg"), cacher)
-	pebbleDrc := pebble.NewProducer(path.Join(chaindataDir, "pebble-drc"), cacher)
+	leveldbFsh := dbcounter.Wrap(leveldb.NewProducer(path.Join(chaindataDir, "leveldb-fsh"), cacher), true)
+	leveldbFlg := dbcounter.Wrap(leveldb.NewProducer(path.Join(chaindataDir, "leveldb-flg"), cacher), true)
+	leveldbDrc := dbcounter.Wrap(leveldb.NewProducer(path.Join(chaindataDir, "leveldb-drc"), cacher), true)
+	pebbleFsh := dbcounter.Wrap(pebble.NewProducer(path.Join(chaindataDir, "pebble-fsh"), cacher), true)
+	pebbleFlg := dbcounter.Wrap(pebble.NewProducer(path.Join(chaindataDir, "pebble-flg"), cacher), true)
+	pebbleDrc := dbcounter.Wrap(pebble.NewProducer(path.Join(chaindataDir, "pebble-drc"), cacher), true)
 
 	if metrics.Enabled {
 		leveldbFsh = WrapDatabaseWithMetrics(leveldbFsh)
@@ -82,7 +83,7 @@ func SupportedDBs(chaindataDir string, cfg DBsCacheConfig) (map[multidb.TypeName
 		}
 }
 
-func dbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
+func DbCacheFdlimit(cfg DBsCacheConfig) (func(string) (int, int), error) {
 	fmts := make([]func(req string) (string, error), 0, len(cfg.Table))
 	fmtsCaches := make([]DBCacheConfig, 0, len(cfg.Table))
 	exactTable := make(map[string]DBCacheConfig, len(cfg.Table))

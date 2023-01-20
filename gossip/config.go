@@ -93,9 +93,15 @@ type (
 		// RPCGasCap is the global gas cap for eth-call variants.
 		RPCGasCap uint64 `toml:",omitempty"`
 
+		// RPCEVMTimeout is the global timeout for eth-call.
+		RPCEVMTimeout time.Duration
+
 		// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
 		// send-transction variants. The unit is ether.
 		RPCTxFeeCap float64 `toml:",omitempty"`
+
+		// RPCTimeout is a global time limit for RPC methods execution.
+		RPCTimeout time.Duration
 
 		// allows only for EIP155 transactions.
 		AllowUnprotectedTxs bool
@@ -203,6 +209,8 @@ func DefaultConfig(scale cachescale.Func) Config {
 			PeerCache:                DefaultPeerCacheConfig(scale),
 		},
 
+		RPCEVMTimeout: 5 * time.Second,
+
 		GPO: gasprice.Config{
 			MaxGasPrice:      gasprice.DefaultMaxGasPrice,
 			MinGasPrice:      new(big.Int),
@@ -213,6 +221,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 
 		RPCGasCap:   50000000,
 		RPCTxFeeCap: 100, // 100 FTM
+		RPCTimeout:  5 * time.Second,
 	}
 	sessionCfg := cfg.Protocol.DagStreamLeecher.Session
 	cfg.Protocol.DagProcessor.EventsBufferLimit.Num = idx.Event(sessionCfg.ParallelChunksDownload)*

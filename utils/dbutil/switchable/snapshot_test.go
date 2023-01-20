@@ -11,6 +11,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/dbcounter"
 )
 
 func decodePair(b []byte) (uint32, uint32) {
@@ -19,19 +21,19 @@ func decodePair(b []byte) (uint32, uint32) {
 	return v1, v2
 }
 
-type UncallabaleAfterRelease struct {
+type UncallableAfterRelease struct {
 	kvdb.Snapshot
-	iterators []*uncallabaleAfterReleaseIterator
+	iterators []*uncallableAfterReleaseIterator
 	mu        sync.Mutex
 }
 
-type uncallabaleAfterReleaseIterator struct {
+type uncallableAfterReleaseIterator struct {
 	kvdb.Iterator
 }
 
-func (db *UncallabaleAfterRelease) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
+func (db *UncallableAfterRelease) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 	it := db.Snapshot.NewIterator(prefix, start)
-	wrapped := &uncallabaleAfterReleaseIterator{it}
+	wrapped := &uncallableAfterReleaseIterator{it}
 
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -40,7 +42,7 @@ func (db *UncallabaleAfterRelease) NewIterator(prefix []byte, start []byte) kvdb
 	return wrapped
 }
 
-func (db *UncallabaleAfterRelease) Release() {
+func (db *UncallableAfterRelease) Release() {
 	db.Snapshot.Release()
 	// ensure nil pointer exception on any next call
 	db.Snapshot = nil
@@ -62,7 +64,7 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 	const duration = time.Millisecond * 400
 
 	// fill DB with data
-	memdb := memorydb.New()
+	memdb := dbcounter.WrapStore(memorydb.New(), "", false)
 	for i := uint32(0); i < prefixes; i++ {
 		for j := uint32(0); j < keys; j++ {
 			key := append(bigendian.Uint32ToBytes(i), bigendian.Uint32ToBytes(j)...)
@@ -74,7 +76,7 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 	// 4 readers, one interrupter
 	snap, err := memdb.GetSnapshot()
 	require.NoError(err)
-	switchable := Wrap(&UncallabaleAfterRelease{
+	switchable := Wrap(&UncallableAfterRelease{
 		Snapshot: snap,
 	})
 
@@ -135,7 +137,7 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 			for atomic.LoadUint32(&stop) == 0 {
 				snap, err := memdb.GetSnapshot()
 				require.NoError(err)
-				old := switchable.SwitchTo(&UncallabaleAfterRelease{
+				old := switchable.SwitchTo(&UncallableAfterRelease{
 					Snapshot: snap,
 				})
 				old.Release()
@@ -145,4 +147,6 @@ func TestSnapshot_SwitchTo(t *testing.T) {
 	time.Sleep(duration)
 	atomic.StoreUint32(&stop, 1)
 	wg.Wait()
+	switchable.Release()
+	require.NoError(memdb.Close())
 }

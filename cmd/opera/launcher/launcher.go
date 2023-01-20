@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
@@ -156,7 +157,9 @@ func initFlags() {
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 		RPCGlobalGasCapFlag,
+		RPCGlobalEVMTimeoutFlag,
 		RPCGlobalTxFeeCapFlag,
+		RPCGlobalTimeoutFlag,
 	}
 
 	metricsFlags = []cli.Flag{
@@ -189,6 +192,7 @@ func initFlags() {
 
 // init the CLI app.
 func init() {
+	discfilter.Enable()
 	overrideFlags()
 	overrideParams()
 
@@ -298,6 +302,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		_ = genesisStore.Close()
 	}
 	metrics.SetDataDir(cfg.Node.DataDir)
+	memorizeDBPreset(cfg)
 
 	// substitute default bootnodes if requested
 	networkName := ""

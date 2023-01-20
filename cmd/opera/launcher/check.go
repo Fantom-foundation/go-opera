@@ -27,12 +27,14 @@ func checkEvm(ctx *cli.Context) error {
 	start, reported := time.Now(), time.Now()
 
 	var prevPoint idx.Block
+	var prevIndex idx.Block
 	checkBlocks := func(stateOK func(root common.Hash) (bool, error)) {
 		var (
 			lastIdx            = gdb.GetLatestBlockIndex()
 			prevPointRootExist bool
 		)
 		gdb.ForEachBlock(func(index idx.Block, block *inter.Block) {
+			prevIndex = index
 			found, err := stateOK(common.Hash(block.Root))
 			if found != prevPointRootExist {
 				if index > 0 && found {
@@ -57,9 +59,9 @@ func checkEvm(ctx *cli.Context) error {
 		})
 	}
 
-	if err := evms.CheckEvm(checkBlocks); err != nil {
+	if err := evms.CheckEvm(checkBlocks, true); err != nil {
 		return err
 	}
-	log.Info("EVM storage is verified", "last", prevPoint, "elapsed", common.PrettyDuration(time.Since(start)))
+	log.Info("EVM storage is verified", "last", prevIndex, "elapsed", common.PrettyDuration(time.Since(start)))
 	return nil
 }
