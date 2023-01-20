@@ -244,7 +244,13 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 
 // CaptureEnd is called after the call finishes to finalize the tracing.
 func (tr *TraceStructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
-	log.Debug("TraceStructLogger capture END", "tx hash", tr.tx.String(), "duration", t, "gasUsed", gasUsed)
+	log.Debug("TraceStructLogger capture END", "tx hash", tr.tx.String(), "duration", t, "gasUsed", gasUsed, "error", err)
+	if err != nil && err != vm.ErrExecutionReverted {
+		if tr.rootTrace != nil && tr.rootTrace.Stack != nil && len(tr.rootTrace.Stack) > 0 {
+			tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result = nil
+			tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Error = err.Error()
+		}
+	}
 	if gasUsed > 0 {
 		if tr.rootTrace.Actions[0].Result != nil {
 			tr.rootTrace.Actions[0].Result.GasUsed = hexutil.Uint64(gasUsed)
