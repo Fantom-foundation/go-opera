@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const GoroutinesPerThread = 0.8
+const GoroutinesPerThread = 0.7
 
 // threadPool counts threads in use
 type threadPool struct {
