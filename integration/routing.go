@@ -7,6 +7,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/cachedproducer"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skipkeys"
+
+	"github.com/Fantom-foundation/go-opera/kvdb/threads"
 )
 
 type RoutingConfig struct {
@@ -38,7 +40,7 @@ func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer
 	}
 
 	p, err := makeMultiProducer(cachedProducers, cfg)
-	return p, err
+	return threads.Limited(p), err
 }
 
 func MakeDirectMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {
