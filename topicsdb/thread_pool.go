@@ -2,63 +2,11 @@ package topicsdb
 
 import (
 	"context"
-	"runtime/debug"
-	"sync"
-	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
-
-const GoroutinesPerThread = 0.7
-
-// threadPool counts threads in use
-type threadPool struct {
-	mu          sync.Mutex
-	initialized bool
-	sum         int
-}
-
-var globalPool threadPool
-
-// init threadPool only on demand to give time to other packages
-// call debug.SetMaxThreads() if they need
-func (p *threadPool) init() {
-	if !p.initialized {
-		p.initialized = true
-		p.sum = int(getMaxThreads() * GoroutinesPerThread)
-	}
-}
-
-func (p *threadPool) Lock(want int) (got int, release func()) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if !p.initialized {
-		p.init()
-	}
-
-	if want < 1 {
-		want = 0
-	}
-
-	got = min(p.sum, want)
-	p.sum -= got
-	release = func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.sum += got
-	}
-
-	return
-}
-
-func getMaxThreads() float64 {
-	was := debug.SetMaxThreads(10000)
-	debug.SetMaxThreads(was)
-	return float64(was)
-}
 
 // withThreadPool wraps the index and limits its threads in use
 type withThreadPool struct {
@@ -83,6 +31,10 @@ func (tt *withThreadPool) FindInBlocks(ctx context.Context, from, to idx.Block, 
 func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Block, pattern [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if 0 < to && to < from {
 		return nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	pattern, err := limitPattern(pattern)
@@ -112,23 +64,15 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 	threads -= len(rest)
 
 	for len(rest) > 0 {
-		got, release := globalPool.Lock(threads + len(rest))
-		if got <= threads {
-			release()
-			select {
-			case <-time.After(time.Millisecond):
-				continue
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-
-		pattern[splitby] = rest[:got-threads]
-		rest = rest[got-threads:]
+		pattern[splitby] = rest[:1]
+		rest = rest[1:]
 		err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
-		release()
 		if err != nil {
 			return err
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 	}
 
