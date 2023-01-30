@@ -40,7 +40,7 @@ func MakeMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer
 	}
 
 	p, err := makeMultiProducer(cachedProducers, cfg)
-	return threads.Limited(p), err
+	return threads.LimitedFullDBProducer(p), err
 }
 
 func MakeDirectMultiProducer(rawProducers map[multidb.TypeName]kvdb.IterableDBProducer, cfg RoutingConfig) (kvdb.FullDBProducer, error) {

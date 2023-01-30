@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Fantom-foundation/go-opera/kvdb/threads"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
@@ -47,7 +48,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	},
 	}
 
-	index := newIndex(memorydb.NewProducer(""))
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -172,7 +173,7 @@ func TestIndexSearchShortCircuits(t *testing.T) {
 	},
 	}
 
-	index := newIndex(memorydb.NewProducer(""))
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -232,7 +233,7 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 
 	topics, recs, topics4rec := genTestData(100)
 
-	index := newIndex(memorydb.NewProducer(""))
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
 
 	for _, rec := range recs {
 		err := index.Push(rec)
@@ -304,7 +305,7 @@ func TestIndexSearchSimple(t *testing.T) {
 	},
 	}
 
-	index := newIndex(memorydb.NewProducer(""))
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -366,7 +367,7 @@ func TestMaxTopicsCount(t *testing.T) {
 		pattern[i+1] = []common.Hash{testdata.Topics[i]}
 	}
 
-	index := newIndex(memorydb.NewProducer(""))
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
 	err := index.Push(testdata)
 	require.NoError(t, err)
 

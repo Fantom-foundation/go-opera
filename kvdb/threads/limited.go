@@ -10,24 +10,39 @@ const (
 	newIteratorTimeout = 3 * time.Second
 )
 
-type limitedProducer struct {
-	kvdb.FullDBProducer
+type (
+	limitedDbProducer struct {
+		kvdb.DBProducer
+	}
+
+	limitedFullDbProducer struct {
+		kvdb.FullDBProducer
+	}
+
+	limitedStore struct {
+		kvdb.Store
+	}
+
+	limitedIterator struct {
+		kvdb.Iterator
+		release func()
+	}
+)
+
+func LimitedDBProducer(dbs kvdb.DBProducer) kvdb.DBProducer {
+	return &limitedDbProducer{dbs}
 }
 
-type limitedStore struct {
-	kvdb.Store
+func LimitedFullDBProducer(dbs kvdb.FullDBProducer) kvdb.FullDBProducer {
+	return &limitedFullDbProducer{dbs}
 }
 
-type limitedIterator struct {
-	kvdb.Iterator
-	release func()
+func (p *limitedDbProducer) OpenDB(name string) (kvdb.Store, error) {
+	s, err := p.DBProducer.OpenDB(name)
+	return &limitedStore{s}, err
 }
 
-func Limited(dbs kvdb.FullDBProducer) kvdb.FullDBProducer {
-	return &limitedProducer{dbs}
-}
-
-func (p *limitedProducer) OpenDB(name string) (kvdb.Store, error) {
+func (p *limitedFullDbProducer) OpenDB(name string) (kvdb.Store, error) {
 	s, err := p.FullDBProducer.OpenDB(name)
 	return &limitedStore{s}, err
 }
