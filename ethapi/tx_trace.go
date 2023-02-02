@@ -403,11 +403,6 @@ func (s *PublicTxTraceAPI) Filter(ctx context.Context, args FilterArgs) (*[]txtr
 		log.Info("Executing trace_filter call finished", data...)
 	}(time.Now())
 
-	// TODO put timeout to server configuration
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, 100*time.Second)
-	defer cancel()
-
 	// process arguments
 	var (
 		fromBlock, toBlock rpc.BlockNumber
