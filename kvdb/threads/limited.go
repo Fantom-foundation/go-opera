@@ -1,9 +1,13 @@
 package threads
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	// "github.com/ethereum/go-ethereum/log"
+
+	"github.com/Fantom-foundation/go-opera/logger"
 )
 
 const (
@@ -47,6 +51,8 @@ func (p *limitedFullDbProducer) OpenDB(name string) (kvdb.Store, error) {
 	return &limitedStore{s}, err
 }
 
+var notifier = logger.New("threads-pool")
+
 func (s *limitedStore) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 	timeout := time.After(newIteratorTimeout)
 
@@ -58,7 +64,7 @@ func (s *limitedStore) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 		case <-time.After(time.Millisecond):
 			continue
 		case <-timeout:
-			return &expiredIterator{}
+			notifier.Log.Warn("No free threads to open db iterator", "timeout", fmt.Sprintf("%ds", newIteratorTimeout/time.Second))
 		}
 	}
 
