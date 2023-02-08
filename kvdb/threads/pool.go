@@ -8,41 +8,49 @@ import (
 const GoroutinesPerThread = 0.8
 
 // threadPool counts threads in use
-type threadPool struct {
-	mu          sync.Mutex
-	initialized bool
-	sum         int
+type ThreadPool struct {
+	mu   sync.Mutex
+	cap  int
+	left int
 }
 
-var globalPool threadPool
+var GlobalPool ThreadPool
 
-// init threadPool only on demand to give time to other packages
+// init ThreadPool only on demand to give time to other packages
 // call debug.SetMaxThreads() if they need
-func (p *threadPool) init() {
-	if !p.initialized {
-		p.initialized = true
-		p.sum = int(getMaxThreads() * GoroutinesPerThread)
+func (p *ThreadPool) init() {
+	if p.cap == 0 {
+		p.cap = int(getMaxThreads() * GoroutinesPerThread)
+		p.left = p.cap
 	}
 }
 
-func (p *threadPool) Lock(want int) (got int, release func()) {
+// Capacity of pool
+func (p *ThreadPool) Cap() int {
+	if p.cap == 0 {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.init()
+	}
+	return p.cap
+}
+
+func (p *ThreadPool) Lock(want int) (got int, release func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if !p.initialized {
-		p.init()
-	}
+	p.init()
 
 	if want < 1 {
 		want = 0
 	}
 
-	got = min(p.sum, want)
-	p.sum -= got
+	got = min(p.left, want)
+	p.left -= got
 	release = func() {
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		p.sum += got
+		p.left += got
 	}
 
 	return
