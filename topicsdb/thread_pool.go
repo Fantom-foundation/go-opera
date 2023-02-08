@@ -6,6 +6,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/Fantom-foundation/go-opera/kvdb/threads"
 )
 
 // withThreadPool wraps the index and limits its threads in use
@@ -53,15 +55,19 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 	}
 
 	splitby := 0
-	threads := 0
+	parallels := 0
 	for i := range pattern {
-		threads += len(pattern[i])
+		parallels += len(pattern[i])
 		if len(pattern[splitby]) < len(pattern[i]) {
 			splitby = i
 		}
 	}
 	rest := pattern[splitby]
-	threads -= len(rest)
+	parallels -= len(rest)
+
+	if parallels >= threads.GlobalPool.Cap() {
+		return ErrTooBigTopics
+	}
 
 	for len(rest) > 0 {
 		pattern[splitby] = rest[:1]
