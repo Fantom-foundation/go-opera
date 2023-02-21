@@ -3,6 +3,7 @@ package metrics
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -10,32 +11,36 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 )
 
-var (
-	dbDir        atomic.Value
-	dbSize       atomic.Int64
-	dbSizeMetric = metrics.NewRegisteredFunctionalGauge("db_size", nil, func() int64 {
-		return dbSize.Load()
-	})
-)
+var once sync.Once
 
 func SetDataDir(datadir string) {
-	was := dbDir.Swap(datadir)
-	if was != nil {
-		panic("SetDataDir() only once!")
-	}
-	go measureDbDir()
+	once.Do(func() {
+		go measureDbDir("db_size", datadir)
+	})
 }
 
-func measureDbDir() {
+func measureDbDir(name, datadir string) {
+	var (
+		dbSize  atomic.Int64
+		gauge   metrics.Gauge
+		rescan = (len(datadir) > 0 && datadir != "inmemory")
+	)
 	for {
 		time.Sleep(time.Second)
 
-		datadir, ok := dbDir.Load().(string)
-		if !ok || len(datadir) == 0 || datadir == "inmemory" {
-			dbSize.Store(0)
-		} else {
+		if rescan {
 			size := sizeOfDir(datadir)
 			dbSize.Store(size)
+		}
+
+		if gauge == nil {
+			gauge = metrics.NewRegisteredFunctionalGauge(name, nil, func() int64 {
+				return dbSize.Load()
+			})
+		}
+
+		if !rescan {
+			break
 		}
 	}
 }
