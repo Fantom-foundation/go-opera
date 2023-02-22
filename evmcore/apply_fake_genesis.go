@@ -20,10 +20,10 @@ import (
 	"crypto/ecdsa"
 	"math"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -33,6 +33,19 @@ import (
 )
 
 var FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
+
+var key0, _ = crypto.ToECDSA(hexutil.MustDecode("0x96b6d2f6d6b677f4094f4f9c759f1d7b01ab8bff9660b8e4828687ac4ccf4652"))
+var key1, _ = crypto.ToECDSA(hexutil.MustDecode("0xf080fbe021483951604c735d0bae7999c542912a7065abd58052f5206d5db23c"))
+var key2, _ = crypto.ToECDSA(hexutil.MustDecode("0x5f546197c7bccfb5357a62349418e176b41d806980f6a29a666cc1b25d83c5e9"))
+var key3, _ = crypto.ToECDSA(hexutil.MustDecode("0x6df728689a875aa47aa6e4c8369ed134dd0fc5bc628842e4733d64f93208ffec"))
+var key4, _ = crypto.ToECDSA(hexutil.MustDecode("0xbdfc91fd521f14cae1f2c2087e797188a9852c1a6141e82b95f531a8a33d26f2"))
+var key5, _ = crypto.ToECDSA(hexutil.MustDecode("0xb5ab5968e871286d309d0880165b473f8fd7a783d3a82aa42ce2f5ae3e4a5d30"))
+var key6, _ = crypto.ToECDSA(hexutil.MustDecode("0x20afac5edface492fa9f9a2b908b26c5e7fc6c6f0e091c01a7809e39562a3bff"))
+var key7, _ = crypto.ToECDSA(hexutil.MustDecode("0xeb985bb616c93db9626030788e520d7fdbf0135fb9610c9b8d3c29c75dd3e75d"))
+var key8, _ = crypto.ToECDSA(hexutil.MustDecode("0xd4a201b1f2542352e47ec1508ba0c48c7a08e5667657ec416c3effa235b76c0b"))
+var key9, _ = crypto.ToECDSA(hexutil.MustDecode("0xdd3ca9fae341080f4a3a13792c105241b5720a3bfd058cb61b27a1a82c187bf3"))
+
+var keys = [11]*ecdsa.PrivateKey{key0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key0}
 
 // ApplyFakeGenesis writes or updates the genesis block in db.
 func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map[common.Address]*big.Int) (*EvmBlock, error) {
@@ -93,12 +106,5 @@ func MustApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n int) *ecdsa.PrivateKey {
-	reader := rand.New(rand.NewSource(int64(n)))
-
-	key, err := ecdsa.GenerateKey(crypto.S256(), reader)
-	if err != nil {
-		panic(err)
-	}
-
-	return key
+	return keys[n]
 }

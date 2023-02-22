@@ -42,8 +42,8 @@ func parseFakeGen(s string) (id idx.ValidatorID, num idx.Validator, err error) {
 
 	u32, err = strconv.ParseUint(parts[1], 10, 32)
 	num = idx.Validator(u32)
-	if num < 0 || idx.Validator(id) > num {
-		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
+	if (num < 0 && num >= 11) || idx.Validator(id) > num {
+		err = fmt.Errorf("key-num should be in range from 1 to validators (maximum: 10) (<key-num>/<validators>), or should be zero for non-validator node")
 		return
 	}
 
