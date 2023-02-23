@@ -68,8 +68,10 @@ func (s *PublicTxTraceAPI) traceTx(
 
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
-	// TODO add time into the server configuration
-	var timeout time.Duration = 3 * time.Second
+	var timeout time.Duration = 5 * time.Second
+	if s.b.RPCEVMTimeout() > 0 {
+		timeout = s.b.RPCEVMTimeout()
+	}
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 
@@ -400,11 +402,6 @@ func (s *PublicTxTraceAPI) Filter(ctx context.Context, args FilterArgs) (*[]txtr
 		data = append(data, "time", time.Since(start))
 		log.Info("Executing trace_filter call finished", data...)
 	}(time.Now())
-
-	// TODO put timeout to server configuration
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, 100*time.Second)
-	defer cancel()
 
 	// process arguments
 	var (
