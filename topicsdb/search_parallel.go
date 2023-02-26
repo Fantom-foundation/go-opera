@@ -9,7 +9,7 @@ import (
 
 type logHandler func(rec *logrec) (gonext bool, err error)
 
-func (tt *index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler) error {
+func (tt *index) searchParallel(ctx context.Context, pattern [][]common.Hash, blockStart, blockEnd uint64, onMatched logHandler, onDbIterator func()) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -90,7 +90,7 @@ func (tt *index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 			go func(pos, i int, variant common.Hash) {
 				onMatched := aggregator(pos, i)
 				preparing.Wait()
-				tt.scanPatternVariant(uint8(pos), variant, blockStart, onMatched)
+				tt.scanPatternVariant(uint8(pos), variant, blockStart, onMatched, onDbIterator)
 			}(pos, i, variant)
 		}
 	}
@@ -101,9 +101,10 @@ func (tt *index) searchParallel(ctx context.Context, pattern [][]common.Hash, bl
 	return ctx.Err()
 }
 
-func (tt *index) scanPatternVariant(pos uint8, variant common.Hash, start uint64, onMatched logHandler) {
+func (tt *index) scanPatternVariant(pos uint8, variant common.Hash, start uint64, onMatched logHandler, onDbIterator func()) {
 	prefix := append(variant.Bytes(), posToBytes(pos)...)
 
+	onDbIterator()
 	it := tt.table.Topic.NewIterator(prefix, uintToBytes(start))
 	defer it.Release()
 	for it.Next() {

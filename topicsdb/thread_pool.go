@@ -2,6 +2,7 @@ package topicsdb
 
 import (
 	"context"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
@@ -70,15 +71,26 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 	}
 
 	for len(rest) > 0 {
-		pattern[splitby] = rest[:1]
-		rest = rest[1:]
-		err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
-		if err != nil {
-			return err
+		got, release := threads.GlobalPool.Lock(parallels + len(rest))
+		if got <= parallels {
+			release(got)
+			select {
+			case <-time.After(time.Millisecond):
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
-		if ctx.Err() != nil {
-			return ctx.Err()
+		onDbIterator := func() {
+			release(1)
+		}
+
+		pattern[splitby] = rest[:got-parallels]
+		rest = rest[got-parallels:]
+		err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched, onDbIterator)
+		if err != nil {
+			return err
 		}
 	}
 
