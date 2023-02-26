@@ -35,7 +35,7 @@ func (p *ThreadPool) Cap() int {
 	return p.cap
 }
 
-func (p *ThreadPool) Lock(want int) (got int, release func()) {
+func (p *ThreadPool) Lock(want int) (got int, release func(count int)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -47,10 +47,17 @@ func (p *ThreadPool) Lock(want int) (got int, release func()) {
 
 	got = min(p.left, want)
 	p.left -= got
-	release = func() {
+
+	release = func(count int) {
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		p.left += got
+
+		if 0 > count || count > got {
+			count = got
+		}
+
+		got -= count
+		p.left += count
 	}
 
 	return

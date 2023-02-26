@@ -21,7 +21,7 @@ type (
 
 	limitedIterator struct {
 		kvdb.Iterator
-		release func()
+		release func(count int)
 	}
 )
 
@@ -59,5 +59,5 @@ func (s *limitedStore) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 
 func (it *limitedIterator) Release() {
 	it.Iterator.Release()
-	it.release()
+	it.release(1)
 }
