@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"runtime/debug"
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -16,6 +17,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/kvdb/threads"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
+
+func TestMain(m *testing.M) {
+	debug.SetMaxThreads(10)
+}
 
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
