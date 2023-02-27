@@ -61,6 +61,13 @@ const (
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
+
+	// Peer inactivity timer
+	inactivityTime = 10 * time.Minute
+)
+
+var (
+	ErrorInactivityTimeout = errors.New("inactivity timeout")
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -782,22 +789,34 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Error("Snapshot extension barrier failed", "err", err)
 		return err
 	}
-	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
-		useless = true
+
+	// Some clients have compatible caps and thus pass discovery checks and seep in to
+	// protocol handler. We should band these clients immediately.
+	// ex: go-corex, Efireal, Geth all with caps=[opera/62]
+	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
 		discfilter.Ban(p.ID())
+		return p2p.DiscUnexpectedIdentity
 	}
+
+	// Don't allow banned peers to protocol layer.
+	if discfilter.Banned(p.Node().ID(), p.Node().Record()) {
+		return p2p.DiscUselessPeer
+	}
+
+	useless := !eligibleForSnap(p.Peer)
 	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
 		// don't allow more than 10% of useless peers
 		return p2p.DiscTooManyPeers
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
-		if h.peers.UselessNum() >= h.maxPeers/10 {
-			// don't allow more than 10% of useless peers
-			return p2p.DiscTooManyPeers
-		}
 		p.SetUseless()
 	}
+
+	// Disconnect if maxPeers is reached
+	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
+		return p2p.DiscTooManyPeers
+	}
+
 
 	h.peerWG.Add(1)
 	defer h.peerWG.Done()
@@ -856,11 +875,21 @@ func (h *handler) handle(p *peer) error {
 	// after this will be sent via broadcasts.
 	h.syncTransactions(p, h.txpool.SampleHashes(h.config.Protocol.MaxInitialTxHashesSend))
 
-	// Handle incoming messages until the connection is torn down
+	// Handle incoming messages until the connection is torn down or the inactivity
+	// timer times out.
 	for {
-		if err := h.handleMsg(p); err != nil {
-			p.Log().Debug("Message handling failed", "err", err)
-			return err
+		inactivityTimer := time.NewTimer(inactivityTime)
+		select {
+		case <-inactivityTimer.C:
+			p.Log().Warn("Inactivity timer timeout: ", "name", p.Name(), "node", p.Node().String())
+			return ErrorInactivityTimeout
+		default:
+			err := h.handleMsg(p)
+			inactivityTimer.Stop()
+			if err != nil {
+				p.Log().Debug("Message handling failed", "err", err)
+				return err
+			}
 		}
 	}
 }
