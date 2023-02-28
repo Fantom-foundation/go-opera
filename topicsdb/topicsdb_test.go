@@ -25,6 +25,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func newTestIndex() *index {
+	mem := threads.CountedDBProducer(memorydb.NewProducer(""))
+	return newIndex(mem)
+}
+
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
 	var (
@@ -56,7 +61,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	},
 	}
 
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -181,7 +186,7 @@ func TestIndexSearchShortCircuits(t *testing.T) {
 	},
 	}
 
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -241,7 +246,7 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 
 	topics, recs, topics4rec := genTestData(100)
 
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 
 	for _, rec := range recs {
 		err := index.Push(rec)
@@ -313,7 +318,7 @@ func TestIndexSearchSimple(t *testing.T) {
 	},
 	}
 
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 
 	for _, l := range testdata {
 		err := index.Push(l)
@@ -375,7 +380,7 @@ func TestMaxTopicsCount(t *testing.T) {
 		pattern[i+1] = []common.Hash{testdata.Topics[i]}
 	}
 
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 	err := index.Push(testdata)
 	require.NoError(t, err)
 
@@ -455,7 +460,7 @@ func TestKvdbThreadsPoolLimit(t *testing.T) {
 	const N = 100
 
 	_, recs, _ := genTestData(N)
-	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	index := newTestIndex()
 	for _, rec := range recs {
 		err := index.Push(rec)
 		require.NoError(t, err)
