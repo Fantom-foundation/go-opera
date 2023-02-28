@@ -449,6 +449,57 @@ func TestPatternLimit(t *testing.T) {
 	}
 }
 
+func TestKvdbThreadsPoolLimit(t *testing.T) {
+	logger.SetTestMode(t)
+
+	const N = 100
+
+	_, recs, _ := genTestData(N)
+	index := newIndex(threads.LimitedDBProducer(memorydb.NewProducer("")))
+	for _, rec := range recs {
+		err := index.Push(rec)
+		require.NoError(t, err)
+	}
+
+	pooled := withThreadPool{index}
+
+	for dsc, method := range map[string]func(context.Context, idx.Block, idx.Block, [][]common.Hash) ([]*types.Log, error){
+		"index":  index.FindInBlocks,
+		"pooled": pooled.FindInBlocks,
+	} {
+		t.Run(dsc, func(t *testing.T) {
+			require := require.New(t)
+
+			topics := make([]common.Hash, threads.GlobalPool.Cap()+1)
+			for i := range topics {
+				topics[i] = hash.FakeHash(int64(i))
+			}
+			require.Less(threads.GlobalPool.Cap(), len(topics))
+			qq := make([][]common.Hash, 3)
+
+			// one big pattern
+			qq[1] = topics
+			got, err := method(nil, 0, 1000, qq)
+			require.NoError(err)
+			require.Equal(N, len(got))
+
+			// more than one big pattern
+			qq[1], qq[2] = topics, topics
+			got, err = method(nil, 0, 1000, qq)
+			switch dsc {
+			case "index":
+				require.NoError(err)
+				require.Equal(N, len(got))
+			case "pooled":
+				require.Equal(ErrTooBigTopics, err)
+				require.Equal(0, len(got))
+
+			}
+
+		})
+	}
+}
+
 func genTestData(count int) (
 	topics []common.Hash,
 	recs []*types.Log,
