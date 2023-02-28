@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"runtime/debug"
 	"testing"
 
@@ -19,7 +20,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	debug.SetMaxThreads(10)
+	debug.SetMaxThreads(20)
+
+	os.Exit(m.Run())
 }
 
 func TestIndexSearchMultyVariants(t *testing.T) {

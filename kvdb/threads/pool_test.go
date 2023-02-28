@@ -1,6 +1,7 @@
 package threads
 
 import (
+	"os"
 	"runtime/debug"
 	"testing"
 
@@ -9,31 +10,38 @@ import (
 
 func TestMain(m *testing.M) {
 	debug.SetMaxThreads(10)
+
+	os.Exit(m.Run())
 }
 
 func TestThreadPool(t *testing.T) {
-	require := require.New(t)
 
 	for name, pool := range map[string]ThreadPool{
 		"global": GlobalPool,
 		"local":  ThreadPool{},
 	} {
 		t.Run(name, func(t *testing.T) {
-			require.Equal(pool.Cap(), 10)
+			require := require.New(t)
+
+			require.Equal(8, pool.Cap())
 
 			got, release := pool.Lock(0)
-			require.Equal(got, 0)
-			require.Equal(pool.Cap(), 10)
+			require.Equal(0, got)
 			release(1)
-			require.Equal(pool.Cap(), 10)
 
-			got, release = pool.Lock(11)
-			require.Equal(got, 10)
-			require.Equal(pool.Cap(), 0)
-			release(1)
-			require.Equal(pool.Cap(), 1)
-			release(0)
-			require.Equal(pool.Cap(), 10)
+			gotA, releaseA := pool.Lock(10)
+			require.Equal(8, gotA)
+			releaseA(1)
+
+			gotB, releaseB := pool.Lock(10)
+			require.Equal(1, gotB)
+			releaseB(gotB)
+
+			releaseA(gotA)
+			gotB, releaseB = pool.Lock(10)
+			require.Equal(8, gotB)
+
+			// don't releaseB(gotB) to check pools isolation
 		})
 	}
 }
