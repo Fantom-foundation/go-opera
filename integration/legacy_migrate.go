@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
 )
 
@@ -46,7 +47,7 @@ type transformTask struct {
 
 func transform(m transformTask) error {
 	openDst := func() *batched.Store {
-		return batched.Wrap(m.openDst())
+		return batched.Wrap(autocompact.Wrap(autocompact.Wrap(m.openDst(), 1*opt.GiB), 16*opt.GiB))
 	}
 	openSrc := func() *batched.Store {
 		return batched.Wrap(m.openSrc())

@@ -5,11 +5,13 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
 
 // ApplyGenesis writes initial state.
@@ -76,10 +78,10 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err erro
 func (s *Store) WrapTablesAsBatched() (unwrap func()) {
 	origTables := s.table
 
-	batchedBlocks := batched.Wrap(s.table.Blocks)
+	batchedBlocks := batched.Wrap(autocompact.Wrap(autocompact.Wrap(s.table.Blocks, 1*opt.GiB), 16*opt.GiB))
 	s.table.Blocks = batchedBlocks
 
-	batchedBlockHashes := batched.Wrap(s.table.BlockHashes)
+	batchedBlockHashes := batched.Wrap(autocompact.Wrap(autocompact.Wrap(s.table.BlockHashes, 1*opt.GiB), 16*opt.GiB))
 	s.table.BlockHashes = batchedBlockHashes
 
 	unwrapEVM := s.evm.WrapTablesAsBatched()
