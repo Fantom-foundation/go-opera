@@ -195,7 +195,13 @@ func pruneState(ctx *cli.Context) error {
 			return err
 		}
 	}
-	pruner, err := evmpruner.NewPruner(gdb.EvmStore().EvmDb, genesisRoot, root, tmpDir, bloom)
+
+	evmDb := gdb.EvmStore().EvmDb
+	if evmDb == nil {
+		return errors.New("only legacy MPT EVM pruning makes sense")
+	}
+
+	pruner, err := evmpruner.NewPruner(evmDb, genesisRoot, root, tmpDir, bloom)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -269,6 +275,9 @@ func traverseState(ctx *cli.Context) error {
 		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
+	if chaindb == nil {
+		return errors.New("only legacy MPT EVM nodes traversing makes sense")
+	}
 
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")
@@ -359,6 +368,9 @@ func traverseRawState(ctx *cli.Context) error {
 		return errors.New("failed to open snapshot tree: genesis is not written")
 	}
 	chaindb := gdb.EvmStore().EvmDb
+	if chaindb == nil {
+		return errors.New("only legacy MPT EVM nodes traversing makes sense")
+	}
 
 	if ctx.NArg() > 1 {
 		log.Error("Too many arguments given")

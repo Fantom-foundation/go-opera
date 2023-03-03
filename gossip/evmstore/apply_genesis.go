@@ -1,6 +1,8 @@
 package evmstore
 
 import (
+	"errors"
+
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/batched"
 
@@ -9,6 +11,10 @@ import (
 
 // ApplyGenesis writes initial state.
 func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
+	if s.EvmDb == nil {
+		errors.New("genesis includes legacy MPT EVM data only")
+	}
+
 	batch := s.EvmDb.NewBatch()
 	defer batch.Reset()
 	g.RawEvmItems.ForEach(func(key, value []byte) bool {

@@ -8,9 +8,12 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -19,7 +22,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
-	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -27,14 +29,13 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 	"github.com/Fantom-foundation/go-opera/utils/iodb"
 )
 
 type GenesisBuilder struct {
-	dbs kvdb.DBProducer
-
-	tmpEvmStore *evmstore.Store
-	tmpStateDB  *state.StateDB
+	tmpEvmDb   ethdb.Database
+	tmpStateDB evmcore.StateDB
 
 	totalSupply *big.Int
 
@@ -61,14 +62,6 @@ func DefaultBlockProc() BlockProc {
 		EventsModule:     eventmodule.New(),
 		EVMModule:        evmmodule.New(),
 	}
-}
-
-func (b *GenesisBuilder) GetStateDB() *state.StateDB {
-	if b.tmpStateDB == nil {
-		tmpEvmStore := evmstore.NewStore(b.dbs, evmstore.LiteStoreConfig())
-		b.tmpStateDB, _ = tmpEvmStore.StateDB(hash.Zero)
-	}
-	return b.tmpStateDB
 }
 
 func (b *GenesisBuilder) AddBalance(acc common.Address, balance *big.Int) {
@@ -110,12 +103,24 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 }
 
 func NewGenesisBuilder(dbs kvdb.DBProducer) *GenesisBuilder {
-	tmpEvmStore := evmstore.NewStore(dbs, evmstore.LiteStoreConfig())
-	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
+	table, err := dbs.OpenDB("genesis_state")
+	if err != nil {
+		panic(err)
+	}
+
+	evmDb := rawdb.NewDatabase(
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				table)))
+
+	statedb, err := state.New(common.Hash{}, state.NewDatabase((evmDb)), nil)
+	if err != nil {
+		panic(err)
+	}
+
 	return &GenesisBuilder{
-		dbs:         dbs,
-		tmpEvmStore: tmpEvmStore,
-		tmpStateDB:  statedb,
+		tmpEvmDb:    evmDb,
+		tmpStateDB:  evmcore.ToStateDB(statedb),
 		totalSupply: new(big.Int),
 	}
 }
@@ -218,7 +223,8 @@ func (b *GenesisBuilder) ExecuteGenesisTxs(blockProc BlockProc, genesisTxs types
 	}
 	b.epochs = append(b.epochs, b.currentEpoch)
 
-	return b.tmpEvmStore.Commit(bs.LastBlock.Idx, bs.FinalizedStateRoot, true)
+	trieDB := b.tmpStateDB.Database().TrieDB()
+	return trieDB.Commit(evmBlock.Root, false, nil)
 }
 
 type memFile struct {
@@ -246,7 +252,7 @@ func (b *GenesisBuilder) Build(head genesis.Header) *genesisstore.Store {
 			return buf, nil
 		}
 		if name == genesisstore.EvmSection(0) {
-			it := b.tmpEvmStore.EvmDb.NewIterator(nil, nil)
+			it := b.tmpEvmDb.NewIterator(nil, nil)
 			defer it.Release()
 			_ = iodb.Write(buf, it)
 		}

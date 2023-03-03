@@ -26,7 +26,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -37,7 +36,6 @@ import (
 )
 
 type Backend interface {
-	ChainDb() ethdb.Database
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
@@ -59,7 +57,6 @@ type Filter struct {
 	backend Backend
 	config  Config
 
-	db        ethdb.Database
 	addresses []common.Address
 	topics    [][]common.Hash
 
@@ -98,7 +95,6 @@ func newFilter(backend Backend, cfg Config, addresses []common.Address, topics [
 		config:    cfg,
 		addresses: addresses,
 		topics:    topics,
-		db:        backend.ChainDb(),
 	}
 }
 

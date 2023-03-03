@@ -21,7 +21,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -56,7 +55,7 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(
-	block *EvmBlock, statedb *state.StateDB, cfg vm.Config, usedGas *uint64, onNewLog func(*types.Log, *state.StateDB),
+	block *EvmBlock, statedb StateDB, cfg vm.Config, usedGas *uint64, onNewLog func(*types.Log, StateDB),
 ) (
 	receipts types.Receipts, allLogs []*types.Log, skipped []uint32, err error,
 ) {
@@ -99,13 +98,13 @@ func applyTransaction(
 	msg types.Message,
 	config *params.ChainConfig,
 	gp *GasPool,
-	statedb *state.StateDB,
+	statedb StateDB,
 	blockNumber *big.Int,
 	blockHash common.Hash,
 	tx *types.Transaction,
 	usedGas *uint64,
 	evm *vm.EVM,
-	onNewLog func(*types.Log, *state.StateDB),
+	onNewLog func(*types.Log, StateDB),
 ) (
 	*types.Receipt,
 	uint64,

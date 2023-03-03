@@ -23,10 +23,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/state"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -145,13 +146,19 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 		defer db.Close()
 	}
 
+	stateAt := func(root common.Hash) StateDB {
+		st, err := state.New(root, state.NewDatabase(db), nil)
+		if err != nil {
+			panic(err)
+		}
+
+		return ToStateDB(st)
+	}
+
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	// state
-	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
-	if err != nil {
-		b.Fatalf("cannot create statedb: %v", err)
-	}
+	statedb := newMemoryStateDB()
 	genesisBlock := MustApplyFakeGenesis(statedb, FakeGenesisTime, map[common.Address]*big.Int{
 		benchRootAddr: benchRootFunds,
 	})
@@ -162,5 +169,5 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	_, _, _ = GenerateChain(nil, genesisBlock, db, b.N, gen)
+	_, _, _ = GenerateChain(nil, genesisBlock, b.N, stateAt, gen)
 }

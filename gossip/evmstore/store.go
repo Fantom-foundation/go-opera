@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
@@ -102,6 +103,7 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) initEVMDB() {
+	// NOTE: keep EvmDb nil if it is not legacy MPT format
 	s.EvmDb = rawdb.NewDatabase(
 		kvdb2ethdb.Wrap(
 			nokeyiserr.Wrap(
@@ -268,8 +270,9 @@ func (s *Store) Cap() {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) (*state.StateDB, error) {
-	return state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
+func (s *Store) StateDB(from hash.Hash) (evmcore.StateDB, error) {
+	statedb, err := state.NewWithSnapLayers(common.Hash(from), s.EvmState, s.Snaps, 0)
+	return evmcore.ToStateDB(statedb), err
 }
 
 // HasStateDB returns if state database exists

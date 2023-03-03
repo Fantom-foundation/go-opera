@@ -164,10 +164,17 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend, testConfig())
 
-		statedb, _  = state.New(common.Hash{}, state.NewDatabase(backend.db), nil)
-		genesis     = evmcore.MustApplyFakeGenesis(statedb, evmcore.FakeGenesisTime, map[common.Address]*big.Int{})
+		stateAt = func(root common.Hash) evmcore.StateDB {
+			st, err := state.New(root, state.NewDatabase(backend.db), nil)
+			if err != nil {
+				panic(err)
+			}
+			return evmcore.ToStateDB(st)
+		}
+
+		genesis     = evmcore.MustApplyFakeGenesis(stateAt(common.Hash{}), evmcore.FakeGenesisTime, map[common.Address]*big.Int{})
 		chain, _, _ = evmcore.GenerateChain(
-			params.TestChainConfig, genesis, backend.db, 10, nil)
+			params.TestChainConfig, genesis, 10, stateAt, nil)
 		chainEvents = []evmcore.ChainHeadNotify{}
 	)
 
