@@ -817,7 +817,6 @@ func (h *handler) handle(p *peer) error {
 		return p2p.DiscTooManyPeers
 	}
 
-
 	h.peerWG.Add(1)
 	defer h.peerWG.Done()
 
@@ -1043,6 +1042,11 @@ func (h *handler) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		p.SetProgress(progress)
+
+		// If peer has not progressed for NoProgressCount times, then disconnect the peer.
+		if p.IsPeerNotProgressing() {
+			return errResp(ErrPeerNotProgressing, "%v: %v", "epoch is not progressing consecutively for ", NoProgressCount)
+		}
 
 	case msg.Code == EvmTxsMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them

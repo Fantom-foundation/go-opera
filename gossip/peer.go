@@ -31,6 +31,7 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
+	NoProgressCount  = 3
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -62,7 +63,8 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	progress PeerProgress
+	progress            PeerProgress
+	notProgressingCount int
 
 	snapExt  *snapPeer     // Satellite `snap` connection
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
@@ -85,7 +87,21 @@ func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
+	if x.Epoch <= p.progress.Epoch {
+		// peer is not progressing
+		p.notProgressingCount = p.notProgressingCount + 1
+	} else {
+		// peer is progressing
+		p.notProgressingCount = 0
+	}
 	p.progress = x
+}
+
+func (p *peer) IsPeerNotProgressing() bool {
+	if p.notProgressingCount >= NoProgressCount {
+		return true
+	}
+	return false
 }
 
 func (p *peer) InterestedIn(h hash.Event) bool {
