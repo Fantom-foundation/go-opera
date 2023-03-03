@@ -21,8 +21,8 @@ func SetDataDir(datadir string) {
 
 func measureDbDir(name, datadir string) {
 	var (
-		dbSize  atomic.Int64
-		gauge   metrics.Gauge
+		dbSize int64
+		gauge  metrics.Gauge
 		rescan = (len(datadir) > 0 && datadir != "inmemory")
 	)
 	for {
@@ -30,12 +30,12 @@ func measureDbDir(name, datadir string) {
 
 		if rescan {
 			size := sizeOfDir(datadir)
-			dbSize.Store(size)
+			atomic.StoreInt64(&dbSize, size)
 		}
 
 		if gauge == nil {
 			gauge = metrics.NewRegisteredFunctionalGauge(name, nil, func() int64 {
-				return dbSize.Load()
+				return atomic.LoadInt64(&dbSize)
 			})
 		}
 
