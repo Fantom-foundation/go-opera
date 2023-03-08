@@ -78,10 +78,10 @@ func (s *Store) ApplyGenesis(g genesis.Genesis) (genesisHash hash.Hash, err erro
 func (s *Store) WrapTablesAsBatched() (unwrap func()) {
 	origTables := s.table
 
-	batchedBlocks := batched.Wrap(autocompact.Wrap(autocompact.Wrap(s.table.Blocks, 1*opt.GiB), 16*opt.GiB))
+	batchedBlocks := batched.Wrap(autocompact.Wrap2M(s.table.Blocks, opt.GiB, 16*opt.GiB, false, "blocks"))
 	s.table.Blocks = batchedBlocks
 
-	batchedBlockHashes := batched.Wrap(autocompact.Wrap(autocompact.Wrap(s.table.BlockHashes, 1*opt.GiB), 16*opt.GiB))
+	batchedBlockHashes := batched.Wrap(s.table.BlockHashes)
 	s.table.BlockHashes = batchedBlockHashes
 
 	unwrapEVM := s.evm.WrapTablesAsBatched()

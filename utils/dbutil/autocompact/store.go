@@ -1,71 +1,112 @@
 package autocompact
 
 import (
-	"bytes"
 	"sync"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/status-im/keycard-go/hexutils"
 )
 
+// Store implements automatic compacting of recently inserted/erased data according to provided strategy
 type Store struct {
 	kvdb.Store
-	minKey  []byte
-	maxKey  []byte
-	written uint64
 	limit   uint64
+	cont    ContainerI
+	newCont func() ContainerI
 	compMu  sync.Mutex
+	name    string
 }
 
 type Batch struct {
 	kvdb.Batch
-	written uint64
-	minKey  []byte
-	maxKey  []byte
-	onWrite func(key []byte, size uint64, force bool)
+	store *Store
+	cont  ContainerI
 }
 
-func Wrap(s kvdb.Store, limit uint64) *Store {
+func Wrap(s kvdb.Store, limit uint64, strategy func() ContainerI, name string) *Store {
 	return &Store{
-		Store: s,
-		limit: limit,
+		Store:   s,
+		limit:   limit,
+		newCont: strategy,
+		cont:    strategy(),
+		name: name,
 	}
 }
 
-func (s *Store) onWrite(key []byte, size uint64, force bool) {
+func Wrap2(s kvdb.Store, limit1 uint64, limit2 uint64, strategy func() ContainerI, name string) *Store {
+	return Wrap(Wrap(s, limit1, strategy, name), limit2, strategy, name)
+}
+
+func Wrap2M(s kvdb.Store, limit1 uint64, limit2 uint64, forward bool, name string) *Store {
+	strategy := NewBackwardsCont
+	if forward {
+		strategy = NewForwardCont
+	}
+	return Wrap2(s, limit1, limit2, strategy, name)
+}
+
+func estSize(keyLen int, valLen int) uint64 {
+	// Storage overheads, related to adding/deleting a record,
+	//wouldn't be only proportional to length of key and value.
+	//E.g. if one adds 10 records with length of 2, it will be more expensive than 1 record with length 20
+	// Now, 64 wasn't really calculated but is rather a guesstimation
+	return uint64(keyLen + valLen + 64)
+}
+
+func (s *Store) onWrite(key []byte, size uint64) {
 	s.compMu.Lock()
 	defer s.compMu.Unlock()
-	s.written += size
-	if s.minKey == nil {
-		s.minKey = common.CopyBytes(key)
-		s.maxKey = common.CopyBytes(key)
+	if key != nil {
+		s.cont.Add(key, size)
 	}
-	if key != nil && bytes.Compare(key, s.minKey) < 0 {
-		s.minKey = common.CopyBytes(key)
+	s.mayCompact(false)
+}
+
+func (s *Store) onBatchWrite(batchCont ContainerI) {
+	s.compMu.Lock()
+	defer s.compMu.Unlock()
+	s.cont.Merge(batchCont)
+	s.mayCompact(false)
+}
+
+func (s *Store) compact() {
+	s.compMu.Lock()
+	defer s.compMu.Unlock()
+	s.mayCompact(true)
+}
+
+func (s *Store) mayCompact(force bool) {
+	// error handling
+	err := s.cont.Error()
+	if err != nil {
+		s.cont.Reset()
+		s.newCont = NewDevnullCont
+		s.cont = s.newCont()
+		log.Warn("Autocompaction failed, which may lead to performance issues", "name", s.name, "err", err)
 	}
-	if key != nil && bytes.Compare(key, s.maxKey) > 0 {
-		s.maxKey = common.CopyBytes(key)
-	}
-	if force || s.written > s.limit {
-		_ = s.Store.Compact(s.minKey, s.maxKey)
-		s.written = 0
-		s.minKey = nil
-		s.maxKey = nil
+
+	if force || s.cont.Size() > s.limit {
+		for _, r := range s.cont.Ranges() {
+			log.Debug("Autocompact", "name", s.name, "from", hexutils.BytesToHex(r.minKey), "to", hexutils.BytesToHex(r.maxKey))
+			_ = s.Store.Compact(r.minKey, r.maxKey)
+		}
+		s.cont.Reset()
 	}
 }
 
 func (s *Store) Put(key []byte, value []byte) error {
-	defer s.onWrite(key, uint64(len(key)+len(value)+64), false)
+	defer s.onWrite(key, estSize(len(key), len(value)))
 	return s.Store.Put(key, value)
 }
 
 func (s *Store) Delete(key []byte) error {
-	defer s.onWrite(key, uint64(len(key)+64), false)
+	defer s.onWrite(key, estSize(len(key), 0))
 	return s.Store.Delete(key)
 }
 
 func (s *Store) Close() error {
-	s.onWrite(nil, 0, true)
+	s.compact()
 	return s.Store.Close()
 }
 
@@ -75,50 +116,28 @@ func (s *Store) NewBatch() kvdb.Batch {
 		return nil
 	}
 	return &Batch{
-		Batch:   batch,
-		onWrite: s.onWrite,
+		Batch: batch,
+		store: s,
+		cont:  s.newCont(),
 	}
 }
 
 func (s *Batch) Put(key []byte, value []byte) error {
-	s.written += uint64(len(key) + len(value) + 64)
-	if s.minKey == nil {
-		s.minKey = common.CopyBytes(key)
-		s.maxKey = common.CopyBytes(key)
-	}
-	if bytes.Compare(key, s.minKey) < 0 {
-		s.minKey = common.CopyBytes(key)
-	}
-	if bytes.Compare(key, s.maxKey) > 0 {
-		s.maxKey = common.CopyBytes(key)
-	}
+	s.cont.Add(key, estSize(len(key), len(value)))
 	return s.Batch.Put(key, value)
 }
 
 func (s *Batch) Delete(key []byte) error {
-	s.written += uint64(len(key) + 64)
-	if s.minKey == nil {
-		s.minKey = common.CopyBytes(key)
-		s.maxKey = common.CopyBytes(key)
-	}
-	if bytes.Compare(key, s.minKey) < 0 {
-		s.minKey = common.CopyBytes(key)
-	}
-	if bytes.Compare(key, s.maxKey) > 0 {
-		s.maxKey = common.CopyBytes(key)
-	}
+	s.cont.Add(key, estSize(len(key), 0))
 	return s.Batch.Delete(key)
 }
 
 func (s *Batch) Reset() {
-	s.written = 0
-	s.minKey = nil
-	s.maxKey = nil
+	s.cont.Reset()
 	s.Batch.Reset()
 }
 
 func (s *Batch) Write() error {
-	s.onWrite(s.minKey, 0, false)
-	defer s.onWrite(s.maxKey, s.written, false)
+	defer s.store.onBatchWrite(s.cont)
 	return s.Batch.Write()
 }

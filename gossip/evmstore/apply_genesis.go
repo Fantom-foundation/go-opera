@@ -11,7 +11,7 @@ import (
 
 // ApplyGenesis writes initial state.
 func (s *Store) ApplyGenesis(g genesis.Genesis) (err error) {
-	db := batched.Wrap(autocompact.Wrap(autocompact.Wrap(ethdb2kvdb.Wrap(s.EvmDb), 1*opt.GiB), 16*opt.GiB))
+	db := batched.Wrap(autocompact.Wrap2M(ethdb2kvdb.Wrap(s.EvmDb), opt.GiB, 16*opt.GiB, true, "evm"))
 	g.RawEvmItems.ForEach(func(key, value []byte) bool {
 		err = db.Put(key, value)
 		if err != nil {
@@ -36,7 +36,7 @@ func (s *Store) WrapTablesAsBatched() (unwrap func()) {
 
 	unwrapLogs := s.EvmLogs.WrapTablesAsBatched()
 
-	batchedReceipts := batched.Wrap(autocompact.Wrap(autocompact.Wrap(s.table.Receipts, opt.GiB), 16*opt.GiB))
+	batchedReceipts := batched.Wrap(autocompact.Wrap2M(s.table.Receipts, opt.GiB, 16*opt.GiB, false, "receipts"))
 	s.table.Receipts = batchedReceipts
 	return func() {
 		_ = batchedTxs.Flush()

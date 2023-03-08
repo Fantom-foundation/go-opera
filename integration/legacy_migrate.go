@@ -47,7 +47,7 @@ type transformTask struct {
 
 func transform(m transformTask) error {
 	openDst := func() *batched.Store {
-		return batched.Wrap(autocompact.Wrap(autocompact.Wrap(m.openDst(), 1*opt.GiB), 16*opt.GiB))
+		return batched.Wrap(autocompact.Wrap2M(m.openDst(), opt.GiB, 16*opt.GiB, true, ""))
 	}
 	openSrc := func() *batched.Store {
 		return batched.Wrap(m.openSrc())
