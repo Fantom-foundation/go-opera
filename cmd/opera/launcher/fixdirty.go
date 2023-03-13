@@ -36,7 +36,7 @@ func healDirty(ctx *cli.Context) error {
 	multiProducer := makeDirectDBsProducerFrom(dbTypes, cfg)
 
 	// reverts the gossip database state
-	epochState, err := fixDirtyGossipDb(multiProducer, cfg)
+	epochState, topEpoch, err := fixDirtyGossipDb(multiProducer, cfg)
 	if err != nil {
 		return err
 	}
@@ -44,8 +44,8 @@ func healDirty(ctx *cli.Context) error {
 	// drop epoch-related databases and consensus database
 	log.Info("Removing epoch DBs - will be recreated on next start")
 	for _, name := range []string{
-		fmt.Sprintf("gossip-%d", epochState.Epoch),
-		fmt.Sprintf("lachesis-%d", epochState.Epoch),
+		fmt.Sprintf("gossip-%d", topEpoch),
+		fmt.Sprintf("lachesis-%d", topEpoch),
 		"lachesis",
 	} {
 		err = eraseTable(name, multiProducer)
@@ -85,14 +85,15 @@ func healDirty(ctx *cli.Context) error {
 
 // fixDirtyGossipDb reverts the gossip database into state, when was one of last epochs sealed
 func fixDirtyGossipDb(producer kvdb.FlushableDBProducer, cfg *config) (
-	epochState *iblockproc.EpochState, err error) {
+	epochState *iblockproc.EpochState, topEpoch idx.Epoch, err error) {
 	gdb := makeGossipStore(producer, cfg) // requires FlushIDKey present (not clean) in all dbs
 	defer gdb.Close()
+	topEpoch = gdb.GetEpoch()
 
 	// find the last closed epoch with the state available
 	epochIdx, blockState, epochState := getLastEpochWithState(gdb, maxEpochsToTry)
 	if blockState == nil || epochState == nil {
-		return nil, fmt.Errorf("state for last %d closed epochs is pruned, recovery isn't possible", maxEpochsToTry)
+		return nil, 0, fmt.Errorf("state for last %d closed epochs is pruned, recovery isn't possible", maxEpochsToTry)
 	}
 
 	// set the historic state to be the current
@@ -111,7 +112,7 @@ func fixDirtyGossipDb(producer kvdb.FlushableDBProducer, cfg *config) (
 		return true
 	})
 
-	return epochState, nil
+	return epochState, topEpoch, nil
 }
 
 // getLastEpochWithState finds the last closed epoch with the state available
