@@ -18,6 +18,7 @@ package evmcore
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math"
 	"math/big"
 	"time"
@@ -205,6 +206,10 @@ func FakeKey(n int) *ecdsa.PrivateKey {
 		key70, key71, key72, key73, key74, key75, key76, key77, key78, key79,
 		key80, key81, key82, key83, key84, key85, key86, key87, key88, key89,
 		key90, key91, key92, key93, key94, key95, key96, key97, key98, key99,
+	}
+
+	if n > len(keys) {
+		panic(errors.New("validator num is toor large"))
 	}
 
 	return keys[n-1]
