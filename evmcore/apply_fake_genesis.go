@@ -209,7 +209,7 @@ func FakeKey(n int) *ecdsa.PrivateKey {
 	}
 
 	if n > len(keys) {
-		panic(errors.New("validator num is toor large"))
+		panic(errors.New("validator num is too large"))
 	}
 
 	return keys[n-1]
