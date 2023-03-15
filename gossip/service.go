@@ -355,7 +355,7 @@ func MakeProtocols(svc *Service, backend *handler, disc enode.Iterator) []p2p.Pr
 		protocols[i] = p2p.Protocol{
 			Name:    ProtocolName,
 			Version: version,
-			Length:  protocolLengths[version],
+			Length:  ProtocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				// wait until handler has started
 				backend.started.Wait()
