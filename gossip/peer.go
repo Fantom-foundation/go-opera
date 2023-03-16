@@ -31,7 +31,10 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	NoProgressCount  = 3
+)
+
+var (
+	NoProgressTime = 15 * time.Minute // Max allowed minutes to elapse without progress
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -63,11 +66,11 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	progress            PeerProgress
-	notProgressingCount int
+	lastProgress     PeerProgress
+	lastProgressTime time.Time // The last progress message (with progressed Epoch) or a valid application message received time
 
 	snapExt  *snapPeer     // Satellite `snap` connection
-	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
+	syncDrop *time.Timer   // Connection dropper if `eth` sync lastProgress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
 	useless uint32
@@ -87,21 +90,27 @@ func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
-	if x.Epoch <= p.progress.Epoch {
-		// peer is not progressing
-		p.notProgressingCount = p.notProgressingCount + 1
-	} else {
-		// peer is progressing
-		p.notProgressingCount = 0
+	if x.Epoch > p.lastProgress.Epoch {
+		// Increase in epoch, peer is progressing
+		p.setPeerAsProgressing()
+	} else if x.Epoch == p.lastProgress.Epoch && x.LastBlockIdx > p.lastProgress.LastBlockIdx {
+		// Same epoch, but increase in blockIdx
+		p.setPeerAsProgressing()
 	}
-	p.progress = x
+	p.lastProgress = x
 }
 
-func (p *peer) IsPeerNotProgressing() bool {
-	if p.notProgressingCount >= NoProgressCount {
-		return true
-	}
-	return false
+func (p *peer) setPeerAsProgressing() {
+	p.lastProgressTime = time.Now()
+}
+
+// used only in testing
+func (p *peer) setProgressThreshold(threshold time.Duration) {
+	NoProgressTime = threshold
+}
+
+func (p *peer) IsPeerProgressing() bool {
+	return time.Since(p.lastProgressTime) < NoProgressTime
 }
 
 func (p *peer) InterestedIn(h hash.Event) bool {
@@ -111,8 +120,8 @@ func (p *peer) InterestedIn(h hash.Event) bool {
 	defer p.RUnlock()
 
 	return e != 0 &&
-		p.progress.Epoch != 0 &&
-		(e == p.progress.Epoch || e == p.progress.Epoch+1) &&
+		p.lastProgress.Epoch != 0 &&
+		(e == p.lastProgress.Epoch || e == p.lastProgress.Epoch+1) &&
 		!p.knownEvents.Contains(h)
 }
 
@@ -168,8 +177,8 @@ func (p *peer) Close() {
 func (p *peer) Info() *PeerInfo {
 	return &PeerInfo{
 		Version:     p.version,
-		Epoch:       p.progress.Epoch,
-		NumOfBlocks: p.progress.LastBlockIdx,
+		Epoch:       p.lastProgress.Epoch,
+		NumOfBlocks: p.lastProgress.LastBlockIdx,
 	}
 }
 
@@ -420,11 +429,11 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	}
 }
 
-// AsyncSendProgress queues a progress propagation to a remote peer.
-// If the peer's broadcast queue is full, the progress is silently dropped.
+// AsyncSendProgress queues a lastProgress propagation to a remote peer.
+// If the peer's broadcast queue is full, the lastProgress is silently dropped.
 func (p *peer) AsyncSendProgress(progress PeerProgress, queue chan broadcastItem) {
 	if !p.asyncSendNonEncodedItem(progress, ProgressMsg, queue) {
-		p.Log().Debug("Dropping peer progress propagation")
+		p.Log().Debug("Dropping peer lastProgress propagation")
 	}
 }
 
