@@ -40,7 +40,7 @@ var (
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	return evmcore.FakeKey(int(n))
+	return evmcore.FakeKey(uint32(n))
 }
 
 func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
