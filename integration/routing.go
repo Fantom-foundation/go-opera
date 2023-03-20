@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/multidb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/skipkeys"
 
-	"github.com/Fantom-foundation/go-opera/kvdb/threads"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/threads"
 )
 
 type RoutingConfig struct {
