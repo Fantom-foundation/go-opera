@@ -154,8 +154,8 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 	}
 	logger := log.New("database", name)
 	dm.log = logger
-	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
-	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
+	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/read", nil)
+	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/write", nil)
 
 	// Start up the metrics gathering and return
 	go dm.meter(metricsGatheringInterval)
