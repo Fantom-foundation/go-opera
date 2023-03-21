@@ -148,14 +148,14 @@ func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 	dm := WrapStoreWithMetrics(ds)
 	// disk size gauge should be meter separatly for each db name; otherwise,
 	// the last db siae metric will overwrite all the previoius one
-	dm.diskSizeGauge = metrics.GetOrRegisterGauge("opera/chaindata/"+name+"/disk/size", nil)
+	dm.diskSizeGauge = metrics.GetOrRegisterGauge("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/size", nil)
 	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
 		name = "epochs"
 	}
 	logger := log.New("database", name)
 	dm.log = logger
-	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
-	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
+	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/read", nil)
+	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/write", nil)
 
 	// Start up the metrics gathering and return
 	go dm.meter(metricsGatheringInterval)
