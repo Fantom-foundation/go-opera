@@ -62,9 +62,6 @@ const (
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 
-	// watchdog timer for monitoring peer messages
-	watchdogTimer = 3 * time.Minute
-
 	// percentage of useless peer nodes to allow
 	uselessPeerPercentage = 20 // 20%
 
