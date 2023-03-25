@@ -62,8 +62,8 @@ const (
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 
-	// Peer inactivity timer
-	inactivityTime = 20 * time.Minute
+	// watchdog timer for monitoring peer messages
+	watchdogTimer = 3 * time.Minute
 
 	// percentage of useless peer nodes to allow
 	uselessPeerPercentage = 20 // 20%
@@ -73,7 +73,8 @@ const (
 )
 
 var (
-	ErrorInactivityTimeout = errors.New("inactivity timeout")
+	ErrorProgressTimeout = errors.New("progress timeout")
+	ErrorApplicationTimeout = errors.New("application timeout")
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -299,7 +300,7 @@ func newHandler(
 			if p == nil || p.Useless() {
 				return 0
 			}
-			return p.lastProgress.Epoch
+			return p.progress.Epoch
 		},
 	})
 	h.dagSeeder = dagstreamseeder.New(h.config.Protocol.DagStreamSeeder, dagstreamseeder.Callbacks{
@@ -335,7 +336,7 @@ func newHandler(
 			if p == nil || p.Useless() {
 				return 0
 			}
-			return p.lastProgress.LastBlockIdx
+			return p.progress.LastBlockIdx
 		},
 	})
 	h.bvSeeder = bvstreamseeder.New(h.config.Protocol.BvStreamSeeder, bvstreamseeder.Callbacks{
@@ -376,7 +377,7 @@ func newHandler(
 			if p == nil || p.Useless() {
 				return 0
 			}
-			return p.lastProgress.LastBlockIdx
+			return p.progress.LastBlockIdx
 		},
 	})
 	h.brSeeder = brstreamseeder.New(h.config.Protocol.BrStreamSeeder, brstreamseeder.Callbacks{
@@ -414,7 +415,7 @@ func newHandler(
 			if p == nil || p.Useless() {
 				return 0
 			}
-			return p.lastProgress.Epoch
+			return p.progress.Epoch
 		},
 	})
 	h.epSeeder = epstreamseeder.New(h.config.Protocol.EpStreamSeeder, epstreamseeder.Callbacks{
@@ -778,8 +779,8 @@ func (h *handler) highestPeerProgress() PeerProgress {
 	peers := h.peers.List()
 	max := h.myProgress()
 	for _, peer := range peers {
-		if max.LastBlockIdx < peer.lastProgress.LastBlockIdx {
-			max = peer.lastProgress
+		if max.LastBlockIdx < peer.progress.LastBlockIdx {
+			max = peer.progress
 		}
 	}
 	return max
@@ -878,14 +879,32 @@ func (h *handler) handle(p *peer) error {
 	// timer times out.
 	var noOfApplicationErrors = 0
 	for {
-		inactivityTimer := time.NewTimer(inactivityTime)
+		// progress and application
+		progressWatchDogTimer := time.NewTimer(noProgressTime)
+		applicationWatchDogTimer := time.NewTimer(noAppMessageTime)
 		select {
-		case <-inactivityTimer.C:
-			p.Log().Warn("Inactivity timer timeout: ", "name", p.Name(), "node", p.Node().String())
-			discfilter.Ban(p.ID())
-			return ErrorInactivityTimeout
+		case <-progressWatchDogTimer.C:
+			// If self syncing, don't check peer progress
+			if !h.syncStatus.AcceptTxs() {
+				progressWatchDogTimer.Reset(noProgressTime)
+				break
+			}
+			if p.IsPeerProgressing() {
+				progressWatchDogTimer.Reset(noProgressTime)
+			} else {
+				p.Log().Warn("progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				discfilter.Ban(p.ID())
+				return ErrorProgressTimeout
+			}
+		case <- applicationWatchDogTimer.C:
+			if p.IsApplicationProgressing() {
+				applicationWatchDogTimer.Reset(noAppMessageTime)
+			} else {
+				p.Log().Warn("application timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				discfilter.Ban(p.ID())
+				return ErrorApplicationTimeout
+			}
 		default:
-			inactivityTimer.Stop() // some activity is happening, so stop the timer
 			err := h.handleMsg(p)
 			if err != nil {
 				p.Log().Debug("Message handling failed", "err", err)
@@ -1054,9 +1073,9 @@ func (h *handler) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		p.SetProgress(progress)
-		// If peer has not progressed for NoProgressTime minutes, then disconnect the peer.
+		// If peer has not progressed for noProgressTime minutes, then disconnect the peer.
 		if !p.IsPeerProgressing() {
-			return errResp(ErrPeerNotProgressing, "%v: %v %v", "epoch is not progressing for ", NoProgressTime, "minutes")
+			return errResp(ErrPeerNotProgressing, "%v: %v %v", "epoch is not progressing for ", noProgressTime, "minutes")
 		}
 
 	case msg.Code == EvmTxsMsg:
@@ -1363,7 +1382,7 @@ func (h *handler) handleMsg(p *peer) error {
 
 	if msg.Code != ProgressMsg {
 		//  Since a valid application message is received, set the peer as progressing.
-		p.setPeerAsProgressing()
+		p.SetApplicationProgress()
 	}
 	return nil
 }

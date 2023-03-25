@@ -34,7 +34,8 @@ const (
 )
 
 var (
-	NoProgressTime = 15 * time.Minute // Max allowed minutes to elapse without progress
+	noProgressTime   = 3 * time.Minute  // Max allowed minutes to elapse without Epoch progress
+	noAppMessageTime = 15 * time.Minute // Max allowed minutes to elapse without any Application message
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -66,11 +67,12 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	lastProgress     PeerProgress
-	lastProgressTime time.Time // The last progress message (with progressed Epoch) or a valid application message received time
+	progress       PeerProgress
+	progressTime   time.Time // The last progress message (with progressed Epoch)
+	appMessageTime time.Time // The last valid application message received
 
 	snapExt  *snapPeer     // Satellite `snap` connection
-	syncDrop *time.Timer   // Connection dropper if `eth` sync lastProgress isn't validated in time
+	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
 	useless uint32
@@ -90,27 +92,29 @@ func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
-	if x.Epoch > p.lastProgress.Epoch {
-		// Increase in epoch, peer is progressing
-		p.setPeerAsProgressing()
-	} else if x.Epoch == p.lastProgress.Epoch && x.LastBlockIdx > p.lastProgress.LastBlockIdx {
-		// Same epoch, but increase in blockIdx
-		p.setPeerAsProgressing()
+	// Check if the peer is progressing
+	if x.More(p.progress) {
+		p.setPeerAsProgressing(x)
 	}
-	p.lastProgress = x
 }
 
-func (p *peer) setPeerAsProgressing() {
-	p.lastProgressTime = time.Now()
-}
-
-// used only in testing
-func (p *peer) setProgressThreshold(threshold time.Duration) {
-	NoProgressTime = threshold
+func (p *peer) setPeerAsProgressing(x PeerProgress) {
+	p.progress = x
+	p.progressTime = time.Now()
 }
 
 func (p *peer) IsPeerProgressing() bool {
-	return time.Since(p.lastProgressTime) < NoProgressTime
+	return time.Since(p.progressTime) < noProgressTime
+}
+
+func (p *peer) SetApplicationProgress() {
+	p.Lock()
+	defer p.Unlock()
+	p.appMessageTime = time.Now()
+}
+
+func (p *peer) IsApplicationProgressing() bool {
+	return time.Since(p.appMessageTime) < noAppMessageTime
 }
 
 func (p *peer) InterestedIn(h hash.Event) bool {
@@ -120,9 +124,18 @@ func (p *peer) InterestedIn(h hash.Event) bool {
 	defer p.RUnlock()
 
 	return e != 0 &&
-		p.lastProgress.Epoch != 0 &&
-		(e == p.lastProgress.Epoch || e == p.lastProgress.Epoch+1) &&
+		p.progress.Epoch != 0 &&
+		(e == p.progress.Epoch || e == p.progress.Epoch+1) &&
 		!p.knownEvents.Contains(h)
+}
+
+func (a *PeerProgress) More(b PeerProgress) bool {
+	if a.Epoch > b.Epoch {
+		return true
+	} else if a.Epoch == b.Epoch && a.LastBlockIdx > b.LastBlockIdx {
+		return true
+	}
+	return false
 }
 
 func (a *PeerProgress) Less(b PeerProgress) bool {
@@ -144,6 +157,8 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
+		progressTime:        time.Now(),
+		appMessageTime:      time.Now(),
 	}
 
 	go peer.broadcast(peer.queue)
@@ -177,8 +192,8 @@ func (p *peer) Close() {
 func (p *peer) Info() *PeerInfo {
 	return &PeerInfo{
 		Version:     p.version,
-		Epoch:       p.lastProgress.Epoch,
-		NumOfBlocks: p.lastProgress.LastBlockIdx,
+		Epoch:       p.progress.Epoch,
+		NumOfBlocks: p.progress.LastBlockIdx,
 	}
 }
 
@@ -429,11 +444,11 @@ func (p *peer) EnqueueSendEventsRLP(events []rlp.RawValue, ids []hash.Event, que
 	}
 }
 
-// AsyncSendProgress queues a lastProgress propagation to a remote peer.
-// If the peer's broadcast queue is full, the lastProgress is silently dropped.
+// AsyncSendProgress queues a progress propagation to a remote peer.
+// If the peer's broadcast queue is full, the progress is silently dropped.
 func (p *peer) AsyncSendProgress(progress PeerProgress, queue chan broadcastItem) {
 	if !p.asyncSendNonEncodedItem(progress, ProgressMsg, queue) {
-		p.Log().Debug("Dropping peer lastProgress propagation")
+		p.Log().Debug("Dropping peer progress propagation")
 	}
 }
 
