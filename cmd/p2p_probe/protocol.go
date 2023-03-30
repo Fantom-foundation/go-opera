@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type ProbeBackend struct {
@@ -29,7 +33,7 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 				peer := newPeer(version, p, rw)
 				defer peer.Close()
 
-				fmt.Printf("Connected to %s (%s) \n", p.Fullname(), p.RemoteAddr().String())
+				fmt.Printf("--> Connected to %s (%s) \n", p.Fullname(), p.RemoteAddr().String())
 
 				select {
 				case <-backend.quitSync:
@@ -39,6 +43,7 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 				}
 			},
 			NodeInfo: func() interface{} {
+				fmt.Printf("--> NodeInfo (%v) \n", backend.NodeInfo())
 				return backend.NodeInfo()
 			},
 			PeerInfo: func(id enode.ID) interface{} {
@@ -65,16 +70,52 @@ func (b *ProbeBackend) NodeInfo() *gossip.NodeInfo {
 }
 
 // ENR
+
+// enrEntry is the ENR entry which advertises `eth` protocol on the discovery.
 type enrEntry struct {
-	backend *ProbeBackend
+	ForkID forkid.ID // Fork identifier per EIP-2124
+
+	// Ignore additional fields (for forward compatibility).
+	Rest []rlp.RawValue `rlp:"tail"`
 }
 
-func (e *enrEntry) ENRKey() string {
-	return ""
+// ENRKey implements enr.Entry.
+func (enrEntry) ENRKey() string {
+	return "opera"
 }
 
 func currentENREntry(b *ProbeBackend) enr.Entry {
+	info := b.NodeInfo()
+
+	chainConfig := opera.MainNetRules().EvmChainConfig(
+		[]opera.UpgradeHeight{
+			{
+				Height: 0,
+				Upgrades: opera.Upgrades{
+					Berlin: true,
+					London: true,
+					Llr:    true,
+				},
+			},
+		})
+
 	return &enrEntry{
-		backend: b,
+		ForkID: forkid.NewID(chainConfig, info.Genesis, uint64(info.NumOfBlocks)),
 	}
+}
+
+// Dial candidates
+
+func operaDialCandidates() enode.Iterator {
+	var config gossip.Config
+
+	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
+
+	urls := config.OperaDiscoveryURLs
+	it, err := dnsclient.NewIterator(urls...)
+	if err != nil {
+		panic(err)
+	}
+
+	return it
 }
