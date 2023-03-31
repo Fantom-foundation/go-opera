@@ -1,10 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -16,10 +19,12 @@ import (
 )
 
 type ProbeBackend struct {
+	Progress gossip.PeerProgress
 	NodeInfo *gossip.NodeInfo
 	Opera    *opera.Rules
 	Chain    *params.ChainConfig
 
+	wg       sync.WaitGroup
 	quitSync chan struct{}
 }
 
@@ -31,6 +36,7 @@ func NewProbeBackend() *ProbeBackend {
 
 func (b *ProbeBackend) Close() {
 	close(b.quitSync)
+	b.wg.Wait()
 }
 
 func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
@@ -46,17 +52,16 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 				peer := newPeer(version, p, rw)
 				defer peer.Close()
 
-				fmt.Printf("--> Connected to %s (%s) \n", p.Fullname(), p.RemoteAddr().String())
-
 				select {
 				case <-backend.quitSync:
 					return p2p.DiscQuitting
 				default:
+					backend.wg.Add(1)
+					defer backend.wg.Done()
 					return backend.handle(peer)
 				}
 			},
 			NodeInfo: func() interface{} {
-				fmt.Printf("--> NodeInfo (%v) \n", backend.NodeInfo)
 				return backend.NodeInfo
 			},
 			PeerInfo: func(id enode.ID) interface{} {
@@ -71,6 +76,27 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 }
 
 func (b *ProbeBackend) handle(p *peer) error {
+	log.Info("Dialed peer", "name", p.Fullname(), "ip", p.RemoteAddr().String())
+
+	// Check useless
+	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
+	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
+		useless = true
+		discfilter.Ban(p.ID())
+	}
+	if !p.Peer.Info().Network.Trusted && useless {
+		return p2p.DiscTooManyPeers
+	}
+
+	// Execute the handshake
+	if err := p.Handshake(b.NodeInfo.Network, b.Progress, b.NodeInfo.Genesis); err != nil {
+		p.Log().Debug("Handshake failed", "err", err)
+		if !useless {
+			discfilter.Ban(p.ID())
+		}
+		return err
+	}
+
 	return nil
 }
 

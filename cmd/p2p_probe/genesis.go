@@ -63,6 +63,11 @@ func (b *ProbeBackend) LoadGenesis(gPath string) {
 		panic("no ERs in genesis")
 	}
 
+	b.Progress = gossip.PeerProgress{
+		Epoch:            firstES.Epoch,
+		LastBlockIdx:     firstBS.LastBlock.Idx,
+		LastBlockAtropos: firstBS.LastBlock.Atropos,
+	}
 	b.NodeInfo = &gossip.NodeInfo{
 		Network:     g.NetworkID,
 		Genesis:     common.Hash(g.GenesisID),
