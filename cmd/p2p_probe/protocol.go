@@ -12,13 +12,25 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type ProbeBackend struct {
 	NodeInfo *gossip.NodeInfo
+	Opera    *opera.Rules
 	Chain    *params.ChainConfig
 
 	quitSync chan struct{}
+}
+
+func NewProbeBackend() *ProbeBackend {
+	return &ProbeBackend{
+		quitSync: make(chan struct{}),
+	}
+}
+
+func (b *ProbeBackend) Close() {
+	close(b.quitSync)
 }
 
 func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
@@ -62,10 +74,6 @@ func (b *ProbeBackend) handle(p *peer) error {
 	return nil
 }
 
-func (b *ProbeBackend) Close() {
-	close(b.quitSync)
-}
-
 // ENR
 
 // enrEntry is the ENR entry which advertises `eth` protocol on the discovery.
@@ -83,14 +91,8 @@ func (enrEntry) ENRKey() string {
 
 func currentENREntry(b *ProbeBackend) enr.Entry {
 	info := b.NodeInfo
-
 	e := &enrEntry{
 		ForkID: forkid.NewID(b.Chain, info.Genesis, uint64(info.NumOfBlocks)),
-	}
-	// TODO: remove
-	e.ForkID = forkid.ID{
-		Hash: [4]byte{239, 156, 57, 73},
-		Next: 0,
 	}
 
 	return e

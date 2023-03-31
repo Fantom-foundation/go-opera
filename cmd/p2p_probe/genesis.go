@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
@@ -14,8 +13,8 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 )
 
-// ChainInfoFromGenesis like gossip/Store.ApplyGenesis()
-func ChainInfoFromGenesis(gPath string) (*gossip.NodeInfo, *params.ChainConfig) {
+// LoadGenesis like gossip/Store.ApplyGenesis()
+func (b *ProbeBackend) LoadGenesis(gPath string) {
 	f, err := os.Open(gPath)
 	if err != nil {
 		panic(fmt.Errorf("Failed to open genesis file: %v", err))
@@ -64,12 +63,12 @@ func ChainInfoFromGenesis(gPath string) (*gossip.NodeInfo, *params.ChainConfig) 
 		panic("no ERs in genesis")
 	}
 
-	return &gossip.NodeInfo{
-			Network:     g.NetworkID,
-			Genesis:     common.Hash(g.GenesisID),
-			Epoch:       firstES.Epoch,
-			NumOfBlocks: firstBS.LastBlock.Idx,
-		},
-		firstES.Rules.EvmChainConfig(hh)
-
+	b.NodeInfo = &gossip.NodeInfo{
+		Network:     g.NetworkID,
+		Genesis:     common.Hash(g.GenesisID),
+		Epoch:       firstES.Epoch,
+		NumOfBlocks: firstBS.LastBlock.Idx,
+	}
+	b.Opera = &firstES.Rules
+	b.Chain = firstES.Rules.EvmChainConfig(hh)
 }

@@ -11,10 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher"
-	"github.com/Fantom-foundation/go-opera/gossip"
 )
 
 func init() {
@@ -25,10 +23,9 @@ func init() {
 }
 
 func main() {
-	info, chain := ChainInfoFromGenesis("../blockchains/testnet-6226-full-mpt.g")
-
-	backend := newProbeBackend(info, chain)
+	backend := NewProbeBackend()
 	defer backend.Close()
+	backend.LoadGenesis("../blockchains/testnet-6226-full-mpt.g")
 
 	s := newServer(backend)
 	err := s.Start()
@@ -46,26 +43,20 @@ func wait() {
 	<-sigs
 }
 
-func newProbeBackend(info *gossip.NodeInfo, chain *params.ChainConfig) *ProbeBackend {
-	return &ProbeBackend{
-		NodeInfo: info,
-		Chain:    chain,
-		quitSync: make(chan struct{}),
-	}
-}
-
 func newServer(backend *ProbeBackend) *p2p.Server {
 	var cfg = launcher.NodeDefaultConfig.P2P
 
 	cfg.PrivateKey = anyKey()
 	cfg.Protocols = ProbeProtocols(backend)
-	for _, url := range launcher.Bootnodes["main"] {
+
+	for _, url := range launcher.Bootnodes[backend.Opera.Name] {
 		cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5, eNode(url))
 	}
 	cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5,
 		eNode("867d5c0e27c973fbb2f9d2f9a2acd3347b92887f9cd217001a163619c07629f4b987fb0f3876c422b640d08510381565862592473fefb4591d59547bc403f4f3@54.146.98.52:47306"),
 		eNode("b7041f62fa0310e5ffd0862710caaf8685e16c7143e8a7702ac2698e0673e246eb0e53d346f3acbab5f2dc439da296b39cd612207cd9067edaf6f24a29a1d1f3@116.202.109.106:5051"),
 	)
+	cfg.BootstrapNodes = cfg.BootstrapNodesV5
 
 	return &p2p.Server{
 		Config: cfg,
