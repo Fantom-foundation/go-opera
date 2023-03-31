@@ -8,14 +8,15 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 type ProbeBackend struct {
-	nodeInfo *gossip.NodeInfo
+	NodeInfo *gossip.NodeInfo
+	Chain    *params.ChainConfig
 
 	quitSync chan struct{}
 }
@@ -43,8 +44,8 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 				}
 			},
 			NodeInfo: func() interface{} {
-				fmt.Printf("--> NodeInfo (%v) \n", backend.NodeInfo())
-				return backend.NodeInfo()
+				fmt.Printf("--> NodeInfo (%v) \n", backend.NodeInfo)
+				return backend.NodeInfo
 			},
 			PeerInfo: func(id enode.ID) interface{} {
 				return nil
@@ -62,11 +63,7 @@ func (b *ProbeBackend) handle(p *peer) error {
 }
 
 func (b *ProbeBackend) Close() {
-	return
-}
-
-func (b *ProbeBackend) NodeInfo() *gossip.NodeInfo {
-	return b.nodeInfo
+	close(b.quitSync)
 }
 
 // ENR
@@ -85,23 +82,18 @@ func (enrEntry) ENRKey() string {
 }
 
 func currentENREntry(b *ProbeBackend) enr.Entry {
-	info := b.NodeInfo()
+	info := b.NodeInfo
 
-	chainConfig := opera.MainNetRules().EvmChainConfig(
-		[]opera.UpgradeHeight{
-			{
-				Height: 0,
-				Upgrades: opera.Upgrades{
-					Berlin: true,
-					London: true,
-					Llr:    true,
-				},
-			},
-		})
-
-	return &enrEntry{
-		ForkID: forkid.NewID(chainConfig, info.Genesis, uint64(info.NumOfBlocks)),
+	e := &enrEntry{
+		ForkID: forkid.NewID(b.Chain, info.Genesis, uint64(info.NumOfBlocks)),
 	}
+	// TODO: remove
+	e.ForkID = forkid.ID{
+		Hash: [4]byte{239, 156, 57, 73},
+		Next: 0,
+	}
+
+	return e
 }
 
 // Dial candidates

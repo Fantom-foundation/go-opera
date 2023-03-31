@@ -7,16 +7,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher"
 	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 func init() {
@@ -27,7 +25,9 @@ func init() {
 }
 
 func main() {
-	backend := newProbeBackend()
+	info, chain := ChainInfoFromGenesis("../blockchains/testnet-6226-full-mpt.g")
+
+	backend := newProbeBackend(info, chain)
 	defer backend.Close()
 
 	s := newServer(backend)
@@ -36,8 +36,6 @@ func main() {
 		panic(err)
 	}
 	defer s.Stop()
-
-	log.Info("Node database", "path", s.NodeDatabase)
 
 	wait()
 }
@@ -48,16 +46,10 @@ func wait() {
 	<-sigs
 }
 
-func newProbeBackend() *ProbeBackend {
+func newProbeBackend(info *gossip.NodeInfo, chain *params.ChainConfig) *ProbeBackend {
 	return &ProbeBackend{
-		// mainnet
-		nodeInfo: &gossip.NodeInfo{
-			Network:     opera.MainNetworkID,
-			Genesis:     common.HexToHash("0x4a53c5445584b3bfc20dbfb2ec18ae20037c716f3ba2d9e1da768a9deca17cb4"),
-			Epoch:       197556,
-			NumOfBlocks: 57715201,
-		},
-
+		NodeInfo: info,
+		Chain:    chain,
 		quitSync: make(chan struct{}),
 	}
 }
