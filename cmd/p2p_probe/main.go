@@ -17,15 +17,20 @@ import (
 
 func init() {
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
-	glogger.Verbosity(log.LvlTrace)
-	// glogger.Verbosity(log.LvlDebug)
+	//glogger.Verbosity(log.LvlTrace)
+	glogger.Verbosity(log.LvlDebug)
 	log.Root().SetHandler(glogger)
 }
+
+const (
+	genesisFile = "../blockchains/mainnet-109331-pruned-mpt.g"
+	// genesisFile = "../blockchains/testnet-6226-full-mpt.g"
+)
 
 func main() {
 	backend := NewProbeBackend()
 	defer backend.Close()
-	backend.LoadGenesis("../blockchains/testnet-6226-full-mpt.g")
+	backend.LoadGenesis(genesisFile)
 
 	s := newServer(backend)
 	err := s.Start()
