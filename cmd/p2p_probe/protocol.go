@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -77,12 +79,12 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 
 func (b *ProbeBackend) handle(p *peer) error {
 	log.Info("Dialed peer", "name", p.Fullname(), "ip", p.RemoteAddr().String())
+	defer discfilter.Ban(p.ID()) // don't connect again
 
 	// Check useless
 	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
 	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
 		useless = true
-		discfilter.Ban(p.ID())
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
 		return p2p.DiscTooManyPeers
@@ -91,12 +93,123 @@ func (b *ProbeBackend) handle(p *peer) error {
 	// Execute the handshake
 	if err := p.Handshake(b.NodeInfo.Network, b.Progress, b.NodeInfo.Genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
-		if !useless {
-			discfilter.Ban(p.ID())
-		}
 		return err
 	}
 
+	// Handle incoming messages until the connection is torn down
+	for {
+		if err := b.handleMsg(p); err != nil {
+			p.Log().Debug("Message handling failed", "err", err)
+			return err
+		}
+	}
+}
+
+// handleMsg is invoked whenever an inbound message is received from a remote
+// peer. The remote connection is torn down upon returning any error.
+func (b *ProbeBackend) handleMsg(p *peer) error {
+	// Read the next message from the remote peer, and ensure it's fully consumed
+	msg, err := p.rw.ReadMsg()
+	if err != nil {
+		return err
+	}
+	if msg.Size > protocolMaxMsgSize {
+		return errResp(gossip.ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
+	}
+	defer msg.Discard()
+
+	// Handle the message depending on its contents
+	switch {
+	case msg.Code == gossip.HandshakeMsg:
+		// Status messages should never arrive after the handshake
+		return errResp(gossip.ErrExtraStatusMsg, "uncontrolled status message")
+
+	case msg.Code == gossip.ProgressMsg:
+		var progress gossip.PeerProgress
+		if err := msg.Decode(&progress); err != nil {
+			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
+		}
+		p.SetProgress(progress)
+
+	case msg.Code == gossip.EvmTxsMsg:
+		break
+
+	case msg.Code == gossip.NewEvmTxHashesMsg:
+		break
+
+	case msg.Code == gossip.GetEvmTxsMsg:
+		break
+
+	case msg.Code == gossip.EventsMsg:
+		var events inter.EventPayloads
+		if err := msg.Decode(&events); err != nil {
+			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(events), events); err != nil {
+			return err
+		}
+		p.Log().Info("PEER brings", "events", events)
+		//h.handleEvents(p, events.Bases(), events.Len() > 1)
+
+	case msg.Code == gossip.NewEventIDsMsg:
+		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
+		var announces hash.Events
+		if err := msg.Decode(&announces); err != nil {
+			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(announces), announces); err != nil {
+			return err
+		}
+		p.Log().Info("PEER knows", "events", announces)
+		//h.handleEventHashes(p, announces)
+
+	case msg.Code == gossip.GetEventsMsg:
+		var requests hash.Events
+		if err := msg.Decode(&requests); err != nil {
+			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(requests), requests); err != nil {
+			return err
+		}
+
+		p.Log().Info("PEER wants", "events", requests)
+
+	case msg.Code == gossip.RequestEventsStream:
+		break
+	case msg.Code == gossip.EventsStreamResponse:
+		break
+
+	case msg.Code == gossip.RequestBVsStream:
+		break
+
+	case msg.Code == gossip.BVsStreamResponse:
+		break
+
+	case msg.Code == gossip.RequestBRsStream:
+		break
+
+	case msg.Code == gossip.BRsStreamResponse:
+		break
+
+	case msg.Code == gossip.RequestEPsStream:
+		break
+
+	case msg.Code == gossip.EPsStreamResponse:
+		break
+
+	default:
+		return errResp(gossip.ErrInvalidMsgCode, "%v", msg.Code)
+	}
+	return nil
+}
+
+func checkLenLimits(size int, v interface{}) error {
+	if size <= 0 {
+		return errResp(gossip.ErrEmptyMessage, "%v", v)
+	}
+	if size > hardLimitItems {
+		return errResp(gossip.ErrMsgTooLarge, "%v", v)
+	}
 	return nil
 }
 

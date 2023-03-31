@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,9 @@ const (
 	handshakeTimeout   = 5 * time.Second
 	protocolMaxMsgSize = inter.ProtocolMaxMsgSize // Maximum cap on the size of a protocol message
 
+	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
+	softLimitItems        = 250                // Target maximum number of events or transactions to request/response
+	hardLimitItems        = softLimitItems * 4 // Maximum number of events or transactions to request/response
 )
 
 type errCode int
@@ -22,7 +26,11 @@ type errCode int
 type peer struct {
 	*p2p.Peer
 	version uint // Protocol version negotiated
-	rw      p2p.MsgReadWriter
+
+	progress gossip.PeerProgress
+
+	rw p2p.MsgReadWriter
+	sync.RWMutex
 }
 
 func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -114,6 +122,15 @@ func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis comm
 		return errResp(gossip.ErrProtocolVersionMismatch, "%d (!= %d)", handshake.ProtocolVersion, p.version)
 	}
 	return nil
+}
+
+func (p *peer) SetProgress(x gossip.PeerProgress) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.progress = x
+
+	p.Log().Info("PEER PROGRESS", "atropos", x.LastBlockAtropos, "name", p.Fullname(), "addr", p.RemoteAddr().String())
 }
 
 func errResp(code errCode, format string, v ...interface{}) error {
