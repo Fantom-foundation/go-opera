@@ -73,6 +73,7 @@ type Message interface {
 
 	Nonce() uint64
 	IsFake() bool
+	IsAA() bool
 	Data() []byte
 	AccessList() types.AccessList
 }
@@ -188,17 +189,24 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
-	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
-	if have, want := st.state.GetBalance(st.msg.From()), mgval; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+
+	if !st.msg.IsAA() {
+		// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
+		if have, want := st.state.GetBalance(st.msg.From()), mgval; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+		}
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
-	st.gas += st.msg.Gas()
 
+	st.gas += st.msg.Gas()
 	st.initialGas = st.msg.Gas()
-	st.state.SubBalance(st.msg.From(), mgval)
+
+	if !st.msg.IsAA() {
+		st.state.SubBalance(st.msg.From(), mgval)
+	}
+
 	return nil
 }
 
@@ -214,10 +222,12 @@ func (st *StateTransition) preCheck() error {
 			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooLow,
 				st.msg.From().Hex(), msgNonce, stNonce)
 		}
-		// Make sure the sender is an EOA
-		if codeHash := st.state.GetCodeHash(st.msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
-			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
-				st.msg.From().Hex(), codeHash)
+		if !st.msg.IsAA() {
+			// Make sure the sender is an EOA
+			if codeHash := st.state.GetCodeHash(st.msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
+				return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
+					st.msg.From().Hex(), codeHash)
+			}
 		}
 	}
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
