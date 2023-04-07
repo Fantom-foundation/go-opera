@@ -7,7 +7,7 @@ import (
 
 func IsInternal(tx *types.Transaction) bool {
 	v, r, _ := tx.RawSignatureValues()
-	return v.Sign() == 0 && r.Sign() == 0
+	return tx.Type() != types.AccountAbstractionTxType && v.Sign() == 0 && r.Sign() == 0
 }
 
 func InternalSender(tx *types.Transaction) common.Address {

@@ -114,11 +114,13 @@ func (result *ExecutionResult) Revert() []byte {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool) (uint64, error) {
+func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool, isAA bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if isContractCreation {
 		gas = params.TxGasContractCreation
+	} else if isAA {
+		gas = params.AATxGas
 	} else {
 		gas = params.TxGas
 	}
@@ -276,7 +278,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	london := st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation)
+	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, st.msg.IsAA())
 	if err != nil {
 		return nil, err
 	}
