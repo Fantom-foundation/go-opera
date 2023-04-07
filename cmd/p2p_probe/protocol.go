@@ -26,12 +26,15 @@ type ProbeBackend struct {
 	Opera    *opera.Rules
 	Chain    *params.ChainConfig
 
+	peers *peerSet
+
 	wg       sync.WaitGroup
 	quitSync chan struct{}
 }
 
 func NewProbeBackend() *ProbeBackend {
 	return &ProbeBackend{
+		peers:    newPeerSet(),
 		quitSync: make(chan struct{}),
 	}
 }
@@ -67,6 +70,9 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 				return backend.NodeInfo
 			},
 			PeerInfo: func(id enode.ID) interface{} {
+				if p := backend.peers.Peer(id.String()); p != nil {
+					return p.Info()
+				}
 				return nil
 			},
 			Attributes:     []enr.Entry{currentENREntry(backend)},
@@ -78,7 +84,7 @@ func ProbeProtocols(backend *ProbeBackend) []p2p.Protocol {
 }
 
 func (b *ProbeBackend) handle(p *peer) error {
-	log.Info("Dialed peer", "name", p.Fullname(), "ip", p.RemoteAddr().String())
+	defer p.Disconnect(p2p.DiscUselessPeer)
 	defer discfilter.Ban(p.ID()) // don't connect again
 
 	// Check useless
@@ -87,7 +93,7 @@ func (b *ProbeBackend) handle(p *peer) error {
 		useless = true
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
-		return p2p.DiscTooManyPeers
+		return p2p.DiscUselessPeer
 	}
 
 	// Execute the handshake
@@ -96,13 +102,22 @@ func (b *ProbeBackend) handle(p *peer) error {
 		return err
 	}
 
+	// Register the peer locally
+	if err := b.peers.RegisterPeer(p); err != nil {
+		p.Log().Warn("Peer registration failed", "err", err)
+		return err
+	}
+	defer b.unregisterPeer(p.id)
+
 	// Handle incoming messages until the connection is torn down
-	for {
+	for limit := 3; limit > 0; limit-- { // don't gossip for a long
 		if err := b.handleMsg(p); err != nil {
 			p.Log().Debug("Message handling failed", "err", err)
 			return err
 		}
 	}
+
+	return nil
 }
 
 // handleMsg is invoked whenever an inbound message is received from a remote
@@ -130,6 +145,7 @@ func (b *ProbeBackend) handleMsg(p *peer) error {
 			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
 		}
 		p.SetProgress(progress)
+		p.Log().Info("PEER progress", "epoch", progress.Epoch, "block", progress.LastBlockIdx, "atropos", progress.LastBlockAtropos)
 
 	case msg.Code == gossip.EvmTxsMsg:
 		break
@@ -201,6 +217,19 @@ func (b *ProbeBackend) handleMsg(p *peer) error {
 		return errResp(gossip.ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
+}
+
+func (b *ProbeBackend) unregisterPeer(id string) {
+	// Short circuit if the peer was already removed
+	peer := b.peers.Peer(id)
+	if peer == nil {
+		return
+	}
+	log.Debug("Removing peer", "peer", id)
+
+	if err := b.peers.UnregisterPeer(id); err != nil {
+		log.Error("Peer removal failed", "peer", id, "err", err)
+	}
 }
 
 func checkLenLimits(size int, v interface{}) error {

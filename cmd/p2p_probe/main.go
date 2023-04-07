@@ -19,6 +19,7 @@ func init() {
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	//glogger.Verbosity(log.LvlTrace)
 	glogger.Verbosity(log.LvlDebug)
+	//glogger.Verbosity(log.LvlInfo)
 	log.Root().SetHandler(glogger)
 }
 

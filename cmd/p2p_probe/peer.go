@@ -25,6 +25,7 @@ type errCode int
 
 type peer struct {
 	*p2p.Peer
+	id      string
 	version uint // Protocol version negotiated
 
 	progress gossip.PeerProgress
@@ -36,6 +37,7 @@ type peer struct {
 func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	peer := &peer{
 		Peer:    p,
+		id:      p.ID().String(),
 		version: version,
 		rw:      rw,
 	}
@@ -44,6 +46,15 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 }
 
 func (p *peer) Close() {
+}
+
+// Info gathers and returns a collection of metadata known about a peer.
+func (p *peer) Info() *gossip.PeerInfo {
+	return &gossip.PeerInfo{
+		Version:     p.version,
+		Epoch:       p.progress.Epoch,
+		NumOfBlocks: p.progress.LastBlockIdx,
+	}
 }
 
 // handshakeData is the network packet for the initial handshake message
@@ -129,8 +140,6 @@ func (p *peer) SetProgress(x gossip.PeerProgress) {
 	defer p.Unlock()
 
 	p.progress = x
-
-	p.Log().Info("PEER PROGRESS", "atropos", x.LastBlockAtropos, "name", p.Fullname(), "addr", p.RemoteAddr().String())
 }
 
 func errResp(code errCode, format string, v ...interface{}) error {
