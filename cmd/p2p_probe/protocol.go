@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -146,6 +147,7 @@ func (b *ProbeBackend) handleMsg(p *peer) error {
 		}
 		p.SetProgress(progress)
 		p.Log().Info("PEER progress", "epoch", progress.Epoch, "block", progress.LastBlockIdx, "atropos", progress.LastBlockAtropos)
+		fmt.Printf("\"%s\" // %d %d %s (%s)\n", p.Node().URLv4(), progress.Epoch, progress.LastBlockIdx, progress.LastBlockAtropos, p.Fullname())
 
 	case msg.Code == gossip.EvmTxsMsg:
 		break

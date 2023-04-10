@@ -58,9 +58,17 @@ func newServer(backend *ProbeBackend) *p2p.Server {
 	for _, url := range launcher.Bootnodes[backend.Opera.Name] {
 		cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5, eNode(url))
 	}
-	cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5,
-		eNode("867d5c0e27c973fbb2f9d2f9a2acd3347b92887f9cd217001a163619c07629f4b987fb0f3876c422b640d08510381565862592473fefb4591d59547bc403f4f3@54.146.98.52:47306"),
-		eNode("b7041f62fa0310e5ffd0862710caaf8685e16c7143e8a7702ac2698e0673e246eb0e53d346f3acbab5f2dc439da296b39cd612207cd9067edaf6f24a29a1d1f3@116.202.109.106:5051"),
+	/*
+		cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5[0:0],
+			eNode("2ab8900c54a13cafebaace0cee178d696ef7f86fc09284445fa2df997c1a7f51@65.21.206.66:37523"),  // go-opera/v1.1.1 epoch=355299 block=89228301 atropos=197306:2379:605cb8
+			eNode("e6d69102009c04e5fc6a9ca0be3d418f9678141c47e9a907f6c7b8ec3012fa5a@178.63.14.233:37523"), // go-opera/v1.1.1 epoch=356345 block=89437501 atropos=197306:2379:605cb8
+			eNode("37c764c3785790380389f2892797e9b3825955be8d6eca77be09723d55ecfa8@65.21.229.175:37523"),  // go-opera/v1.1.1 epoch=357044 block=89577301 atropos=197306:2379:605cb8
+		)
+	*/
+	cfg.BootstrapNodesV5 = append(cfg.BootstrapNodesV5[0:0],
+		eNode("013d3dff53cd085ed494d1b9ede359746543f7457da157656fa1be13a7e22672cc6ad5af7a8d407b5aeaada7bbb8bd0b662e81348ac1db1fc5334d79be380d10@65.21.206.66:37523"),  // 362152 90598901 197306:2379:605cb8 (go-opera/v1.1.1)
+		eNode("5ebd040b10b5493018b1f873e3e5734bced236b8d8156c049229f1580c46dd91ef95e7a6aea10c3c91c626698bd426de112e1926895e982a9ef88a9300ee45a6@65.21.229.175:37523"), // 362275 90623501 197306:2379:605cb8 (go-opera/v1.1.1)
+		eNode("6729e74f461ef9dcd5c97d1e55479bfe28f210b5afda0988a33e0dda0a56f9e9d56365d0416e50887c96efedfc0144892b3073dffd6dc6d8e426735b71e62562@178.63.14.233:37523"), // 364737 91115901 197306:2379:605cb8 (go-opera/v1.1.1)
 	)
 	cfg.BootstrapNodes = cfg.BootstrapNodesV5
 
