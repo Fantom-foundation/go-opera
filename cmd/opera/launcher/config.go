@@ -20,9 +20,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/flags"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -36,8 +37,8 @@ import (
 )
 
 var (
-	dumpConfigCommand = cli.Command{
-		Action:      utils.MigrateFlags(dumpConfig),
+	dumpConfigCommand = &cli.Command{
+		Action:      dumpConfig,
 		Name:        "dumpconfig",
 		Usage:       "Show configuration values",
 		ArgsUsage:   "",
@@ -45,8 +46,8 @@ var (
 		Category:    "MISCELLANEOUS COMMANDS",
 		Description: `The dumpconfig command shows configuration values.`,
 	}
-	checkConfigCommand = cli.Command{
-		Action:      utils.MigrateFlags(checkConfig),
+	checkConfigCommand = &cli.Command{
+		Action:      checkConfig,
 		Name:        "checkconfig",
 		Usage:       "Checks configuration file",
 		ArgsUsage:   "",
@@ -55,34 +56,34 @@ var (
 		Description: `The checkconfig checks configuration file.`,
 	}
 
-	configFileFlag = cli.StringFlag{
+	configFileFlag = &cli.StringFlag{
 		Name:  "config",
 		Usage: "TOML configuration file",
 	}
 
 	// DataDirFlag defines directory to store Lachesis state and user's wallets
-	DataDirFlag = utils.DirectoryFlag{
+	DataDirFlag = &flags.DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
-		Value: utils.DirectoryString(DefaultDataDir()),
+		Value: flags.DirectoryString(DefaultDataDir()),
 	}
 
-	CacheFlag = cli.IntFlag{
+	CacheFlag = &cli.IntFlag{
 		Name:  "cache",
 		Usage: "Megabytes of memory allocated to internal caching",
 		Value: DefaultCacheSize,
 	}
 	// GenesisFlag specifies network genesis configuration
-	GenesisFlag = cli.StringFlag{
+	GenesisFlag = &cli.StringFlag{
 		Name:  "genesis",
 		Usage: "'path to genesis file' - sets the network genesis configuration.",
 	}
-	ExperimentalGenesisFlag = cli.BoolFlag{
+	ExperimentalGenesisFlag = &cli.BoolFlag{
 		Name:  "genesis.allowExperimental",
 		Usage: "Allow to use experimental genesis file.",
 	}
 
-	RPCGlobalGasCapFlag = cli.Uint64Flag{
+	RPCGlobalGasCapFlag = &cli.Uint64Flag{
 		Name:  "rpc.gascap",
 		Usage: "Sets a cap on gas that can be used in ftm_call/estimateGas (0=infinite)",
 		Value: gossip.DefaultConfig(cachescale.Identity).RPCGasCap,
@@ -92,43 +93,43 @@ var (
 		Usage: "Sets a timeout used for eth_call (0=infinite)",
 		Value: gossip.DefaultConfig(cachescale.Identity).RPCEVMTimeout,
 	}
-	RPCGlobalTxFeeCapFlag = cli.Float64Flag{
+	RPCGlobalTxFeeCapFlag = &cli.Float64Flag{
 		Name:  "rpc.txfeecap",
 		Usage: "Sets a cap on transaction fee (in FTM) that can be sent via the RPC APIs (0 = no cap)",
 		Value: gossip.DefaultConfig(cachescale.Identity).RPCTxFeeCap,
 	}
-	RPCGlobalTimeoutFlag = cli.DurationFlag{
+	RPCGlobalTimeoutFlag = &cli.DurationFlag{
 		Name:  "rpc.timeout",
 		Usage: "Time limit for RPC calls execution",
 		Value: gossip.DefaultConfig(cachescale.Identity).RPCTimeout,
 	}
 
-	SyncModeFlag = cli.StringFlag{
+	SyncModeFlag = &cli.StringFlag{
 		Name:  "syncmode",
 		Usage: `Blockchain sync mode ("full" or "snap")`,
 		Value: "full",
 	}
 
-	GCModeFlag = cli.StringFlag{
+	GCModeFlag = &cli.StringFlag{
 		Name:  "gcmode",
 		Usage: `Blockchain garbage collection mode ("light", "full", "archive")`,
 		Value: "archive",
 	}
 
-	ExitWhenAgeFlag = cli.DurationFlag{
+	ExitWhenAgeFlag = &cli.DurationFlag{
 		Name:  "exitwhensynced.age",
 		Usage: "Exits after synchronisation reaches the required age",
 	}
-	ExitWhenEpochFlag = cli.Uint64Flag{
+	ExitWhenEpochFlag = &cli.Uint64Flag{
 		Name:  "exitwhensynced.epoch",
 		Usage: "Exits after synchronisation reaches the required epoch",
 	}
 
-	DBMigrationModeFlag = cli.StringFlag{
+	DBMigrationModeFlag = &cli.StringFlag{
 		Name:  "db.migration.mode",
 		Usage: "MultiDB migration mode ('reformat' or 'rebuild')",
 	}
-	DBPresetFlag = cli.StringFlag{
+	DBPresetFlag = &cli.StringFlag{
 		Name:  "db.preset",
 		Usage: "DBs layout preset ('pbl-1' or 'ldb-1' or 'legacy-ldb' or 'legacy-pbl')",
 	}
@@ -205,14 +206,14 @@ func loadAllConfigs(file string, cfg *config) error {
 
 func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 	switch {
-	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	case ctx.IsSet(FakeNetFlag.Name):
+		_, num, err := parseFakeGen(ctx.String(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
-	case ctx.GlobalIsSet(GenesisFlag.Name):
-		genesisPath := ctx.GlobalString(GenesisFlag.Name)
+	case ctx.IsSet(GenesisFlag.Name):
+		genesisPath := ctx.String(GenesisFlag.Name)
 
 		f, err := os.Open(genesisPath)
 		if err != nil {
@@ -237,7 +238,7 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 					goto notExperimental
 				}
 			}
-			if ctx.GlobalBool(ExperimentalGenesisFlag.Name) {
+			if ctx.Bool(ExperimentalGenesisFlag.Name) {
 				log.Warn("Genesis file doesn't refer to any trusted preset")
 			} else {
 				utils.Fatalf("Genesis file doesn't refer to any trusted preset. Enable experimental genesis with --genesis.allowExperimental")
@@ -268,10 +269,10 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	defaultDataDir := DefaultDataDir()
 
 	switch {
-	case ctx.GlobalIsSet(DataDirFlag.Name):
-		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
-	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	case ctx.IsSet(DataDirFlag.Name):
+		cfg.DataDir = ctx.String(DataDirFlag.Name)
+	case ctx.IsSet(FakeNetFlag.Name):
+		_, num, err := parseFakeGen(ctx.String(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
@@ -282,8 +283,8 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 func setGPO(ctx *cli.Context, cfg *gasprice.Config) {}
 
 func setTxPool(ctx *cli.Context, cfg *evmcore.TxPoolConfig) {
-	if ctx.GlobalIsSet(utils.TxPoolLocalsFlag.Name) {
-		locals := strings.Split(ctx.GlobalString(utils.TxPoolLocalsFlag.Name), ",")
+	if ctx.IsSet(utils.TxPoolLocalsFlag.Name) {
+		locals := strings.Split(ctx.String(utils.TxPoolLocalsFlag.Name), ",")
 		for _, account := range locals {
 			if trimmed := strings.TrimSpace(account); !common.IsHexAddress(trimmed) {
 				utils.Fatalf("Invalid account in --txpool.locals: %s", trimmed)
@@ -292,35 +293,35 @@ func setTxPool(ctx *cli.Context, cfg *evmcore.TxPoolConfig) {
 			}
 		}
 	}
-	if ctx.GlobalIsSet(utils.TxPoolNoLocalsFlag.Name) {
-		cfg.NoLocals = ctx.GlobalBool(utils.TxPoolNoLocalsFlag.Name)
+	if ctx.IsSet(utils.TxPoolNoLocalsFlag.Name) {
+		cfg.NoLocals = ctx.Bool(utils.TxPoolNoLocalsFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolJournalFlag.Name) {
-		cfg.Journal = ctx.GlobalString(utils.TxPoolJournalFlag.Name)
+	if ctx.IsSet(utils.TxPoolJournalFlag.Name) {
+		cfg.Journal = ctx.String(utils.TxPoolJournalFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolRejournalFlag.Name) {
-		cfg.Rejournal = ctx.GlobalDuration(utils.TxPoolRejournalFlag.Name)
+	if ctx.IsSet(utils.TxPoolRejournalFlag.Name) {
+		cfg.Rejournal = ctx.Duration(utils.TxPoolRejournalFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolPriceLimitFlag.Name) {
-		cfg.PriceLimit = ctx.GlobalUint64(utils.TxPoolPriceLimitFlag.Name)
+	if ctx.IsSet(utils.TxPoolPriceLimitFlag.Name) {
+		cfg.PriceLimit = ctx.Uint64(utils.TxPoolPriceLimitFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolPriceBumpFlag.Name) {
-		cfg.PriceBump = ctx.GlobalUint64(utils.TxPoolPriceBumpFlag.Name)
+	if ctx.IsSet(utils.TxPoolPriceBumpFlag.Name) {
+		cfg.PriceBump = ctx.Uint64(utils.TxPoolPriceBumpFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolAccountSlotsFlag.Name) {
-		cfg.AccountSlots = ctx.GlobalUint64(utils.TxPoolAccountSlotsFlag.Name)
+	if ctx.IsSet(utils.TxPoolAccountSlotsFlag.Name) {
+		cfg.AccountSlots = ctx.Uint64(utils.TxPoolAccountSlotsFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolGlobalSlotsFlag.Name) {
-		cfg.GlobalSlots = ctx.GlobalUint64(utils.TxPoolGlobalSlotsFlag.Name)
+	if ctx.IsSet(utils.TxPoolGlobalSlotsFlag.Name) {
+		cfg.GlobalSlots = ctx.Uint64(utils.TxPoolGlobalSlotsFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolAccountQueueFlag.Name) {
-		cfg.AccountQueue = ctx.GlobalUint64(utils.TxPoolAccountQueueFlag.Name)
+	if ctx.IsSet(utils.TxPoolAccountQueueFlag.Name) {
+		cfg.AccountQueue = ctx.Uint64(utils.TxPoolAccountQueueFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolGlobalQueueFlag.Name) {
-		cfg.GlobalQueue = ctx.GlobalUint64(utils.TxPoolGlobalQueueFlag.Name)
+	if ctx.IsSet(utils.TxPoolGlobalQueueFlag.Name) {
+		cfg.GlobalQueue = ctx.Uint64(utils.TxPoolGlobalQueueFlag.Name)
 	}
-	if ctx.GlobalIsSet(utils.TxPoolLifetimeFlag.Name) {
-		cfg.Lifetime = ctx.GlobalDuration(utils.TxPoolLifetimeFlag.Name)
+	if ctx.IsSet(utils.TxPoolLifetimeFlag.Name) {
+		cfg.Lifetime = ctx.Duration(utils.TxPoolLifetimeFlag.Name)
 	}
 }
 
@@ -329,23 +330,23 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 
 	setGPO(ctx, &cfg.GPO)
 
-	if ctx.GlobalIsSet(RPCGlobalGasCapFlag.Name) {
-		cfg.RPCGasCap = ctx.GlobalUint64(RPCGlobalGasCapFlag.Name)
+	if ctx.IsSet(RPCGlobalGasCapFlag.Name) {
+		cfg.RPCGasCap = ctx.Uint64(RPCGlobalGasCapFlag.Name)
 	}
-	if ctx.GlobalIsSet(RPCGlobalEVMTimeoutFlag.Name) {
-		cfg.RPCEVMTimeout = ctx.GlobalDuration(RPCGlobalEVMTimeoutFlag.Name)
+	if ctx.IsSet(RPCGlobalEVMTimeoutFlag.Name) {
+		cfg.RPCEVMTimeout = ctx.Duration(RPCGlobalEVMTimeoutFlag.Name)
 	}
-	if ctx.GlobalIsSet(RPCGlobalTxFeeCapFlag.Name) {
-		cfg.RPCTxFeeCap = ctx.GlobalFloat64(RPCGlobalTxFeeCapFlag.Name)
+	if ctx.IsSet(RPCGlobalTxFeeCapFlag.Name) {
+		cfg.RPCTxFeeCap = ctx.Float64(RPCGlobalTxFeeCapFlag.Name)
 	}
-	if ctx.GlobalIsSet(RPCGlobalTimeoutFlag.Name) {
-		cfg.RPCTimeout = ctx.GlobalDuration(RPCGlobalTimeoutFlag.Name)
+	if ctx.IsSet(RPCGlobalTimeoutFlag.Name) {
+		cfg.RPCTimeout = ctx.Duration(RPCGlobalTimeoutFlag.Name)
 	}
-	if ctx.GlobalIsSet(SyncModeFlag.Name) {
-		if syncmode := ctx.GlobalString(SyncModeFlag.Name); syncmode != "full" && syncmode != "snap" {
+	if ctx.IsSet(SyncModeFlag.Name) {
+		if syncmode := ctx.String(SyncModeFlag.Name); syncmode != "full" && syncmode != "snap" {
 			utils.Fatalf("--%s must be either 'full' or 'snap'", SyncModeFlag.Name)
 		}
-		cfg.AllowSnapsync = ctx.GlobalString(SyncModeFlag.Name) == "snap"
+		cfg.AllowSnapsync = ctx.String(SyncModeFlag.Name) == "snap"
 	}
 
 	return cfg, nil
@@ -353,23 +354,23 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) (gossip.Config, 
 
 func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossip.StoreConfig, error) {
 	cfg := src
-	if ctx.GlobalIsSet(utils.GCModeFlag.Name) {
-		if gcmode := ctx.GlobalString(utils.GCModeFlag.Name); gcmode != "light" && gcmode != "full" && gcmode != "archive" {
+	if ctx.IsSet(utils.GCModeFlag.Name) {
+		if gcmode := ctx.String(utils.GCModeFlag.Name); gcmode != "light" && gcmode != "full" && gcmode != "archive" {
 			utils.Fatalf("--%s must be 'light', 'full' or 'archive'", GCModeFlag.Name)
 		}
-		cfg.EVM.Cache.TrieDirtyDisabled = ctx.GlobalString(utils.GCModeFlag.Name) == "archive"
-		cfg.EVM.Cache.GreedyGC = ctx.GlobalString(utils.GCModeFlag.Name) == "full"
+		cfg.EVM.Cache.TrieDirtyDisabled = ctx.String(utils.GCModeFlag.Name) == "archive"
+		cfg.EVM.Cache.GreedyGC = ctx.String(utils.GCModeFlag.Name) == "full"
 	}
 	return cfg, nil
 }
 
 func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachescale.Func) integration.DBsConfig {
-	if ctx.GlobalIsSet(DBPresetFlag.Name) {
-		preset := ctx.GlobalString(DBPresetFlag.Name)
+	if ctx.IsSet(DBPresetFlag.Name) {
+		preset := ctx.String(DBPresetFlag.Name)
 		cfg = setDBConfigStr(cfg, cacheRatio, preset)
 	}
-	if ctx.GlobalIsSet(DBMigrationModeFlag.Name) {
-		cfg.MigrationMode = ctx.GlobalString(DBMigrationModeFlag.Name)
+	if ctx.IsSet(DBMigrationModeFlag.Name) {
+		cfg.MigrationMode = ctx.String(DBMigrationModeFlag.Name)
 	}
 	return cfg
 }
@@ -377,13 +378,13 @@ func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachesc
 func setDBConfigStr(cfg integration.DBsConfig, cacheRatio cachescale.Func, preset string) integration.DBsConfig {
 	switch preset {
 	case "pbl-1":
-		cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		cfg = integration.Pbl1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles(0)))
 	case "ldb-1":
-		cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		cfg = integration.Ldb1DBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles(0)))
 	case "legacy-ldb":
-		cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		cfg = integration.LdbLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles(0)))
 	case "legacy-pbl":
-		cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+		cfg = integration.PblLegacyDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles(0)))
 	default:
 		utils.Fatalf("--%s must be 'pbl-1', 'ldb-1', 'legacy-pbl' or 'legacy-ldb'", DBPresetFlag.Name)
 	}
@@ -433,7 +434,7 @@ func setDBConfigDefault(cfg config, cacheRatio cachescale.Func) config {
 		}
 	}
 	// apply default for DB config if it wasn't touched by config file or flags, and there's no datadir's default value
-	dbDefault := integration.DefaultDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles()))
+	dbDefault := integration.DefaultDBsConfig(cacheRatio.U64, uint64(utils.MakeDatabaseHandles(0)))
 	if len(cfg.DBs.Routing.Table) == 0 {
 		cfg.DBs.Routing = dbDefault.Routing
 	}
@@ -454,14 +455,14 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 }
 
 func cacheScaler(ctx *cli.Context) cachescale.Func {
-	targetCache := ctx.GlobalInt(CacheFlag.Name)
+	targetCache := ctx.Int(CacheFlag.Name)
 	baseSize := DefaultCacheSize
 	totalMemory := int(memory.TotalMemory() / opt.MiB)
 	maxCache := totalMemory * 3 / 5
 	if maxCache < baseSize {
 		maxCache = baseSize
 	}
-	if !ctx.GlobalIsSet(CacheFlag.Name) {
+	if !ctx.IsSet(CacheFlag.Name) {
 		recommendedCache := totalMemory / 2
 		if recommendedCache > baseSize {
 			log.Warn(fmt.Sprintf("Please add '--%s %d' flag to allocate more cache for Opera. Total memory is %d MB.", CacheFlag.Name, recommendedCache, totalMemory))
@@ -496,8 +497,8 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
 	}
 
-	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	if ctx.IsSet(FakeNetFlag.Name) {
+		_, num, err := parseFakeGen(ctx.String(FakeNetFlag.Name))
 		if err != nil {
 			return nil, fmt.Errorf("invalid fakenet flag")
 		}
@@ -510,7 +511,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	}
 
 	// Load config file (medium priority)
-	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
+	if file := ctx.String(configFileFlag.Name); file != "" {
 		if err := loadAllConfigs(file, &cfg); err != nil {
 			return &cfg, err
 		}

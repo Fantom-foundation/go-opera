@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	cli "gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
@@ -27,7 +27,7 @@ func addFakeValidatorKey(ctx *cli.Context, key *ecdsa.PrivateKey, pubkey validat
 }
 
 func getValKeystoreDir(cfg node.Config) string {
-	_, _, keydir, err := cfg.AccountConfig()
+	keydir, err := cfg.KeyDirConfig()
 	if err != nil {
 		utils.Fatalf("Failed to setup account config: %v", err)
 	}
@@ -36,7 +36,7 @@ func getValKeystoreDir(cfg node.Config) string {
 
 // makeValidatorPasswordList reads password lines from the file specified by the global --validator.password flag.
 func makeValidatorPasswordList(ctx *cli.Context) []string {
-	if path := ctx.GlobalString(validatorPasswordFlag.Name); path != "" {
+	if path := ctx.String(validatorPasswordFlag.Name); path != "" {
 		text, err := ioutil.ReadFile(path)
 		if err != nil {
 			utils.Fatalf("Failed to read password file: %v", err)
@@ -48,7 +48,7 @@ func makeValidatorPasswordList(ctx *cli.Context) []string {
 		}
 		return lines
 	}
-	if ctx.GlobalIsSet(FakeNetFlag.Name) {
+	if ctx.IsSet(FakeNetFlag.Name) {
 		return []string{validatorpk.FakePassword}
 	}
 	return nil

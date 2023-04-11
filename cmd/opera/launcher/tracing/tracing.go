@@ -5,12 +5,12 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/tracing"
 )
 
-var EnableFlag = cli.BoolFlag{
+var EnableFlag = &cli.BoolFlag{
 	Name:  "tracing",
 	Usage: "Enable traces collection and reporting",
 }

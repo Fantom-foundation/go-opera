@@ -7,19 +7,19 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	cli "gopkg.in/urfave/cli.v1"
+	cli "github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 )
 
 // FakeNetFlag enables special testnet, where validators are automatically created
-var FakeNetFlag = cli.StringFlag{
+var FakeNetFlag = &cli.StringFlag{
 	Name:  "fakenet",
 	Usage: "'n/N' - sets coinbase as fake n-th key from genesis of N validators.",
 }
 
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
-	id, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	id, _, err := parseFakeGen(ctx.String(FakeNetFlag.Name))
 	if err != nil || id == 0 {
 		return nil
 	}

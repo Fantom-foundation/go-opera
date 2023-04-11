@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -19,21 +19,21 @@ import (
 )
 
 var (
-	experimentalFlag = cli.BoolFlag{
+	experimentalFlag = &cli.BoolFlag{
 		Name:  "experimental",
 		Usage: "Allow experimental DB fixing",
 	}
-	dbCommand = cli.Command{
+	dbCommand = &cli.Command{
 		Name:        "db",
 		Usage:       "A set of commands related to leveldb database",
 		Category:    "DB COMMANDS",
 		Description: "",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "compact",
 				Usage:     "Compact all databases",
 				ArgsUsage: "",
-				Action:    utils.MigrateFlags(compact),
+				Action:    compact,
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
@@ -47,7 +47,7 @@ will compact all databases under datadir's chaindata.
 				Name:      "transform",
 				Usage:     "Transform DBs layout",
 				ArgsUsage: "",
-				Action:    utils.MigrateFlags(dbTransform),
+				Action:    dbTransform,
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
@@ -61,7 +61,7 @@ will migrate tables layout according to the configuration.
 				Name:      "heal",
 				Usage:     "Experimental - try to heal dirty DB",
 				ArgsUsage: "",
-				Action:    utils.MigrateFlags(healDirty),
+				Action:    healDirty,
 				Category:  "DB COMMANDS",
 				Flags: []cli.Flag{
 					utils.DataDirFlag,
@@ -86,7 +86,7 @@ func makeUncheckedCachedDBsProducers(chaindataDir string) map[multidb.TypeName]k
 		Table: map[string]integration.DBCacheConfig{
 			"": {
 				Cache:   1024 * opt.MiB,
-				Fdlimit: uint64(utils.MakeDatabaseHandles() / 2),
+				Fdlimit: uint64(utils.MakeDatabaseHandles(0) / 2),
 			},
 		},
 	})

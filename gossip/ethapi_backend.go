@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -286,7 +287,7 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 	}
 
 	block := b.state.GetBlock(common.Hash{}, uint64(number))
-	receipts := b.svc.store.evm.GetReceipts(idx.Block(number), b.signer, block.Hash, block.Transactions)
+	receipts := b.svc.store.evm.GetReceipts(b.svc.store.GetEvmChainConfig(), idx.Block(number), b.signer, block.Hash, block.Transactions)
 	return receipts, nil
 }
 
@@ -316,7 +317,7 @@ func (b *EthAPIBackend) GetTd(_ common.Hash) *big.Int {
 	return big.NewInt(0)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *evmcore.EvmHeader, vmConfig *vm.Config) (*vm.EVM, func() error, error) {
 	vmError := func() error { return nil }
 
 	if vmConfig == nil {

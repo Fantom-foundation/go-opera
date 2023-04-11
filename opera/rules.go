@@ -6,12 +6,10 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera/contracts/evmwriter"
 )
 
 const (
@@ -24,11 +22,7 @@ const (
 	llrBit                 = 1 << 2
 )
 
-var DefaultVMConfig = vm.Config{
-	StatePrecompiles: map[common.Address]vm.PrecompiledStateContract{
-		evmwriter.ContractAddress: &evmwriter.PreCompiledContract{},
-	},
-}
+var DefaultVMConfig = vm.Config{}
 
 type RulesRLP struct {
 	Name      string

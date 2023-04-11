@@ -7,13 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 func checkEvm(ctx *cli.Context) error {
-	if len(ctx.Args()) != 0 {
+	if ctx.NArg() != 0 {
 		utils.Fatalf("This command doesn't require an argument.")
 	}
 

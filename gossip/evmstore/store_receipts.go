@@ -5,9 +5,12 @@ package evmstore
 */
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -63,17 +66,18 @@ func (s *Store) GetRawReceipts(n idx.Block) ([]*types.ReceiptForStorage, int) {
 	return receiptsStorage, len(buf)
 }
 
-func UnwrapStorageReceipts(receiptsStorage []*types.ReceiptForStorage, n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) (types.Receipts, error) {
+func UnwrapStorageReceipts(config *params.ChainConfig, receiptsStorage []*types.ReceiptForStorage, n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) (types.Receipts, error) {
 	receipts := make(types.Receipts, len(receiptsStorage))
 	for i, r := range receiptsStorage {
 		receipts[i] = (*types.Receipt)(r)
 	}
-	err := receipts.DeriveFields(signer, hash, uint64(n), txs)
+	// TODO [hadv]: How to get baseFee on opera from here?
+	err := receipts.DeriveFields(config, hash, uint64(n), big.NewInt(0), txs)
 	return receipts, err
 }
 
 // GetReceipts returns stored transaction receipts.
-func (s *Store) GetReceipts(n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) types.Receipts {
+func (s *Store) GetReceipts(config *params.ChainConfig, n idx.Block, signer types.Signer, hash common.Hash, txs types.Transactions) types.Receipts {
 	// Get data from LRU cache first.
 	if s.cache.Receipts != nil {
 		if c, ok := s.cache.Receipts.Get(n); ok {
@@ -83,7 +87,7 @@ func (s *Store) GetReceipts(n idx.Block, signer types.Signer, hash common.Hash, 
 
 	receiptsStorage, size := s.GetRawReceipts(n)
 
-	receipts, err := UnwrapStorageReceipts(receiptsStorage, n, signer, hash, txs)
+	receipts, err := UnwrapStorageReceipts(config, receiptsStorage, n, signer, hash, txs)
 	if err != nil {
 		s.Log.Crit("Failed to derive receipts", "err", err)
 	}

@@ -26,44 +26,44 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore/evmpruner"
 )
 
 var (
-	PruneExactCommand = cli.BoolFlag{
+	PruneExactCommand = &cli.BoolFlag{
 		Name:  "prune.exact",
+		Value: false,
 		Usage: `full pruning without usage of bloom filter (false by default)`,
 	}
-	PruneGenesisCommand = cli.BoolTFlag{
+	PruneGenesisCommand = &cli.BoolFlag{
 		Name:  "prune.genesis",
+		Value: true,
 		Usage: `prune genesis state (true by default)`,
 	}
-	snapshotCommand = cli.Command{
+	snapshotCommand = &cli.Command{
 		Name:        "snapshot",
 		Usage:       "A set of commands based on the snapshot",
 		Category:    "MISCELLANEOUS COMMANDS",
 		Description: "",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "prune-state",
 				Usage:     "Prune stale EVM state data based on the snapshot",
 				ArgsUsage: "<root> [--prune.exact] [--prune.genesis=false]",
-				Action:    utils.MigrateFlags(pruneState),
+				Action:    pruneState,
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
 					PruneExactCommand,
 					PruneGenesisCommand,
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RopstenFlag,
 					utils.RinkebyFlag,
 					utils.GoerliFlag,
 					utils.CacheTrieJournalFlag,
@@ -88,12 +88,11 @@ the trie clean cache with default directory will be deleted.
 				Name:      "verify-state",
 				Usage:     "Recalculate state hash based on the snapshot for verification",
 				ArgsUsage: "<root>",
-				Action:    utils.MigrateFlags(verifyState),
+				Action:    verifyState,
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RopstenFlag,
 					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
@@ -108,12 +107,11 @@ In other words, this command does the snapshot to trie conversion.
 				Name:      "traverse-state",
 				Usage:     "Traverse the EVM state with given root hash for verification",
 				ArgsUsage: "<root>",
-				Action:    utils.MigrateFlags(traverseState),
+				Action:    traverseState,
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RopstenFlag,
 					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
@@ -130,12 +128,11 @@ It's also usable without snapshot enabled.
 				Name:      "traverse-rawstate",
 				Usage:     "Traverse the EVM state with given root hash for verification",
 				ArgsUsage: "<root>",
-				Action:    utils.MigrateFlags(traverseRawState),
+				Action:    traverseRawState,
 				Category:  "MISCELLANEOUS COMMANDS",
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RopstenFlag,
 					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
@@ -168,7 +165,7 @@ func pruneState(ctx *cli.Context) error {
 
 	genesisBlock := gdb.GetBlock(*gdb.GetGenesisBlockIndex())
 	genesisRoot := common.Hash{}
-	if !ctx.BoolT(PruneGenesisCommand.Name) && genesisBlock != nil {
+	if !ctx.Bool(PruneGenesisCommand.Name) && genesisBlock != nil {
 		if gdb.EvmStore().HasStateDB(genesisBlock.Root) {
 			genesisRoot = common.Hash(genesisBlock.Root)
 			log.Info("Excluding genesis state from pruning", "root", genesisRoot)
@@ -206,7 +203,7 @@ func pruneState(ctx *cli.Context) error {
 	}
 	var targetRoot common.Hash
 	if ctx.NArg() == 1 {
-		targetRoot, err = parseRoot(ctx.Args()[0])
+		targetRoot, err = parseRoot(ctx.Args().First())
 		if err != nil {
 			log.Error("Failed to resolve state root", "err", err)
 			return err
@@ -243,7 +240,7 @@ func verifyState(ctx *cli.Context) error {
 	}
 
 	if ctx.NArg() == 1 {
-		root, err = parseRoot(ctx.Args()[0])
+		root, err = parseRoot(ctx.Args().First())
 		if err != nil {
 			log.Error("Failed to resolve state root", "err", err)
 			return err
@@ -279,7 +276,7 @@ func traverseState(ctx *cli.Context) error {
 		err  error
 	)
 	if ctx.NArg() == 1 {
-		root, err = parseRoot(ctx.Args()[0])
+		root, err = parseRoot(ctx.Args().First())
 		if err != nil {
 			log.Error("Failed to resolve state root", "err", err)
 			return err
@@ -290,7 +287,7 @@ func traverseState(ctx *cli.Context) error {
 		log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
 	}
 	triedb := trie.NewDatabase(chaindb)
-	t, err := trie.NewSecure(root, triedb)
+	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
 		return err
@@ -305,13 +302,13 @@ func traverseState(ctx *cli.Context) error {
 	accIter := trie.NewIterator(t.NodeIterator(nil))
 	for accIter.Next() {
 		accounts += 1
-		var acc state.Account
+		var acc types.StateAccount
 		if err := rlp.DecodeBytes(accIter.Value, &acc); err != nil {
 			log.Error("Invalid account encountered during traversal", "err", err)
 			return err
 		}
 		if acc.Root != types.EmptyRootHash {
-			storageTrie, err := trie.NewSecure(acc.Root, triedb)
+			storageTrie, err := trie.NewStateTrie(trie.StateTrieID(acc.Root), triedb)
 			if err != nil {
 				log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
 				return err
@@ -369,7 +366,7 @@ func traverseRawState(ctx *cli.Context) error {
 		err  error
 	)
 	if ctx.NArg() == 1 {
-		root, err = parseRoot(ctx.Args()[0])
+		root, err = parseRoot(ctx.Args().First())
 		if err != nil {
 			log.Error("Failed to resolve state root", "err", err)
 			return err
@@ -380,7 +377,7 @@ func traverseRawState(ctx *cli.Context) error {
 		log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
 	}
 	triedb := trie.NewDatabase(chaindb)
-	t, err := trie.NewSecure(root, triedb)
+	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
 		return err
@@ -401,7 +398,7 @@ func traverseRawState(ctx *cli.Context) error {
 		if node != (common.Hash{}) {
 			// Check the present for non-empty hash node(embedded node doesn't
 			// have their own hash).
-			blob := rawdb.ReadTrieNode(chaindb, node)
+			blob := rawdb.ReadLegacyTrieNode(chaindb, node)
 			if len(blob) == 0 {
 				log.Error("Missing trie node(account)", "hash", node)
 				return errors.New("missing account")
@@ -411,13 +408,13 @@ func traverseRawState(ctx *cli.Context) error {
 		// dig into the storage trie further.
 		if accIter.Leaf() {
 			accounts += 1
-			var acc state.Account
+			var acc types.StateAccount
 			if err := rlp.DecodeBytes(accIter.LeafBlob(), &acc); err != nil {
 				log.Error("Invalid account encountered during traversal", "err", err)
 				return errors.New("invalid account")
 			}
 			if acc.Root != types.EmptyRootHash {
-				storageTrie, err := trie.NewSecure(acc.Root, triedb)
+				storageTrie, err := trie.NewStateTrie(trie.StateTrieID(acc.Root), triedb)
 				if err != nil {
 					log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
 					return errors.New("missing storage trie")
@@ -430,7 +427,7 @@ func traverseRawState(ctx *cli.Context) error {
 					// Check the present for non-empty hash node(embedded node doesn't
 					// have their own hash).
 					if node != (common.Hash{}) {
-						blob := rawdb.ReadTrieNode(chaindb, node)
+						blob := rawdb.ReadLegacyTrieNode(chaindb, node)
 						if len(blob) == 0 {
 							log.Error("Missing trie node(storage)", "hash", node)
 							return errors.New("missing storage")

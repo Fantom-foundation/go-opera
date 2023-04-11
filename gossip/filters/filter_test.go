@@ -76,10 +76,15 @@ func BenchmarkFilters(b *testing.B) {
 		addr2   = common.BytesToAddress([]byte("jeff"))
 		addr3   = common.BytesToAddress([]byte("ethereum"))
 		addr4   = common.BytesToAddress([]byte("random addresses please"))
+
+		gspec = &core.Genesis{
+			Alloc:   core.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
+			BaseFee: big.NewInt(params.InitialBaseFee),
+			Config:  params.TestChainConfig,
+		}
 	)
 
-	genesis := core.GenesisBlockForTesting(backend.db, addr1, big.NewInt(1000000))
-	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), backend.db, 100010, func(i int, gen *core.BlockGen) {
+	_, chain, receipts := core.GenerateChainWithGenesis(gspec, ethash.NewFaker(), 100010, func(i int, gen *core.BlockGen) {
 		switch i {
 		case 2403:
 			receipt := makeReceipt(addr1)
@@ -124,10 +129,15 @@ func TestFilters(t *testing.T) {
 		hash2 = common.BytesToHash([]byte("topic2"))
 		hash3 = common.BytesToHash([]byte("topic3"))
 		hash4 = common.BytesToHash([]byte("topic4"))
+
+		gspec = &core.Genesis{
+			Config:  params.TestChainConfig,
+			Alloc:   core.GenesisAlloc{addr: {Balance: big.NewInt(1000000)}},
+			BaseFee: big.NewInt(params.InitialBaseFee),
+		}
 	)
 
-	genesis := core.GenesisBlockForTesting(backend.db, addr, big.NewInt(1000000))
-	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), backend.db, 1000, func(i int, gen *core.BlockGen) {
+	_, chain, receipts := core.GenerateChainWithGenesis(gspec, ethash.NewFaker(), 1000, func(i int, gen *core.BlockGen) {
 		switch i {
 		case 1:
 			receipt := types.NewReceipt(nil, false, 0)

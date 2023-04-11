@@ -53,7 +53,7 @@ type Store struct {
 
 	rlp rlpstore.Helper
 
-	triegc *prque.Prque // Priority queue mapping block numbers to tries to gc
+	triegc *prque.Prque[int64, common.Hash] // Priority queue mapping block numbers to tries to gc
 
 	logger.Instance
 }
@@ -68,7 +68,7 @@ func NewStore(dbs kvdb.DBProducer, cfg StoreConfig) *Store {
 		cfg:      cfg,
 		Instance: logger.New("evm-store"),
 		rlp:      rlpstore.Helper{logger.New("rlp")},
-		triegc:   prque.New(nil),
+		triegc:   prque.New[int64, common.Hash](nil),
 	}
 
 	err := table.OpenTables(&s.table, dbs, "evm")
@@ -130,14 +130,17 @@ func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err 
 	if s.Snaps != nil {
 		return errors.New("EVM snapshot is already opened")
 	}
+	snapConfig := snapshot.Config{
+		CacheSize:  s.cfg.Cache.EvmSnap / opt.MiB,
+		Recovery:   async,
+		NoBuild:    rebuild,
+		AsyncBuild: false,
+	}
 	s.Snaps, err = snapshot.New(
+		snapConfig,
 		s.EvmDb,
 		s.EvmState.TrieDB(),
-		s.cfg.Cache.EvmSnap/opt.MiB,
-		root,
-		async,
-		rebuild,
-		false)
+		root)
 	return
 }
 
@@ -164,11 +167,11 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 				s.triegc.Push(root, number)
 				break
 			}
-			triedb.Dereference(root.(common.Hash))
+			triedb.Dereference(root)
 		}
 	}
 	// commit the state trie after clean up
-	err := triedb.Commit(stateRoot, false, nil)
+	err := triedb.Commit(stateRoot, false)
 	if err != nil {
 		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
@@ -189,7 +192,7 @@ func (s *Store) Commit(block idx.Block, root hash.Hash, flush bool) error {
 	stateRoot := common.Hash(root)
 	// If we're applying genesis or running an archive node, always flush
 	if flush || s.cfg.Cache.TrieDirtyDisabled {
-		err := triedb.Commit(stateRoot, false, nil)
+		err := triedb.Commit(stateRoot, false)
 		if err != nil {
 			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 		}
@@ -213,7 +216,7 @@ func (s *Store) Commit(block idx.Block, root hash.Hash, flush bool) error {
 					s.triegc.Push(root, number)
 					break
 				}
-				triedb.Dereference(root.(common.Hash))
+				triedb.Dereference(root)
 			}
 		}
 		return nil
@@ -235,13 +238,13 @@ func (s *Store) Flush(block iblockproc.BlockState) {
 
 		if number := uint64(block.LastBlock.Idx); number > 0 {
 			s.Log.Info("Writing cached state to disk", "block", number, "root", block.FinalizedStateRoot)
-			if err := triedb.Commit(common.Hash(block.FinalizedStateRoot), true, nil); err != nil {
+			if err := triedb.Commit(common.Hash(block.FinalizedStateRoot), true); err != nil {
 				s.Log.Error("Failed to commit recent state trie", "err", err)
 			}
 		}
 		if snapBase != (common.Hash{}) {
 			s.Log.Info("Writing snapshot state to disk", "root", snapBase)
-			if err := triedb.Commit(snapBase, true, nil); err != nil {
+			if err := triedb.Commit(snapBase, true); err != nil {
 				s.Log.Error("Failed to commit recent state trie", "err", err)
 			}
 		}

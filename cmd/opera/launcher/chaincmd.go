@@ -1,26 +1,25 @@
 package launcher
 
 import (
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 )
 
 var (
-	EvmExportMode = cli.StringFlag{
+	EvmExportMode = &cli.StringFlag{
 		Name:  "export.evm.mode",
 		Usage: `EVM export mode ("full" or "ext-mpt" or "mpt")`,
 		Value: "mpt",
 	}
-	EvmExportExclude = cli.StringFlag{
+	EvmExportExclude = &cli.StringFlag{
 		Name:  "export.evm.exclude",
 		Usage: `DB of EVM keys to exclude from genesis`,
 	}
-	GenesisExportSections = cli.StringFlag{
+	GenesisExportSections = &cli.StringFlag{
 		Name:  "export.sections",
 		Usage: `Genesis sections to export separated by comma (e.g. "brs-1" or "ers" or "evm-2")`,
 		Value: "brs,ers,evm",
 	}
-	importCommand = cli.Command{
+	importCommand = &cli.Command{
 		Name:      "import",
 		Usage:     "Import a blockchain file",
 		ArgsUsage: "<filename> (<filename 2> ... <filename N>) [check=false]",
@@ -31,9 +30,9 @@ var (
 The import command imports events from an RLP-encoded files.
 Events are fully verified by default, unless overridden by check=false flag.`,
 
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
-				Action:    utils.MigrateFlags(importEvents),
+				Action:    importEvents,
 				Name:      "events",
 				Usage:     "Import blockchain events",
 				ArgsUsage: "<filename> (<filename 2> ... <filename N>)",
@@ -45,7 +44,7 @@ The import command imports events from RLP-encoded files.
 Events are fully verified by default, unless overridden by --check=false flag.`,
 			},
 			{
-				Action:    utils.MigrateFlags(importEvm),
+				Action:    importEvm,
 				Name:      "evm",
 				Usage:     "Import EVM storage",
 				ArgsUsage: "<filename> (<filename 2> ... <filename N>)",
@@ -59,17 +58,17 @@ The import command imports EVM storage (trie nodes, code, preimages) from files.
 			},
 		},
 	}
-	exportCommand = cli.Command{
+	exportCommand = &cli.Command{
 		Name:     "export",
 		Usage:    "Export blockchain",
 		Category: "MISCELLANEOUS COMMANDS",
 
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "events",
 				Usage:     "Export blockchain events",
 				ArgsUsage: "<filename> [<epochFrom> <epochTo>]",
-				Action:    utils.MigrateFlags(exportEvents),
+				Action:    exportEvents,
 				Flags: []cli.Flag{
 					DataDirFlag,
 				},
@@ -86,7 +85,7 @@ be gzipped
 				Name:      "genesis",
 				Usage:     "Export current state into a genesis file",
 				ArgsUsage: "<filename or dry-run> [<epochFrom> <epochTo>] [--export.evm.mode=MODE --export.evm.exclude=DB_PATH --export.sections=A,B,C]",
-				Action:    utils.MigrateFlags(exportGenesis),
+				Action:    exportGenesis,
 				Flags: []cli.Flag{
 					DataDirFlag,
 					EvmExportMode,
@@ -108,7 +107,7 @@ EVM export mode is configured with --export.evm.mode.
 				Name:      "evm-keys",
 				Usage:     "Export EVM node keys",
 				ArgsUsage: "<directory>",
-				Action:    utils.MigrateFlags(exportEvmKeys),
+				Action:    exportEvmKeys,
 				Flags: []cli.Flag{
 					DataDirFlag,
 				},
@@ -120,16 +119,16 @@ Requires a first argument of the DB directory to write to.
 			},
 		},
 	}
-	checkCommand = cli.Command{
+	checkCommand = &cli.Command{
 		Name:     "check",
 		Usage:    "Check blockchain",
 		Category: "MISCELLANEOUS COMMANDS",
 
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:   "evm",
 				Usage:  "Check EVM storage",
-				Action: utils.MigrateFlags(checkEvm),
+				Action: checkEvm,
 				Flags: []cli.Flag{
 					DataDirFlag,
 				},

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -295,7 +296,7 @@ func newStateSync(d *Leecher, root common.Hash) *stateSync {
 	return &stateSync{
 		d:         d,
 		root:      root,
-		sched:     state.NewStateSync(root, d.stateDB, d.stateBloom, nil),
+		sched:     state.NewStateSync(root, d.stateDB, nil, rawdb.HashScheme),
 		keccak:    sha3.NewLegacyKeccak256().(crypto.KeccakState),
 		trieTasks: make(map[common.Hash]*trieTask),
 		codeTasks: make(map[common.Hash]*codeTask),

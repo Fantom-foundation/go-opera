@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/status-im/keycard-go/hexutils"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -30,7 +30,7 @@ import (
 )
 
 func importEvm(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
+	if ctx.Args().Len() < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
@@ -40,7 +40,7 @@ func importEvm(ctx *cli.Context) error {
 	gdb := makeGossipStore(rawDbs, cfg)
 	defer gdb.Close()
 
-	for _, fn := range ctx.Args() {
+	for _, fn := range ctx.Args().Slice() {
 		log.Info("Importing EVM storage from file", "file", fn)
 		if err := importEvmFile(fn, gdb); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
@@ -72,7 +72,7 @@ func importEvmFile(fn string, gdb *gossip.Store) error {
 }
 
 func importEvents(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
+	if ctx.Args().Len() < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
@@ -95,7 +95,7 @@ func importEvents(ctx *cli.Context) error {
 	cfg.Node.P2P.StaticNodes = nil
 	cfg.Node.P2P.TrustedNodes = nil
 
-	err := importEventsToNode(ctx, cfg, genesisStore, ctx.Args()...)
+	err := importEventsToNode(ctx, cfg, genesisStore, ctx.Args().Slice()...)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func importEvents(ctx *cli.Context) error {
 func importEventsToNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store, args ...string) error {
 	node, svc, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
-	startNode(ctx, node)
+	startNode(ctx, node, false)
 
 	for _, fn := range args {
 		log.Info("Importing events from file", "file", fn)

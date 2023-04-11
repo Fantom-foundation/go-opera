@@ -20,9 +20,9 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
+
+	// "github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/bvallcheck"
@@ -226,11 +226,6 @@ func newHandler(
 	}
 	h.started.Add(1)
 
-	// TODO: configure it
-	var (
-		configBloomCache uint64 = 0 // Megabytes to alloc for fast sync bloom
-	)
-
 	var err error
 	h.chain, err = newEthBlockChain(c.s)
 	if err != nil {
@@ -238,18 +233,18 @@ func newHandler(
 	}
 
 	stateDb := h.store.EvmStore().EvmDb
-	var stateBloom *trie.SyncBloom
-	if false {
-		// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
-		// sync is requested. The downloader is responsible for deallocating the state
-		// bloom when it's done.
-		// Note: we don't enable it if snap-sync is performed, since it's very heavy
-		// and the heal-portion of the snap sync is much lighter than fast. What we particularly
-		// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
-		// indexing the entire trie
-		stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
-	}
-	h.snapLeecher = snapleecher.New(stateDb, stateBloom, h.removePeer)
+	// var stateBloom *trie.SyncBloom
+	// if false {
+	// 	// NOTE: Construct the downloader (long sync) and its backing state bloom if fast
+	// 	// sync is requested. The downloader is responsible for deallocating the state
+	// 	// bloom when it's done.
+	// 	// Note: we don't enable it if snap-sync is performed, since it's very heavy
+	// 	// and the heal-portion of the snap sync is much lighter than fast. What we particularly
+	// 	// want to avoid, is a 90%-finished (but restarted) snap-sync to begin
+	// 	// indexing the entire trie
+	// 	stateBloom = trie.NewSyncBloom(configBloomCache, stateDb)
+	// }
+	h.snapLeecher = snapleecher.New(stateDb, h.removePeer)
 
 	h.dagFetcher = itemsfetcher.New(h.config.Protocol.DagFetcher, itemsfetcher.Callback{
 		OnlyInterested: func(ids []interface{}) []interface{} {
@@ -782,10 +777,10 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Error("Snapshot extension barrier failed", "err", err)
 		return err
 	}
-	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
+	// useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
+	useless := false
+	if !eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera") {
 		useless = true
-		discfilter.Ban(p.ID())
 	}
 	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
 		// don't allow more than 10% of useless peers
@@ -809,9 +804,6 @@ func (h *handler) handle(p *peer) error {
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
-		if !useless {
-			discfilter.Ban(p.ID())
-		}
 		return err
 	}
 
@@ -1403,7 +1395,7 @@ func (h *handler) BroadcastTxs(txs types.Transactions) {
 		for _, peer := range peers {
 			txset[peer] = append(txset[peer], tx)
 		}
-		totalSize += tx.Size()
+		totalSize += common.StorageSize(tx.Size())
 		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	fullRecipients := h.decideBroadcastAggressiveness(int(totalSize), time.Second, len(txset))

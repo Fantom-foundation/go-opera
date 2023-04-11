@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	validatorCommand = cli.Command{
+	validatorCommand = &cli.Command{
 		Name:     "validator",
 		Usage:    "Manage validators",
 		Category: "VALIDATOR COMMANDS",
@@ -41,11 +41,11 @@ It is safe to transfer the entire directory or the individual keys therein
 between Opera nodes by simply copying.
 
 Make sure you backup your keys regularly.`,
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:   "new",
 				Usage:  "Create a new validator key",
-				Action: utils.MigrateFlags(validatorKeyCreate),
+				Action: validatorKeyCreate,
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.KeyStoreDirFlag,
@@ -69,7 +69,7 @@ password to file or expose in any other way.
 			{
 				Name:   "convert",
 				Usage:  "Convert an account key to a validator key",
-				Action: utils.MigrateFlags(validatorKeyConvert),
+				Action: validatorKeyConvert,
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.KeyStoreDirFlag,
@@ -126,13 +126,13 @@ func validatorKeyCreate(ctx *cli.Context) error {
 
 // validatorKeyConvert converts account key to validator key.
 func validatorKeyConvert(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
+	if ctx.Args().Len() < 2 {
 		utils.Fatalf("This command requires 2 arguments.")
 	}
 	cfg := makeAllConfigs(ctx)
 	utils.SetNodeConfig(ctx, &cfg.Node)
 
-	_, _, keydir, _ := cfg.Node.AccountConfig()
+	keydir, _ := cfg.Node.KeyDirConfig()
 
 	pubkeyStr := ctx.Args().Get(1)
 	pubkey, err := validatorpk.FromString(pubkeyStr)

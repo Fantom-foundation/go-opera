@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 var (
@@ -27,9 +26,9 @@ type Leecher struct {
 	// Callbacks
 	dropPeer peerDropFn // Drops a peer for misbehaving
 
-	stateDB    ethdb.Database  // Database to state sync into (and deduplicate via)
-	stateBloom *trie.SyncBloom // Bloom filter for fast trie node and contract code existence checks
-	SnapSyncer *snap.Syncer    // TODO(karalabe): make private! hack for now
+	stateDB ethdb.Database // Database to state sync into (and deduplicate via)
+	// stateBloom *trie.SyncBloom // Bloom filter for fast trie node and contract code existence checks
+	SnapSyncer *snap.Syncer // TODO(karalabe): make private! hack for now
 
 	stateSyncStart chan *stateSync
 	trackStateReq  chan *stateReq
@@ -49,19 +48,19 @@ type Leecher struct {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
-func New(stateDb ethdb.Database, stateBloom *trie.SyncBloom, dropPeer peerDropFn) *Leecher {
+func New(stateDb ethdb.Database, dropPeer peerDropFn) *Leecher {
 	d := &Leecher{
-		stateDB:        stateDb,
-		stateBloom:     stateBloom,
+		stateDB: stateDb,
+		// stateBloom:     stateBloom,
 		dropPeer:       dropPeer,
 		peers:          newPeerSet(),
 		quitCh:         make(chan struct{}),
 		stateCh:        make(chan dataPack),
-		SnapSyncer:     snap.NewSyncer(stateDb),
+		SnapSyncer:     snap.NewSyncer(stateDb, rawdb.HashScheme),
 		stateSyncStart: make(chan *stateSync),
-		syncStatsState: stateSyncStats{
-			processed: rawdb.ReadFastTrieProgress(stateDb),
-		},
+		// syncStatsState: stateSyncStats{
+		// 	processed: rawdb.ReadFastTrieProgress(stateDb),
+		// },
 		trackStateReq: make(chan *stateReq),
 	}
 	go d.stateFetcher()

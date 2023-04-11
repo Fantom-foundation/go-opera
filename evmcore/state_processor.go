@@ -21,6 +21,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -74,12 +75,12 @@ func (p *StateProcessor) Process(
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
-		msg, err := TxAsMessage(tx, signer, header.BaseFee)
+		msg, err := core.TransactionToMessage(tx, signer, header.BaseFee)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
 
-		statedb.Prepare(tx.Hash(), i)
+		statedb.SetTxContext(tx.Hash(), i)
 		receipt, _, skip, err = applyTransaction(msg, p.config, gp, statedb, blockNumber, blockHash, tx, usedGas, vmenv, onNewLog)
 		if skip {
 			skipped = append(skipped, uint32(i))
@@ -96,7 +97,7 @@ func (p *StateProcessor) Process(
 }
 
 func applyTransaction(
-	msg types.Message,
+	msg *core.Message,
 	config *params.ChainConfig,
 	gp *GasPool,
 	statedb *state.StateDB,
@@ -122,7 +123,7 @@ func applyTransaction(
 		return nil, 0, result == nil, err
 	}
 	// Notify about logs with potential state changes
-	logs := statedb.GetLogs(tx.Hash(), blockHash)
+	logs := statedb.GetLogs(tx.Hash(), blockNumber.Uint64(), blockHash)
 	for _, l := range logs {
 		onNewLog(l, statedb)
 	}
@@ -148,7 +149,7 @@ func applyTransaction(
 	receipt.GasUsed = result.UsedGas
 
 	// If the transaction created a contract, store the creation address in the receipt.
-	if msg.To() == nil {
+	if msg.To == nil {
 		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 
@@ -161,11 +162,11 @@ func applyTransaction(
 	return receipt, result.UsedGas, false, err
 }
 
-func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (types.Message, error) {
+func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (*core.Message, error) {
 	if !internaltx.IsInternal(tx) {
-		return tx.AsMessage(signer, baseFee)
+		return core.TransactionToMessage(tx, signer, baseFee)
 	} else {
-		msg := types.NewMessage(internaltx.InternalSender(tx), tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
+		msg := core.NewMessage(internaltx.InternalSender(tx), tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
 		return msg, nil
 	}
 }

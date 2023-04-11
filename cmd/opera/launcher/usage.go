@@ -23,7 +23,7 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	cli "gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/debug"
 	"github.com/Fantom-foundation/go-opera/flags"

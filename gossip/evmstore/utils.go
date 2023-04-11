@@ -11,7 +11,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/simplewlru"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -111,7 +110,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 			if stateIt.Leaf() {
 				addrHash := common.BytesToHash(stateIt.LeafKey())
 
-				var account state.Account
+				var account types.StateAccount
 				if err = rlp.Decode(bytes.NewReader(stateIt.LeafBlob()), &account); err != nil {
 					err = fmt.Errorf("Failed to decode accoun as %s addr: %s", addrHash.String(), err.Error())
 					return
@@ -128,7 +127,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 				}
 
 				if account.Root != types.EmptyRootHash && !cached(account.Root) {
-					storageTrie, storageErr := s.EvmState.OpenStorageTrie(addrHash, account.Root)
+					storageTrie, storageErr := s.EvmState.OpenStorageTrie(root, addrHash, account.Root)
 					if storageErr != nil {
 						err = fmt.Errorf("failed to open storage trie %s at %s addr: %s", account.Root.String(), addrHash.String(), storageErr.Error())
 						return

@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/params"
-	cli "gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -101,7 +101,7 @@ func (a ByCategory) Less(i, j int) bool {
 func FlagCategory(flag cli.Flag, flagGroups []FlagGroup) string {
 	for _, category := range flagGroups {
 		for _, flg := range category.Flags {
-			if flg.GetName() == flag.GetName() {
+			if flg.Names()[0] == flag.Names()[0] {
 				return category.Name
 			}
 		}
@@ -113,8 +113,6 @@ func FlagCategory(flag cli.Flag, flagGroups []FlagGroup) string {
 func NewApp(gitCommit, gitDate, usage string) *cli.App {
 	app := cli.NewApp()
 	app.Name = filepath.Base(os.Args[0])
-	app.Author = ""
-	app.Email = ""
 	app.Version = params.VersionWithCommit(gitCommit, gitDate)
 	app.Usage = usage
 	return app

@@ -101,7 +101,7 @@ func (s *Service) ProcessBlockVotes(bvs inter.LlrSignedBlockVotes) error {
 
 func indexRawReceipts(s *Store, receiptsForStorage []*types.ReceiptForStorage, txs types.Transactions, blockIdx idx.Block, atropos hash.Event) {
 	s.evm.SetRawReceipts(blockIdx, receiptsForStorage)
-	receipts, _ := evmstore.UnwrapStorageReceipts(receiptsForStorage, blockIdx, nil, common.Hash(atropos), txs)
+	receipts, _ := evmstore.UnwrapStorageReceipts(s.GetEvmChainConfig(), receiptsForStorage, blockIdx, nil, common.Hash(atropos), txs)
 	for _, r := range receipts {
 		s.evm.IndexLogs(r.Logs...)
 	}

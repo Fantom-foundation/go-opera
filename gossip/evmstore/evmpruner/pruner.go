@@ -29,7 +29,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -60,9 +59,9 @@ const (
 // Pruner is an offline tool to prune the stale state with the
 // help of the snapshot. The workflow of pruner is very simple:
 //
-// - iterate the snapshot, reconstruct the relevant state
-// - iterate the database, delete all other state entries which
-//   don't belong to the target state and the genesis state
+//   - iterate the snapshot, reconstruct the relevant state
+//   - iterate the database, delete all other state entries which
+//     don't belong to the target state and the genesis state
 //
 // It can take several hours(around 2 hours for mainnet) to finish
 // the whole pruning work. It's recommended to run this offline tool
@@ -94,7 +93,13 @@ func NewProbabilisticSet(bloomSize uint64) (StateBloom, error) {
 
 // NewPruner creates the pruner instance.
 func NewPruner(db ethdb.Database, genesisRoot, root common.Hash, datadir string, stateBloom StateBloom) (*Pruner, error) {
-	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, root, false, false, false)
+	snapConfig := snapshot.Config{
+		CacheSize:  256,
+		Recovery:   false,
+		NoBuild:    false,
+		AsyncBuild: false,
+	}
+	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db), root)
 	if err != nil {
 		return nil, err // The relevant snapshot(s) might not exist
 	}
@@ -304,7 +309,13 @@ func RecoverPruning(datadir string, db ethdb.Database, root common.Hash) error {
 	// - The state HEAD is rewound already because of multiple incomplete `prune-state`
 	// In this case, even the state HEAD is not exactly matched with snapshot, it
 	// still feasible to recover the pruning correctly.
-	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, root, false, false, true)
+	snapConfig := snapshot.Config{
+		CacheSize:  256,
+		Recovery:   false,
+		NoBuild:    true,
+		AsyncBuild: false,
+	}
+	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db), root)
 	if err != nil {
 		return err // The relevant snapshot(s) might not exist
 	}
@@ -341,7 +352,7 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom ethdb.KeyVal
 	if root == (common.Hash{}) {
 		return nil
 	}
-	t, err := trie.NewSecure(root, trie.NewDatabase(db))
+	t, err := trie.NewStateTrie(trie.StateTrieID(root), trie.NewDatabase(db))
 	if err != nil {
 		return err
 	}
@@ -356,12 +367,12 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom ethdb.KeyVal
 		// If it's a leaf node, yes we are touching an account,
 		// dig into the storage trie further.
 		if accIter.Leaf() {
-			var acc state.Account
+			var acc types.StateAccount
 			if err := rlp.DecodeBytes(accIter.LeafBlob(), &acc); err != nil {
 				return err
 			}
 			if acc.Root != types.EmptyRootHash {
-				storageTrie, err := trie.NewSecure(acc.Root, trie.NewDatabase(db))
+				storageTrie, err := trie.NewStateTrie(trie.StateTrieID(acc.Root), trie.NewDatabase(db))
 				if err != nil {
 					return err
 				}

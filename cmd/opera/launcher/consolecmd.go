@@ -18,23 +18,20 @@ package launcher
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rpc"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 )
 
 var (
 	consoleFlags = []cli.Flag{utils.JSpathFlag, utils.ExecFlag, utils.PreloadJSFlag}
 
-	consoleCommand = cli.Command{
-		Action:   utils.MigrateFlags(localConsole),
+	consoleCommand = &cli.Command{
+		Action:   localConsole,
 		Name:     "console",
 		Usage:    "Start an interactive JavaScript environment",
 		Flags:    append(append(append(nodeFlags, rpcFlags...), consoleFlags...), testFlags...),
@@ -45,8 +42,8 @@ which exposes a node admin interface as well as the Ðapp JavaScript API.
 See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
 	}
 
-	attachCommand = cli.Command{
-		Action:    utils.MigrateFlags(remoteConsole),
+	attachCommand = &cli.Command{
+		Action:    remoteConsole,
 		Name:      "attach",
 		Usage:     "Start an interactive JavaScript environment (connect to node)",
 		ArgsUsage: "[endpoint]",
@@ -59,8 +56,8 @@ See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.
 This command allows to open a console on a running opera node.`,
 	}
 
-	javascriptCommand = cli.Command{
-		Action:    utils.MigrateFlags(ephemeralConsole),
+	javascriptCommand = &cli.Command{
+		Action:    ephemeralConsole,
 		Name:      "js",
 		Usage:     "Execute the specified JavaScript files",
 		ArgsUsage: "<jsfile> [jsfile...]",
@@ -79,7 +76,7 @@ func localConsole(ctx *cli.Context) error {
 	cfg := makeAllConfigs(ctx)
 	genesisStore := mayGetGenesisStore(ctx)
 	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
-	startNode(ctx, node)
+	startNode(ctx, node, true)
 	defer nodeClose()
 
 	// Attach to the newly started node and start the JavaScript console
@@ -89,7 +86,7 @@ func localConsole(ctx *cli.Context) error {
 	}
 	config := console.Config{
 		DataDir: utils.MakeDataDir(ctx),
-		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
+		DocRoot: ctx.String(utils.JSpathFlag.Name),
 		Client:  client,
 		Preload: utils.MakeConsolePreloads(ctx),
 	}
@@ -101,7 +98,7 @@ func localConsole(ctx *cli.Context) error {
 	defer console.Stop(false)
 
 	// If only a short execution was requested, evaluate and return
-	if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
+	if script := ctx.String(utils.ExecFlag.Name); script != "" {
 		console.Evaluate(script)
 		return nil
 	}
@@ -119,8 +116,8 @@ func remoteConsole(ctx *cli.Context) error {
 	endpoint := ctx.Args().First()
 	if endpoint == "" {
 		path := DefaultDataDir()
-		if ctx.GlobalIsSet(DataDirFlag.Name) {
-			path = ctx.GlobalString(DataDirFlag.Name)
+		if ctx.IsSet(DataDirFlag.Name) {
+			path = ctx.String(DataDirFlag.Name)
 		}
 		endpoint = fmt.Sprintf("%s/opera.ipc", path)
 	}
@@ -130,7 +127,7 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 	config := console.Config{
 		DataDir: utils.MakeDataDir(ctx),
-		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
+		DocRoot: ctx.String(utils.JSpathFlag.Name),
 		Client:  client,
 		Preload: utils.MakeConsolePreloads(ctx),
 	}
@@ -141,7 +138,7 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 	defer console.Stop(false)
 
-	if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
+	if script := ctx.String(utils.ExecFlag.Name); script != "" {
 		console.Evaluate(script)
 		return nil
 	}
@@ -170,46 +167,11 @@ func dialRPC(endpoint string) (*rpc.Client, error) {
 // console to it, executes each of the files specified as arguments and tears
 // everything down.
 func ephemeralConsole(ctx *cli.Context) error {
-	// Create and start the node based on the CLI flags
-	cfg := makeAllConfigs(ctx)
-	genesisStore := mayGetGenesisStore(ctx)
-	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
-	startNode(ctx, node)
-	defer nodeClose()
-
-	// Attach to the newly started node and start the JavaScript console
-	client, err := node.Attach()
-	if err != nil {
-		utils.Fatalf("Failed to attach to the inproc opera: %v", err)
+	var b strings.Builder
+	for _, file := range ctx.Args().Slice() {
+		b.Write([]byte(fmt.Sprintf("loadScript('%s');", file)))
 	}
-	config := console.Config{
-		DataDir: utils.MakeDataDir(ctx),
-		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
-		Client:  client,
-		Preload: utils.MakeConsolePreloads(ctx),
-	}
-
-	console, err := console.New(config)
-	if err != nil {
-		utils.Fatalf("Failed to start the JavaScript console: %v", err)
-	}
-	defer console.Stop(false)
-
-	// Evaluate each of the specified JavaScript files
-	for _, file := range ctx.Args() {
-		if err = console.Execute(file); err != nil {
-			utils.Fatalf("Failed to execute %s: %v", file, err)
-		}
-	}
-	// Wait for pending callbacks, but stop for Ctrl-C.
-	abort := make(chan os.Signal, 1)
-	signal.Notify(abort, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-abort
-		os.Exit(0)
-	}()
-	console.Stop(true)
-
+	utils.Fatalf(`The "js" command is deprecated. Please use the following instead:
+opera --exec "%s" console`, b.String())
 	return nil
 }

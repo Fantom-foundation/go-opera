@@ -263,7 +263,7 @@ func (ps *peerSet) NodeDataIdlePeers() ([]*peerConnection, int) {
 	throughput := func(p *peerConnection) int {
 		return p.rates.Capacity(eth.NodeDataMsg, time.Second)
 	}
-	return ps.idlePeers(eth.ETH65, eth.ETH66, idle, throughput)
+	return ps.idlePeers(eth.ETH66, eth.ETH67, idle, throughput)
 }
 
 // idlePeers retrieves a flat list of all currently idle peers satisfying the

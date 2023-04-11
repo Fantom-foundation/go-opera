@@ -38,7 +38,6 @@ func (db *Adapter) NewBatch() kvdb.Batch {
 
 func (db *Adapter) GetSnapshot() (kvdb.Snapshot, error) {
 	panic("called GetSnapshot on ethdb")
-	return nil, nil
 }
 
 // NewIterator creates a binary-alphabetical iterator over a subset
@@ -46,4 +45,8 @@ func (db *Adapter) GetSnapshot() (kvdb.Snapshot, error) {
 // initial key (or after, if it does not exist).
 func (db *Adapter) NewIterator(prefix []byte, start []byte) kvdb.Iterator {
 	return db.KeyValueStore.NewIterator(prefix, start)
+}
+
+func (db *Adapter) AncientDatadir() (string, error) {
+	panic("not implement yet")
 }

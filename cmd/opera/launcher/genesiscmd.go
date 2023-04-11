@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
@@ -203,12 +203,12 @@ func getEpochBlock(epoch idx.Epoch, store *gossip.Store) idx.Block {
 }
 
 func exportGenesis(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
+	if ctx.Args().Len() < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
 	from := idx.Epoch(1)
-	if len(ctx.Args()) > 1 {
+	if ctx.Args().Len() > 1 {
 		n, err := strconv.ParseUint(ctx.Args().Get(1), 10, 32)
 		if err != nil {
 			return err
@@ -216,7 +216,7 @@ func exportGenesis(ctx *cli.Context) error {
 		from = idx.Epoch(n)
 	}
 	to := idx.Epoch(math.MaxUint32)
-	if len(ctx.Args()) > 2 {
+	if ctx.Args().Len() > 2 {
 		n, err := strconv.ParseUint(ctx.Args().Get(2), 10, 32)
 		if err != nil {
 			return err
@@ -230,7 +230,7 @@ func exportGenesis(ctx *cli.Context) error {
 
 	var excludeEvmDB kvdb.Store
 	if excludeEvmDBPath := ctx.String(EvmExportExclude.Name); len(excludeEvmDBPath) > 0 {
-		db, err := pebble.New(excludeEvmDBPath, 1024*opt.MiB, utils.MakeDatabaseHandles()/2, nil, nil)
+		db, err := pebble.New(excludeEvmDBPath, 1024*opt.MiB, utils.MakeDatabaseHandles(0)/2, nil, nil)
 		if err != nil {
 			return err
 		}

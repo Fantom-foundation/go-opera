@@ -15,9 +15,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
+
 	"github.com/ethereum/go-ethereum/params"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 
 	evmetrics "github.com/ethereum/go-ethereum/metrics"
 
@@ -128,12 +128,6 @@ func initFlags() {
 	}
 	legacyRpcFlags = []cli.Flag{
 		utils.NoUSBFlag,
-		utils.LegacyRPCEnabledFlag,
-		utils.LegacyRPCListenAddrFlag,
-		utils.LegacyRPCPortFlag,
-		utils.LegacyRPCCORSDomainFlag,
-		utils.LegacyRPCVirtualHostsFlag,
-		utils.LegacyRPCApiFlag,
 	}
 
 	rpcFlags = []cli.Flag{
@@ -191,7 +185,7 @@ func initFlags() {
 
 // init the CLI app.
 func init() {
-	discfilter.Enable()
+	// discfilter.Enable()
 	overrideFlags()
 	overrideParams()
 
@@ -202,7 +196,7 @@ func init() {
 	app.Action = lachesisMain
 	app.Version = params.VersionWithCommit(gitCommit, gitDate)
 	app.HideVersion = true // we have a command to print the version
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		// See accountcmd.go:
 		accountCommand,
 		walletCommand,
@@ -264,8 +258,8 @@ func Launch(args []string) error {
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
 func lachesisMain(ctx *cli.Context) error {
-	if args := ctx.Args(); len(args) > 0 {
-		return fmt.Errorf("invalid command: %q", args[0])
+	if args := ctx.Args(); args.Len() > 0 {
+		return fmt.Errorf("invalid command: %q", args.Get(0))
 	}
 
 	// TODO: tracing flags
@@ -279,7 +273,7 @@ func lachesisMain(ctx *cli.Context) error {
 	genesisStore := mayGetGenesisStore(ctx)
 	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
-	startNode(ctx, node)
+	startNode(ctx, node, false)
 	node.Wait()
 	return nil
 }
@@ -345,8 +339,8 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 		return evmcore.NewTxPool(cfg.TxPool, reader.Config(), reader)
 	}
 	haltCheck := func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool {
-		stop := ctx.GlobalIsSet(ExitWhenAgeFlag.Name) && ctx.GlobalDuration(ExitWhenAgeFlag.Name) >= time.Since(age)
-		stop = stop || ctx.GlobalIsSet(ExitWhenEpochFlag.Name) && idx.Epoch(ctx.GlobalUint64(ExitWhenEpochFlag.Name)) <= newEpoch
+		stop := ctx.IsSet(ExitWhenAgeFlag.Name) && ctx.Duration(ExitWhenAgeFlag.Name) >= time.Since(age)
+		stop = stop || ctx.IsSet(ExitWhenEpochFlag.Name) && idx.Epoch(ctx.Uint64(ExitWhenEpochFlag.Name)) <= newEpoch
 		if stop {
 			go func() {
 				// do it in a separate thread to avoid deadlock
@@ -393,11 +387,11 @@ func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {
 
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces.
-func startNode(ctx *cli.Context, stack *node.Node) {
+func startNode(ctx *cli.Context, stack *node.Node, isConsole bool) {
 	debug.Memsize.Add("node", stack)
 
 	// Start up the node itself
-	utils.StartNode(ctx, stack)
+	utils.StartNode(ctx, stack, isConsole)
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)
@@ -449,7 +443,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 // unlockAccounts unlocks any account specifically requested.
 func unlockAccounts(ctx *cli.Context, stack *node.Node) {
 	var unlocks []string
-	inputs := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")
+	inputs := strings.Split(ctx.String(utils.UnlockedAccountFlag.Name), ",")
 	for _, input := range inputs {
 		if trimmed := strings.TrimSpace(input); trimmed != "" {
 			unlocks = append(unlocks, trimmed)

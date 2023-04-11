@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -227,7 +228,7 @@ func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (ty
 			if len(b.Block.Transactions) == 0 {
 				continue
 			}
-			receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
+			receipts := env.store.evm.GetReceipts(env.store.GetEvmChainConfig(), idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
 			for i, tx := range b.Block.Transactions {
 				if r, _, _ := tx.RawSignatureValues(); r.Sign() != 0 {
 					mu.Lock()
@@ -448,7 +449,10 @@ func (env *testEnv) callContract(
 	from := state.GetOrNewStateObject(call.From)
 	from.SetBalance(big.NewInt(math.MaxInt64))
 
-	msg := callmsg{call}
+	msg := &core.Message{
+		From: call.From,
+		To:   call.To,
+	}
 
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.

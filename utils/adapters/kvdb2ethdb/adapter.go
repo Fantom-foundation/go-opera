@@ -32,9 +32,21 @@ func (db *Adapter) NewBatch() ethdb.Batch {
 	return &batch{db.Store.NewBatch()}
 }
 
+func (db *Adapter) NewBatchWithSize(size int) ethdb.Batch {
+	return &batch{db.Store.NewBatch()}
+}
+
 // NewIterator creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix, starting at a particular
 // initial key (or after, if it does not exist).
 func (db *Adapter) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 	return db.Store.NewIterator(prefix, start)
+}
+
+func (db *Adapter) AncientDatadir() (string, error) {
+	return "", nil
+}
+
+func (db *Adapter) NewSnapshot() (ethdb.Snapshot, error) {
+	panic("not supported")
 }

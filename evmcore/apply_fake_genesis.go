@@ -56,7 +56,7 @@ func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
 	if err != nil {
 		return
 	}
-	err = statedb.Database().TrieDB().Commit(root, false, nil)
+	err = statedb.Database().TrieDB().Commit(root, false)
 	if err != nil {
 		return
 	}

@@ -48,3 +48,7 @@ func (db *Adapter) Drop() {}
 func (db *Adapter) Stat(property string) (string, error) {
 	return "", nil
 }
+
+func (db *Adapter) AncientDatadir() (string, error) {
+	return "", nil
+}

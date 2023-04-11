@@ -17,6 +17,7 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
@@ -25,8 +26,8 @@ import (
 // packets that are sent as replies or broadcasts.
 type snapHandler handler
 
-func (h *snapHandler) Chain() snap.BlockChain {
-	return h.chain
+func (h *snapHandler) Chain() *core.BlockChain {
+	panic("not supported")
 }
 
 // RunPeer is invoked when a peer joins on the `snap` protocol.

@@ -396,9 +396,9 @@ func (r repeater) compareParams() {
 		require.NoError(r.t, err)
 
 		// compare Receipts
-		genReceipts := r.generator.store.evm.GetReceipts(blockIdx, r.generator.EthAPI.signer, genEvmBlock.Hash, genEvmBlock.Transactions)
+		genReceipts := r.generator.store.evm.GetReceipts(r.generator.store.GetEvmChainConfig(), blockIdx, r.generator.EthAPI.signer, genEvmBlock.Hash, genEvmBlock.Transactions)
 		require.NotNil(r.t, genReceipts)
-		procReceipts := r.processor.store.evm.GetReceipts(blockIdx, r.processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
+		procReceipts := r.processor.store.evm.GetReceipts(r.generator.store.GetEvmChainConfig(), blockIdx, r.processor.EthAPI.signer, procEvmBlock.Hash, procEvmBlock.Transactions)
 		require.NotNil(r.t, procReceipts)
 
 		testParams := newTestParams(r.t, genEvmBlock, procEvmBlock, genReceipts, procReceipts)
@@ -454,7 +454,7 @@ func (r repeater) compareLogsByFilterCriteria() {
 			block, err := r.generator.EthAPI.BlockByNumber(ctx, rpc.BlockNumber(blockIdx))
 			require.NotNil(r.t, block)
 			require.NoError(r.t, err)
-			receipts := r.generator.store.evm.GetReceipts(blockIdx, r.generator.EthAPI.signer, block.Hash, block.Transactions)
+			receipts := r.generator.store.evm.GetReceipts(r.generator.store.GetEvmChainConfig(), blockIdx, r.generator.EthAPI.signer, block.Hash, block.Transactions)
 			for _, r := range receipts {
 				// we add only non empty logs
 				if len(r.Logs) > 0 {
