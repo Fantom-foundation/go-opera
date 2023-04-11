@@ -23,10 +23,21 @@ const (
 
 type errCode int
 
+type PeerStatus int
+
+const (
+	PeerNew PeerStatus = iota
+	PeerEvil
+	PeerFetching
+	PeerUseless
+)
+
 type peer struct {
 	*p2p.Peer
 	id      string
 	version uint // Protocol version negotiated
+
+	Status PeerStatus
 
 	progress gossip.PeerProgress
 
@@ -133,13 +144,6 @@ func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis comm
 		return errResp(gossip.ErrProtocolVersionMismatch, "%d (!= %d)", handshake.ProtocolVersion, p.version)
 	}
 	return nil
-}
-
-func (p *peer) SetProgress(x gossip.PeerProgress) {
-	p.Lock()
-	defer p.Unlock()
-
-	p.progress = x
 }
 
 func errResp(code errCode, format string, v ...interface{}) error {

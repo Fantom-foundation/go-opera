@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -111,10 +113,22 @@ func (b *ProbeBackend) handle(p *peer) error {
 	defer b.unregisterPeer(p.id)
 
 	// Handle incoming messages until the connection is torn down
-	for limit := 3; limit > 0; limit-- { // don't gossip for a long
-		if err := b.handleMsg(p); err != nil {
+	for {
+		err := b.handleMsg(p)
+		if err != nil {
 			p.Log().Debug("Message handling failed", "err", err)
 			return err
+		}
+
+		switch p.Status {
+		case PeerUseless:
+			return nil
+		case PeerEvil:
+			p.Status = PeerFetching
+			leecher := b.startDagLeecher(p.progress.Epoch)
+			leecher.Start()
+			defer leecher.Stop()
+			p.Log().Info("PEER fetching", "epoch", p.progress.Epoch)
 		}
 	}
 
@@ -145,9 +159,15 @@ func (b *ProbeBackend) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
 		}
-		p.SetProgress(progress)
+		p.progress = progress
 		p.Log().Info("PEER progress", "epoch", progress.Epoch, "block", progress.LastBlockIdx, "atropos", progress.LastBlockAtropos)
 		fmt.Printf("\"%s\" // %d %d %s (%s)\n", p.Node().URLv4(), progress.Epoch, progress.LastBlockIdx, progress.LastBlockAtropos, p.Fullname())
+
+		if progress.Epoch > progress.LastBlockAtropos.Epoch() {
+			p.Status = PeerEvil
+		} else {
+			p.Status = PeerUseless
+		}
 
 	case msg.Code == gossip.EvmTxsMsg:
 		break
@@ -195,7 +215,29 @@ func (b *ProbeBackend) handleMsg(p *peer) error {
 	case msg.Code == gossip.RequestEventsStream:
 		break
 	case msg.Code == gossip.EventsStreamResponse:
-		break
+		var chunk dagChunk
+		if err := msg.Decode(&chunk); err != nil {
+			return errResp(gossip.ErrDecode, "%v: %v", msg, err)
+		}
+
+		if (len(chunk.Events) < 1) && (len(chunk.IDs) < 1) {
+			return errors.New("expected either events or event hashes")
+		}
+		if (len(chunk.Events) > 0) && (len(chunk.IDs) > 0) {
+			return errors.New("expected either events or event hashes")
+		}
+
+		if len(chunk.IDs) > 0 {
+			p.Log().Info("PEER knows", "events", chunk.IDs)
+		}
+		if len(chunk.Events) > 0 {
+			for i, e := range chunk.Events {
+				str := &strings.Builder{}
+				json.NewEncoder(str).Encode(e.BaseEvent)
+				p.Log().Info("PEER knows", "n", i, "event", str.String())
+			}
+			p.Status = PeerUseless
+		}
 
 	case msg.Code == gossip.RequestBVsStream:
 		break
