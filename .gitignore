@@ -60,3 +60,6 @@ testnet.g
 .#*
 
 **/coverage.txt
+
+#local params for demo
+_localparams.sh

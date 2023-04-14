@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
+
+
 cd $(dirname $0)
 . ./_params.sh
+if test -f "./_localparams.sh"; then
+  . ./_localparams.sh
+fi
 
 set -e
 
@@ -25,7 +30,7 @@ do
 	--nat extip:127.0.0.1 \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
-	--metrics --metrics.addr=127.0.0.1 --metrics.port=$(($RPCP+1100)) \
+	--metrics --metrics.addr=127.0.0.1 --metrics.port=$(($RPCP+1100)) $METRICS_ARGS
 	--verbosity=3 --tracing >> opera$i.log 2>&1)&
 
     echo -e "\tnode$i ok"
