@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
@@ -17,6 +18,12 @@ func newEthBlockChain(s *Store) (*ethBlockChain, error) {
 	}
 
 	return bc, nil
+}
+
+// GenesisBlock returns starting block index.
+// Panics if there is no genesis info.
+func (bc *ethBlockChain) GenesisBlock() idx.Block {
+	return *bc.store.GetGenesisBlockIndex()
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
