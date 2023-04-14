@@ -85,6 +85,9 @@ var (
 	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
 	ErrSenderNoEOA = errors.New("sender not an eoa")
 
+	// ErrSenderNoContract is returned if the sender of a transaction is not a contract.
+	ErrSenderNoContract = errors.New("sender not a contract")
+
 	// ErrNoRecipient is returned if a recipient is not specified
 	ErrNoRecipient = errors.New("no recipient specified for account abstraction transaction")
 )

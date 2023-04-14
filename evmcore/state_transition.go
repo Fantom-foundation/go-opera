@@ -224,12 +224,16 @@ func (st *StateTransition) preCheck() error {
 			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooLow,
 				st.msg.From().Hex(), msgNonce, stNonce)
 		}
-		if !st.msg.IsAA() {
-			// Make sure the sender is an EOA
-			if codeHash := st.state.GetCodeHash(st.msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
-				return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
-					st.msg.From().Hex(), codeHash)
-			}
+
+		isAA := st.msg.IsAA()
+		codeHash := st.state.GetCodeHash(st.msg.From())
+		isContract := codeHash != emptyCodeHash && codeHash != (common.Hash{})
+		if isAA && !isContract {
+			return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
+		}
+		if !isAA && isContract {
+			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
+				st.msg.From().Hex(), codeHash)
 		}
 	}
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
