@@ -21,8 +21,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
-	"github.com/ethereum/go-ethereum/internal/utesting"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+
+	"github.com/Fantom-foundation/go-opera/utesting"
 )
 
 // Suite represents a structure used to test a node's conformance
