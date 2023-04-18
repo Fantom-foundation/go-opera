@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 
 pragma solidity >=0.4.22;
+pragma experimental AccountAbstraction;
 
-contract Wallet {
+account contract Wallet {
     bytes32 passwordHash;
 
     constructor(bytes32 _passwordHash) payable {
