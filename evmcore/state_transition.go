@@ -31,6 +31,11 @@ import (
 
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
+var aaPrefix = [...]byte{
+	0x33, 0x73, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0x14, 0x60, 0x24, 0x57, 0x36, 0x60, 0x1f, 0x57, 0x00, 0x5b, 0x60, 0x00, 0x80, 0xfd, 0x5b,
+}
+
 /*
 The State Transitioning Model
 
@@ -235,12 +240,23 @@ func (st *StateTransition) preCheck() error {
 		isAA := st.msg.IsAA()
 		codeHash := st.state.GetCodeHash(st.msg.From())
 		isContract := codeHash != emptyCodeHash && codeHash != (common.Hash{})
-		if isAA && !isContract {
-			return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
-		}
 		if !isAA && isContract {
 			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
 				st.msg.From().Hex(), codeHash)
+		}
+		if isAA {
+			if !isContract {
+				return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
+			}
+			code := st.evm.StateDB.GetCode(st.to())
+			if code == nil || len(code) < len(aaPrefix) {
+				return ErrInvalidAAPrefix
+			}
+			for i := range aaPrefix {
+				if code[i] != aaPrefix[i] {
+					return ErrInvalidAAPrefix
+				}
+			}
 		}
 	}
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
