@@ -202,7 +202,14 @@ func (st *StateTransition) buyGas() error {
 		return err
 	}
 
-	st.gas += st.msg.Gas()
+	// AA transactions can have no more than `params.VerificationGasCap` amount of gas until calling PAYGAS opcode.
+	// PAYGAS will return the initial gas limit.
+	if st.msg.IsAA() && st.msg.Gas() > params.VerificationGasCap {
+		st.gas += params.VerificationGasCap
+	} else {
+		st.gas += st.msg.Gas()
+	}
+
 	st.initialGas = st.msg.Gas()
 
 	if !st.msg.IsAA() {
