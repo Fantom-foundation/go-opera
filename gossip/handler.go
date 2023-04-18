@@ -63,14 +63,14 @@ const (
 	txChanSize = 4096
 
 	// percentage of useless peer nodes to allow
-	uselessPeerPercentage = 20 // 20%
+	uselessPeerPercentage = 0.2 // 20%
 
 	// Number of application errors that can be tolerated before banning the node and disconnecting
 	toleranceOfApplicationErrors = 3
 )
 
 var (
-	ErrorProgressTimeout = errors.New("progress timeout")
+	ErrorProgressTimeout    = errors.New("progress timeout")
 	ErrorApplicationTimeout = errors.New("application timeout")
 )
 
@@ -795,7 +795,7 @@ func (h *handler) handle(p *peer) error {
 	}
 
 	// Some clients have compatible caps and thus pass discovery checks and seep in to
-	// protocol handler. We should band these clients immediately.
+	// protocol handler. We should ban these clients immediately.
 	// ex: go-corex, Efireal, Geth all with caps=[opera/62]
 	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
 		discfilter.Ban(p.ID())
@@ -804,7 +804,7 @@ func (h *handler) handle(p *peer) error {
 
 	// A useless peer is the one which does not support protocols opera/63 & fsnap/1.
 	useless := !eligibleForSnap(p.Peer)
-	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= (h.maxPeers*(uselessPeerPercentage/100)) {
+	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= int((float32(h.maxPeers)*uselessPeerPercentage)) {
 		// don't allow more than 20% of useless peers
 		return p2p.DiscTooManyPeers
 	}
@@ -875,10 +875,10 @@ func (h *handler) handle(p *peer) error {
 	// Handle incoming messages until the connection is torn down or the inactivity
 	// timer times out.
 	var noOfApplicationErrors = 0
+	// progress and application
+	progressWatchDogTimer := time.NewTimer(noProgressTime)
+	applicationWatchDogTimer := time.NewTimer(noAppMessageTime)
 	for {
-		// progress and application
-		progressWatchDogTimer := time.NewTimer(noProgressTime)
-		applicationWatchDogTimer := time.NewTimer(noAppMessageTime)
 		select {
 		case <-progressWatchDogTimer.C:
 			// If self syncing, don't check peer progress
@@ -893,7 +893,7 @@ func (h *handler) handle(p *peer) error {
 				discfilter.Ban(p.ID())
 				return ErrorProgressTimeout
 			}
-		case <- applicationWatchDogTimer.C:
+		case <-applicationWatchDogTimer.C:
 			if p.IsApplicationProgressing() {
 				applicationWatchDogTimer.Reset(noAppMessageTime)
 			} else {
@@ -1072,7 +1072,7 @@ func (h *handler) handleMsg(p *peer) error {
 		p.SetProgress(progress)
 		// If peer has not progressed for noProgressTime minutes, then disconnect the peer.
 		if !p.IsPeerProgressing() {
-			return errResp(ErrPeerNotProgressing, "%v: %v %v", "epoch is not progressing for ", noProgressTime, "minutes")
+			return errResp(ErrPeerNotProgressing, "%v: %v", "epoch is not progressing for ", noProgressTime)
 		}
 
 	case msg.Code == EvmTxsMsg:
