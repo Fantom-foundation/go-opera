@@ -26,10 +26,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/cmd/devp2p/internal/v4test"
+	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher"
 )
 
 var (
@@ -62,20 +62,30 @@ var (
 		Usage:     "Finds a node in the DHT",
 		Action:    discv4Resolve,
 		ArgsUsage: "<node>",
-		Flags:     []cli.Flag{bootnodesFlag},
+		Flags: []cli.Flag{
+			genesisFlag,
+			bootnodesFlag,
+		},
 	}
 	discv4ResolveJSONCommand = cli.Command{
-		Name:      "resolve-json",
-		Usage:     "Re-resolves nodes in a nodes.json file",
-		Action:    discv4ResolveJSON,
-		Flags:     []cli.Flag{bootnodesFlag},
+		Name:   "resolve-json",
+		Usage:  "Re-resolves nodes in a nodes.json file",
+		Action: discv4ResolveJSON,
+		Flags: []cli.Flag{
+			genesisFlag,
+			bootnodesFlag,
+		},
 		ArgsUsage: "<nodes.json file>",
 	}
 	discv4CrawlCommand = cli.Command{
 		Name:   "crawl",
 		Usage:  "Updates a nodes.json file with random nodes found in the DHT",
 		Action: discv4Crawl,
-		Flags:  []cli.Flag{bootnodesFlag, crawlTimeoutFlag},
+		Flags: []cli.Flag{
+			genesisFlag,
+			bootnodesFlag,
+			crawlTimeoutFlag,
+		},
 	}
 	discv4TestCommand = cli.Command{
 		Name:   "test",
@@ -240,12 +250,26 @@ func makeDiscoveryConfig(ctx *cli.Context) (*enode.LocalNode, discover.Config) {
 		cfg.PrivateKey, _ = crypto.GenerateKey()
 	}
 
-	if commandHasFlag(ctx, bootnodesFlag) {
-		bn, err := parseBootnodes(ctx)
+	if commandHasFlag(ctx, genesisFlag) {
+		net := genesisNetwork(ctx)
+		bn, err := parseBootnodes(launcher.Bootnodes[net.Opera.Name])
 		if err != nil {
 			exit(err)
 		}
-		cfg.Bootnodes = bn
+		cfg.Bootnodes = append(cfg.Bootnodes, bn...)
+	}
+
+	if commandHasFlag(ctx, bootnodesFlag) {
+		var s []string
+		if ctx.IsSet(bootnodesFlag.Name) {
+			input := ctx.String(bootnodesFlag.Name)
+			s = strings.Split(input, ",")
+		}
+		bn, err := parseBootnodes(s)
+		if err != nil {
+			exit(err)
+		}
+		cfg.Bootnodes = append(cfg.Bootnodes, bn...)
 	}
 
 	dbpath := ctx.String(nodedbFlag.Name)
@@ -276,15 +300,7 @@ func listen(ln *enode.LocalNode, addr string) *net.UDPConn {
 	return usocket
 }
 
-func parseBootnodes(ctx *cli.Context) ([]*enode.Node, error) {
-	s := params.RinkebyBootnodes
-	if ctx.IsSet(bootnodesFlag.Name) {
-		input := ctx.String(bootnodesFlag.Name)
-		if input == "" {
-			return nil, nil
-		}
-		s = strings.Split(input, ",")
-	}
+func parseBootnodes(s []string) ([]*enode.Node, error) {
 	nodes := make([]*enode.Node, len(s))
 	var err error
 	for i, record := range s {

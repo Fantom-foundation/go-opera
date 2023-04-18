@@ -48,13 +48,20 @@ var (
 		Name:   "resolve",
 		Usage:  "Finds a node in the DHT",
 		Action: discv5Resolve,
-		Flags:  []cli.Flag{bootnodesFlag},
+		Flags: []cli.Flag{
+			genesisFlag,
+			bootnodesFlag,
+		},
 	}
 	discv5CrawlCommand = cli.Command{
 		Name:   "crawl",
 		Usage:  "Updates a nodes.json file with random nodes found in the DHT",
 		Action: discv5Crawl,
-		Flags:  []cli.Flag{bootnodesFlag, crawlTimeoutFlag},
+		Flags: []cli.Flag{
+			genesisFlag,
+			bootnodesFlag,
+			crawlTimeoutFlag,
+		},
 	}
 	discv5TestCommand = cli.Command{
 		Name:   "test",
