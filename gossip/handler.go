@@ -67,6 +67,9 @@ const (
 
 	// Number of application errors that can be tolerated before banning the node and disconnecting
 	toleranceOfApplicationErrors = 3
+
+	// time for soft ban
+	dynamicBanTime = 4 * time.Hour
 )
 
 var (
@@ -798,7 +801,7 @@ func (h *handler) handle(p *peer) error {
 	// protocol handler. We should ban these clients immediately.
 	// ex: go-corex, Efireal, Geth all with caps=[opera/62]
 	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
-		discfilter.Ban(p.ID())
+		discfilter.BanStatic(p.ID())
 		return p2p.DiscProtocolError
 	}
 
@@ -827,7 +830,7 @@ func (h *handler) handle(p *peer) error {
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
-		discfilter.Ban(p.ID())
+		discfilter.BanStatic(p.ID())
 		return err
 	}
 
@@ -890,7 +893,7 @@ func (h *handler) handle(p *peer) error {
 				progressWatchDogTimer.Reset(noProgressTime)
 			} else {
 				p.Log().Warn("progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
-				discfilter.Ban(p.ID())
+				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorProgressTimeout
 			}
 		case <-applicationWatchDogTimer.C:
@@ -898,7 +901,7 @@ func (h *handler) handle(p *peer) error {
 				applicationWatchDogTimer.Reset(noAppMessageTime)
 			} else {
 				p.Log().Warn("application timer timeout: ", "name", p.Name(), "node", p.Node().String())
-				discfilter.Ban(p.ID())
+				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorApplicationTimeout
 			}
 		default:
@@ -906,14 +909,14 @@ func (h *handler) handle(p *peer) error {
 			if err != nil {
 				p.Log().Debug("Message handling failed", "err", err)
 				if strings.Contains(err.Error(), errorToString[ErrPeerNotProgressing]) {
-					discfilter.Ban(p.ID())
+					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
 				// Ban peer and disconnect if the number of errors in the handling of application message
 				// crosses a threshold.
 				noOfApplicationErrors++
 				if noOfApplicationErrors > toleranceOfApplicationErrors {
-					discfilter.Ban(p.ID())
+					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
 			}
