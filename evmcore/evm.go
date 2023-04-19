@@ -20,6 +20,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -60,12 +61,19 @@ func NewEVMBlockContext(header *EvmHeader, chain DummyChain, author *common.Addr
 
 // NewEVMTxContext creates a new transaction context for a single transaction.
 func NewEVMTxContext(msg Message) vm.TxContext {
+	var origin common.Address
+	if msg.IsAA() {
+		origin = types.AAEntryPoint
+	} else {
+		origin = msg.From()
+	}
 	return vm.TxContext{
-		Origin:             msg.From(),
+		Origin:             origin,
 		GasPrice:           new(big.Int).Set(msg.GasPrice()),
 		GasLimit:           msg.Gas(),
 		Nonce:              msg.Nonce(),
 		TransactionFeePaid: !msg.IsAA(),
+		AccountAbstraction: msg.IsAA(),
 	}
 }
 
