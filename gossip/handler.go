@@ -893,7 +893,7 @@ func (h *handler) handle(p *peer) error {
 				progressWatchDogTimer.Reset(noProgressTime)
 			} else {
 				p.Log().Warn("progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
-				discfilter.Dynamic(p.ID(), dynamicBanTime)
+				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorProgressTimeout
 			}
 		case <-applicationWatchDogTimer.C:
@@ -901,7 +901,7 @@ func (h *handler) handle(p *peer) error {
 				applicationWatchDogTimer.Reset(noAppMessageTime)
 			} else {
 				p.Log().Warn("application timer timeout: ", "name", p.Name(), "node", p.Node().String())
-				discfilter.Dynamic(p.ID(), dynamicBanTime)
+				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorApplicationTimeout
 			}
 		default:
@@ -909,14 +909,14 @@ func (h *handler) handle(p *peer) error {
 			if err != nil {
 				p.Log().Debug("Message handling failed", "err", err)
 				if strings.Contains(err.Error(), errorToString[ErrPeerNotProgressing]) {
-					discfilter.Dynamic(p.ID(), dynamicBanTime)
+					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
 				// Ban peer and disconnect if the number of errors in the handling of application message
 				// crosses a threshold.
 				noOfApplicationErrors++
 				if noOfApplicationErrors > toleranceOfApplicationErrors {
-					discfilter.Dynamic(p.ID(), dynamicBanTime)
+					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
 			}
