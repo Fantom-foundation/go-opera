@@ -245,6 +245,9 @@ func (st *StateTransition) preCheck() error {
 				st.msg.From().Hex(), codeHash)
 		}
 		if isAA {
+			if st.value.Sign() != 0 {
+				return fmt.Errorf("value of AA transaction must be zero")
+			}
 			if !isContract {
 				return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
 			}

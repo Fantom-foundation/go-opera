@@ -83,6 +83,9 @@ var (
 	// transaction with a negative value.
 	ErrNegativeValue = errors.New("negative value")
 
+	// ErrPositiveValue is returned if an AA transaction value isn't equal to zero
+	ErrNonZeroValue = errors.New("nonzero value")
+
 	// ErrOversizedData is returned if the input data of a transaction is greater
 	// than some meaningful limit a user might use. This is not a consensus error
 	// making the transaction invalid, rather a DOS protection.
@@ -634,9 +637,15 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if tx.GasFeeCapIntCmp(tx.GasTipCap()) < 0 {
 		return ErrTipAboveFeeCap
 	}
-	// Ensure the AA transaction has recipient
-	if tx.Type() == types.AccountAbstractionTxType && tx.To() == nil {
-		return ErrNoRecipient
+	if tx.Type() == types.AccountAbstractionTxType {
+		// Ensure the AA transaction has recipient
+		if tx.To() == nil {
+			return ErrNoRecipient
+		}
+		// Ensure the AA transaction has Value == 0
+		if tx.Value().Sign() != 0 {
+			return ErrNonZeroValue
+		}
 	}
 	// Make sure the transaction is signed properly.
 	from, err := types.Sender(pool.signer, tx)
