@@ -1087,7 +1087,12 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		if state == nil || err != nil {
 			return 0, err
 		}
-		balance := state.GetBalance(*args.From) // from can't be nil
+		var balance *big.Int
+		if args.From.IsEntryPoint() {
+			balance = state.GetBalance(*args.To) // to can't be nil
+		} else {
+			balance = state.GetBalance(*args.From) // from can't be nil
+		}
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
 			if args.Value.ToInt().Cmp(available) >= 0 {
@@ -1779,29 +1784,41 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args TransactionArgs) (common.Hash, error) {
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.from()}
-
-	wallet, err := s.b.AccountManager().Find(account)
-	if err != nil {
-		return common.Hash{}, err
+	isAATransaction := args.From.IsEntryPoint()
+	var (
+		signed *types.Transaction
+		wallet accounts.Wallet
+		err    error
+	)
+	if !isAATransaction {
+		wallet, err = s.b.AccountManager().Find(account)
+		if err != nil {
+			return common.Hash{}, err
+		}
 	}
-
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
 		s.nonceLock.LockAddr(args.from())
 		defer s.nonceLock.UnlockAddr(args.from())
 	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
-	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
-	signed, err := wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
-	if err != nil {
-		return common.Hash{}, err
+	if isAATransaction {
+		if err = args.setAADefaults(ctx, s.b); err != nil {
+			return common.Hash{}, err
+		}
+		tx := args.toTransaction()
+		signed = tx.WithAASignature()
+	} else {
+		// Set some sanity defaults and terminate on failure
+		if err := args.setDefaults(ctx, s.b); err != nil {
+			return common.Hash{}, err
+		}
+		// Assemble the transaction and sign with the wallet
+		tx := args.toTransaction()
+		signed, err = wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
+		if err != nil {
+			return common.Hash{}, err
+		}
 	}
 	return SubmitTransaction(ctx, s.b, signed)
 }
