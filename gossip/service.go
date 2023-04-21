@@ -443,7 +443,9 @@ func (s *Service) Start() error {
 		}
 		root = hash.Zero
 	}
-	_ = s.store.GenerateSnapshotAt(common.Hash(root), true)
+	if err := s.store.GenerateSnapshotAt(common.Hash(root), true); err != nil {
+		return err
+	}
 
 	// start blocks processor
 	s.blockProcTasks.Start(1)

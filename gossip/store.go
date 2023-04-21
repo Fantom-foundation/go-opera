@@ -200,7 +200,7 @@ func (s *Store) cleanCommitEVM() {
 }
 
 func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
-	err = s.generateSnapshotAt(s.evm, root, true, async)
+	err = s.generateSnapshotAt(s.evm, root, false, async)
 	if err != nil {
 		s.Log.Error("EVM snapshot", "at", root, "err", err)
 	} else {
@@ -210,8 +210,8 @@ func (s *Store) GenerateSnapshotAt(root common.Hash, async bool) (err error) {
 	return err
 }
 
-func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, rebuild, async bool) (err error) {
-	return evmStore.GenerateEvmSnapshot(root, rebuild, async)
+func (s *Store) generateSnapshotAt(evmStore *evmstore.Store, root common.Hash, nobuild, async bool) (err error) {
+	return evmStore.GenerateEvmSnapshot(root, nobuild, async)
 }
 
 // Commit changes.

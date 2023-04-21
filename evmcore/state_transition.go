@@ -176,7 +176,7 @@ func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval = mgval.Mul(mgval, st.gasPrice)
 	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
-	if have, want := st.state.GetBalance(st.msg.From), mgval; have.Cmp(want) < 0 {
+	if have, want := st.state.GetBalance(st.msg.From), mgval; st.msg.From.Hex() != "0x0000000000000000000000000000000000000000" && have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 	}
 	if err := st.gp.SubGas(st.msg.GasLimit); err != nil {

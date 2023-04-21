@@ -126,15 +126,15 @@ func (s *Store) EVMDB() kvdb.Store {
 	return s.table.Evm
 }
 
-func (s *Store) GenerateEvmSnapshot(root common.Hash, rebuild, async bool) (err error) {
+func (s *Store) GenerateEvmSnapshot(root common.Hash, nobuild, async bool) (err error) {
 	if s.Snaps != nil {
 		return errors.New("EVM snapshot is already opened")
 	}
 	snapConfig := snapshot.Config{
 		CacheSize:  s.cfg.Cache.EvmSnap / opt.MiB,
-		Recovery:   async,
-		NoBuild:    rebuild,
-		AsyncBuild: false,
+		Recovery:   false,
+		NoBuild:    nobuild,
+		AsyncBuild: async,
 	}
 	s.Snaps, err = snapshot.New(
 		snapConfig,
