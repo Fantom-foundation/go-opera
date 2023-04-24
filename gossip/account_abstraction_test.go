@@ -1,7 +1,7 @@
 package gossip
 
 import (
-	"encoding/binary"
+	"crypto/ecdsa"
 	"math/big"
 	"testing"
 
@@ -13,11 +13,29 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
 var aaGasLimit uint64 = params.VerificationGasCap + 30_000
 var aaGasPrice = new(big.Int).SetUint64(1e12)
+
+func (env *testEnv) walletSignature(address common.Address, privateKey *ecdsa.PrivateKey) wallet.WalletSignature {
+	nonce := new(uint256.Int).SetUint64(env.State().GetNonce(address))
+	hashedData := crypto.Keccak256(address.Bytes(), common.LeftPadBytes(nonce.Bytes(), 32))
+	signature, _ := crypto.Sign(hashedData, privateKey)
+	var (
+		r [32]byte
+		s [32]byte
+	)
+	copy(r[:], signature[:32])
+	copy(s[:], signature[32:64])
+	return wallet.WalletSignature{
+		V: uint8(signature[64]) + 27,
+		R: r,
+		S: s,
+	}
+}
 
 func TestSimpleAAWallet(t *testing.T) {
 	logger.SetLevel("warn")
@@ -27,14 +45,13 @@ func TestSimpleAAWallet(t *testing.T) {
 	env := newTestEnv(1, 1)
 	defer env.Close()
 
-	password := []byte("password")
-	passwordHash := crypto.Keccak256Hash(password)
-
-	// contract deploy
 	payer := env.Pay(1)
+	owner := env.Address(2)
+	ownerKey := env.privateKey(2)
+
 	initialBalance := uint64(1e18)
 	payer.Value = new(big.Int).SetUint64(initialBalance)
-	addr, tx, cWallet, err := wallet.DeployContract(payer, env, passwordHash)
+	addr, tx, cWallet, err := wallet.DeployContract(payer, env, owner)
 	require.NoError(err)
 	require.NotNil(cWallet)
 
@@ -50,11 +67,8 @@ func TestSimpleAAWallet(t *testing.T) {
 	count := 10
 	gasUsed := uint64(0)
 	for i := 0; i < count; i++ {
-		newPassword := []byte("new_password")
-		binary.BigEndian.AppendUint32(newPassword, uint32(count))
-		newPasswordHash := crypto.Keccak256Hash(newPassword)
-
-		data := cWallet.ContractTransactor.TransferData(password, newPasswordHash, recipient, amount, nil)
+		signature := env.walletSignature(addr, ownerKey)
+		data := cWallet.Transfer(recipient, amount, nil, signature)
 		state := env.State()
 		nonce := state.GetNonce(addr)
 		txdata := &types.AccountAbstractionTx{
@@ -66,7 +80,6 @@ func TestSimpleAAWallet(t *testing.T) {
 			Data:     data,
 		}
 
-		password = newPassword
 		tx = types.NewTx(txdata)
 		signed := tx.WithAASignature()
 
@@ -87,6 +100,62 @@ func TestSimpleAAWallet(t *testing.T) {
 
 	contractBalance := state.GetBalance(addr)
 	require.Equal(contractBalance, expectedBalance)
+
+	callOpts := &bind.CallOpts{From: types.AAEntryPoint}
+	returnedOwner, err := cWallet.Owner(callOpts)
+	require.NoError(err)
+	require.Equal(returnedOwner, owner)
+
+	newOwner := env.Address(3)
+	newOwnerKey := env.privateKey(3)
+
+	signature := env.walletSignature(addr, newOwnerKey)
+	data := cWallet.Transfer(recipient, amount, nil, signature)
+	nonce := env.State().GetNonce(addr)
+	txdata := &types.AccountAbstractionTx{
+		Nonce:    nonce,
+		To:       &addr,
+		Value:    common.Big0,
+		Gas:      gasLimit,
+		GasPrice: gasPrice,
+		Data:     data,
+	}
+
+	tx = types.NewTx(txdata)
+	signed := tx.WithAASignature()
+
+	// Execution reverted - wrong signature
+	receipts, err = env.ApplyTxs(nextEpoch, signed)
+	require.NoError(err)
+
+	state = env.State()
+	recipientBalance = state.GetBalance(recipient)
+	require.Equal(recipientBalance, sentAmount)
+
+	contractBalance = state.GetBalance(addr)
+	require.Equal(contractBalance, expectedBalance)
+
+	signature = env.walletSignature(addr, ownerKey)
+	data = cWallet.ChangeOwner(newOwner, signature)
+	nonce = env.State().GetNonce(addr)
+	txdata = &types.AccountAbstractionTx{
+		Nonce:    nonce,
+		To:       &addr,
+		Value:    common.Big0,
+		Gas:      gasLimit,
+		GasPrice: gasPrice,
+		Data:     data,
+	}
+
+	tx = types.NewTx(txdata)
+	signed = tx.WithAASignature()
+
+	receipts, err = env.ApplyTxs(nextEpoch, signed)
+	require.NoError(err)
+
+	returnedOwner, err = cWallet.Owner(callOpts)
+	require.NoError(err)
+	require.Equal(returnedOwner, newOwner)
 }
 
 func (env *testEnv) buildAATx(to common.Address, data []byte) *types.Transaction {
