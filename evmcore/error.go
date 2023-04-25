@@ -93,4 +93,7 @@ var (
 
 	// ErrNoRecipient is returned if a recipient is not specified
 	ErrNoRecipient = errors.New("no recipient specified for account abstraction transaction")
+
+	// ErrMalformedAATransaction is returned if an AA transaction is malformed
+	ErrMalformedAATransaction = errors.New("AA transaction malformed")
 )
