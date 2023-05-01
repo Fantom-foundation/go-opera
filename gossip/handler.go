@@ -793,7 +793,7 @@ func (h *handler) handle(p *peer) error {
 	// a uniform initialization/teardown mechanism
 	snap, err := h.peers.WaitSnapExtension(p)
 	if err != nil {
-		p.Log().Error("Snapshot extension barrier failed", "err", err)
+		p.Log().Error("=== Snapshot extension barrier failed", "err", err)
 		return err
 	}
 
@@ -806,14 +806,15 @@ func (h *handler) handle(p *peer) error {
 	}
 
 	// A useless peer is the one which does not support protocols opera/63 & fsnap/1.
-	useless := !eligibleForSnap(p.Peer)
-	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= (h.maxPeers*(uselessPeerPercentage/100)) {
-		// don't allow more than 20% of useless peers
-		return p2p.DiscTooManyPeers
-	}
-	if !p.Peer.Info().Network.Trusted && useless {
-		p.SetUseless()
-	}
+	//useless := !eligibleForSnap(p.Peer)
+	//if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= (h.maxPeers*(uselessPeerPercentage/100)) {
+	//	// don't allow more than 20% of useless peers
+	//	p.Log().Debug("=== useless peer", "err", err)
+	//	return p2p.DiscTooManyPeers
+	//}
+	//if !p.Peer.Info().Network.Trusted && useless {
+	//	p.SetUseless()
+	//}
 
 	// Disconnect if maxPeers is reached
 	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
@@ -829,7 +830,7 @@ func (h *handler) handle(p *peer) error {
 		myProgress = h.myProgress()
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
-		p.Log().Debug("Handshake failed", "err", err)
+		p.Log().Debug("=== Handshake failed", "err", err)
 		discfilter.BanStatic(p.ID())
 		return err
 	}
@@ -838,7 +839,7 @@ func (h *handler) handle(p *peer) error {
 	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
 	}
-	p.Log().Debug("Peer connected", "name", p.Name())
+	p.Log().Debug("=== Peer connected", "name", p.Name())
 
 	// Register the peer locally
 	if err := h.peers.RegisterPeer(p, snap); err != nil {
@@ -869,7 +870,10 @@ func (h *handler) handle(p *peer) error {
 			return err
 		}
 	}
-	defer h.unregisterPeer(p.id)
+	defer func() {
+		p.Log().Debug("=== disconnecting peer ", "name", p.Name(), "node", p.Node().String())
+		h.unregisterPeer(p.id)
+	}()
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
@@ -877,6 +881,7 @@ func (h *handler) handle(p *peer) error {
 
 	// Handle incoming messages until the connection is torn down or the inactivity
 	// timer times out.
+	p.Log().Debug("=== Adding new peer ", "name", p.Name(), "node", p.Node().String())
 	var noOfApplicationErrors = 0
 	for {
 		// progress and application
@@ -892,7 +897,7 @@ func (h *handler) handle(p *peer) error {
 			if p.IsPeerProgressing() {
 				progressWatchDogTimer.Reset(noProgressTime)
 			} else {
-				p.Log().Warn("progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				p.Log().Warn("=== progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
 				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorProgressTimeout
 			}
@@ -900,7 +905,7 @@ func (h *handler) handle(p *peer) error {
 			if p.IsApplicationProgressing() {
 				applicationWatchDogTimer.Reset(noAppMessageTime)
 			} else {
-				p.Log().Warn("application timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				p.Log().Warn("=== application timer timeout (dynamic ban): ", "name", p.Name(), "node", p.Node().String())
 				discfilter.BanDynamic(p.ID(), dynamicBanTime)
 				return ErrorApplicationTimeout
 			}
@@ -909,6 +914,7 @@ func (h *handler) handle(p *peer) error {
 			if err != nil {
 				p.Log().Debug("Message handling failed", "err", err)
 				if strings.Contains(err.Error(), errorToString[ErrPeerNotProgressing]) {
+					p.Log().Debug("=== banning peer (dynamic ban) because peer is not progressing", "name", p.Name(), "node", p.Node().String())
 					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
@@ -916,6 +922,7 @@ func (h *handler) handle(p *peer) error {
 				// crosses a threshold.
 				noOfApplicationErrors++
 				if noOfApplicationErrors > toleranceOfApplicationErrors {
+					p.Log().Debug("=== banning peer (dynamic ban) because of application errors", "name", p.Name(), "node", p.Node().String())
 					discfilter.BanDynamic(p.ID(), dynamicBanTime)
 					return err
 				}
