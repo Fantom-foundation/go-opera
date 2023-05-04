@@ -185,7 +185,9 @@ func (st *StateTransition) buyGas() error {
 	st.gasRemaining += st.msg.GasLimit
 
 	st.initialGas = st.msg.GasLimit
-	st.state.SubBalance(st.msg.From, mgval)
+	if st.msg.From.Hex() != "0x0000000000000000000000000000000000000000" {
+		st.state.SubBalance(st.msg.From, mgval)
+	}
 	return nil
 }
 

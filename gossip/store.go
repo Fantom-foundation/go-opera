@@ -270,7 +270,7 @@ func (s *Store) CaptureEvmKvdbSnapshot() {
 	newStore := s.evm.ResetWithEVMDB(snap2kvdb.Wrap(s.snapshotedEVMDB))
 	newStore.Snaps = nil
 	root := s.GetBlockState().FinalizedStateRoot
-	err = s.generateSnapshotAt(newStore, common.Hash(root), false, false)
+	err = s.generateSnapshotAt(newStore, common.Hash(root), true, false)
 	if err != nil {
 		s.Log.Error("Failed to initialize EVM snapshot for frozen KVDB", "err", err)
 		return

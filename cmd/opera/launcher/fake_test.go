@@ -41,7 +41,7 @@ at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
  modules: {{apis}}
 
-To exit, press ctrl-d
+To exit, press ctrl-d or type exit
 > {{.InputLine "exit"}}
 `)
 	cli.ExpectExit()
@@ -85,7 +85,7 @@ at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
  modules: {{apis}}
 
-To exit, press ctrl-d
+To exit, press ctrl-d or type exit
 > {{.InputLine "exit"}}
 `)
 	cli.ExpectExit()
