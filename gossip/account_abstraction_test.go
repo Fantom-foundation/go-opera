@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var aaGasLimit uint64 = params.VerificationGasCap + 30_000
+var aaGasLimit uint64 = 80000
 var aaGasPrice = new(big.Int).SetUint64(1e12)
 
 func (env *testEnv) walletSignature(address common.Address, privateKey *ecdsa.PrivateKey) wallet.WalletSignature {
