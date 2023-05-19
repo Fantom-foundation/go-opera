@@ -52,6 +52,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/ethdb2kvdb"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/threads"
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
 	"github.com/Fantom-foundation/go-opera/utils/signers/internaltx"
 )
@@ -948,6 +949,12 @@ func (diff *StateOverride) Apply(state *state.StateDB) error {
 }
 
 func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, timeout time.Duration, globalGasCap uint64) (*evmcore.ExecutionResult, error) {
+	got, release := threads.GlobalPool.Lock(1)
+	defer release(got)
+	if got < 1 {
+		return nil, errors.New("Thread exhaustion. Try later.")
+	}
+
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
