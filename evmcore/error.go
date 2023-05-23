@@ -85,9 +85,6 @@ var (
 	// ErrSenderNoEOA is returned if the sender of a transaction is a contract.
 	ErrSenderNoEOA = errors.New("sender not an eoa")
 
-	// ErrInvalidAAPrefix is returned if a contract has invalid prefix
-	ErrInvalidAAPrefix = errors.New("invalid account abstraction prefix")
-
 	// ErrSenderNoContract is returned if the sender of a transaction is not a contract.
 	ErrSenderNoContract = errors.New("sender not a contract")
 

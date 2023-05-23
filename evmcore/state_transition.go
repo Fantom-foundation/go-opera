@@ -31,11 +31,6 @@ import (
 
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
-var aaPrefix = [...]byte{
-	0x32, 0x73, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	0xff, 0xff, 0xff, 0x14, 0x60, 0x24, 0x57, 0x36, 0x60, 0x1f, 0x57, 0x00, 0x5b, 0x60, 0x00, 0x80, 0xfd, 0x5b,
-}
-
 /*
 The State Transitioning Model
 
@@ -47,8 +42,10 @@ The state transitioning model does all the necessary work to work out a valid ne
 3) Create a new state object if the recipient is \0*32
 4) Value transfer
 == If contract creation ==
-  4a) Attempt to run transaction data
-  4b) If valid, use result as code for the new state object
+
+	4a) Attempt to run transaction data
+	4b) If valid, use result as code for the new state object
+
 == end ==
 5) Run Script section
 6) Derive new state root
@@ -251,15 +248,6 @@ func (st *StateTransition) preCheck() error {
 			if !isContract {
 				return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
 			}
-			code := st.evm.StateDB.GetCode(st.to())
-			if code == nil || len(code) < len(aaPrefix) {
-				return ErrInvalidAAPrefix
-			}
-			for i := range aaPrefix {
-				if code[i] != aaPrefix[i] {
-					return ErrInvalidAAPrefix
-				}
-			}
 		}
 	}
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
@@ -274,13 +262,13 @@ func (st *StateTransition) internal() bool {
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
-// - used gas:
-//      total gas used (including gas being refunded)
-// - returndata:
-//      the returned data from evm
-// - concrete execution error:
-//      various **EVM** error which aborts the execution,
-//      e.g. ErrOutOfGas, ErrExecutionReverted
+//   - used gas:
+//     total gas used (including gas being refunded)
+//   - returndata:
+//     the returned data from evm
+//   - concrete execution error:
+//     various **EVM** error which aborts the execution,
+//     e.g. ErrOutOfGas, ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
