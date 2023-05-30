@@ -341,6 +341,10 @@ func (s *Service) EmitterWorld(signer valkeystore.SignerI) emitter.World {
 	}
 }
 
+func (s *Service) GetP2PServer() *p2p.Server {
+	return s.p2pServer
+}
+
 // RegisterEmitter must be called before service is started
 func (s *Service) RegisterEmitter(em *emitter.Emitter) {
 	s.emitters = append(s.emitters, em)
