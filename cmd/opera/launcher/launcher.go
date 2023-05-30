@@ -284,6 +284,114 @@ func lachesisMain(ctx *cli.Context) error {
 	return nil
 }
 
+func makeP2PTestNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *P2PTestingNode {
+	// check errlock file
+	errlock.SetDefaultDatadir(cfg.Node.DataDir)
+	errlock.Check()
+
+	var g *genesis.Genesis
+	if genesisStore != nil {
+		gv := genesisStore.Genesis()
+		g = &gv
+	}
+	engine, dagIndex, gdb, cdb, blockProc, closeDBs := integration.MakeEngine(path.Join(cfg.Node.DataDir, "chaindata"), g, cfg.AppConfigs())
+	if genesisStore != nil {
+		_ = genesisStore.Close()
+	}
+	metrics.SetDataDir(cfg.Node.DataDir)
+	memorizeDBPreset(cfg)
+
+	// substitute default bootnodes if requested
+	networkName := ""
+	if gdb.HasBlockEpochState() {
+		networkName = gdb.GetRules().Name
+	}
+	if len(networkName) == 0 && genesisStore != nil {
+		networkName = genesisStore.Header().NetworkName
+	}
+	if needDefaultBootnodes(cfg.Node.P2P.BootstrapNodes) {
+		bootnodes := Bootnodes[networkName]
+		if bootnodes == nil {
+			bootnodes = []string{}
+		}
+		setBootnodes(ctx, bootnodes, &cfg.Node)
+	}
+
+	stack := makeConfigNode(ctx, &cfg.Node)
+	valKeystore := valkeystore.NewDefaultMemKeystore()
+
+	valPubkey := cfg.Emitter.Validator.PubKey
+	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
+		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
+		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
+	}
+	// unlock validator key
+	if !valPubkey.Empty() {
+		err := unlockValidatorKey(ctx, valPubkey, valKeystore)
+		if err != nil {
+			utils.Fatalf("Failed to unlock validator key: %v", err)
+		}
+	}
+
+	signer := valkeystore.NewSigner(valKeystore)
+
+	newTxPool := func(reader evmcore.StateReader) gossip.TxPool {
+		if cfg.TxPool.Journal != "" {
+			cfg.TxPool.Journal = stack.ResolvePath(cfg.TxPool.Journal)
+		}
+		return evmcore.NewTxPool(cfg.TxPool, reader.Config(), reader)
+	}
+	haltCheck := func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool {
+		stop := ctx.GlobalIsSet(ExitWhenAgeFlag.Name) && ctx.GlobalDuration(ExitWhenAgeFlag.Name) >= time.Since(age)
+		stop = stop || ctx.GlobalIsSet(ExitWhenEpochFlag.Name) && idx.Epoch(ctx.GlobalUint64(ExitWhenEpochFlag.Name)) <= newEpoch
+		if stop {
+			go func() {
+				// do it in a separate thread to avoid deadlock
+				_ = stack.Close()
+			}()
+			return true
+		}
+		return false
+	}
+	svc, err := gossip.NewService(stack, cfg.Opera, gdb, blockProc, engine, dagIndex, newTxPool, haltCheck)
+	if err != nil {
+		utils.Fatalf("Failed to create the service: %v", err)
+	}
+
+	if cfg.Emitter.Validator.ID != 0 {
+		svc.RegisterEmitter(emitter.NewEmitter(cfg.Emitter, svc.EmitterWorld(signer)))
+	}
+	err = engine.Bootstrap(svc.GetConsensusCallbacks())
+	if err != nil {
+		utils.Fatalf("Failed to bootstrap the engine: %v", err)
+	}
+
+	stack.RegisterAPIs(svc.APIs())
+	stack.RegisterProtocols(svc.Protocols())
+	stack.RegisterLifecycle(svc)
+
+	nodeClose := func() {
+		_ = stack.Close()
+		gdb.Close()
+		_ = cdb.Close()
+		if closeDBs != nil {
+			_ = closeDBs()
+		}
+	}
+
+	return &P2PTestingNode{
+		Node:      stack,
+		Service:   svc,
+		NodeClose: nodeClose,
+		P2PServer: svc.GetP2PServer(),
+		Signer:    signer,
+		Store:     gdb,
+		Genesis:   g,
+		PubKey:    valPubkey,
+	}
+}
+
 func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)

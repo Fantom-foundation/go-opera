@@ -488,11 +488,11 @@ func (p *peer) RequestEventsStream(r dagstream.Request) error {
 func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
-	var handshake handshakeData // safe to read after two values have been received from errc
+	var handshake HandshakeData // safe to read after two values have been received from errc
 
 	go func() {
 		// send both HandshakeMsg and ProgressMsg
-		err := p2p.Send(p.rw, HandshakeMsg, &handshakeData{
+		err := p2p.Send(p.rw, HandshakeMsg, &HandshakeData{
 			ProtocolVersion: uint32(p.version),
 			NetworkID:       0, // TODO: set to `network` after all nodes updated to #184
 			Genesis:         genesis,
@@ -525,7 +525,7 @@ func (p *peer) SendProgress(progress PeerProgress) error {
 	return p2p.Send(p.rw, ProgressMsg, progress)
 }
 
-func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis common.Hash) (err error) {
+func (p *peer) readStatus(network uint64, handshake *HandshakeData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
