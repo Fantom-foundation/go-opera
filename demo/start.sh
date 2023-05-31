@@ -9,7 +9,7 @@ echo -e "\nStart $N nodes:\n"
 go build -o ../build/demo_opera ../cmd/opera
 
 rm -f ./transactions.rlp
-for ((i=0;i<$N-1;i+=1))
+for ((i=0;i<$START;i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
     mkdir -p ${DATADIR}
@@ -32,7 +32,7 @@ do
 done
 
 echo -e "\nConnect nodes to ring:\n"
-for ((i=0;i<$N-1;i+=1))
+for ((i=0;i<$START;i+=1))
 do
     for ((n=0;n<$M;n+=1))
     do

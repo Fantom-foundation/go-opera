@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 #declare -ri N="${N:-3}"
-declare -ri N="${N:-4}"
+declare -ri N="${N:-3}"
+declare -ri START="${START:-$N}"
 declare -ri M="${M:-2}"
 declare -r  TAG="${TAG:-latest}"
 
