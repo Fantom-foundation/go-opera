@@ -1,15 +1,18 @@
 package gossip
 
 import (
+	"context"
 	"errors"
 	"math/big"
 	"sync/atomic"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagprocessor"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
@@ -26,6 +29,10 @@ var (
 	errNonExistingEpoch = errors.New("epoch doesn't exist")
 	errSameEpoch        = errors.New("epoch hasn't changed")
 	errDirtyEvmSnap     = errors.New("EVM snapshot is dirty")
+)
+
+var (
+	blockValidationTimer = metrics.GetOrRegisterTimer("chain/validation", nil)
 )
 
 func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) error {
@@ -69,7 +76,7 @@ func (s *Service) buildEvent(e *inter.MutableEventPayload, onIndexed func()) err
 }
 
 // processSavedEvent performs processing which depends on event being saved in DB
-func (s *Service) processSavedEvent(e *inter.EventPayload, es *iblockproc.EpochState) error {
+func (s *Service) processSavedEvent(ctx context.Context, e *inter.EventPayload, es *iblockproc.EpochState) error {
 	err := s.dagIndexer.Add(e)
 	if err != nil {
 		return err
@@ -80,18 +87,21 @@ func (s *Service) processSavedEvent(e *inter.EventPayload, es *iblockproc.EpochS
 		return errWrongMedianTime
 	}
 
+	begin := ctx.Value("startOfValidation").(time.Time)
+	blockValidationTimer.Update(time.Since(begin))
+
 	// aBFT processing
 	return s.engine.Process(e)
 }
 
 // saveAndProcessEvent deletes event in a case if it fails validation during event processing
-func (s *Service) saveAndProcessEvent(e *inter.EventPayload, es *iblockproc.EpochState) error {
+func (s *Service) saveAndProcessEvent(ctx context.Context, e *inter.EventPayload, es *iblockproc.EpochState) error {
 	fixEventTxHashes(e)
 	// indexing event
 	s.store.SetEvent(e)
 	defer s.dagIndexer.DropNotFlushed()
 
-	err := s.processSavedEvent(e, es)
+	err := s.processSavedEvent(ctx, e, es)
 	if err != nil {
 		s.store.DelEvent(e.ID())
 		return err
@@ -191,6 +201,8 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	atomic.StoreUint32(&s.eventBusyFlag, 1)
 	defer atomic.StoreUint32(&s.eventBusyFlag, 0)
 
+	ctx := context.WithValue(context.Background(), "startOfValidation", time.Now())
+
 	// repeat the checks under the mutex which may depend on volatile data
 	if s.store.HasEvent(e.ID()) {
 		return eventcheck.ErrAlreadyConnectedEvent
@@ -220,7 +232,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 		return err
 	}
 
-	err = s.saveAndProcessEvent(e, &es)
+	err = s.saveAndProcessEvent(ctx, e, &es)
 	if err != nil {
 		return err
 	}
