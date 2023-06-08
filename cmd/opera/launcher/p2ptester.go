@@ -28,7 +28,7 @@ func NewP2PTestingNode() *OperaNodeStaff {
 	fs.Set(FakeNetFlag.Name, "4/4")
 	ctx := cli.NewContext(app, fs, nil)
 	cfg := makeAllConfigs(ctx)
-	genesisStore := mayGetGenesisStore(ctx)
+	genesisStore := MakeGenesisStore(ctx)
 
 	return MakeOperaNodeStaff(ctx, cfg, genesisStore)
 }
