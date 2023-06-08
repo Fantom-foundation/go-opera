@@ -318,7 +318,7 @@ func makeP2PTestNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.S
 	}
 
 	stack := makeConfigNode(ctx, &cfg.Node)
-	valKeystore := valkeystore.NewDefaultMemKeystore()
+	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 
 	valPubkey := cfg.Emitter.Validator.PubKey
 	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {

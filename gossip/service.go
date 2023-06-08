@@ -510,3 +510,6 @@ func (s *Service) Stop() error {
 func (s *Service) AccountManager() *accounts.Manager {
 	return s.accountManager
 }
+func (s *Service) GetGasPowerCheckReader() GasPowerCheckReader {
+	return s.gasPowerCheckReader
+}
