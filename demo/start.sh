@@ -31,6 +31,16 @@ do
     echo -e "\tnode$i ok"
 done
 
+echo -e "\nNode information:\n"
+for ((i=0;i<$START;i+=1))
+do
+			enode=$(attach_and_exec $i 'admin.nodeInfo.enode')
+			rpc=$(attach_and_exec $i 'admin.nodeInfo.listenAddr')
+      echo "    p2p address = ${enode}"
+      echo "    rpc address = $(($RPCP_BASE+$i))"
+	
+done
+
 echo -e "\nConnect nodes to ring:\n"
 for ((i=0;i<$START;i+=1))
 do
@@ -38,11 +48,11 @@ do
     do
 			j=$(((i+n+1) % (N-1)))
 
-	enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
-        echo "    p2p address = ${enode}"
+			enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
+      echo "    p2p address = ${enode}"
 
-        echo " connecting node-$i to node-$j:"
-        res=$(attach_and_exec $i "admin.addPeer(${enode})")
-        echo "    result = ${res}"
+      echo " connecting node-$i to node-$j:"
+      res=$(attach_and_exec $i "admin.addPeer(${enode})")
+      echo "    result = ${res}"
     done
 done
