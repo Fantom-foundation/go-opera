@@ -14,12 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
-
-	evmetrics "github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
@@ -29,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
@@ -284,7 +285,18 @@ func lachesisMain(ctx *cli.Context) error {
 	return nil
 }
 
-func makeP2PTestNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *P2PTestingNode {
+type OperaNodeStaff struct {
+	Node      *node.Node
+	Service   *gossip.Service
+	P2PServer *p2p.Server
+	NodeClose func()
+	Signer    valkeystore.SignerI
+	Store     *gossip.Store
+	Genesis   *genesis.Genesis
+	PubKey    validatorpk.PubKey
+}
+
+func MakeOperaNodeStaff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *OperaNodeStaff {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
@@ -380,7 +392,7 @@ func makeP2PTestNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.S
 		}
 	}
 
-	return &P2PTestingNode{
+	return &OperaNodeStaff{
 		Node:      stack,
 		Service:   svc,
 		NodeClose: nodeClose,
@@ -393,7 +405,7 @@ func makeP2PTestNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.S
 }
 
 func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
-	n := makeP2PTestNode(ctx, cfg, genesisStore)
+	n := MakeOperaNodeStaff(ctx, cfg, genesisStore)
 	return n.Node, n.Service, n.NodeClose
 }
 

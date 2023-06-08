@@ -4,29 +4,12 @@ import (
 	"flag"
 	"os"
 
-	"github.com/Fantom-foundation/go-opera/gossip"
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
-	"github.com/Fantom-foundation/go-opera/opera/genesis"
-	"github.com/Fantom-foundation/go-opera/valkeystore"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"gopkg.in/urfave/cli.v1"
 )
 
-type P2PTestingNode struct {
-	Node      *node.Node
-	Service   *gossip.Service
-	P2PServer *p2p.Server
-	NodeClose func()
-	Signer    valkeystore.SignerI
-	Store     *gossip.Store
-	Genesis   *genesis.Genesis
-	PubKey    validatorpk.PubKey
-}
-
 // NewP2PTestingNode has to manually create an urfave.cli context,
 // setting flags manually, and then starting the node
-func NewP2PTestingNode() *P2PTestingNode {
+func NewP2PTestingNode() *OperaNodeStaff {
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	app := cli.NewApp()
 
@@ -47,5 +30,5 @@ func NewP2PTestingNode() *P2PTestingNode {
 	cfg := makeAllConfigs(ctx)
 	genesisStore := mayGetGenesisStore(ctx)
 
-	return makeP2PTestNode(ctx, cfg, genesisStore)
+	return MakeOperaNodeStaff(ctx, cfg, genesisStore)
 }
