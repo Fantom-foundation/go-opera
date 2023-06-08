@@ -203,7 +203,7 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
+func MakeGenesisStore(ctx *cli.Context) *genesisstore.Store {
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
