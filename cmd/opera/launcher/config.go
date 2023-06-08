@@ -548,7 +548,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	return &cfg, nil
 }
 
-func makeAllConfigs(ctx *cli.Context) *config {
+func MakeAllConfigs(ctx *cli.Context) *config {
 	cfg, err := mayMakeAllConfigs(ctx)
 	if err != nil {
 		utils.Fatalf("%v", err)
@@ -569,7 +569,7 @@ func defaultNodeConfig() node.Config {
 
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	comment := ""
 
 	out, err := tomlSettings.Marshal(&cfg)

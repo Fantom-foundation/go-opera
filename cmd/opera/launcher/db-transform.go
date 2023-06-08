@@ -21,7 +21,7 @@ import (
 )
 
 func dbTransform(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 
 	tmpPath := path.Join(cfg.Node.DataDir, "tmp")
 	integration.MakeDBDirs(tmpPath)

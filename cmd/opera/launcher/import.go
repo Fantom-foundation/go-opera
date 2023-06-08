@@ -34,7 +34,7 @@ func importEvm(ctx *cli.Context) error {
 		utils.Fatalf("This command requires an argument.")
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 
 	rawDbs := makeDirectDBsProducer(cfg)
 	gdb := makeGossipStore(rawDbs, cfg)
@@ -78,7 +78,7 @@ func importEvents(ctx *cli.Context) error {
 
 	// avoid P2P interaction, API calls and events emitting
 	genesisStore := MakeGenesisStore(ctx)
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
 	cfg.Emitter.Validator = emitter.ValidatorConfig{}

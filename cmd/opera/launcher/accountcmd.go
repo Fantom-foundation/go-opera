@@ -198,7 +198,7 @@ nodes.
 )
 
 func accountList(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	stack := makeConfigNode(ctx, &cfg.Node)
 	var index int
 	for _, wallet := range stack.AccountManager().Wallets() {
@@ -297,7 +297,7 @@ func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrErr
 
 // accountCreate creates a new account into the keystore defined by the CLI flags.
 func accountCreate(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	utils.SetNodeConfig(ctx, &cfg.Node)
 	scryptN, scryptP, keydir, err := cfg.Node.AccountConfig()
 
@@ -329,7 +329,7 @@ func accountUpdate(ctx *cli.Context) error {
 		utils.Fatalf("No accounts specified to update")
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	stack := makeConfigNode(ctx, &cfg.Node)
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
@@ -353,7 +353,7 @@ func importWallet(ctx *cli.Context) error {
 		utils.Fatalf("Could not read wallet file: %v", err)
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	stack := makeConfigNode(ctx, &cfg.Node)
 	passphrase := getPassPhrase("", false, 0, utils.MakePasswordList(ctx))
 
@@ -376,7 +376,7 @@ func accountImport(ctx *cli.Context) error {
 		utils.Fatalf("Failed to load the private key: %v", err)
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	stack := makeConfigNode(ctx, &cfg.Node)
 	passphrase := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
 
