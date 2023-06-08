@@ -29,7 +29,7 @@ func healDirty(ctx *cli.Context) error {
 	if !ctx.Bool(experimentalFlag.Name) {
 		utils.Fatalf("Add --experimental flag")
 	}
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 
 	log.Info("Opening databases")
 	dbTypes := makeUncheckedDBsProducers(cfg)
