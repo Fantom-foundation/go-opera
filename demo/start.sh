@@ -9,6 +9,8 @@ echo -e "\nStart $N nodes:\n"
 go build -o ../build/demo_opera ../cmd/opera
 
 rm -f ./transactions.rlp
+
+# NOTE: allow-insecure-unlock is required so we can run "unlockAddress" tests from opera-bdd
 for ((i=0;i<$START;i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
