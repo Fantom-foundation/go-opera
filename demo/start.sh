@@ -19,6 +19,7 @@ do
     WSP=$(($WSP_BASE+$i))
     ACC=$(($i+1))
     (../build/demo_opera \
+	--allow-insecure-unlock \
 	--datadir=${DATADIR} \
 	--fakenet=${ACC}/$N \
 	--port=${PORT} \
