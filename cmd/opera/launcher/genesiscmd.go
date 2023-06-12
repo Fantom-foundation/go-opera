@@ -255,7 +255,7 @@ func exportGenesis(ctx *cli.Context) error {
 		}
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	tmpPath := path.Join(cfg.Node.DataDir, "tmp")
 	_ = os.RemoveAll(tmpPath)
 	defer os.RemoveAll(tmpPath)

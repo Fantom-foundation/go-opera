@@ -87,7 +87,7 @@ Converts an account private key to a validator private key and saves in the vali
 
 // validatorKeyCreate creates a new validator key into the keystore defined by the CLI flags.
 func validatorKeyCreate(ctx *cli.Context) error {
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	utils.SetNodeConfig(ctx, &cfg.Node)
 
 	password := getPassPhrase("Your new validator key is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
@@ -129,7 +129,7 @@ func validatorKeyConvert(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
 		utils.Fatalf("This command requires 2 arguments.")
 	}
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 	utils.SetNodeConfig(ctx, &cfg.Node)
 
 	_, _, keydir, _ := cfg.Node.AccountConfig()

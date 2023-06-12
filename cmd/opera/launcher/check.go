@@ -17,7 +17,7 @@ func checkEvm(ctx *cli.Context) error {
 		utils.Fatalf("This command doesn't require an argument.")
 	}
 
-	cfg := makeAllConfigs(ctx)
+	cfg := MakeAllConfigs(ctx)
 
 	rawDbs := makeDirectDBsProducer(cfg)
 	gdb := makeGossipStore(rawDbs, cfg)
