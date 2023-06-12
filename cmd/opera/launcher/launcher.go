@@ -285,7 +285,7 @@ func lachesisMain(ctx *cli.Context) error {
 	return nil
 }
 
-type OperaNodeStaff struct {
+type OperaNodeStuff struct {
 	Node      *node.Node
 	Service   *gossip.Service
 	P2PServer *p2p.Server
@@ -296,7 +296,7 @@ type OperaNodeStaff struct {
 	PubKey    validatorpk.PubKey
 }
 
-func MakeOperaNodeStaff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *OperaNodeStaff {
+func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *OperaNodeStuff {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
@@ -392,7 +392,7 @@ func MakeOperaNodeStaff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 		}
 	}
 
-	return &OperaNodeStaff{
+	return &OperaNodeStuff{
 		Node:      stack,
 		Service:   svc,
 		NodeClose: nodeClose,
@@ -405,7 +405,7 @@ func MakeOperaNodeStaff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 }
 
 func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
-	n := MakeOperaNodeStaff(ctx, cfg, genesisStore)
+	n := MakeOperaNodeStuff(ctx, cfg, genesisStore)
 	return n.Node, n.Service, n.NodeClose
 }
 
