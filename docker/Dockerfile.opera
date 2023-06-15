@@ -17,6 +17,6 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /go/go-opera/build/opera /
 
-EXPOSE 5050 18545 18546 18547 19090
+EXPOSE 5050 18545 18546 
 
 ENTRYPOINT ["/opera"]
