@@ -14,12 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	evmetrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
+
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
@@ -29,7 +29,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
-	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
@@ -276,8 +275,8 @@ func lachesisMain(ctx *cli.Context) error {
 	//}
 	//defer tracingStop()
 
-	cfg := MakeAllConfigs(ctx)
-	genesisStore := MakeGenesisStore(ctx)
+	cfg := makeAllConfigs(ctx)
+	genesisStore := mayGetGenesisStore(ctx)
 	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
 	startNode(ctx, node)
@@ -285,18 +284,7 @@ func lachesisMain(ctx *cli.Context) error {
 	return nil
 }
 
-type OperaNodeStuff struct {
-	Node      *node.Node
-	Service   *gossip.Service
-	P2PServer *p2p.Server
-	NodeClose func()
-	Signer    valkeystore.SignerI
-	Store     *gossip.Store
-	Genesis   *genesis.Genesis
-	PubKey    validatorpk.PubKey
-}
-
-func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *OperaNodeStuff {
+func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
@@ -306,6 +294,7 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 		gv := genesisStore.Genesis()
 		g = &gv
 	}
+
 	engine, dagIndex, gdb, cdb, blockProc, closeDBs := integration.MakeEngine(path.Join(cfg.Node.DataDir, "chaindata"), g, cfg.AppConfigs())
 	if genesisStore != nil {
 		_ = genesisStore.Close()
@@ -330,14 +319,15 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 	}
 
 	stack := makeConfigNode(ctx, &cfg.Node)
-	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 
+	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Emitter.Validator.PubKey
 	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
 		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
 	}
+
 	// unlock validator key
 	if !valPubkey.Empty() {
 		err := unlockValidatorKey(ctx, valPubkey, valKeystore)
@@ -345,9 +335,9 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 			utils.Fatalf("Failed to unlock validator key: %v", err)
 		}
 	}
-
 	signer := valkeystore.NewSigner(valKeystore)
 
+	// Create and register a gossip network service.
 	newTxPool := func(reader evmcore.StateReader) gossip.TxPool {
 		if cfg.TxPool.Journal != "" {
 			cfg.TxPool.Journal = stack.ResolvePath(cfg.TxPool.Journal)
@@ -370,7 +360,6 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
-
 	if cfg.Emitter.Validator.ID != 0 {
 		svc.RegisterEmitter(emitter.NewEmitter(cfg.Emitter, svc.EmitterWorld(signer)))
 	}
@@ -383,7 +372,7 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 	stack.RegisterProtocols(svc.Protocols())
 	stack.RegisterLifecycle(svc)
 
-	nodeClose := func() {
+	return stack, svc, func() {
 		_ = stack.Close()
 		gdb.Close()
 		_ = cdb.Close()
@@ -391,22 +380,6 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 			_ = closeDBs()
 		}
 	}
-
-	return &OperaNodeStuff{
-		Node:      stack,
-		Service:   svc,
-		NodeClose: nodeClose,
-		P2PServer: svc.GetP2PServer(),
-		Signer:    signer,
-		Store:     gdb,
-		Genesis:   g,
-		PubKey:    valPubkey,
-	}
-}
-
-func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
-	n := MakeOperaNodeStuff(ctx, cfg, genesisStore)
-	return n.Node, n.Service, n.NodeClose
 }
 
 func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {

@@ -61,9 +61,6 @@ const (
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
-
-	sameMsgDisconnectThreshold = 10
-	maxMsgFrequency            = 1 * time.Second
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -126,11 +123,6 @@ type snapsyncState struct {
 	cancel    func() error
 	updatesCh chan snapsyncStateUpd
 	quit      chan struct{}
-}
-
-type msgDOSwatch struct {
-	timestamp []time.Time
-	count     int
 }
 
 type handler struct {
@@ -198,8 +190,6 @@ type handler struct {
 	peerWG  sync.WaitGroup
 	started sync.WaitGroup
 
-	msgCache map[uint64]map[string]*msgDOSwatch
-
 	logger.Instance
 }
 
@@ -226,7 +216,6 @@ func newHandler(
 		txsyncCh:             make(chan *txsync),
 		quitSync:             make(chan struct{}),
 		quitProgressBradcast: make(chan struct{}),
-		msgCache:             make(map[uint64]map[string]*msgDOSwatch),
 
 		snapState: snapsyncState{
 			updatesCh: make(chan snapsyncStateUpd, 128),
@@ -1149,22 +1138,6 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 		if request.Limit.Size > protocolMaxMsgSize*2/3 {
 			return errResp(ErrMsgTooLarge, "%v", msg)
-		}
-
-		if h.msgCache[msg.Code] == nil {
-			h.msgCache[msg.Code] = make(map[string]*msgDOSwatch)
-		}
-		id := msg.String()
-		dosWatch := h.msgCache[msg.Code][id]
-		if dosWatch == nil {
-			dosWatch = new(msgDOSwatch)
-		}
-		dosWatch.timestamp = append(dosWatch.timestamp, time.Now())
-		if len(dosWatch.timestamp) > sameMsgDisconnectThreshold {
-			if time.Now().Sub(dosWatch.timestamp[0]) > maxMsgFrequency {
-				return errors.New("too frequent")
-			}
-			dosWatch.timestamp = dosWatch.timestamp[:0]
 		}
 
 		pid := p.id
