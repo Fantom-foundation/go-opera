@@ -119,8 +119,8 @@ type TxPool interface {
 	PendingSlice() types.Transactions
 }
 
-// HandshakeData is the network packet for the initial handshake message
-type HandshakeData struct {
+// handshakeData is the network packet for the initial handshake message
+type handshakeData struct {
 	ProtocolVersion uint32
 	NetworkID       uint64
 	Genesis         common.Hash

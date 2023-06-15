@@ -123,7 +123,7 @@ func makeGossipStore(producer kvdb.FlushableDBProducer, cfg *config) *gossip.Sto
 
 func compact(ctx *cli.Context) error {
 
-	cfg := MakeAllConfigs(ctx)
+	cfg := makeAllConfigs(ctx)
 
 	producers := makeCheckedDBsProducers(cfg)
 	for typ, p := range producers {
