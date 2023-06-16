@@ -296,7 +296,7 @@ type OperaNodeStuff struct {
 	PubKey    validatorpk.PubKey
 }
 
-func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) *OperaNodeStuff {
+func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store, registerEmitter bool) *OperaNodeStuff {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()
@@ -371,7 +371,7 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
 
-	if cfg.Emitter.Validator.ID != 0 {
+	if cfg.Emitter.Validator.ID != 0 && registerEmitter {
 		svc.RegisterEmitter(emitter.NewEmitter(cfg.Emitter, svc.EmitterWorld(signer)))
 	}
 	err = engine.Bootstrap(svc.GetConsensusCallbacks())
@@ -405,7 +405,7 @@ func MakeOperaNodeStuff(ctx *cli.Context, cfg *config, genesisStore *genesisstor
 }
 
 func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (*node.Node, *gossip.Service, func()) {
-	n := MakeOperaNodeStuff(ctx, cfg, genesisStore)
+	n := MakeOperaNodeStuff(ctx, cfg, genesisStore, true)
 	return n.Node, n.Service, n.NodeClose
 }
 
