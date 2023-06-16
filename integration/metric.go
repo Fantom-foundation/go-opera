@@ -146,7 +146,7 @@ var tmpDbNameMask = regexp.MustCompile("^([A-z]+)(-[0-9]+)$")
 func genericNameOfTmpDB(name string) string {
 	match := tmpDbNameMask.FindStringSubmatch(name)
 	if len(match) == 3 {
-		return match[1] + "es"
+		return match[1] + "-tmp"
 	} else {
 		return name
 	}
