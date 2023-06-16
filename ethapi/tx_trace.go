@@ -114,7 +114,7 @@ func (s *PublicTxTraceAPI) traceTx(
 		at := make([]txtrace.ActionTrace, 0)
 		at = append(at, *errTrace)
 		if status == 1 {
-			panic("Not equal state when replaying tx " + tx.Hash().String())
+			return nil, fmt.Errorf("invalid transaction replay state at %s", tx.Hash().String())
 		}
 		return &at, nil
 	}
@@ -133,13 +133,13 @@ func (s *PublicTxTraceAPI) traceTx(
 			return &at, nil
 		}
 		if status == 1 {
-			panic("Not equal state when replaying tx " + tx.Hash().String())
+			return nil, fmt.Errorf("invalid transaction replay state at %s", tx.Hash().String())
 		}
 		return traceActions, nil
 	}
 
 	if status == 0 {
-		panic("Not equal state when replaying tx " + tx.Hash().String())
+		return nil, fmt.Errorf("invalid transaction replay state at %s", tx.Hash().String())
 	}
 	return traceActions, nil
 }
@@ -271,7 +271,7 @@ func (s *PublicTxTraceAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 				// Finalize the state so any modifications are written to the trie
 				state.Finalise(true)
 				if (failed && receipts[i].Status == 1) || (!failed && receipts[i].Status == 0) {
-					panic("Not equal state when replaying tx " + tx.Hash().String())
+					return nil, fmt.Errorf("invalid transaction replay state at %s", tx.Hash().String())
 				}
 			}
 		}
