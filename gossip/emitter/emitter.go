@@ -100,12 +100,13 @@ func NewEmitter(
 
 	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
-		config:        config,
-		world:         world,
-		originatedTxs: originatedtxs.New(SenderCountBufferSize),
-		txTime:        txTime,
-		intervals:     config.EmitIntervals,
-		Periodic:      logger.Periodic{Instance: logger.New()},
+		config:            config,
+		world:             world,
+		originatedTxs:     originatedtxs.New(SenderCountBufferSize),
+		txTime:            txTime,
+		intervals:         config.EmitIntervals,
+		Periodic:          logger.Periodic{Instance: logger.New()},
+		validatorVersions: make(map[idx.ValidatorID]uint64),
 	}
 }
 
@@ -376,8 +377,21 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 	var metric ancestor.Metric
 	err := em.world.Build(mutEvent, func() {
 		// calculate event metric when it is indexed by the vector clock
-		metric = eventMetric(em.quorumIndexer.GetMetricOf(hash.Events{mutEvent.ID()}), mutEvent.Seq())
-		metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
+		if em.fcIndexer != nil {
+			pastMe := em.fcIndexer.ValidatorsPastMe()
+			metric = (ancestor.Metric(pastMe) * piecefunc.DecimalUnit) / ancestor.Metric(em.validators.TotalWeight())
+			if pastMe < em.validators.Quorum() {
+				metric /= 15
+			}
+			if metric < 0.03*piecefunc.DecimalUnit {
+				metric = 0.03 * piecefunc.DecimalUnit
+			}
+			metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
+			metric = kickStartMetric(metric/2, mutEvent.Seq()) // adjust emission interval for FC
+		} else if em.quorumIndexer != nil {
+			metric = eventMetric(em.quorumIndexer.GetMetricOf(hash.Events{mutEvent.ID()}), mutEvent.Seq())
+			metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
+		}
 	})
 	if err != nil {
 		if err == ErrNotEnoughGasPower {
