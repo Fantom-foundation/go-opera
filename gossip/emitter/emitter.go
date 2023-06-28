@@ -161,10 +161,10 @@ func (em *Emitter) Start() {
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
 				em.tick()
+				timer.Reset(tick)
 			case <-done:
 				return
 			}
-			timer.Reset(tick)
 		}
 	}()
 }
