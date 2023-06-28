@@ -60,6 +60,7 @@ type Emitter struct {
 	prevRecheckedChallenges time.Time
 
 	quorumIndexer  *ancestor.QuorumIndexer
+	fcIndexer      *ancestor.FCIndexer
 	payloadIndexer *ancestor.PayloadIndexer
 
 	intervals EmitIntervals
@@ -80,6 +81,9 @@ type Emitter struct {
 	emittedBvsFile   *os.File
 	emittedEvFile    *os.File
 	busyRate         *rate.Gauge
+
+	switchToFCIndexer bool
+	validatorVersions map[idx.ValidatorID]uint64
 
 	logger.Periodic
 }
