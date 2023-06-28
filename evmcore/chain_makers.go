@@ -18,7 +18,6 @@ package evmcore
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core"
 	"math/big"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 // BlockGen creates blocks for testing.
@@ -89,12 +87,12 @@ func (b *BlockGen) AddTx(tx *types.Transaction) {
 // customized rules.
 // - bc:       enables the ability to query historical block hashes for BLOCKHASH
 // - vmConfig: extends the flexibility for customizing evm rules, e.g. enable extra EIPs
-func (b *BlockGen) addTx(bc *core.BlockChain, vmConfig vm.Config, tx *types.Transaction) {
+func (b *BlockGen) addTx(bc DummyChain, vmConfig vm.Config, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
 	}
 	b.statedb.SetTxContext(tx.Hash(), len(b.txs))
-	receipt, err := core.ApplyTransaction(b.config, bc, &b.header.Coinbase, (*core.GasPool)(b.gasPool), b.statedb, b.header, tx, &b.header.GasUsed, vmConfig)
+	receipt, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vmConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -111,22 +109,7 @@ func (b *BlockGen) addTx(bc *core.BlockChain, vmConfig vm.Config, tx *types.Tran
 // added. If contract code relies on the BLOCKHASH instruction,
 // the block in chain will be returned.
 func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
-	if b.gasPool == nil {
-		b.SetCoinbase(common.Address{})
-	}
-	msg, err := TxAsMessage(tx, types.MakeSigner(b.config, b.header.Number), b.header.BaseFee)
-	if err != nil {
-		panic(err)
-	}
-	b.statedb.SetTxContext(tx.Hash(), len(b.txs))
-	blockContext := NewEVMBlockContext(b.header, bc, nil)
-	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, b.statedb, b.config, opera.DefaultVMConfig)
-	receipt, _, _, err := applyTransaction(msg, b.config, b.gasPool, b.statedb, b.header.Number, b.header.Hash, tx, &b.header.GasUsed, vmenv, func(log *types.Log, db *state.StateDB) {})
-	if err != nil {
-		panic(err)
-	}
-	b.txs = append(b.txs, tx)
-	b.receipts = append(b.receipts, receipt)
+	b.addTx(bc, vm.Config{}, tx)
 }
 
 func (b *BlockGen) AddTxWithVMConfig(tx *types.Transaction, config vm.Config) {

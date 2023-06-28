@@ -161,6 +161,22 @@ func applyTransaction(
 	return receipt, result.UsedGas, false, err
 }
 
+// ApplyTransaction attempts to apply a transaction to the given state database
+// and uses the input parameters for its environment. It returns the receipt
+// for the transaction, gas used and an error if the transaction failed,
+// indicating the block was invalid.
+func ApplyTransaction(config *params.ChainConfig, bc DummyChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *EvmHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, error) {
+	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number), header.BaseFee)
+	if err != nil {
+		return nil, err
+	}
+	// Create a new context to be used in the EVM environment
+	blockContext := NewEVMBlockContext(header, bc, author)
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, config, cfg)
+	receipt, _, _, err := applyTransaction(msg, config, gp, statedb, header.Number, header.Hash, tx, usedGas, vmenv, func(log *types.Log, db *state.StateDB) {})
+	return receipt, err
+}
+
 func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (types.Message, error) {
 	if !internaltx.IsInternal(tx) {
 		return tx.AsMessage(signer, baseFee)
