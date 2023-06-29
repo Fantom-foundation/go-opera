@@ -154,6 +154,8 @@ type Service struct {
 
 	tflusher PeriodicFlusher
 
+	bootstrapping bool
+
 	logger.Instance
 }
 
