@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/epochcheck"
@@ -174,6 +175,37 @@ func (s *Service) EvmSnapshotGeneration() bool {
 	return gen
 }
 
+func (s *Service) processEventEpochIndex(e *inter.EventPayload, oldEpoch, newEpoch idx.Epoch) {
+	// index DAG heads and last events
+	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
+	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
+	// update highest Lamport
+	if newEpoch != oldEpoch {
+		s.store.SetHighestLamport(0)
+	} else if e.Lamport() > s.store.GetHighestLamport() {
+		s.store.SetHighestLamport(e.Lamport())
+	}
+}
+
+func (s *Service) ReprocessEpochEvents() {
+	s.bootstrapping = true
+	// reprocess epoch events, as epoch DBs don't survive restart
+	s.store.ForEachEpochEvent(s.store.GetEpoch(), func(event *inter.EventPayload) bool {
+		err := s.dagIndexer.Add(event)
+		if err != nil {
+			log.Crit("Failed to reindex epoch event", "event", event.String(), "err", err)
+		}
+		s.dagIndexer.Flush()
+		err = s.engine.Process(event)
+		if err != nil {
+			log.Crit("Failed to reprocess epoch event", "event", event.String(), "err", err)
+		}
+		s.processEventEpochIndex(event, event.Epoch(), event.Epoch())
+		return true
+	})
+	s.bootstrapping = false
+}
+
 // processEvent extends the engine.Process with gossip-specific actions on each event processing
 func (s *Service) processEvent(e *inter.EventPayload) error {
 	// s.engineMu is locked here
@@ -227,15 +259,7 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 
 	newEpoch := s.store.GetEpoch()
 
-	// index DAG heads and last events
-	s.store.SetHeads(oldEpoch, processEventHeads(s.store.GetHeads(oldEpoch), e))
-	s.store.SetLastEvents(oldEpoch, processLastEvent(s.store.GetLastEvents(oldEpoch), e))
-	// update highest Lamport
-	if newEpoch != oldEpoch {
-		s.store.SetHighestLamport(0)
-	} else if e.Lamport() > s.store.GetHighestLamport() {
-		s.store.SetHighestLamport(e.Lamport())
-	}
+	s.processEventEpochIndex(e, oldEpoch, newEpoch)
 
 	for _, em := range s.emitters {
 		em.OnEventConnected(e)

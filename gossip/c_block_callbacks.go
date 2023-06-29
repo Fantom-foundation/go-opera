@@ -73,6 +73,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			&s.feed,
 			&s.emitters,
 			s.verWatcher,
+			&s.bootstrapping,
 		),
 	}
 }
@@ -89,8 +90,18 @@ func consensusCallbackBeginBlockFn(
 	feed *ServiceFeed,
 	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
+	bootstrapping *bool,
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
+		if *bootstrapping {
+			// ignore block processing during bootstrapping
+			return lachesis.BlockCallbacks{
+				ApplyEvent: func(dag.Event) {},
+				EndBlock: func() *pos.Validators {
+					return nil
+				},
+			}
+		}
 		wg.Wait()
 		start := time.Now()
 
