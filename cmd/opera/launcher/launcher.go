@@ -364,6 +364,10 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	if err != nil {
 		utils.Fatalf("Failed to bootstrap the engine: %v", err)
 	}
+	err = engine.Reset(gdb.GetEpoch(), gdb.GetValidators())
+	if err != nil {
+		utils.Fatalf("Failed to reset the engine: %v", err)
+	}
 	svc.ReprocessEpochEvents()
 	if cfg.Emitter.Validator.ID != 0 {
 		svc.RegisterEmitter(emitter.NewEmitter(cfg.Emitter, svc.EmitterWorld(signer)))
