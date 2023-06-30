@@ -15,10 +15,10 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/txtime"
 )
 
 const (
-	TxTimeBufferSize    = 20000
 	TxTurnPeriod        = 8 * time.Second
 	TxTurnPeriodLatency = 1 * time.Second
 	TxTurnNonces        = 32
@@ -103,20 +103,6 @@ func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 	return maxGasToUse
 }
 
-// safe for concurrent use
-func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
-	if em.config.Validator.ID == 0 {
-		return // short circuit if not a validator
-	}
-	now := time.Now()
-	for _, tx := range txs {
-		_, ok := em.txTime.Get(tx.Hash())
-		if !ok {
-			em.txTime.Add(tx.Hash(), now)
-		}
-	}
-}
-
 func getTxRoundIndex(now, txTime time.Time, validatorsNum idx.Validator) int {
 	passed := now.Sub(txTime)
 	if passed < 0 {
@@ -125,19 +111,9 @@ func getTxRoundIndex(now, txTime time.Time, validatorsNum idx.Validator) int {
 	return int((passed / TxTurnPeriod) % time.Duration(validatorsNum))
 }
 
-func (em *Emitter) getTxTime(txHash common.Hash) time.Time {
-	txTimeI, ok := em.txTime.Get(txHash)
-	if !ok {
-		now := time.Now()
-		em.txTime.Add(txHash, now)
-		return now
-	}
-	return txTimeI.(time.Time)
-}
-
 // safe for concurrent use
 func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validators *pos.Validators, me idx.ValidatorID, epoch idx.Epoch) bool {
-	txTime := em.getTxTime(txHash)
+	txTime := txtime.Of(txHash)
 
 	roundIndex := getTxRoundIndex(now, txTime, validators.Len())
 	if roundIndex != getTxRoundIndex(now.Add(TxTurnPeriodLatency), txTime, validators.Len()) {

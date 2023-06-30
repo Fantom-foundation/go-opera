@@ -7,16 +7,33 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var global, _ = wlru.New(10000, 10000)
+var (
+	globalFinalized, _ = wlru.New(30000, 30000)
+	globalNonFinalized, _ = wlru.New(5000, 5000)
+)
 
-func Add(txid common.Hash, t time.Time) {
-	global.Add(txid, t, 1)
+func Saw(txid common.Hash, t time.Time) {
+	globalNonFinalized.ContainsOrAdd(txid, t, 1)
 }
 
-func Get(txid common.Hash) (time.Time, bool) {
-	v, has := global.Get(txid)
+func Validated(txid common.Hash, t time.Time) {
+	v, has := globalNonFinalized.Peek(txid)
 	if has {
-		return v.(time.Time), true
+		t = v.(time.Time)
 	}
-	return time.Time{}, false
+	globalFinalized.ContainsOrAdd(txid, t, 1)
+}
+
+func Of(txid common.Hash) time.Time {
+	v, has := globalFinalized.Get(txid)
+	if has {
+		return v.(time.Time)
+	}
+	v, has = globalNonFinalized.Get(txid)
+	if has {
+		return v.(time.Time)
+	}
+	now := time.Now()
+	Saw(txid, now)
+	return now
 }
