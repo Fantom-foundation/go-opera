@@ -1,17 +1,17 @@
 package threads
 
 import (
+	"math"
 	"runtime/debug"
-	"sync"
+	"sync/atomic"
 )
 
 const GoroutinesPerThread = 0.8
 
 // threadPool counts threads in use
 type ThreadPool struct {
-	mu   sync.Mutex
-	cap  int
-	left int
+	cap  int32
+	left int32
 }
 
 var GlobalPool ThreadPool
@@ -19,45 +19,42 @@ var GlobalPool ThreadPool
 // init ThreadPool only on demand to give time to other packages
 // call debug.SetMaxThreads() if they need
 func (p *ThreadPool) init() {
-	if p.cap == 0 {
-		p.cap = int(getMaxThreads() * GoroutinesPerThread)
-		p.left = p.cap
+	initialized := !atomic.CompareAndSwapInt32(&p.cap, 0, math.MaxInt32)
+	if initialized {
+		return
 	}
+	cap := int32(getMaxThreads() * GoroutinesPerThread)
+	atomic.StoreInt32(&p.left, cap)
+	atomic.StoreInt32(&p.cap, cap)
 }
 
 // Capacity of pool
 func (p *ThreadPool) Cap() int {
-	if p.cap == 0 {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.init()
-	}
-	return p.cap
+	p.init()
+	cap := atomic.LoadInt32(&p.cap)
+	return int(cap)
 }
 
 func (p *ThreadPool) Lock(want int) (got int, release func(count int)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	p.init()
 
 	if want < 1 {
 		want = 0
 	}
-
-	got = min(p.left, want)
-	p.left -= got
+	got = want
+	left := atomic.AddInt32(&p.left, -int32(got))
+	if left < 0 {
+		got += int(left)
+		atomic.AddInt32(&p.left, -left)
+	}
 
 	release = func(count int) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-
 		if 0 > count || count > got {
 			count = got
 		}
 
 		got -= count
-		p.left += count
+		atomic.AddInt32(&p.left, int32(count))
 	}
 
 	return
@@ -67,11 +64,4 @@ func getMaxThreads() float64 {
 	was := debug.SetMaxThreads(10000)
 	debug.SetMaxThreads(was)
 	return float64(was)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
