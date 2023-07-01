@@ -17,7 +17,9 @@ type ThreadPool struct {
 var GlobalPool ThreadPool
 
 // init ThreadPool only on demand to give time to other packages
-// call debug.SetMaxThreads() if they need
+// call debug.SetMaxThreads() if they need.
+// Note: in datarace case the other participants will see no free threads but
+// enough capacity. It's ok.
 func (p *ThreadPool) init() {
 	initialized := !atomic.CompareAndSwapInt32(&p.cap, 0, math.MaxInt32)
 	if initialized {
@@ -28,7 +30,8 @@ func (p *ThreadPool) init() {
 	atomic.StoreInt32(&p.cap, cap)
 }
 
-// Capacity of pool
+// Capacity of pool.
+// Note: first call may return greater value than nexts. Don't cache it.
 func (p *ThreadPool) Cap() int {
 	p.init()
 	cap := atomic.LoadInt32(&p.cap)
