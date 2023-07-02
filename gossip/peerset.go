@@ -48,6 +48,7 @@ var (
 // the `eth` protocol, with or without the `snap` extension.
 type peerSet struct {
 	peers     map[string]*peer // Peers connected on the `eth` protocol
+	rates     *Trackers        // Set of rate trackers
 	snapPeers int              // Number of `snap` compatible peers for connection prioritization
 
 	snapWait map[string]chan *snap.Peer // Peers connected on `eth` waiting for their snap extension
@@ -61,6 +62,7 @@ type peerSet struct {
 func newPeerSet() *peerSet {
 	return &peerSet{
 		peers:    make(map[string]*peer),
+		rates:    NewTrackers(),
 		snapWait: make(map[string]chan *snap.Peer),
 		snapPend: make(map[string]*snap.Peer),
 	}
@@ -150,6 +152,11 @@ func (ps *peerSet) RegisterPeer(p *peer, ext *snap.Peer) error {
 		ps.snapPeers++
 	}
 
+	p.rates = NewTracker(ps.rates.MeanCapacities())
+	if err := ps.rates.Track(p.id, p.rates); err != nil {
+		ps.lock.Unlock()
+		return err
+	}
 	ps.peers[id] = p
 	return nil
 }
@@ -165,6 +172,7 @@ func (ps *peerSet) UnregisterPeer(id string) error {
 		return errPeerNotRegistered
 	}
 	delete(ps.peers, id)
+	ps.rates.Untrack(id)
 	if peer.snapExt != nil {
 		ps.snapPeers--
 	}

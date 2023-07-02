@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/datasemaphore"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/snap"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -30,7 +31,9 @@ var (
 )
 
 const (
-	handshakeTimeout = 5 * time.Second
+	handshakeTimeout = 5 * time.Second   // handshake timeout
+	lastEpochNums    = 2                 // the numbers of epoch to calculate the peer broadcast metric
+	progressInterval = 200 * time.Second // peer should be marked as useless if it didn't advance epoch within this time duration
 )
 
 // PeerInfo represents a short summary of the sub-protocol metadata known
@@ -62,13 +65,17 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	progress PeerProgress
+	progress       PeerProgress
+	latestProgress inter.Timestamp
+	fullSync       uint32
 
 	snapExt  *snapPeer     // Satellite `snap` connection
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
 	snapWait chan struct{} // Notification channel for snap connections
 
 	useless uint32
+	tracker *prque.Prque // Priority queue mapping timestamp to number of broadcasted events to gc
+	rates   *Tracker     // Tracker to hone in on the number of items broadcasting in last hours
 
 	sync.RWMutex
 }
@@ -81,10 +88,55 @@ func (p *peer) SetUseless() {
 	atomic.StoreUint32(&p.useless, 1)
 }
 
+func (p *peer) FullSync() bool {
+	return atomic.LoadUint32(&p.fullSync) != 0
+}
+
+func (p *peer) SetFullSync() {
+	atomic.StoreUint32(&p.fullSync, 1)
+}
+
+func (p *peer) AddSentEvent(event hash.Event) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.tracker.Push(event, -time.Now().UnixNano())
+}
+
+// return number of broadcasted events by the peer in the last 2 hours
+func (p *peer) GetBroadcastEvents() int {
+	p.Lock()
+	defer p.Unlock()
+
+	chosen := time.Now().Add(-2 * time.Hour).UnixNano()
+
+	// prune all the event older than 2 hours
+	old := false
+	for !p.tracker.Empty() {
+		event, at := p.tracker.Pop()
+		if -at > chosen {
+			p.tracker.Push(event, at)
+			break
+		} else {
+			old = true
+		}
+	}
+
+	// return the initial mean capacity when the metric is still young
+	if old {
+		return p.tracker.Size()
+	} else {
+		return p.rates.Capacity(EventsMsg)
+	}
+}
+
 func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
+	if p.progress.Less(x) {
+		p.latestProgress = inter.Timestamp(time.Now().UnixNano())
+	}
 	p.progress = x
 }
 
@@ -119,6 +171,7 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
+		tracker:             prque.New(nil),
 	}
 
 	go peer.broadcast(peer.queue)
