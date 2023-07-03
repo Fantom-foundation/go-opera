@@ -41,21 +41,18 @@ func (p *ThreadPool) Cap() int {
 func (p *ThreadPool) Lock(want int) (got int, release func(count int)) {
 	p.init()
 
-	if want < 1 {
+	if want < 0 {
 		want = 0
 	}
+
 	left := atomic.AddInt32(&p.left, -int32(want))
 	got = want
 	if left < 0 {
-		was := int(left) + got
-		if was > 0 {
-			ret := got - was
-			atomic.AddInt32(&p.left, int32(ret))
-			got -= ret
-		} else {
-			atomic.AddInt32(&p.left, int32(got))
-			got = 0
+		if left < -int32(got) {
+			left = -int32(got)
 		}
+		atomic.AddInt32(&p.left, -left)
+		got += int(left)
 	}
 
 	release = func(count int) {
