@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -58,6 +59,14 @@ func (ew *emitterWorldProc) DagIndex() *vecmt.Index {
 
 func (ew *emitterWorldProc) IsBusy() bool {
 	return atomic.LoadUint32(&ew.s.eventBusyFlag) != 0 || atomic.LoadUint32(&ew.s.blockBusyFlag) != 0
+}
+
+func (ew *emitterWorldProc) StateDB() *state.StateDB {
+	statedb, err := ew.s.store.evm.StateDB(ew.s.store.GetBlockState().FinalizedStateRoot)
+	if err != nil {
+		return nil
+	}
+	return statedb
 }
 
 func (ew *emitterWorldProc) IsSynced() bool {

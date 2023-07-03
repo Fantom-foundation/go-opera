@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
@@ -35,6 +36,8 @@ type (
 		IsBusy() bool
 		IsSynced() bool
 		PeersNum() int
+
+		StateDB() *state.StateDB
 	}
 
 	// aliases for mock generator

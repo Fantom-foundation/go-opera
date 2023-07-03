@@ -52,6 +52,9 @@ func TestEmitter(t *testing.T) {
 	external.EXPECT().PeersNum().
 		Return(int(3)).
 		AnyTimes()
+	external.EXPECT().StateDB().
+		Return(nil).
+		AnyTimes()
 
 	em := NewEmitter(cfg, World{
 		External: external,
