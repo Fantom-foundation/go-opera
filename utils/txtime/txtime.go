@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	globalFinalized, _ = wlru.New(30000, 30000)
+	globalFinalized, _    = wlru.New(30000, 30000)
 	globalNonFinalized, _ = wlru.New(5000, 5000)
-	Enabled = false
+	Enabled               = false
 )
 
 func Saw(txid common.Hash, t time.Time) {
