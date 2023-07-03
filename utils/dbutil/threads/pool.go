@@ -44,6 +44,9 @@ func (p *ThreadPool) Lock(want int) (got int, release func(count int)) {
 	if want < 0 {
 		want = 0
 	}
+	if want > math.MaxInt32 {
+		want = math.MaxInt32
+	}
 
 	left := atomic.AddInt32(&p.left, -int32(want))
 	got = want
