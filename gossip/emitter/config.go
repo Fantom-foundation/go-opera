@@ -60,9 +60,9 @@ func DefaultConfig() Config {
 		VersionToPublish: params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
-			Min:                        110 * time.Millisecond,
+			Min:                        135 * time.Millisecond,
 			Max:                        10 * time.Minute,
-			Confirming:                 120 * time.Millisecond,
+			Confirming:                 150 * time.Millisecond,
 			DoublesignProtection:       27 * time.Minute, // should be greater than MaxEmitInterval
 			ParallelInstanceProtection: 1 * time.Minute,
 		},
