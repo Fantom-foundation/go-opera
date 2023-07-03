@@ -14,9 +14,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/utils/piecefunc"
 	"github.com/ethereum/go-ethereum/core/types"
-	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/originatedtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
@@ -30,8 +28,6 @@ const (
 )
 
 type Emitter struct {
-	txTime *lru.Cache // tx hash -> tx time
-
 	config Config
 
 	world World
@@ -98,12 +94,10 @@ func NewEmitter(
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	config.EmitIntervals = config.EmitIntervals.RandomizeEmitTime(r)
 
-	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
 		config:            config,
 		world:             world,
 		originatedTxs:     originatedtxs.New(SenderCountBufferSize),
-		txTime:            txTime,
 		intervals:         config.EmitIntervals,
 		Periodic:          logger.Periodic{Instance: logger.New()},
 		validatorVersions: make(map[idx.ValidatorID]uint64),
@@ -142,9 +136,6 @@ func (em *Emitter) Start() {
 	em.init()
 	em.done = make(chan struct{})
 
-	newTxsCh := make(chan evmcore.NewTxsNotify)
-	em.world.TxPool.SubscribeNewTxsNotify(newTxsCh)
-
 	done := em.done
 	if em.config.EmitIntervals.Min == 0 {
 		return
@@ -157,8 +148,6 @@ func (em *Emitter) Start() {
 		defer timer.Stop()
 		for {
 			select {
-			case txNotify := <-newTxsCh:
-				em.memorizeTxTimes(txNotify.Txs)
 			case <-timer.C:
 				em.tick()
 				timer.Reset(tick)

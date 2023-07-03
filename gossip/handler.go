@@ -51,6 +51,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
 	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/utils/txtime"
 )
 
 const (
@@ -899,7 +900,9 @@ func txidsToInterfaces(ids []common.Hash) []interface{} {
 
 func (h *handler) handleTxHashes(p *peer, announces []common.Hash) {
 	// Mark the hashes as present at the remote node
+	now := time.Now()
 	for _, id := range announces {
+		txtime.Saw(id, now)
 		p.MarkTransaction(id)
 	}
 	// Schedule all the unknown hashes for retrieval
@@ -911,8 +914,11 @@ func (h *handler) handleTxHashes(p *peer, announces []common.Hash) {
 
 func (h *handler) handleTxs(p *peer, txs types.Transactions) {
 	// Mark the hashes as present at the remote node
+	now := time.Now()
 	for _, tx := range txs {
-		p.MarkTransaction(tx.Hash())
+		txid := tx.Hash()
+		txtime.Saw(txid, now)
+		p.MarkTransaction(txid)
 	}
 	h.txpool.AddRemotes(txs)
 }
@@ -946,13 +952,16 @@ func (h *handler) handleEventHashes(p *peer, announces hash.Events) {
 
 func (h *handler) handleEvents(p *peer, events dag.Events, ordered bool) {
 	// Mark the hashes as present at the remote node
+	now := time.Now()
 	for _, e := range events {
+		for _, tx := range e.(inter.EventPayloadI).Txs() {
+			txtime.Saw(tx.Hash(), now)
+		}
 		p.MarkEvent(e.ID())
 	}
 	// filter too high events
 	notTooHigh := make(dag.Events, 0, len(events))
 	sessionCfg := h.config.Protocol.DagStreamLeecher.Session
-	now := time.Now()
 	for _, e := range events {
 		maxLamport := h.store.GetHighestLamport() + idx.Lamport(sessionCfg.DefaultChunkItemsNum+1)*idx.Lamport(sessionCfg.ParallelChunksDownload)
 		if e.Lamport() <= maxLamport {
