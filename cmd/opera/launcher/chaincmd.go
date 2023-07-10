@@ -118,6 +118,22 @@ EVM export mode is configured with --export.evm.mode.
 Requires a first argument of the DB directory to write to.
 `,
 			},
+			{
+				Name:      "graph",
+				Usage:     "Export events DAG",
+				ArgsUsage: "<filename> [<epochFrom> <epochTo>]",
+				Action:    utils.MigrateFlags(exportDAGgraph),
+				Flags: []cli.Flag{
+					DataDirFlag,
+				},
+				Description: `
+    opera export graph
+
+Requires a first argument of the file to write to.
+Optional second and third arguments control the first and
+last epoch to write
+`,
+			},
 		},
 	}
 	checkCommand = cli.Command{
