@@ -8,9 +8,13 @@ import (
 )
 
 func Graph(db *gossip.Store, from, to idx.Epoch) dot.Graph {
-	return &dagReader{
+	/* g:= &dagReader{
 		db:        db,
 		epochFrom: from,
 		epochTo:   to,
-	}
+	}*/
+
+	g := newDagLoader(db, from, to)
+
+	return g
 }
