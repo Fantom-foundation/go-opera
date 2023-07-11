@@ -1,10 +1,9 @@
 package dag
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding"
-
-	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 // Edge is a graph edge. In directed graphs, the direction of the
@@ -35,8 +34,10 @@ func (e *dagEdge) ReversedEdge() graph.Edge {
 }
 
 type dagNode struct {
-	id    int64
-	event *inter.Event
+	id        int64
+	hash      hash.Event
+	parents   hash.Events
+	isAtropos bool
 }
 
 func (n *dagNode) ID() int64 {
@@ -44,17 +45,28 @@ func (n *dagNode) ID() int64 {
 }
 
 func (n *dagNode) Attributes() []encoding.Attribute {
-	return []encoding.Attribute{
+	aa := []encoding.Attribute{
 		encoding.Attribute{
 			Key:   "ID",
-			Value: n.event.ID().String(),
+			Value: n.hash.String(),
 		},
 	}
+
+	if n.isAtropos {
+		aa = append(aa,
+			encoding.Attribute{
+				Key:   "Role",
+				Value: "atropos",
+			},
+		)
+	}
+
+	return aa
 }
 
 type dagNodes struct {
-	data    chan *inter.Event
-	current *inter.Event
+	data    chan *dagNode
+	current *dagNode
 }
 
 // Reset returns the iterator to its start position.
@@ -79,10 +91,7 @@ func (nn *dagNodes) Next() bool {
 
 // Node returns the current Node from the iterator.
 func (nn *dagNodes) Node() graph.Node {
-	return &dagNode{
-		id:    event2id(nn.current.ID()),
-		event: nn.current,
-	}
+	return nn.current
 }
 
 // Len returns the number of items remaining in the

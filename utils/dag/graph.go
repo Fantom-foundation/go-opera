@@ -24,10 +24,7 @@ func (g *dagReader) DOTID() string {
 // in the graph, and nil otherwise.
 func (g *dagReader) Node(id int64) graph.Node {
 	e := g.db.GetEvent(id2event(id))
-	return &dagNode{
-		id:    event2id(e.ID()),
-		event: e,
-	}
+	return event2node(e)
 }
 
 // Nodes returns all the nodes in the graph.
@@ -35,17 +32,17 @@ func (g *dagReader) Node(id int64) graph.Node {
 // Nodes must not return nil.
 func (g *dagReader) Nodes() graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *inter.Event),
+		data: make(chan *dagNode),
 	}
 
 	go func() {
 		defer close(nn.data)
 		g.db.ForEachEvent(g.epochFrom, func(e *inter.EventPayload) bool {
-			if e.Epoch() > g.epochTo {
+			if g.epochTo >= g.epochFrom && e.Epoch() > g.epochTo {
 				return false
 			}
 
-			nn.data <- &e.Event
+			nn.data <- event2node(&e.Event)
 			return true
 		})
 	}()
@@ -59,15 +56,15 @@ func (g *dagReader) Nodes() graph.Nodes {
 // From must not return nil.
 func (g *dagReader) From(id int64) graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *inter.Event),
+		data: make(chan *dagNode),
 	}
 
-	x := g.Node(id).(*dagNode).event
+	x := g.Node(id).(*dagNode)
 	go func() {
 		defer close(nn.data)
-		for _, p := range x.Parents() {
+		for _, p := range x.parents {
 			n := g.Node(event2id(p))
-			nn.data <- n.(*dagNode).event
+			nn.data <- n.(*dagNode)
 		}
 	}()
 
@@ -77,16 +74,16 @@ func (g *dagReader) From(id int64) graph.Nodes {
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
 func (g *dagReader) HasEdgeBetween(xid, yid int64) bool {
-	x := g.Node(xid).(*dagNode).event
-	y := g.Node(yid).(*dagNode).event
+	x := g.Node(xid).(*dagNode)
+	y := g.Node(yid).(*dagNode)
 
-	for _, p := range x.Parents() {
-		if p == y.ID() {
+	for _, p := range x.parents {
+		if p == y.hash {
 			return true
 		}
 	}
-	for _, p := range y.Parents() {
-		if p == x.ID() {
+	for _, p := range y.parents {
+		if p == x.hash {
 			return true
 		}
 	}
@@ -102,8 +99,8 @@ func (g *dagReader) Edge(uid, vid int64) graph.Edge {
 	u := g.Node(uid).(*dagNode)
 	v := g.Node(vid).(*dagNode)
 
-	for _, p := range u.event.Parents() {
-		if p == v.event.ID() {
+	for _, p := range u.parents {
+		if p == v.hash {
 			return &dagEdge{
 				x: u,
 				y: v,
@@ -115,6 +112,14 @@ func (g *dagReader) Edge(uid, vid int64) graph.Edge {
 }
 
 // --
+
+func event2node(e *inter.Event) *dagNode {
+	return &dagNode{
+		id:      event2id(e.ID()),
+		hash:    e.ID(),
+		parents: e.Parents(),
+	}
+}
 
 var (
 	id2hash = make(map[int64]hash.Event)
