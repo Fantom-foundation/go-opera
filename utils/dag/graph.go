@@ -71,6 +71,18 @@ func (g *dagReader) From(id int64) graph.Nodes {
 	return nn
 }
 
+// To returns all nodes that can reach directly
+// to the node with the given ID.
+//
+// To must not return nil.
+func (g *dagReader) To(id int64) graph.Nodes {
+	nn := &dagNodes{
+		data: make(chan *dagNode),
+	}
+	close(nn.data)
+	return nn
+}
+
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
 func (g *dagReader) HasEdgeBetween(xid, yid int64) bool {
@@ -84,6 +96,21 @@ func (g *dagReader) HasEdgeBetween(xid, yid int64) bool {
 	}
 	for _, p := range y.parents {
 		if p == x.hash {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasEdgeFromTo returns whether an edge exists
+// in the graph from u to v with IDs uid and vid.
+func (g *dagReader) HasEdgeFromTo(uid, vid int64) bool {
+	u := g.Node(uid).(*dagNode)
+	v := g.Node(vid).(*dagNode)
+
+	for _, p := range u.parents {
+		if p == v.hash {
 			return true
 		}
 	}
