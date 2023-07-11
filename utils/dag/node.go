@@ -47,7 +47,7 @@ func (n *dagNode) ID() int64 {
 func (n *dagNode) Attributes() []encoding.Attribute {
 	aa := []encoding.Attribute{
 		encoding.Attribute{
-			Key:   "ID",
+			Key:   "label",
 			Value: n.hash.String(),
 		},
 	}
@@ -55,8 +55,8 @@ func (n *dagNode) Attributes() []encoding.Attribute {
 	if n.isAtropos {
 		aa = append(aa,
 			encoding.Attribute{
-				Key:   "Role",
-				Value: "atropos",
+				Key:   "xlabel",
+				Value: "Atropos",
 			},
 		)
 	}
