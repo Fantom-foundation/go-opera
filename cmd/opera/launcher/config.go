@@ -4,12 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
-	"reflect"
-	"strings"
-
+	makex1Testnetgenesis "github.com/Fantom-foundation/go-opera/integration/makex1genesis"
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -21,6 +16,11 @@ import (
 	"github.com/naoina/toml"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
+	"os"
+	"path"
+	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -205,6 +205,8 @@ func loadAllConfigs(file string, cfg *config) error {
 
 func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 	switch {
+	case ctx.GlobalIsSet(X1TestnetFlag.Name):
+		return makex1Testnetgenesis.X1TestnetGenesisStore()
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {

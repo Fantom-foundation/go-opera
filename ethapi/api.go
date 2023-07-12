@@ -127,7 +127,6 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 	}
 
 	baseFee := s.b.MinGasPrice()
-
 	tips := make([]*hexutil.Big, 0, len(rewardPercentiles))
 	for _, p := range rewardPercentiles {
 		tip := s.b.SuggestGasTipCap(ctx, uint64(gasprice.DecimalUnit*p/100.0))

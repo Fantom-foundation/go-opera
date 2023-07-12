@@ -1,23 +1,7 @@
-package makefakegenesis
+package makex1Testnetgenesis
 
 import (
-	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/log"
-	"math/big"
-	"time"
-
-	"github.com/Fantom-foundation/lachesis-base/hash"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
-	"github.com/Fantom-foundation/lachesis-base/lachesis"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-
-	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
-	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/drivertype"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/inter/ier"
@@ -34,35 +18,35 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
+	futils "github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 )
 
-var (
-	FakeGenesisTime = inter.Timestamp(1608600000 * time.Second)
-)
-
-// FakeKey gets n-th fake private key.
-func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	return evmcore.FakeKey(uint32(n))
+func X1TestnetGenesisStore() *genesisstore.Store {
+	return X1TestnetGenesisStoreWithRules(futils.ToFtm(opera.X1TestStartBalance), futils.ToFtm(opera.X1TestStartStake), opera.X1TestnetRules())
 }
 
-func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
-	return FakeGenesisStoreWithRules(num, balance, stake, opera.FakeNetRules())
+func X1TestnetGenesisStoreWithRules(balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
+	return X1TestnetGenesisStoreWithRulesAndStart(balance, stake, rules, 2, 1)
 }
 
-func FakeGenesisStoreWithRules(num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
-	return FakeGenesisStoreWithRulesAndStart(num, balance, stake, rules, 2, 1)
-}
-
-func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+func X1TestnetGenesisStoreWithRulesAndStart(balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
 	builder := makegenesis.NewGenesisBuilder(memorydb.NewProducer(""))
 
-	validators := GetFakeValidators(num)
+	validators := GetX1TestnetValidators()
 
 	// add balances to validators
 	var delegations []drivercall.Delegation
 	for _, val := range validators {
 		log.Info("Validator", "address", val.Address, "pk", val.PubKey, "id", val.ID)
-
 		builder.AddBalance(val.Address, balance)
 		delegations = append(delegations, drivercall.Delegation{
 			Address:            val.Address,
@@ -96,7 +80,7 @@ func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.In
 			BlockState: iblockproc.BlockState{
 				LastBlock: iblockproc.BlockCtx{
 					Idx:     block - 1,
-					Time:    FakeGenesisTime,
+					Time:    opera.X1TestnetGenesisTime,
 					Atropos: hash.Event{},
 				},
 				FinalizedStateRoot:    hash.Hash{},
@@ -110,8 +94,8 @@ func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.In
 			},
 			EpochState: iblockproc.EpochState{
 				Epoch:             epoch - 1,
-				EpochStart:        FakeGenesisTime,
-				PrevEpochStart:    FakeGenesisTime - 1,
+				EpochStart:        opera.X1TestnetGenesisTime,
+				PrevEpochStart:    opera.X1TestnetGenesisTime - 1,
 				EpochStateRoot:    hash.Zero,
 				Validators:        pos.NewBuilder().Build(),
 				ValidatorStates:   make([]iblockproc.ValidatorEpochState, 0),
@@ -122,10 +106,7 @@ func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.In
 		Idx: epoch - 1,
 	})
 
-	var owner common.Address
-	if num != 0 {
-		owner = validators[0].Address
-	}
+	var owner = validators[0].Address
 
 	blockProc := makegenesis.DefaultBlockProc()
 	genesisTxs := GetGenesisTxs(epoch-2, validators, builder.TotalSupply(), delegations, owner)
@@ -169,32 +150,36 @@ func GetGenesisTxs(sealedEpoch idx.Epoch, validators gpos.Validators, totalSuppl
 	return internalTxs
 }
 
-func GetFakeValidators(num idx.Validator) gpos.Validators {
-	validators := make(gpos.Validators, 0, num)
+func GetX1TestnetValidators() gpos.Validators {
+	validators := make(gpos.Validators, 0, 1)
 
-	for i := idx.ValidatorID(1); i <= idx.ValidatorID(num); i++ {
-		key := FakeKey(i)
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		pubkeyraw := crypto.FromECDSAPub(&key.PublicKey)
-
-		publicKey := validatorpk.PubKey{
-			Raw:  pubkeyraw,
+	validators = append(validators, gpos.Validator{
+		ID:      1,
+		Address: common.HexToAddress("0x1CA8Bbe1b16f2422Faffc6fF36BcB91D967B3ae1"),
+		PubKey: validatorpk.PubKey{
+			Raw:  common.Hex2Bytes("046e4a62824c79b42995e1144d6650dfc673029d4670dcbbdadce57f630a87e613b10cacb66f0f65995dfeedb7339af34c7d5e2031adc621c6bc0df78549726060"),
 			Type: validatorpk.Types.Secp256k1,
-		}
+		},
+		CreationTime:     opera.X1TestnetGenesisTime,
+		CreationEpoch:    0,
+		DeactivatedTime:  0,
+		DeactivatedEpoch: 0,
+		Status:           0,
+	})
 
-		log.Error("publicKey", "key", publicKey, "addr", addr)
-
-		validators = append(validators, gpos.Validator{
-			ID:               i,
-			Address:          addr,
-			PubKey:           publicKey,
-			CreationTime:     FakeGenesisTime,
-			CreationEpoch:    0,
-			DeactivatedTime:  0,
-			DeactivatedEpoch: 0,
-			Status:           0,
-		})
-	}
+	validators = append(validators, gpos.Validator{
+		ID:      2,
+		Address: common.HexToAddress("0x9c11DafF4913c68838ce7ce6969b12BaBff4318b"),
+		PubKey: validatorpk.PubKey{
+			Raw:  common.Hex2Bytes("04dfc5e6a7594905af4ea831847367e22e9a02c2669d5b00407800e616e1504ab8c847d1e42c118230e593c010e0466b33410450d01811700d562e14a98c521b8f"),
+			Type: validatorpk.Types.Secp256k1,
+		},
+		CreationTime:     opera.X1TestnetGenesisTime,
+		CreationEpoch:    0,
+		DeactivatedTime:  0,
+		DeactivatedEpoch: 0,
+		Status:           0,
+	})
 
 	return validators
 }

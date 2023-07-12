@@ -104,3 +104,13 @@ func FakeConfig(num idx.Validator) Config {
 	}
 	return cfg
 }
+
+func X1Config(num idx.Validator) Config {
+	cfg := DefaultConfig()
+	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
+	//cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max / 2
+	//if num <= 1 {
+	//cfg.EmitIntervals.DoublesignProtection = 0
+	//}
+	return cfg
+}
