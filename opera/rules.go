@@ -15,23 +15,38 @@ import (
 )
 
 const (
-	MainNetworkID        uint64 = 0xfa
-	TestNetworkID        uint64 = 0xfa2
-	FakeNetworkID        uint64 = 0xfa3
-	X1TestNetworkID      uint64 = 0x31CE5
-	DefaultEventGas      uint64 = 28000
-	berlinBit                   = 1 << 0
-	londonBit                   = 1 << 1
-	llrBit                      = 1 << 2
-	X1TestStartBalance          = 1000000000
-	X1TestStartStake            = 5000000
-	X1TestnetGenesisTime        = inter.Timestamp(1688164083 * time.Second)
+	MainNetworkID       uint64 = 0x31CE0
+	TestNetworkID       uint64 = 0x31CE5
+	FakeNetworkID       uint64 = 0xfa3
+	DefaultEventGas     uint64 = 28000
+	berlinBit                  = 1 << 0
+	londonBit                  = 1 << 1
+	llrBit                     = 1 << 2
+	TestnetStartBalance        = 495000000
+	TestnetStartStake          = 5000000
+	TestnetGenesisTime         = inter.Timestamp(1692844103 * time.Second)
 )
 
 var DefaultVMConfig = vm.Config{
 	StatePrecompiles: map[common.Address]vm.PrecompiledStateContract{
 		evmwriter.ContractAddress: &evmwriter.PreCompiledContract{},
 	},
+}
+
+var GenesisValidators = []GenesisValidator{
+	{
+		"0x1149aD69030084b780C5c375b252E73235AAe0d0",
+		"046e4a62824c79b42995e1144d6650dfc673029d4670dcbbdadce57f630a87e613b10cacb66f0f65995dfeedb7339af34c7d5e2031adc621c6bc0df78549726060",
+	},
+	{
+		"0x9c11DafF4913c68838ce7ce6969b12BaBff4318b",
+		"04dfc5e6a7594905af4ea831847367e22e9a02c2669d5b00407800e616e1504ab8c847d1e42c118230e593c010e0466b33410450d01811700d562e14a98c521b8f",
+	},
+}
+
+type GenesisValidator struct {
+	AccountAddress  string
+	ValidatorPubKey string
 }
 
 type RulesRLP struct {
@@ -171,7 +186,7 @@ func MainNetRules() Rules {
 func X1TestnetRules() Rules {
 	return Rules{
 		Name:      "x1-testnet",
-		NetworkID: X1TestNetworkID,
+		NetworkID: TestNetworkID,
 		Dag:       DefaultDagRules(),
 		Epochs:    DefaultEpochsRules(),
 		Economy:   X1EconomyRules(),
@@ -189,7 +204,7 @@ func X1TestnetRules() Rules {
 
 func TestNetRules() Rules {
 	return Rules{
-		Name:      "test",
+		Name:      "x1-testnet",
 		NetworkID: TestNetworkID,
 		Dag:       DefaultDagRules(),
 		Epochs:    DefaultEpochsRules(),
@@ -197,6 +212,11 @@ func TestNetRules() Rules {
 		Blocks: BlocksRules{
 			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
+		},
+		Upgrades: Upgrades{
+			Berlin: true,
+			London: true,
+			Llr:    true,
 		},
 	}
 }
@@ -226,6 +246,16 @@ func DefaultEconomyRules() EconomyRules {
 		BlockMissedSlack: 50,
 		Gas:              DefaultGasRules(),
 		MinGasPrice:      big.NewInt(1e9),
+		ShortGasPower:    DefaultShortGasPowerRules(),
+		LongGasPower:     DefaulLongGasPowerRules(),
+	}
+}
+
+func TestnetEconomyRules() EconomyRules {
+	return EconomyRules{
+		BlockMissedSlack: 50,
+		Gas:              DefaultGasRules(),
+		MinGasPrice:      big.NewInt(5e11),
 		ShortGasPower:    DefaultShortGasPowerRules(),
 		LongGasPower:     DefaulLongGasPowerRules(),
 	}

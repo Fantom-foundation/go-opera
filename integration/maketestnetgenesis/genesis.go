@@ -1,4 +1,4 @@
-package makex1Testnetgenesis
+package maketestnetgenesis
 
 import (
 	"github.com/Fantom-foundation/go-opera/integration/makegenesis"
@@ -30,18 +30,18 @@ import (
 	"math/big"
 )
 
-func X1TestnetGenesisStore() *genesisstore.Store {
-	return X1TestnetGenesisStoreWithRules(futils.ToFtm(opera.X1TestStartBalance), futils.ToFtm(opera.X1TestStartStake), opera.X1TestnetRules())
+func TestnetGenesisStore() *genesisstore.Store {
+	return TestnetGenesisStoreWithRules(futils.ToFtm(opera.TestnetStartBalance), futils.ToFtm(opera.TestnetStartStake), opera.TestNetRules())
 }
 
-func X1TestnetGenesisStoreWithRules(balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
-	return X1TestnetGenesisStoreWithRulesAndStart(balance, stake, rules, 2, 1)
+func TestnetGenesisStoreWithRules(balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
+	return TestnetGenesisStoreWithRulesAndStart(balance, stake, rules, 2, 1)
 }
 
-func X1TestnetGenesisStoreWithRulesAndStart(balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+func TestnetGenesisStoreWithRulesAndStart(balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
 	builder := makegenesis.NewGenesisBuilder(memorydb.NewProducer(""))
 
-	validators := GetX1TestnetValidators()
+	validators := GetTestnetValidators()
 
 	// add balances to validators
 	var delegations []drivercall.Delegation
@@ -80,7 +80,7 @@ func X1TestnetGenesisStoreWithRulesAndStart(balance, stake *big.Int, rules opera
 			BlockState: iblockproc.BlockState{
 				LastBlock: iblockproc.BlockCtx{
 					Idx:     block - 1,
-					Time:    opera.X1TestnetGenesisTime,
+					Time:    opera.TestnetGenesisTime,
 					Atropos: hash.Event{},
 				},
 				FinalizedStateRoot:    hash.Hash{},
@@ -94,8 +94,8 @@ func X1TestnetGenesisStoreWithRulesAndStart(balance, stake *big.Int, rules opera
 			},
 			EpochState: iblockproc.EpochState{
 				Epoch:             epoch - 1,
-				EpochStart:        opera.X1TestnetGenesisTime,
-				PrevEpochStart:    opera.X1TestnetGenesisTime - 1,
+				EpochStart:        opera.TestnetGenesisTime,
+				PrevEpochStart:    opera.TestnetGenesisTime - 1,
 				EpochStateRoot:    hash.Zero,
 				Validators:        pos.NewBuilder().Build(),
 				ValidatorStates:   make([]iblockproc.ValidatorEpochState, 0),
@@ -150,36 +150,24 @@ func GetGenesisTxs(sealedEpoch idx.Epoch, validators gpos.Validators, totalSuppl
 	return internalTxs
 }
 
-func GetX1TestnetValidators() gpos.Validators {
-	validators := make(gpos.Validators, 0, 1)
+func GetTestnetValidators() gpos.Validators {
+	validators := make(gpos.Validators, 0, len(opera.GenesisValidators)-1)
 
-	validators = append(validators, gpos.Validator{
-		ID:      1,
-		Address: common.HexToAddress("0x1CA8Bbe1b16f2422Faffc6fF36BcB91D967B3ae1"),
-		PubKey: validatorpk.PubKey{
-			Raw:  common.Hex2Bytes("046e4a62824c79b42995e1144d6650dfc673029d4670dcbbdadce57f630a87e613b10cacb66f0f65995dfeedb7339af34c7d5e2031adc621c6bc0df78549726060"),
-			Type: validatorpk.Types.Secp256k1,
-		},
-		CreationTime:     opera.X1TestnetGenesisTime,
-		CreationEpoch:    0,
-		DeactivatedTime:  0,
-		DeactivatedEpoch: 0,
-		Status:           0,
-	})
-
-	validators = append(validators, gpos.Validator{
-		ID:      2,
-		Address: common.HexToAddress("0x9c11DafF4913c68838ce7ce6969b12BaBff4318b"),
-		PubKey: validatorpk.PubKey{
-			Raw:  common.Hex2Bytes("04dfc5e6a7594905af4ea831847367e22e9a02c2669d5b00407800e616e1504ab8c847d1e42c118230e593c010e0466b33410450d01811700d562e14a98c521b8f"),
-			Type: validatorpk.Types.Secp256k1,
-		},
-		CreationTime:     opera.X1TestnetGenesisTime,
-		CreationEpoch:    0,
-		DeactivatedTime:  0,
-		DeactivatedEpoch: 0,
-		Status:           0,
-	})
+	for _, genesisValidator := range opera.GenesisValidators {
+		validators = append(validators, gpos.Validator{
+			ID:      1,
+			Address: common.HexToAddress(genesisValidator.AccountAddress),
+			PubKey: validatorpk.PubKey{
+				Raw:  common.Hex2Bytes(genesisValidator.ValidatorPubKey),
+				Type: validatorpk.Types.Secp256k1,
+			},
+			CreationTime:     opera.TestnetGenesisTime,
+			CreationEpoch:    0,
+			DeactivatedTime:  0,
+			DeactivatedEpoch: 0,
+			Status:           0,
+		})
+	}
 
 	return validators
 }
