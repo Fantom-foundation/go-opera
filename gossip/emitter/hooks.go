@@ -1,21 +1,18 @@
 package emitter
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/emitterdriver"
+	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
-	"github.com/Fantom-foundation/go-opera/version"
-)
-
-var (
-	fcVersion = version.ToU64(1, 1, 3)
 )
 
 // OnNewEpoch should be called after each epoch change, and on startup
@@ -47,9 +44,31 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.expectedEmitIntervals = make(map[idx.ValidatorID]time.Duration)
 	em.stakeRatio = make(map[idx.ValidatorID]uint64)
 
-	em.recountValidators(newValidators)
+	// get current adjustments from emitterdriver contract
+	statedb := em.world.StateDB()
+	var (
+		extMinInterval        time.Duration
+		extConfirmingInterval time.Duration
+		switchToFCIndexer     bool
+	)
+	if statedb != nil {
+		switchToFCIndexer = statedb.GetState(emitterdriver.ContractAddress, utils.U64to256(0)) != (common.Hash{0})
+		extMinInterval = time.Duration(statedb.GetState(emitterdriver.ContractAddress, utils.U64to256(1)).Big().Uint64())
+		extConfirmingInterval = time.Duration(statedb.GetState(emitterdriver.ContractAddress, utils.U64to256(2)).Big().Uint64())
+	}
+	if extMinInterval == 0 {
+		extMinInterval = em.config.EmitIntervals.Min
+	}
+	if extConfirmingInterval == 0 {
+		extConfirmingInterval = em.config.EmitIntervals.Confirming
+	}
 
-	if em.switchToFCIndexer {
+	// sanity check to ensure that durations aren't too small/large
+	em.intervals.Min = maxDuration(minDuration(em.config.EmitIntervals.Min*20, extMinInterval), em.config.EmitIntervals.Min/4)
+	em.globalConfirmingInterval = maxDuration(minDuration(em.config.EmitIntervals.Confirming*20, extConfirmingInterval), em.config.EmitIntervals.Confirming/4)
+	em.recountConfirmingIntervals(newValidators)
+
+	if switchToFCIndexer {
 		em.quorumIndexer = nil
 		em.fcIndexer = ancestor.NewFCIndexer(newValidators, em.world.DagIndex(), em.config.Validator.ID)
 	} else {
@@ -66,37 +85,8 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	em.payloadIndexer = ancestor.NewPayloadIndexer(PayloadIndexerSize)
 }
 
-func (em *Emitter) handleVersionUpdate(e inter.EventPayloadI) {
-	if e.Seq() <= 1 && len(e.Extra()) > 0 {
-		var (
-			vMajor int
-			vMinor int
-			vPatch int
-			vMeta  string
-		)
-		n, err := fmt.Sscanf(string(e.Extra()), "v-%d.%d.%d-%s", &vMajor, &vMinor, &vPatch, &vMeta)
-		if n == 4 && err == nil {
-			em.validatorVersions[e.Creator()] = version.ToU64(uint16(vMajor), uint16(vMinor), uint16(vPatch))
-		}
-	}
-}
-
-func (em *Emitter) fcValidators() pos.Weight {
-	counter := pos.Weight(0)
-	for v, ver := range em.validatorVersions {
-		if ver >= fcVersion {
-			counter += em.validators.Get(v)
-		}
-	}
-	return counter
-}
-
 // OnEventConnected tracks new events
 func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
-	em.handleVersionUpdate(e)
-	if !em.switchToFCIndexer && em.fcValidators() >= pos.Weight(uint64(em.validators.TotalWeight())*5/6) {
-		em.switchToFCIndexer = true
-	}
 	if !em.isValidator() {
 		return
 	}
@@ -137,4 +127,18 @@ func (em *Emitter) OnEventConfirmed(he inter.EventI) {
 			em.originatedTxs.Dec(addr)
 		}
 	}
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxDuration(a, b time.Duration) time.Duration {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -59,7 +59,8 @@ type Emitter struct {
 	fcIndexer      *ancestor.FCIndexer
 	payloadIndexer *ancestor.PayloadIndexer
 
-	intervals EmitIntervals
+	intervals                EmitIntervals
+	globalConfirmingInterval time.Duration
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -78,9 +79,6 @@ type Emitter struct {
 	emittedEvFile    *os.File
 	busyRate         *rate.Gauge
 
-	switchToFCIndexer bool
-	validatorVersions map[idx.ValidatorID]uint64
-
 	logger.Periodic
 }
 
@@ -95,12 +93,12 @@ func NewEmitter(
 	config.EmitIntervals = config.EmitIntervals.RandomizeEmitTime(r)
 
 	return &Emitter{
-		config:            config,
-		world:             world,
-		originatedTxs:     originatedtxs.New(SenderCountBufferSize),
-		intervals:         config.EmitIntervals,
-		Periodic:          logger.Periodic{Instance: logger.New()},
-		validatorVersions: make(map[idx.ValidatorID]uint64),
+		config:                   config,
+		world:                    world,
+		originatedTxs:            originatedtxs.New(SenderCountBufferSize),
+		intervals:                config.EmitIntervals,
+		globalConfirmingInterval: config.EmitIntervals.Confirming,
+		Periodic:                 logger.Periodic{Instance: logger.New()},
 	}
 }
 
@@ -376,7 +374,7 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 				metric = 0.03 * piecefunc.DecimalUnit
 			}
 			metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
-			metric = kickStartMetric(metric/2, mutEvent.Seq()) // adjust emission interval for FC
+			metric = kickStartMetric(metric, mutEvent.Seq())
 		} else if em.quorumIndexer != nil {
 			metric = eventMetric(em.quorumIndexer.GetMetricOf(hash.Events{mutEvent.ID()}), mutEvent.Seq())
 			metric = overheadAdjustedEventMetricF(em.validators.Len(), uint64(em.busyRate.Rate1()*piecefunc.DecimalUnit), metric)
