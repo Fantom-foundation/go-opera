@@ -90,12 +90,7 @@ func (ew *emitterWorldRead) GetLowestBlockToDecide() idx.Block {
 }
 
 func (ew *emitterWorldRead) GetBlockRecordHash(n idx.Block) *hash.Hash {
-	record := ew.Store.GetFullBlockRecord(n)
-	if record == nil {
-		return nil
-	}
-	h := record.Hash()
-	return &h
+	return ew.Store.GetBlockRecordHash(n)
 }
 
 func (ew *emitterWorldRead) GetBlockEpoch(block idx.Block) idx.Epoch {
