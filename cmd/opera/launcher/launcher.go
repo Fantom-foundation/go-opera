@@ -14,12 +14,11 @@ import (
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	evmetrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
-
-	evmetrics "github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/metrics"
 	"github.com/Fantom-foundation/go-opera/cmd/opera/launcher/tracing"
@@ -29,6 +28,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
@@ -322,9 +322,10 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Emitter.Validator.PubKey
+
 	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
-		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, validatorpk.FakePassword)
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
 	}
 
