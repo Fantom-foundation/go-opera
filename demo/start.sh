@@ -4,12 +4,13 @@ cd $(dirname $0)
 
 set -e
 
-echo -e "\nStart $N nodes:\n"
+echo -e "\nStart $N validators and $M readonly nodes:\n"
 
 go build -o ../build/demo_opera ../cmd/opera
 
 rm -f ./transactions.rlp
-for ((i=0;i<$N;i+=1))
+TOTAL=$((N+M))
+for ((i=0;i<$TOTAL;i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
     mkdir -p ${DATADIR}
@@ -32,17 +33,14 @@ do
 done
 
 echo -e "\nConnect nodes to ring:\n"
-for ((i=0;i<$N;i+=1))
+for ((i=0;i<$TOTAL;i+=1))
 do
-    for ((n=0;n<$M;n+=1))
-    do
-        j=$(((i+n+1) % N))
+	j=$(((i+n+1) % TOTAL))
 
 	enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
-        echo "    p2p address = ${enode}"
+	echo "    p2p address = ${enode}"
 
-        echo " connecting node-$i to node-$j:"
-        res=$(attach_and_exec $i "admin.addPeer(${enode})")
-        echo "    result = ${res}"
-    done
+	echo " connecting node-$i to node-$j:"
+	res=$(attach_and_exec $i "admin.addPeer(${enode})")
+	echo "    result = ${res}"
 done

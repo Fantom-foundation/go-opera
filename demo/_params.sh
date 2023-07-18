@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 declare -ri N="${N:-3}"
-declare -ri M="${M:-2}"
+declare -ri M="${M:-0}"
 declare -r  TAG="${TAG:-latest}"
 
 PORT_BASE=3000
