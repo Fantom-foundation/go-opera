@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -60,6 +61,14 @@ func (ew *emitterWorldProc) IsBusy() bool {
 	return atomic.LoadUint32(&ew.s.eventBusyFlag) != 0 || atomic.LoadUint32(&ew.s.blockBusyFlag) != 0
 }
 
+func (ew *emitterWorldProc) StateDB() *state.StateDB {
+	statedb, err := ew.s.store.evm.StateDB(ew.s.store.GetBlockState().FinalizedStateRoot)
+	if err != nil {
+		return nil
+	}
+	return statedb
+}
+
 func (ew *emitterWorldProc) IsSynced() bool {
 	return ew.s.handler.syncStatus.AcceptEvents()
 }
@@ -81,12 +90,7 @@ func (ew *emitterWorldRead) GetLowestBlockToDecide() idx.Block {
 }
 
 func (ew *emitterWorldRead) GetBlockRecordHash(n idx.Block) *hash.Hash {
-	record := ew.Store.GetFullBlockRecord(n)
-	if record == nil {
-		return nil
-	}
-	h := record.Hash()
-	return &h
+	return ew.Store.GetBlockRecordHash(n)
 }
 
 func (ew *emitterWorldRead) GetBlockEpoch(block idx.Block) idx.Epoch {

@@ -1,18 +1,22 @@
 package gossip
 
 // compile SFC with truffle
-//go:generate bash -c "cd ../../opera-sfc && git checkout c1d33c81f74abf82c0e22807f16e609578e10ad8"
+//go:generate bash -c "cd ../../opera-sfc && git checkout 424031c81a77196f4e9d60c7d876032dd47208ce"
 //go:generate bash -c "docker run --name go-opera-sfc-compiler -v $(pwd)/contract/solc:/src/build/contracts -v $(pwd)/../../opera-sfc:/src -w /src node:10.5.0 bash -c 'export NPM_CONFIG_PREFIX=~; npm install --no-save; npm install --no-save truffle@5.1.4' && docker commit go-opera-sfc-compiler go-opera-sfc-compiler-image && docker rm go-opera-sfc-compiler"
 //go:generate bash -c "docker run --rm -v $(pwd)/contract/solc:/src/build/contracts -v $(pwd)/../../opera-sfc:/src -w /src go-opera-sfc-compiler-image bash -c 'export NPM_CONFIG_PREFIX=~; rm -f /src/build/contracts/*json; npm run build'"
-//go:generate bash -c "cd ./contract/solc && for f in LegacySfcWrapper.json; do jq -j .bytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin; jq -j .deployedBytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin-runtime; jq -c .abi $DOLLAR{f} > $DOLLAR{f%.json}.abi; done"
+//go:generate bash -c "cd ./contract/solc && for f in SFC.json SFCLib.json; do jq -j .bytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin; jq -j .deployedBytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin-runtime; jq -c .abi $DOLLAR{f} > $DOLLAR{f%.json}.abi; done"
 //go:generate bash -c "docker run --rm -v $(pwd)/contract/solc:/src/build/contracts -v $(pwd)/../../opera-sfc:/src -w /src go-opera-sfc-compiler-image bash -c 'export NPM_CONFIG_PREFIX=~; sed -i s/runs:\\ 200,/runs:\\ 10000,/ /src/truffle-config.js; rm -f /src/build/contracts/*json; npm run build'"
 //go:generate bash -c "cd ../../opera-sfc && git checkout -- truffle-config.js; docker rmi go-opera-sfc-compiler-image"
 //go:generate bash -c "cd ./contract/solc && for f in NetworkInitializer.json NodeDriver.json NodeDriverAuth.json; do jq -j .bytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin; jq -j .deployedBytecode $DOLLAR{f} > $DOLLAR{f%.json}.bin-runtime; jq -c .abi $DOLLAR{f} > $DOLLAR{f%.json}.abi; done"
 
-// wrap LegacySfcWrapper with golang
+// wrap SFC with golang
 //go:generate mkdir -p ./contract/sfc100
-//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/LegacySfcWrapper.bin --abi=./contract/solc/LegacySfcWrapper.abi --pkg=sfc100 --type=Contract --out=contract/sfc100/contract.go
-//go:generate bash -c "(echo -ne '\nvar ContractBinRuntime = \"'; cat contract/solc/LegacySfcWrapper.bin-runtime; echo '\"') >> contract/sfc100/contract.go"
+//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/SFC.bin --abi=./contract/solc/SFC.abi --pkg=sfc100 --type=Contract --out=contract/sfc100/contract.go
+//go:generate bash -c "(echo -ne '\nvar ContractBinRuntime = \"'; cat contract/solc/SFC.bin-runtime; echo '\"') >> contract/sfc100/contract.go"
+// wrap SFC lib with golang
+//go:generate mkdir -p ./contract/sfclib100
+//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/SFCLib.bin --abi=./contract/solc/SFCLib.abi --pkg=sfclib100 --type=Contract --out=contract/sfclib100/contract.go
+//go:generate bash -c "(echo -ne '\nvar ContractBinRuntime = \"'; cat contract/solc/SFCLib.bin-runtime; echo '\"') >> contract/sfclib100/contract.go"
 // wrap NetworkInitializer with golang
 //go:generate mkdir -p ./contract/netinit100
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/NetworkInitializer.bin --abi=./contract/solc/NetworkInitializer.abi --pkg=netinit100 --type=Contract --out=contract/netinit100/contract.go

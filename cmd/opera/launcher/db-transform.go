@@ -17,7 +17,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/utils"
-	"github.com/Fantom-foundation/go-opera/utils/dbutil/compactdb"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
 
 func dbTransform(ctx *cli.Context) error {
@@ -264,9 +264,9 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 					return err
 				}
 				toMove[dbLocatorOf(e.New)] = true
-				newDB = batched.Wrap(newDB)
-				defer newDB.Close()
 				newHumanName := path.Join("tmp", string(e.New.Type), e.New.Name)
+				newDB = batched.Wrap(autocompact.Wrap2M(newDB, opt.GiB, 16*opt.GiB, true, newHumanName))
+				defer newDB.Close()
 				log.Info("Copying DB table", "req", e.Req, "old_db", oldHumanName, "old_table", e.Old.Table,
 					"new_db", newHumanName, "new_table", e.New.Table)
 				oldTable := utils.NewTableOrSelf(oldDB, []byte(e.Old.Table))
@@ -291,11 +291,6 @@ func transformComponent(datadir string, dbTypes, tmpDbTypes map[multidb.TypeName
 					}
 					keys = keys[:0]
 					values = values[:0]
-				}
-				err = compactdb.Compact(newTable, newHumanName, 16*opt.GiB)
-				if err != nil {
-					log.Error("Database compaction failed", "err", err)
-					return err
 				}
 				return nil
 			}()

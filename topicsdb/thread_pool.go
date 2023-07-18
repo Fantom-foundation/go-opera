@@ -2,63 +2,14 @@ package topicsdb
 
 import (
 	"context"
-	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/threads"
 )
-
-const GoroutinesPerThread = 0.7
-
-// threadPool counts threads in use
-type threadPool struct {
-	mu          sync.Mutex
-	initialized bool
-	sum         int
-}
-
-var globalPool threadPool
-
-// init threadPool only on demand to give time to other packages
-// call debug.SetMaxThreads() if they need
-func (p *threadPool) init() {
-	if !p.initialized {
-		p.initialized = true
-		p.sum = int(getMaxThreads() * GoroutinesPerThread)
-	}
-}
-
-func (p *threadPool) Lock(want int) (got int, release func()) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if !p.initialized {
-		p.init()
-	}
-
-	if want < 1 {
-		want = 0
-	}
-
-	got = min(p.sum, want)
-	p.sum -= got
-	release = func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.sum += got
-	}
-
-	return
-}
-
-func getMaxThreads() float64 {
-	was := debug.SetMaxThreads(10000)
-	debug.SetMaxThreads(was)
-	return float64(was)
-}
 
 // withThreadPool wraps the index and limits its threads in use
 type withThreadPool struct {
@@ -85,6 +36,10 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 		return nil
 	}
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	pattern, err := limitPattern(pattern)
 	if err != nil {
 		return err
@@ -101,20 +56,24 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 	}
 
 	splitby := 0
-	threads := 0
+	parallels := 0
 	for i := range pattern {
-		threads += len(pattern[i])
+		parallels += len(pattern[i])
 		if len(pattern[splitby]) < len(pattern[i]) {
 			splitby = i
 		}
 	}
 	rest := pattern[splitby]
-	threads -= len(rest)
+	parallels -= len(rest)
+
+	if parallels >= threads.GlobalPool.Cap() {
+		return ErrTooBigTopics
+	}
 
 	for len(rest) > 0 {
-		got, release := globalPool.Lock(threads + len(rest))
-		if got <= threads {
-			release()
+		got, release := threads.GlobalPool.Lock(parallels + len(rest))
+		if got <= parallels {
+			release(got)
 			select {
 			case <-time.After(time.Millisecond):
 				continue
@@ -123,10 +82,13 @@ func (tt *withThreadPool) ForEachInBlocks(ctx context.Context, from, to idx.Bloc
 			}
 		}
 
-		pattern[splitby] = rest[:got-threads]
-		rest = rest[got-threads:]
-		err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
-		release()
+		onDbIterator := func() {
+			release(1)
+		}
+
+		pattern[splitby] = rest[:got-parallels]
+		rest = rest[got-parallels:]
+		err = tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched, onDbIterator)
 		if err != nil {
 			return err
 		}

@@ -78,6 +78,12 @@ func getStores(producer kvdb.FlushableDBProducer, cfg Configs) (*gossip.Store, *
 	return gdb, cdb
 }
 
+func getEpoch(producer kvdb.FlushableDBProducer, cfg Configs) idx.Epoch {
+	gdb := gossip.NewStore(producer, cfg.OperaStore)
+	defer gdb.Close()
+	return gdb.GetEpoch()
+}
+
 func rawApplyGenesis(gdb *gossip.Store, cdb *abft.Store, g genesis.Genesis, cfg Configs) error {
 	_, _, _, err := rawMakeEngine(gdb, cdb, &g, cfg)
 	return err
@@ -202,6 +208,24 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 		if err != nil {
 			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
 		}
+
+		// drop previous epoch DBs, which do not survive restart
+		epoch := getEpoch(dbs, cfg)
+		leDB, err := dbs.OpenDB(fmt.Sprintf("lachesis-%d", epoch))
+		if err != nil {
+			_ = dbs.Close()
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		}
+		_ = leDB.Close()
+		leDB.Drop()
+		goDB, err := dbs.OpenDB(fmt.Sprintf("gossip-%d", epoch))
+		if err != nil {
+			_ = dbs.Close()
+			return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
+		}
+		_ = goDB.Close()
+		goDB.Drop()
+
 		err = migrate(dbs, cfg)
 		_ = dbs.Close()
 		if err != nil {
@@ -216,6 +240,7 @@ func makeEngine(chaindataDir string, g *genesis.Genesis, genesisProc bool, cfg C
 	if err != nil {
 		return nil, nil, nil, nil, gossip.BlockProc{}, nil, err
 	}
+
 	gdb, cdb := getStores(dbs, cfg)
 	defer func() {
 		if err != nil {

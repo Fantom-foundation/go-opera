@@ -10,12 +10,15 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/Fantom-foundation/lachesis-base/utils/wlru"
 	"github.com/Fantom-foundation/lachesis-base/vecengine"
+	"github.com/Fantom-foundation/lachesis-base/vecengine/vecflushable"
 	"github.com/Fantom-foundation/lachesis-base/vecfc"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 // IndexCacheConfig - config for cache sizes of Engine
 type IndexCacheConfig struct {
 	HighestBeforeTimeSize uint
+	DBCache               int
 }
 
 // IndexConfig - Engine config (cache sizes)
@@ -54,6 +57,7 @@ func DefaultConfig(scale cachescale.Func) IndexConfig {
 		Fc: vecfc.DefaultConfig(scale),
 		Caches: IndexCacheConfig{
 			HighestBeforeTimeSize: scale.U(160 * 1024),
+			DBCache:               scale.I(10 * opt.MiB),
 		},
 	}
 }
@@ -103,7 +107,9 @@ func (vi *Index) initCaches() {
 
 // Reset resets buffers.
 func (vi *Index) Reset(validators *pos.Validators, db kvdb.Store, getEvent func(hash.Event) dag.Event) {
-	vi.Base.Reset(validators, db, getEvent)
+	fdb := vecflushable.Wrap(db, vi.cfg.Caches.DBCache)
+	vi.vecDb = fdb
+	vi.Base.Reset(validators, fdb, getEvent)
 	vi.getEvent = getEvent
 	vi.validators = validators
 	vi.validatorIdxs = validators.Idxs()
@@ -132,19 +138,11 @@ func (vi *Index) GetEngineCallbacks() vecengine.Callbacks {
 		NewLowestAfter: func(size idx.Validator) vecengine.LowestAfterI {
 			return vi.baseCallbacks.NewLowestAfter(size)
 		},
-		OnDbReset: func(db kvdb.Store) {
-			vi.baseCallbacks.OnDbReset(db)
-			vi.onDbReset(db)
-		},
 		OnDropNotFlushed: func() {
 			vi.baseCallbacks.OnDropNotFlushed()
 			vi.onDropNotFlushed()
 		},
 	}
-}
-
-func (vi *Index) onDbReset(db kvdb.Store) {
-	vi.vecDb = db
 }
 
 func (vi *Index) onDropNotFlushed() {
