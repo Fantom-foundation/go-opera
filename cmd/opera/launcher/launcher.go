@@ -323,7 +323,8 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Emitter.Validator.PubKey
 
-	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
+	if ctx.GlobalIsSet(FakeNetFlag.Name) && !valPubkey.Empty() {
+		key := getFakeValidatorKey(ctx)
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
 		coinbase := integration.SetAccountKey(stack.AccountManager(), key, validatorpk.FakePassword)
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())

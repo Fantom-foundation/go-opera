@@ -6,7 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
@@ -15,15 +18,37 @@ import (
 // FakeNetFlag enables special testnet, where validators are automatically created
 var FakeNetFlag = cli.StringFlag{
 	Name:  "fakenet",
-	Usage: "'n/N' - sets coinbase as fake n-th key from genesis of N validators.",
+	Usage: "'n/N' - sets coinbase as fake n-th key from genesis of [1..N] validators.",
+}
+
+func getFakeValidatorID(ctx *cli.Context) idx.ValidatorID {
+	id, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	if err != nil {
+		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
+	}
+
+	if 0 < id && id <= idx.ValidatorID(num) {
+		return id
+	}
+
+	return 0
 }
 
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
 	id, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-	if err != nil || id == 0 {
-		return nil
+	if err != nil {
+		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
 	return makefakegenesis.FakeKey(id)
+}
+
+func getFakeValidatorCount(ctx *cli.Context) idx.Validator {
+	_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	if err != nil {
+		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		return 0
+	}
+	return num
 }
 
 func parseFakeGen(s string) (id idx.ValidatorID, num idx.Validator, err error) {
@@ -41,11 +66,17 @@ func parseFakeGen(s string) (id idx.ValidatorID, num idx.Validator, err error) {
 	id = idx.ValidatorID(u32)
 
 	u32, err = strconv.ParseUint(parts[1], 10, 32)
-	num = idx.Validator(u32)
-	if num < 0 || idx.Validator(id) > num {
-		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
+	if err != nil {
 		return
 	}
+	num = idx.Validator(u32)
 
 	return
+}
+
+func fakeValidatorPubKey(id idx.ValidatorID) validatorpk.PubKey {
+	return validatorpk.PubKey{
+		Raw:  crypto.FromECDSAPub(&makefakegenesis.FakeKey(id).PublicKey),
+		Type: validatorpk.Types.Secp256k1,
+	}
 }
