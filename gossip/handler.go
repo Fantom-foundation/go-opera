@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -54,6 +55,35 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils/txtime"
 )
 
+var (
+	newPeersGauge      = metrics.GetOrRegisterGauge("p2p/peers/new", nil)
+	rejectedPeersGauge = metrics.GetOrRegisterGauge("p2p/peers/rejected", nil)
+	uselessPeersGauge  = metrics.GetOrRegisterGauge("p2p/peers/useless", nil)
+
+	msgHandlingTimer = metrics.GetOrRegisterTimer("p2p/msg/duration", nil)
+
+	progressMsgCounter          = metrics.GetOrRegisterCounter("p2p/msg/progress", nil)
+	evmTxsMsgCounter            = metrics.GetOrRegisterCounter("p2p/msg/evmTxs", nil)
+	newEvmTxHashesMsgCounter    = metrics.GetOrRegisterCounter("p2p/msg/newEvmTxHashes", nil)
+	getEvmTxsMsgCounter         = metrics.GetOrRegisterCounter("p2p/msg/getEvmTxs", nil)
+	newEventIDsMsgCounter       = metrics.GetOrRegisterCounter("p2p/msg/newEventIDs", nil)
+	getEventsMsgCounter         = metrics.GetOrRegisterCounter("p2p/msg/getEvents", nil)
+	eventsMsgCounter            = metrics.GetOrRegisterCounter("p2p/msg/events", nil)
+	requestEventsStreamCounter  = metrics.GetOrRegisterCounter("p2p/msg/reqEventsStream", nil)
+	eventsStreamResponseCounter = metrics.GetOrRegisterCounter("p2p/msg/respEventsStream", nil)
+	requestBVsStreamCounter     = metrics.GetOrRegisterCounter("p2p/msg/reqBVsStream", nil)
+	bVsStreamResponseCounter    = metrics.GetOrRegisterCounter("p2p/msg/respBVsStream", nil)
+	requestBRsStreamCounter     = metrics.GetOrRegisterCounter("p2p/msg/reqBRsStream", nil)
+	bRsStreamResponseCounter    = metrics.GetOrRegisterCounter("p2p/msg/respBRsStream", nil)
+	requestEPsStreamCounter     = metrics.GetOrRegisterCounter("p2p/msg/reqEPsStream", nil)
+	ePsStreamResponseCounter    = metrics.GetOrRegisterCounter("p2p/msg/ePsStream", nil)
+	invalidMsgCounter           = metrics.GetOrRegisterCounter("p2p/msg/invalid", nil)
+
+	broadcastEventsCounter = metrics.GetOrRegisterCounter("p2p/broadcast/events", nil)
+	broadcastTxsCounter    = metrics.GetOrRegisterCounter("p2p/broadcast/txs", nil)
+	newEpochCounter        = metrics.GetOrRegisterCounter("p2p/epochs/count", nil)
+)
+
 const (
 	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
 	softLimitItems        = 250                // Target maximum number of events or transactions to request/response
@@ -62,6 +92,9 @@ const (
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
+
+	percents    = 100
+	maxPercents = 1000000 * percents
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -787,14 +820,17 @@ func (h *handler) handle(p *peer) error {
 	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
 		useless = true
 		discfilter.Ban(p.ID())
+		uselessPeersGauge.Inc(1)
 	}
 	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
 		// don't allow more than 10% of useless peers
+		rejectedPeersGauge.Inc(1)
 		return p2p.DiscTooManyPeers
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
 		if h.peers.UselessNum() >= h.maxPeers/10 {
 			// don't allow more than 10% of useless peers
+			rejectedPeersGauge.Inc(1)
 			return p2p.DiscTooManyPeers
 		}
 		p.SetUseless()
@@ -852,6 +888,8 @@ func (h *handler) handle(p *peer) error {
 		}
 	}
 	defer h.unregisterPeer(p.id)
+
+	newPeersGauge.Inc(1)
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
@@ -1000,6 +1038,13 @@ func (h *handler) handleMsg(p *peer) error {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
 	defer msg.Discard()
+
+	start := time.Now()
+	defer func() {
+		stop := time.Now()
+		msgHandlingTimer.Update(stop.Sub(start))
+	}()
+
 	// Acquire semaphore for serialized messages
 	eventsSizeEst := dag.Metric{
 		Num:  1,
@@ -1018,6 +1063,7 @@ func (h *handler) handleMsg(p *peer) error {
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 
 	case msg.Code == ProgressMsg:
+		progressMsgCounter.Inc(1)
 		var progress PeerProgress
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1025,6 +1071,7 @@ func (h *handler) handleMsg(p *peer) error {
 		p.SetProgress(progress)
 
 	case msg.Code == EvmTxsMsg:
+		evmTxsMsgCounter.Inc(1)
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1045,6 +1092,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxs(p, txs)
 
 	case msg.Code == NewEvmTxHashesMsg:
+		newEvmTxHashesMsgCounter.Inc(1)
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptTxs() {
 			break
@@ -1060,6 +1108,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleTxHashes(p, txHashes)
 
 	case msg.Code == GetEvmTxsMsg:
+		getEvmTxsMsgCounter.Inc(1)
 		var requests []common.Hash
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
@@ -1081,6 +1130,7 @@ func (h *handler) handleMsg(p *peer) error {
 		})
 
 	case msg.Code == EventsMsg:
+		eventsMsgCounter.Inc(1)
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1096,6 +1146,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleEvents(p, events.Bases(), events.Len() > 1)
 
 	case msg.Code == NewEventIDsMsg:
+		newEventIDsMsgCounter.Inc(1)
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
 		if !h.syncStatus.AcceptEvents() {
 			break
@@ -1110,6 +1161,7 @@ func (h *handler) handleMsg(p *peer) error {
 		h.handleEventHashes(p, announces)
 
 	case msg.Code == GetEventsMsg:
+		getEventsMsgCounter.Inc(1)
 		var requests hash.Events
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1138,6 +1190,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == RequestEventsStream:
+		requestEventsStreamCounter.Inc(1)
 		var request dagstream.Request
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1162,6 +1215,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == EventsStreamResponse:
+		eventsStreamResponseCounter.Inc(1)
 		if !h.syncStatus.AcceptEvents() {
 			break
 		}
@@ -1190,6 +1244,7 @@ func (h *handler) handleMsg(p *peer) error {
 		_ = h.dagLeecher.NotifyChunkReceived(chunk.SessionID, last, chunk.Done)
 
 	case msg.Code == RequestBVsStream:
+		requestBVsStreamCounter.Inc(1)
 		var request bvstream.Request
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1214,6 +1269,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == BVsStreamResponse:
+		bVsStreamResponseCounter.Inc(1)
 		var chunk bvsChunk
 		if err := msg.Decode(&chunk); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1235,6 +1291,7 @@ func (h *handler) handleMsg(p *peer) error {
 		_ = h.bvLeecher.NotifyChunkReceived(chunk.SessionID, last, chunk.Done)
 
 	case msg.Code == RequestBRsStream:
+		requestBRsStreamCounter.Inc(1)
 		var request brstream.Request
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1259,6 +1316,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == BRsStreamResponse:
+		bRsStreamResponseCounter.Inc(1)
 		if !h.syncStatus.AcceptBlockRecords() {
 			break
 		}
@@ -1281,6 +1339,7 @@ func (h *handler) handleMsg(p *peer) error {
 		_ = h.brLeecher.NotifyChunkReceived(chunk.SessionID, last, chunk.Done)
 
 	case msg.Code == RequestEPsStream:
+		requestEPsStreamCounter.Inc(1)
 		var request epstream.Request
 		if err := msg.Decode(&request); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -1305,6 +1364,7 @@ func (h *handler) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == EPsStreamResponse:
+		ePsStreamResponseCounter.Inc(1)
 		msgSize := uint64(msg.Size)
 		var chunk epsChunk
 		if err := msg.Decode(&chunk); err != nil {
@@ -1323,14 +1383,13 @@ func (h *handler) handleMsg(p *peer) error {
 		_ = h.epLeecher.NotifyChunkReceived(chunk.SessionID, last, chunk.Done)
 
 	default:
+		invalidMsgCounter.Inc(1)
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
 }
 
 func (h *handler) decideBroadcastAggressiveness(size int, passed time.Duration, peersNum int) int {
-	percents := 100
-	maxPercents := 1000000 * percents
 	latencyVsThroughputTradeoff := maxPercents
 	cfg := h.config.Protocol
 	if cfg.ThroughputImportance != 0 {
@@ -1440,6 +1499,7 @@ func (h *handler) emittedBroadcastLoop() {
 		select {
 		case emitted := <-h.emittedEventsCh:
 			h.BroadcastEvent(emitted, 0)
+			broadcastEventsCounter.Inc(1)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.emittedEventsSub.Err():
 			return
@@ -1476,6 +1536,7 @@ func (h *handler) onNewEpochLoop() {
 		select {
 		case myEpoch := <-h.newEpochsCh:
 			h.dagProcessor.Clear()
+			newEpochCounter.Inc(1)
 			h.dagLeecher.OnNewEpoch(myEpoch)
 		// Err() channel will be closed when unsubscribing.
 		case <-h.newEpochsSub.Err():
@@ -1492,6 +1553,7 @@ func (h *handler) txBroadcastLoop() {
 		select {
 		case notify := <-h.txsCh:
 			h.BroadcastTxs(notify.Txs)
+			broadcastTxsCounter.Inc(1)
 
 		// Err() channel will be closed when unsubscribing.
 		case <-h.txsSub.Err():
