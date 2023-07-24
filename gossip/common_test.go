@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -449,10 +448,7 @@ func (env *testEnv) callContract(
 	from := state.GetOrNewStateObject(call.From)
 	from.SetBalance(big.NewInt(math.MaxInt64))
 
-	msg := &core.Message{
-		From: call.From,
-		To:   call.To,
-	}
+	msg := callmsg{call}
 
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.

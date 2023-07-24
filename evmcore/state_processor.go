@@ -21,7 +21,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -97,7 +96,7 @@ func (p *StateProcessor) Process(
 }
 
 func applyTransaction(
-	msg *core.Message,
+	msg types.Message,
 	config *params.ChainConfig,
 	gp *GasPool,
 	statedb *state.StateDB,
@@ -149,7 +148,7 @@ func applyTransaction(
 	receipt.GasUsed = result.UsedGas
 
 	// If the transaction created a contract, store the creation address in the receipt.
-	if msg.To == nil {
+	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 
@@ -162,11 +161,11 @@ func applyTransaction(
 	return receipt, result.UsedGas, false, err
 }
 
-func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (*core.Message, error) {
+func TxAsMessage(tx *types.Transaction, signer types.Signer, baseFee *big.Int) (types.Message, error) {
 	if !internaltx.IsInternal(tx) {
-		return core.TransactionToMessage(tx, signer, baseFee)
+		return tx.AsMessage(signer, baseFee)
 	} else {
-		msg := core.NewMessage(internaltx.InternalSender(tx), tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
+		msg := types.NewMessage(internaltx.InternalSender(tx), tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.GasFeeCap(), tx.GasTipCap(), tx.Data(), tx.AccessList(), true)
 		return msg, nil
 	}
 }

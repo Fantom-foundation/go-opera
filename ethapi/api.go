@@ -1000,7 +1000,7 @@ func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash 
 		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
 	if err != nil {
-		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.GasLimit)
+		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
 	}
 	return result, nil
 }
@@ -1491,7 +1491,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		to = crypto.CreateAddress(args.from(), uint64(*args.Nonce))
 	}
 	// Retrieve the precompiles since they don't need to be added to the access list
-	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number, false, uint64(header.Time)))
+	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number))
 
 	// Create an initial tracer
 	prevTracer := logger.NewAccessListTracer(nil, args.from(), to, precompiles)
@@ -1531,7 +1531,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		if err != nil {
 			return nil, 0, nil, err
 		}
-		res, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(msg.GasLimit))
+		res, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(msg.Gas()))
 		if err != nil {
 			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
 		}
