@@ -11,6 +11,7 @@ import (
 	"gonum.org/v1/gonum/graph/encoding/dot"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/utils/dag"
 )
 
@@ -28,6 +29,7 @@ func exportDAGgraph(ctx *cli.Context) error {
 	fn := ctx.Args().First()
 
 	// Open the file handle and potentially wrap with a gzip stream
+	log.Info("Exporting events DAG to file", "file", fn)
 	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
@@ -53,13 +55,21 @@ func exportDAGgraph(ctx *cli.Context) error {
 		to = idx.Epoch(n)
 	}
 
+	err = exportDOT(writer, gdb, from, to)
+	if err != nil {
+		utils.Fatalf("Export DOT error: %v\n", err)
+	}
+
+	return nil
+}
+
+func exportDOT(writer io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 	graph := dag.Graph(gdb, from, to)
 	buf, err := dot.Marshal(graph, "DAG", "", "\t")
 	if err != nil {
-		utils.Fatalf("Export error: %v\n", err)
+		return err
 	}
 
-	log.Info("Exporting events DAG to file", "file", fn)
 	_, err = writer.Write(buf)
 	if err != nil {
 		return err

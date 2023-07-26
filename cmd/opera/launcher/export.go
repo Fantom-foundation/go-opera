@@ -46,18 +46,13 @@ func exportEvents(ctx *cli.Context) error {
 
 	fn := ctx.Args().First()
 
-	// Open the file handle and potentially wrap with a gzip stream
+	// Open the file handle
+	log.Info("Exporting events to file", "file", fn)
 	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	defer fh.Close()
-
-	var writer io.Writer = fh
-	if strings.HasSuffix(fn, ".gz") {
-		writer = gzip.NewWriter(writer)
-		defer writer.(*gzip.Writer).Close()
-	}
 
 	from := idx.Epoch(1)
 	if len(ctx.Args()) > 1 {
@@ -76,22 +71,39 @@ func exportEvents(ctx *cli.Context) error {
 		to = idx.Epoch(n)
 	}
 
-	log.Info("Exporting events to file", "file", fn)
-	// Write header and version
-	_, err = writer.Write(append(eventsFileHeader, eventsFileVersion...))
-	if err != nil {
-		return err
+	// Potentially wrap with a gzip stream
+	var writer io.Writer = fh
+	if strings.HasSuffix(fn, ".gz") {
+		fn = fn[:len(fn)-len(".gz")]
+		writer = gzip.NewWriter(writer)
+		defer writer.(*gzip.Writer).Close()
 	}
-	err = exportTo(writer, gdb, from, to)
-	if err != nil {
-		utils.Fatalf("Export error: %v\n", err)
+
+	switch {
+	// DOT format:
+	case strings.HasSuffix(fn, ".dot"):
+		err = exportDOT(writer, gdb, from, to)
+		if err != nil {
+			utils.Fatalf("Export DOT error: %v\n", err)
+		}
+	// RLP format:
+	default:
+		// Write header and version
+		_, err = writer.Write(append(eventsFileHeader, eventsFileVersion...))
+		if err != nil {
+			return err
+		}
+		err = exportRLP(writer, gdb, from, to)
+		if err != nil {
+			utils.Fatalf("Export RLP error: %v\n", err)
+		}
 	}
 
 	return nil
 }
 
-// exportTo writer the active chain.
-func exportTo(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
+// exportRLP writer the active chain.
+func exportRLP(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 	start, reported := time.Now(), time.Time{}
 
 	var (
