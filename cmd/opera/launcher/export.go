@@ -18,9 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/status-im/keycard-go/hexutils"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"gonum.org/v1/gonum/graph/encoding/dot"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/utils/dag"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
 
@@ -129,6 +131,22 @@ func exportRLP(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 
 	return
+}
+
+// exportDOT writer the active chain.
+func exportDOT(writer io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
+	graph := dag.Graph(gdb, from, to)
+	buf, err := dot.Marshal(graph, "DAG", "", "\t")
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Write(buf)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func exportEvmKeys(ctx *cli.Context) error {
