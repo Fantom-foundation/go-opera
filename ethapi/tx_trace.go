@@ -214,14 +214,13 @@ func (s *PublicTxTraceAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 				// get full transaction info
 				tx, _, index, err := s.b.GetTransaction(ctx, tx.Hash())
 				if err != nil {
-					log.Debug("Cannot get transaction", "txHash", tx.Hash().String(), "err", err.Error())
-					callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, nil, tx.To(), tx.Hash(), index, err))
-					continue
+					log.Error("cannot replay tranasction", "txHash", tx.Hash().String(), "err", err.Error())
+					return nil, fmt.Errorf("cannot replay tranasction %s, error %s", tx.Hash().String(), err)
 				}
-				msg, err := tx.AsMessage(signer, block.BaseFee)
+				msg, err := evmcore.TxAsMessage(tx, signer, block.BaseFee)
 				if err != nil {
-					callTrace.AddTrace(txtrace.GetErrorTrace(block.Hash, *block.Number, nil, tx.To(), tx.Hash(), index, errors.New("not able to decode tx")))
-					continue
+					log.Error("cannot get message from transaction", "txHash", tx.Hash().String(), "err", err.Error())
+					return nil, fmt.Errorf("cannot get message from transaction %s, error %s", tx.Hash().String(), err)
 				}
 				from := msg.From()
 				if tx.To() != nil && *tx.To() == sfc.ContractAddress {
@@ -250,8 +249,10 @@ func (s *PublicTxTraceAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 			} else if txHash != nil {
 				log.Info("Replaying transaction without trace", "txHash", tx.Hash().String())
 				// Generate the next state snapshot fast without tracing
-				msg, _ := tx.AsMessage(signer, block.BaseFee)
-
+				msg, err := evmcore.TxAsMessage(tx, signer, block.BaseFee)
+				if err != nil {
+					return nil, fmt.Errorf("cannot replay tranasction %s, error %s", tx.Hash().String(), err)
+				}
 				state.Prepare(tx.Hash(), i)
 				vmConfig := opera.DefaultVMConfig
 				vmConfig.NoBaseFee = true
