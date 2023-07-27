@@ -226,7 +226,11 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 	sorted := txs
 	sort.Slice(sorted, func(i, j int) bool {
 		a, b := sorted[i], sorted[j]
-		return a.EffectiveGasTipCmp(b, minGasPrice) > 0
+		cmp := a.EffectiveGasTipCmp(b, minGasPrice)
+		if cmp == 0 {
+			return a.Gas() > b.Gas()
+		}
+		return cmp > 0
 	})
 
 	for i, tx := range sorted {
