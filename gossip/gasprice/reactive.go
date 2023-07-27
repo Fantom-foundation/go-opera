@@ -161,12 +161,18 @@ func (c *circularTxpoolStats) totalGas() uint64 {
 
 // calcTxpoolStat retrieves txpool transactions and calculates statistics
 func (gpo *Oracle) calcTxpoolStat() txpoolStat {
-	txs := gpo.backend.PendingTxs()
+	txsMap := gpo.backend.PendingTxs()
 	s := txpoolStat{}
-	if len(txs) == 0 {
+	if len(txsMap) == 0 {
 		// short circuit if empty txpool
 		return s
 	}
+	// take only one tx from each account
+	txs := make(types.Transactions, 0, 1000)
+	for _, aTxs := range txsMap {
+		txs = append(txs, aTxs[0])
+	}
+
 	// don't index more transactions than needed for GPO purposes
 	const maxTxsToIndex = 400
 
