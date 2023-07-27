@@ -4,13 +4,13 @@ cd $(dirname $0)
 
 set -e
 
-echo -e "\nStart $N validators and $M readonly nodes:\n"
+TOTAL=$((N+M))
+echo -e "\nStart ${TOTAL} validators on $N-validator genesis:\n"
 
 go build -o ../build/demo_opera ../cmd/opera
-
 rm -f ./transactions.rlp
-TOTAL=$((N+M))
-for ((i=0;i<$TOTAL;i+=1))
+
+for ((i=0;i<${TOTAL};i+=1))
 do
     DATADIR="${PWD}/opera$i.datadir"
     mkdir -p ${DATADIR}
@@ -26,14 +26,14 @@ do
 	--nat extip:127.0.0.1 \
 	--http --http.addr="127.0.0.1" --http.port=${RPCP} --http.corsdomain="*" --http.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
 	--ws --ws.addr="127.0.0.1" --ws.port=${WSP} --ws.origins="*" --ws.api="eth,debug,net,admin,web3,personal,txpool,ftm,dag" \
-	--metrics --metrics.addr=127.0.0.1 --metrics.port=$(($RPCP+1100)) \
+	--metrics --metrics.addr=127.0.0.1 --metrics.port=$((${RPCP}+1100)) \
 	--verbosity=3 --tracing >> opera$i.log 2>&1)&
 
     echo -e "\tnode$i ok"
 done
 
 echo -e "\nConnect nodes to ring:\n"
-for ((i=0;i<$TOTAL;i+=1))
+for ((i=0;i<${TOTAL};i+=1))
 do
 	j=$(((i+n+1) % TOTAL))
 
