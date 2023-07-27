@@ -181,28 +181,20 @@ func (gpo *Oracle) calcTxpoolStat() txpoolStat {
 	sorted := txs
 	sort.Slice(sorted, func(i, j int) bool {
 		a, b := sorted[i], sorted[j]
-		return a.EffectiveGasTipCmp(b, minGasPrice) < 0
+		return a.EffectiveGasTipCmp(b, minGasPrice) > 0
 	})
 
-	if len(txs) > maxTxsToIndex {
-		txs = txs[:maxTxsToIndex]
-	}
-	sortedDown := make(types.Transactions, len(sorted))
 	for i, tx := range sorted {
-		sortedDown[len(sorted)-1-i] = tx
-	}
-
-	for i, tx := range sortedDown {
 		s.totalGas += tx.Gas()
-		if s.totalGas > maxGasToIndex {
-			sortedDown = sortedDown[:i+1]
+		if s.totalGas > maxGasToIndex || i > maxTxsToIndex {
+			sorted = sorted[:i+1]
 			break
 		}
 	}
 
 	gasCounter := uint64(0)
 	p := uint64(0)
-	for _, tx := range sortedDown {
+	for _, tx := range sorted {
 		for p < uint64(len(s.percentiles)) && gasCounter >= p*maxGasToIndex/uint64(len(s.percentiles)) {
 			s.percentiles[p] = tx.EffectiveGasTipValue(minGasPrice)
 			if s.percentiles[p].Sign() < 0 {
