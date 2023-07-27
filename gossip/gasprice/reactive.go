@@ -13,7 +13,7 @@ import (
 const (
 	percentilesPerStat = 20
 	statUpdatePeriod   = 1 * time.Second
-	statsBuffer        = int((12 * time.Second) / statUpdatePeriod)
+	statsBuffer        = int((24 * time.Second) / statUpdatePeriod)
 	maxGasToIndex      = 40000000
 )
 
