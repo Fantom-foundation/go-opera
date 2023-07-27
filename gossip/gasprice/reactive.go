@@ -13,7 +13,7 @@ import (
 const (
 	percentilesPerStat = 20
 	statUpdatePeriod   = 1 * time.Second
-	statsBuffer        = int((24 * time.Second) / statUpdatePeriod)
+	statsBuffer        = int((15 * time.Second) / statUpdatePeriod)
 	maxGasToIndex      = 40000000
 )
 
@@ -79,6 +79,13 @@ func (gpo *Oracle) txpoolStatsLoop() {
 	}
 }
 
+func (c *circularTxpoolStats) dec(v int) int {
+	if v == 0 {
+		return len(c.stats) - 1
+	}
+	return v - 1
+}
+
 // calcAvg calculates average of statistics in the circular buffer
 func (c *circularTxpoolStats) calcAvg() txpoolStat {
 	avg := txpoolStat{}
@@ -93,9 +100,10 @@ func (c *circularTxpoolStats) calcAvg() txpoolStat {
 		nonZero++
 		avg.totalGas += s.totalGas
 		for p := range s.percentiles {
-			if s.percentiles[p] != nil {
-				avg.percentiles[p].Add(avg.percentiles[p], s.percentiles[p])
+			if s.percentiles[p] == nil {
+				continue
 			}
+			avg.percentiles[p].Add(avg.percentiles[p], s.percentiles[p])
 		}
 	}
 	if nonZero == 0 {
@@ -106,7 +114,44 @@ func (c *circularTxpoolStats) calcAvg() txpoolStat {
 	for p := range avg.percentiles {
 		avg.percentiles[p].Div(avg.percentiles[p], nonZeroBn)
 	}
-	return avg
+
+	// take maximum from previous 4 stats plus 5%
+	rec := txpoolStat{}
+	for p := range rec.percentiles {
+		rec.percentiles[p] = new(big.Int)
+	}
+	recI1 := c.dec(c.i)
+	recI2 := c.dec(recI1)
+	recI3 := c.dec(recI2)
+	recI4 := c.dec(recI3)
+	for _, s := range []txpoolStat{c.stats[recI1], c.stats[recI2], c.stats[recI3], c.stats[recI4]} {
+		for p := range s.percentiles {
+			if s.percentiles[p] == nil {
+				continue
+			}
+			if rec.percentiles[p].Cmp(s.percentiles[p]) < 0 {
+				rec.percentiles[p].Set(s.percentiles[p])
+			}
+		}
+	}
+	// increase by 5%
+	for p := range rec.percentiles {
+		rec.percentiles[p].Mul(rec.percentiles[p], big.NewInt(21))
+		rec.percentiles[p].Div(rec.percentiles[p], big.NewInt(20))
+	}
+
+	// return minimum from max(recent two stats * 1.05) and avg stats
+	res := txpoolStat{}
+	res.totalGas = avg.totalGas
+	for _, s := range []txpoolStat{avg, rec} {
+		for p := range s.percentiles {
+			if res.percentiles[p] == nil || res.percentiles[p].Cmp(s.percentiles[p]) > 0 {
+				res.percentiles[p] = s.percentiles[p]
+			}
+		}
+	}
+
+	return res
 }
 
 func (c *circularTxpoolStats) getGasPriceForGasAbove(gas uint64) *big.Int {
