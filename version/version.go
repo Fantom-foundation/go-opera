@@ -11,7 +11,7 @@ func init() {
 	params.VersionMajor = 1     // Major version component of the current release
 	params.VersionMinor = 1     // Minor version component of the current release
 	params.VersionPatch = 3     // Patch version component of the current release
-	params.VersionMeta = "rc.1" // Version metadata to append to the version string
+	params.VersionMeta = "rc.2" // Version metadata to append to the version string
 }
 
 func BigToString(b *big.Int) string {
