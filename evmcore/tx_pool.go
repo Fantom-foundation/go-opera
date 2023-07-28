@@ -556,17 +556,6 @@ func (pool *TxPool) Pending(enforceTips bool) (map[common.Address]types.Transact
 	return pending, nil
 }
 
-func (pool *TxPool) PendingSlice() types.Transactions {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
-	pending := make(types.Transactions, 0, 1000)
-	for _, list := range pool.pending {
-		pending = append(pending, list.Flatten()...)
-	}
-	return pending
-}
-
 func (pool *TxPool) SampleHashes(max int) []common.Hash {
 	return pool.all.SampleHashes(max)
 }

@@ -76,13 +76,6 @@ func (p *dummyTxPool) Pending(enforceTips bool) (map[common.Address]types.Transa
 	return batches, nil
 }
 
-func (p *dummyTxPool) PendingSlice() types.Transactions {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-
-	return append(make(types.Transactions, 0, len(p.pool)), p.pool...)
-}
-
 func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
 	return p.txFeed.Subscribe(ch)
 }
