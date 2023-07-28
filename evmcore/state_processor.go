@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
@@ -85,6 +86,10 @@ func (p *StateProcessor) Process(
 			skipped = append(skipped, uint32(i))
 			err = nil
 			continue
+		}
+		log.Info("Applied transaction", "gasUsed", receipt.GasUsed, "txHash", tx.Hash().Hex(), "txIndex", i, "from", msg.From())
+		for _, l := range receipt.Logs {
+			log.Info("Log", "address", l.Address, "topics", l.Topics, "data", l.Data)
 		}
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
