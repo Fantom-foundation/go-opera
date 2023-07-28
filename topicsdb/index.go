@@ -80,8 +80,10 @@ func (tt *index) ForEachInBlocks(ctx context.Context, from, to idx.Block, patter
 		return
 	}
 
-	return tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched)
+	return tt.searchParallel(ctx, pattern, uint64(from), uint64(to), onMatched, doNothing)
 }
+
+func doNothing() {}
 
 // Push log record to database batch
 func (tt *index) Push(recs ...*types.Log) error {

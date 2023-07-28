@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-opera/utils/signers/gsignercache"
+	"github.com/Fantom-foundation/go-opera/utils/txtime"
 )
 
 const (
@@ -555,17 +556,6 @@ func (pool *TxPool) Pending(enforceTips bool) (map[common.Address]types.Transact
 	return pending, nil
 }
 
-func (pool *TxPool) PendingSlice() types.Transactions {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
-	pending := make(types.Transactions, 0, 1000)
-	for _, list := range pool.pending {
-		pending = append(pending, list.Flatten()...)
-	}
-	return pending
-}
-
 func (pool *TxPool) SampleHashes(max int) []common.Hash {
 	return pool.all.SampleHashes(max)
 }
@@ -898,6 +888,7 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	arrivedAt := time.Now()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
@@ -929,6 +920,13 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	pool.mu.Lock()
 	newErrs, dirtyAddrs := pool.addTxsLocked(news, local)
 	pool.mu.Unlock()
+
+	// memorize tx time of validated transactions
+	for i, tx := range news {
+		if newErrs[i] == nil {
+			txtime.Validated(tx.Hash(), arrivedAt)
+		}
+	}
 
 	var nilSlot = 0
 	for _, err := range newErrs {

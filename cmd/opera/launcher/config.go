@@ -502,7 +502,10 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		_, num, _ := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		if err != nil {
+			return nil, fmt.Errorf("invalid fakenet flag")
+		}
 		cfg.Emitter = emitter.FakeConfig(num)
 		setBootnodes(ctx, []string{}, &cfg.Node)
 	} else {

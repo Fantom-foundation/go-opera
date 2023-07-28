@@ -21,6 +21,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
 
 var (
@@ -135,7 +136,7 @@ func exportEvmKeys(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	keysDB := batched.Wrap(keysDB_)
+	keysDB := batched.Wrap(autocompact.Wrap2M(keysDB_, opt.GiB, 16*opt.GiB, true, "evm-keys"))
 	defer keysDB.Close()
 
 	it := gdb.EvmStore().EvmDb.NewIterator(nil, nil)

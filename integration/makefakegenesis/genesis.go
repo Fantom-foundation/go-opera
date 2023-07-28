@@ -29,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/contracts/netinit"
 	netinitcall "github.com/Fantom-foundation/go-opera/opera/contracts/netinit/netinitcalls"
 	"github.com/Fantom-foundation/go-opera/opera/contracts/sfc"
+	"github.com/Fantom-foundation/go-opera/opera/contracts/sfclib"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
@@ -40,7 +41,7 @@ var (
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
-	return evmcore.FakeKey(int(n))
+	return evmcore.FakeKey(uint32(n))
 }
 
 func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
@@ -82,6 +83,8 @@ func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.In
 	builder.SetCode(driverauth.ContractAddress, driverauth.GetContractBin())
 	// pre deploy SFC
 	builder.SetCode(sfc.ContractAddress, sfc.GetContractBin())
+	// pre deploy SFCLib
+	builder.SetCode(sfclib.ContractAddress, sfclib.GetContractBin())
 	// set non-zero code for pre-compiled contracts
 	builder.SetCode(evmwriter.ContractAddress, []byte{0})
 
@@ -148,7 +151,7 @@ func GetGenesisTxs(sealedEpoch idx.Epoch, validators gpos.Validators, totalSuppl
 	buildTx := txBuilder()
 	internalTxs := make(types.Transactions, 0, 15)
 	// initialization
-	calldata := netinitcall.InitializeAll(sealedEpoch, totalSupply, sfc.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, evmwriter.ContractAddress, driverOwner)
+	calldata := netinitcall.InitializeAll(sealedEpoch, totalSupply, sfc.ContractAddress, sfclib.ContractAddress, driverauth.ContractAddress, driver.ContractAddress, evmwriter.ContractAddress, driverOwner)
 	internalTxs = append(internalTxs, buildTx(calldata, netinit.ContractAddress))
 	// push genesis validators
 	for _, v := range validators {

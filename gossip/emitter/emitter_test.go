@@ -17,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/utils/txtime"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
@@ -51,6 +52,9 @@ func TestEmitter(t *testing.T) {
 	external.EXPECT().PeersNum().
 		Return(int(3)).
 		AnyTimes()
+	external.EXPECT().StateDB().
+		Return(nil).
+		AnyTimes()
 
 	em := NewEmitter(cfg, World{
 		External: external,
@@ -80,25 +84,32 @@ func TestEmitter(t *testing.T) {
 	})
 
 	t.Run("memorizeTxTimes", func(t *testing.T) {
+		txtime.Enabled = true
 		require := require.New(t)
-		tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+		tx1 := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), nil)
+		tx2 := types.NewTransaction(2, common.Address{}, big.NewInt(2), 2, big.NewInt(2), nil)
 
 		external.EXPECT().IsBusy().
 			Return(true).
 			AnyTimes()
 
-		_, ok := em.txTime.Get(tx.Hash())
-		require.False(ok)
+		txtime.Saw(tx1.Hash(), time.Unix(1, 0))
 
-		before := time.Now()
-		em.memorizeTxTimes(types.Transactions{tx})
-		after := time.Now()
+		require.Equal(time.Unix(1, 0), txtime.Of(tx1.Hash()))
+		txtime.Saw(tx1.Hash(), time.Unix(2, 0))
+		require.Equal(time.Unix(1, 0), txtime.Of(tx1.Hash()))
+		txtime.Validated(tx1.Hash(), time.Unix(2, 0))
+		require.Equal(time.Unix(1, 0), txtime.Of(tx1.Hash()))
 
-		cached, ok := em.txTime.Get(tx.Hash())
-		got := cached.(time.Time)
-		require.True(ok)
-		require.True(got.After(before))
-		require.True(got.Before(after))
+		// reversed order
+		txtime.Validated(tx2.Hash(), time.Unix(3, 0))
+		txtime.Saw(tx2.Hash(), time.Unix(2, 0))
+
+		require.Equal(time.Unix(3, 0), txtime.Of(tx2.Hash()))
+		txtime.Saw(tx2.Hash(), time.Unix(3, 0))
+		require.Equal(time.Unix(3, 0), txtime.Of(tx2.Hash()))
+		txtime.Validated(tx2.Hash(), time.Unix(3, 0))
+		require.Equal(time.Unix(3, 0), txtime.Of(tx2.Hash()))
 	})
 
 	t.Run("tick", func(t *testing.T) {

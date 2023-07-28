@@ -5,7 +5,9 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	notify "github.com/ethereum/go-ethereum/event"
 
+	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -102,6 +104,7 @@ var errorToString = map[int]string{
 
 type TxPool interface {
 	emitter.TxPool
+	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 	// AddRemotes should add the given transactions to the pool.
 	AddRemotes([]*types.Transaction) []error
 	AddLocals(txs []*types.Transaction) []error
@@ -116,7 +119,6 @@ type TxPool interface {
 	Stats() (int, int)
 	Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
 	ContentFrom(addr common.Address) (types.Transactions, types.Transactions)
-	PendingSlice() types.Transactions
 }
 
 // handshakeData is the network packet for the initial handshake message

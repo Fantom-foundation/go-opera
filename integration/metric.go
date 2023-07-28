@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -140,22 +141,34 @@ func (ds *StoreWithMetrics) meter(refresh time.Duration) {
 	errc <- merr
 }
 
+var tmpDbNameMask = regexp.MustCompile("^([A-z]+)(-[0-9]+)$")
+
+func genericNameOfTmpDB(name string) string {
+	match := tmpDbNameMask.FindStringSubmatch(name)
+	if len(match) == 3 {
+		return match[1] + "-tmp"
+	} else {
+		return name
+	}
+}
+
 func (db *DBProducerWithMetrics) OpenDB(name string) (kvdb.Store, error) {
 	ds, err := db.IterableDBProducer.OpenDB(name)
 	if err != nil {
 		return nil, err
 	}
 	dm := WrapStoreWithMetrics(ds)
-	// disk size gauge should be meter separatly for each db name; otherwise,
-	// the last db siae metric will overwrite all the previoius one
-	dm.diskSizeGauge = metrics.GetOrRegisterGauge("opera/chaindata/"+strings.ReplaceAll(name, "-", "_")+"/disk/size", nil)
-	if strings.HasPrefix(name, "gossip-") || strings.HasPrefix(name, "lachesis-") {
-		name = "epochs"
-	}
-	logger := log.New("database", name)
-	dm.log = logger
-	dm.diskReadMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/read", nil)
-	dm.diskWriteMeter = metrics.GetOrRegisterMeter("opera/chaindata/"+name+"/disk/write", nil)
+
+	name = genericNameOfTmpDB(name)
+
+	dm.log = log.New("database", name)
+
+	metric := "opera/chaindata/" + strings.ReplaceAll(name, "-", "_")
+	dm.diskReadMeter = metrics.GetOrRegisterMeter(metric+"/disk/read", nil)
+	dm.diskWriteMeter = metrics.GetOrRegisterMeter(metric+"/disk/write", nil)
+	// reset size metric as far as previous db will be dropped soon
+	metrics.Unregister(metric + "/disk/size")
+	dm.diskSizeGauge = metrics.NewRegisteredGauge(metric+"/disk/size", nil)
 
 	// Start up the metrics gathering and return
 	go dm.meter(metricsGatheringInterval)

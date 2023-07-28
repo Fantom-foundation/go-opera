@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -42,14 +43,17 @@ func (t TestBackend) GetPendingRules() opera.Rules {
 	return t.pendingRules
 }
 
-func (t TestBackend) PendingTxs() types.Transactions {
-	txs := make(types.Transactions, 0, len(t.pendingTxs))
-	for _, tx := range t.pendingTxs {
-		txs = append(txs, types.NewTx(&types.DynamicFeeTx{
-			GasTipCap: tx.tip,
-			GasFeeCap: tx.cap,
-			Gas:       tx.gas,
-		}))
+func (t TestBackend) PendingTxs() map[common.Address]types.Transactions {
+	txs := make(map[common.Address]types.Transactions, len(t.pendingTxs))
+	for i, tx := range t.pendingTxs {
+		txs[common.BytesToAddress(big.NewInt(int64(i)).Bytes())] = types.Transactions{
+			types.NewTx(&types.DynamicFeeTx{
+				Nonce:     uint64(i),
+				GasTipCap: tx.tip,
+				GasFeeCap: tx.cap,
+				Gas:       tx.gas,
+			}),
+		}
 	}
 	return txs
 }
@@ -243,7 +247,7 @@ func TestOracle_reactiveGasPrice(t *testing.T) {
 	for i := 0; i < statsBuffer-5; i++ {
 		gpo.txpoolStatsTick()
 	}
-	require.Equal(t, "916666666", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "933333333", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "3500000000", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
 	require.Equal(t, "1000000000", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
@@ -255,16 +259,23 @@ func TestOracle_reactiveGasPrice(t *testing.T) {
 	// change minGasPrice
 	backend.rules.Economy.MinGasPrice = big.NewInt(100)
 	gpo.txpoolStatsTick()
-	require.Equal(t, "916666675", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
-	require.Equal(t, "3458333341", gpo.reactiveGasPrice(DecimalUnit).String())
+	require.Equal(t, "933333340", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "3466666673", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
-	require.Equal(t, "833333350", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
-	require.Equal(t, "3416666683", gpo.reactiveGasPrice(DecimalUnit).String())
-	for i := 0; i < statsBuffer-3; i++ {
+	require.Equal(t, "866666680", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "3433333346", gpo.reactiveGasPrice(DecimalUnit).String())
+	gpo.txpoolStatsTick()
+	require.Equal(t, "800000020", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "3400000020", gpo.reactiveGasPrice(DecimalUnit).String())
+	gpo.txpoolStatsTick()
+	// recent gas price plus 5%
+	require.Equal(t, "105", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "3150000105", gpo.reactiveGasPrice(DecimalUnit).String())
+	for i := 0; i < statsBuffer-5; i++ {
 		gpo.txpoolStatsTick()
 	}
-	require.Equal(t, "83333425", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
-	require.Equal(t, "3041666758", gpo.reactiveGasPrice(DecimalUnit).String())
+	require.Equal(t, "105", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "3033333426", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
 	require.Equal(t, "100", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "3000000100", gpo.reactiveGasPrice(DecimalUnit).String())
@@ -275,15 +286,15 @@ func TestOracle_reactiveGasPrice(t *testing.T) {
 	// half of txs are confirmed now
 	backend.pendingTxs = backend.pendingTxs[:2]
 	gpo.txpoolStatsTick()
-	require.Equal(t, "91", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "93", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "3000000100", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
-	require.Equal(t, "83", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "86", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "3000000100", gpo.reactiveGasPrice(DecimalUnit).String())
 	for i := 0; i < statsBuffer-3; i++ {
 		gpo.txpoolStatsTick()
 	}
-	require.Equal(t, "8", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
+	require.Equal(t, "0", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "3000000100", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
 	require.Equal(t, "0", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
@@ -304,7 +315,7 @@ func TestOracle_reactiveGasPrice(t *testing.T) {
 		gpo.txpoolStatsTick()
 	}
 	require.Equal(t, "0", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
-	require.Equal(t, "3000000100", gpo.reactiveGasPrice(DecimalUnit).String())
+	require.Equal(t, "0", gpo.reactiveGasPrice(DecimalUnit).String())
 	gpo.txpoolStatsTick()
 	require.Equal(t, "0", gpo.reactiveGasPrice(0.8*DecimalUnit).String())
 	require.Equal(t, "0", gpo.reactiveGasPrice(DecimalUnit).String())

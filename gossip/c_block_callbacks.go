@@ -75,6 +75,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			&s.feed,
 			&s.emitters,
 			s.verWatcher,
+			&s.bootstrapping,
 		),
 	}
 }
@@ -91,8 +92,18 @@ func consensusCallbackBeginBlockFn(
 	feed *ServiceFeed,
 	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
+	bootstrapping *bool,
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
+		if *bootstrapping {
+			// ignore block processing during bootstrapping
+			return lachesis.BlockCallbacks{
+				ApplyEvent: func(dag.Event) {},
+				EndBlock: func() *pos.Validators {
+					return nil
+				},
+			}
+		}
 		wg.Wait()
 		start := time.Now()
 
@@ -160,8 +171,8 @@ func consensusCallbackBeginBlockFn(
 									}
 								}
 							} else {
-								actualRecord := store.GetFullBlockRecord(proof.Block)
-								if actualRecord != nil && proof.GetVote(0) != actualRecord.Hash() {
+								actualRecordHash := store.GetBlockRecordHash(proof.Block)
+								if actualRecordHash != nil && proof.GetVote(0) != *actualRecordHash {
 									for _, pal := range proof.Pals {
 										reportCheater(e.Creator(), pal.Signed.Locator.Creator)
 									}
