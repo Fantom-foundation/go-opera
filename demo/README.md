@@ -1,15 +1,17 @@
 # Demo
 
-This directory contains the scripts to run fakenet (private testing network) with N local nodes,
+This directory contains the scripts to run fakenet (private testing network) with N+M local nodes,
 primarily for benchmarking purposes.
 
 ## Scripts
 
   - start network: `./start.sh`;
   - stop network: `./stop.sh`;
+  - run new validator node: `./run-validator.sh 3`;
   - clean data and logs: `./clean.sh`;
 
-You can specify number of genesis validators by setting N environment variable.
+You can specify number of genesis validators by setting N environment variable
+ and M for additional nodes.
 
 ## Balance transfer example
 
