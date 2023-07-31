@@ -12,7 +12,7 @@ rm -f ./transactions.rlp
 
 for ((i=0;i<${TOTAL};i+=1))
 do
-    (run_opera_node $i)&
+    run_opera_node $i &
     echo -e "\tnode$i ok"
 done
 

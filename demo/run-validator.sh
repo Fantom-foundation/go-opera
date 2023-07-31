@@ -14,7 +14,7 @@ fi
 mkdir -p "${DATADIR}"
 
 echo -e "\nStart additional node $i:\n"
-(run_opera_node $i)&
+run_opera_node $i &
 echo -e "\tnode$i ok"
 
 echo -e "\nConnect to existing nodes:\n"
@@ -37,13 +37,8 @@ attach_and_exec 0 "ftm.sendTransaction({from: personal.listAccounts[0], to: \"${
 sleep 5
 
 echo -e "\nCall SFC to create validator ${VPKEY}:\n"
-../build/demo_opera attach ./opera$i.datadir/opera.ipc << JS
+../build/demo_opera attach "${DATADIR}/opera.ipc" << JS
 	abi = JSON.parse('[{"constant":false,"inputs":[{"internalType":"bytes","name":"pubkey","type":"bytes"}],"name":"createValidator","outputs":[],"payable":true,"stateMutability":"payable","type":"function"}]');
 	sfcc = web3.ftm.contract(abi).at("0xfc00face00000000000000000000000000000000");
 	sfcc.createValidator("${VPKEY}", {from:"${VADDR}", value: web3.toWei("500000.0", "ftm")});
 JS
-
-echo -e "\nRestart the node:\n"
-kill %1
-sleep 10
-(run_opera_node $i)&
