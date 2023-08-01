@@ -81,6 +81,7 @@ const (
 	ErrNoStatusMsg
 	ErrExtraStatusMsg
 	ErrSuspendedPeer
+	ErrPeerNotProgressing
 	ErrEmptyMessage = 0xf00
 )
 
@@ -99,6 +100,7 @@ var errorToString = map[int]string{
 	ErrNoStatusMsg:             "No status message",
 	ErrExtraStatusMsg:          "Extra status message",
 	ErrSuspendedPeer:           "Suspended peer",
+	ErrPeerNotProgressing:      "Peer not progressing",
 	ErrEmptyMessage:            "Empty message",
 }
 

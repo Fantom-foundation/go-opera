@@ -62,6 +62,17 @@ const (
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
+
+	// percentage of useless peer nodes to allow
+	uselessPeerPercentage = 0.2 // 20%
+
+	// Number of application errors that can be tolerated before banning the node and disconnecting
+	toleranceOfApplicationErrors = 3
+)
+
+var (
+	ErrorProgressTimeout    = errors.New("progress timeout")
+	ErrorApplicationTimeout = errors.New("application timeout")
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -783,21 +794,28 @@ func (h *handler) handle(p *peer) error {
 		p.Log().Error("Snapshot extension barrier failed", "err", err)
 		return err
 	}
-	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
-		useless = true
+
+	// Some clients have compatible caps and thus pass discovery checks and seep in to
+	// protocol handler. We should ban these clients immediately.
+	// ex: go-corex, Efireal, Geth all with caps=[opera/62]
+	if !strings.Contains(strings.ToLower(p.Name()), "opera") {
 		discfilter.Ban(p.ID())
+		return p2p.DiscProtocolError
 	}
-	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
-		// don't allow more than 10% of useless peers
+
+	// A useless peer is the one which does not support protocols opera/63 & fsnap/1.
+	useless := !eligibleForSnap(p.Peer)
+	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= int((float32(h.maxPeers)*uselessPeerPercentage)) {
+		// don't allow more than 20% of useless peers
 		return p2p.DiscTooManyPeers
 	}
 	if !p.Peer.Info().Network.Trusted && useless {
-		if h.peers.UselessNum() >= h.maxPeers/10 {
-			// don't allow more than 10% of useless peers
-			return p2p.DiscTooManyPeers
-		}
 		p.SetUseless()
+	}
+
+	// Disconnect if maxPeers is reached
+	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
+		return p2p.DiscTooManyPeers
 	}
 
 	h.peerWG.Add(1)
@@ -810,9 +828,7 @@ func (h *handler) handle(p *peer) error {
 	)
 	if err := p.Handshake(h.NetworkID, myProgress, common.Hash(genesis)); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
-		if !useless {
-			discfilter.Ban(p.ID())
-		}
+		discfilter.Ban(p.ID())
 		return err
 	}
 
@@ -857,11 +873,51 @@ func (h *handler) handle(p *peer) error {
 	// after this will be sent via broadcasts.
 	h.syncTransactions(p, h.txpool.SampleHashes(h.config.Protocol.MaxInitialTxHashesSend))
 
-	// Handle incoming messages until the connection is torn down
+	// Handle incoming messages until the connection is torn down or the inactivity
+	// timer times out.
+	var noOfApplicationErrors = 0
+	// progress and application
+	progressWatchDogTimer := time.NewTimer(noProgressTime)
+	applicationWatchDogTimer := time.NewTimer(noAppMessageTime)
 	for {
-		if err := h.handleMsg(p); err != nil {
-			p.Log().Debug("Message handling failed", "err", err)
-			return err
+		select {
+		case <-progressWatchDogTimer.C:
+			// If self syncing, don't check peer progress
+			if !h.syncStatus.AcceptTxs() {
+				progressWatchDogTimer.Reset(noProgressTime)
+				break
+			}
+			if p.IsPeerProgressing() {
+				progressWatchDogTimer.Reset(noProgressTime)
+			} else {
+				p.Log().Warn("progress timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				discfilter.Ban(p.ID())
+				return ErrorProgressTimeout
+			}
+		case <-applicationWatchDogTimer.C:
+			if p.IsApplicationProgressing() {
+				applicationWatchDogTimer.Reset(noAppMessageTime)
+			} else {
+				p.Log().Warn("application timer timeout: ", "name", p.Name(), "node", p.Node().String())
+				discfilter.Ban(p.ID())
+				return ErrorApplicationTimeout
+			}
+		default:
+			err := h.handleMsg(p)
+			if err != nil {
+				p.Log().Debug("Message handling failed", "err", err)
+				if strings.Contains(err.Error(), errorToString[ErrPeerNotProgressing]) {
+					discfilter.Ban(p.ID())
+					return err
+				}
+				// Ban peer and disconnect if the number of errors in the handling of application message
+				// crosses a threshold.
+				noOfApplicationErrors++
+				if noOfApplicationErrors > toleranceOfApplicationErrors {
+					discfilter.Ban(p.ID())
+					return err
+				}
+			}
 		}
 	}
 }
@@ -1023,6 +1079,10 @@ func (h *handler) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		p.SetProgress(progress)
+		// If peer has not progressed for noProgressTime minutes, then disconnect the peer.
+		if !p.IsPeerProgressing() {
+			return errResp(ErrPeerNotProgressing, "%v: %v", "epoch is not progressing for ", noProgressTime)
+		}
 
 	case msg.Code == EvmTxsMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
@@ -1324,6 +1384,11 @@ func (h *handler) handleMsg(p *peer) error {
 
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
+	}
+
+	if msg.Code != ProgressMsg {
+		//  Since a valid application message is received, set the peer as progressing.
+		p.SetApplicationProgress()
 	}
 	return nil
 }

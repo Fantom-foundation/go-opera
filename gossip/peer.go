@@ -33,6 +33,11 @@ const (
 	handshakeTimeout = 5 * time.Second
 )
 
+var (
+	noProgressTime   = 3 * time.Minute  // Max allowed minutes to elapse without Epoch progress
+	noAppMessageTime = 15 * time.Minute // Max allowed minutes to elapse without any Application message
+)
+
 // PeerInfo represents a short summary of the sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
@@ -62,7 +67,9 @@ type peer struct {
 	queuedDataSemaphore *datasemaphore.DataSemaphore
 	term                chan struct{} // Termination channel to stop the broadcaster
 
-	progress PeerProgress
+	progress       PeerProgress
+	progressTime   time.Time // The last progress message (with progressed Epoch)
+	appMessageTime time.Time // The last valid application message received
 
 	snapExt  *snapPeer     // Satellite `snap` connection
 	syncDrop *time.Timer   // Connection dropper if `eth` sync progress isn't validated in time
@@ -85,7 +92,29 @@ func (p *peer) SetProgress(x PeerProgress) {
 	p.Lock()
 	defer p.Unlock()
 
+	// Check if the peer is progressing
+	if x.More(p.progress) {
+		p.setPeerAsProgressing(x)
+	}
+}
+
+func (p *peer) setPeerAsProgressing(x PeerProgress) {
 	p.progress = x
+	p.progressTime = time.Now()
+}
+
+func (p *peer) IsPeerProgressing() bool {
+	return time.Since(p.progressTime) < noProgressTime
+}
+
+func (p *peer) SetApplicationProgress() {
+	p.Lock()
+	defer p.Unlock()
+	p.appMessageTime = time.Now()
+}
+
+func (p *peer) IsApplicationProgressing() bool {
+	return time.Since(p.appMessageTime) < noAppMessageTime
 }
 
 func (p *peer) InterestedIn(h hash.Event) bool {
@@ -98,6 +127,15 @@ func (p *peer) InterestedIn(h hash.Event) bool {
 		p.progress.Epoch != 0 &&
 		(e == p.progress.Epoch || e == p.progress.Epoch+1) &&
 		!p.knownEvents.Contains(h)
+}
+
+func (a *PeerProgress) More(b PeerProgress) bool {
+	if a.Epoch > b.Epoch {
+		return true
+	} else if a.Epoch == b.Epoch && a.LastBlockIdx > b.LastBlockIdx {
+		return true
+	}
+	return false
 }
 
 func (a *PeerProgress) Less(b PeerProgress) bool {
@@ -119,6 +157,8 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, cfg PeerCacheConfi
 		queue:               make(chan broadcastItem, cfg.MaxQueuedItems),
 		queuedDataSemaphore: datasemaphore.New(dag.Metric{cfg.MaxQueuedItems, cfg.MaxQueuedSize}, getSemaphoreWarningFn("Peers queue")),
 		term:                make(chan struct{}),
+		progressTime:        time.Now(),
+		appMessageTime:      time.Now(),
 	}
 
 	go peer.broadcast(peer.queue)
