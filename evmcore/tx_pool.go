@@ -705,7 +705,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		for _, tx := range drop {
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "gasTipCap", tx.GasTipCap(), "gasFeeCap", tx.GasFeeCap())
 			underpricedTxMeter.Mark(1)
-			pool.removeTx(tx.Hash(), false)
+			pool.removeTx(tx.Hash(), false) // already removed from priced by Discard
 		}
 	}
 	// Try to replace an existing transaction in the pending pool
@@ -742,7 +742,9 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	if local && !pool.locals.contains(from) {
 		log.Info("Setting new local account", "address", from)
 		pool.locals.add(from)
-		pool.priced.Removed(pool.all.RemoteToLocals(pool.locals)) // Migrate the remotes if it's marked as local first time.
+		migrated := pool.all.RemoteToLocals(pool.locals) // Migrate the remotes if it's marked as local first time.
+		pool.priced.Removed(migrated)
+		localGauge.Inc(int64(migrated))
 	}
 	if isLocal {
 		localGauge.Inc(1)
@@ -777,7 +779,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 		// Nothing was replaced, bump the queued counter
 		queuedGauge.Inc(1)
 	}
-	// If the transaction isn't in lookup set but it's expected to be there,
+	// If the transaction isn't in lookup set, but it's expected to be there,
 	// show the error log.
 	if pool.all.Get(hash) == nil && !addAll {
 		log.Error("Missing transaction in lookup set, please report the issue", "hash", hash)
@@ -1562,6 +1564,8 @@ func (pool *TxPool) demoteUnexecutables() {
 		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
 		if pool.locals.contains(addr) {
 			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
+		} else {
+			pool.priced.Removed(len(olds) + len(drops)) // invalids are only moved into queue, keeps in priced
 		}
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
@@ -1761,6 +1765,7 @@ func (t *txLookup) Get(hash common.Hash) *types.Transaction {
 	return t.remotes[hash]
 }
 
+// OnlyNotExisting filters hashes of unknown txs from a provided slice of tx hashes.
 func (t *txLookup) OnlyNotExisting(hashes []common.Hash) []common.Hash {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
