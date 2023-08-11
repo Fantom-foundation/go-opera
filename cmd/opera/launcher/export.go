@@ -22,6 +22,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/utils/dag"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
@@ -84,7 +85,7 @@ func exportEvents(ctx *cli.Context) error {
 	switch {
 	// DOT format:
 	case strings.HasSuffix(fn, ".dot"):
-		err = exportDOT(writer, gdb, from, to)
+		err = exportDOT(writer, gdb, cfg, from, to)
 		if err != nil {
 			utils.Fatalf("Export DOT error: %v\n", err)
 		}
@@ -134,8 +135,13 @@ func exportRLP(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 }
 
 // exportDOT writer the active chain.
-func exportDOT(writer io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
-	graph := dag.Graph(gdb, from, to)
+func exportDOT(writer io.Writer, gdb *gossip.Store, cfg *config, from, to idx.Epoch) (err error) {
+	consensusCfg := integration.Configs{
+		Lachesis:    cfg.Lachesis,
+		VectorClock: cfg.VectorClock,
+	}
+
+	graph := dag.Graph(gdb, consensusCfg, from, to)
 	buf, err := dot.Marshal(graph, "DAG", "", "\t")
 	if err != nil {
 		return err

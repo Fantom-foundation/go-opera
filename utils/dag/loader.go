@@ -1,12 +1,22 @@
 package dag
 
 import (
+	"fmt"
+
+	"github.com/Fantom-foundation/lachesis-base/abft"
+	"github.com/Fantom-foundation/lachesis-base/gossip/dagordering"
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/ethereum/go-ethereum/log"
 	"gonum.org/v1/gonum/graph"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 type dagLoader struct {
@@ -14,29 +24,116 @@ type dagLoader struct {
 	nodes map[hash.Event]*dagNode
 }
 
-func newDagLoader(db *gossip.Store, from, to idx.Epoch) *dagLoader {
+func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *dagLoader {
 	g := &dagLoader{
 		refs:  make([]hash.Event, 0, 2000000),
 		nodes: make(map[hash.Event]*dagNode),
 	}
 
-	db.ForEachEvent(from, func(e *inter.EventPayload) bool {
+	store := abft.NewMemStore()
+	defer store.Close()
+	// ApplyGenesis()
+	store.SetEpochState(&abft.EpochState{
+		Epoch: from,
+	})
+	store.SetLastDecidedState(&abft.LastDecidedState{
+		LastDecidedFrame: abft.FirstFrame - 1,
+	})
+
+	dagIndexer := vecmt.NewIndex(panics("Vector clock"), cfg.VectorClock)
+	orderer := abft.NewOrderer(
+		store,
+		&integration.GossipStoreAdapter{gdb},
+		vecmt2dagidx.Wrap(dagIndexer),
+		panics("Lachesis"),
+		cfg.Lachesis)
+
+	var (
+		epoch idx.Epoch
+		vv    = make(pos.ValidatorsBuilder, 60)
+		ee    = make(map[hash.Event]dag.Event, 1000)
+	)
+	err := orderer.Bootstrap(abft.OrdererCallbacks{
+		ApplyAtropos: func(decidedFrame idx.Frame, atropos hash.Event) (sealEpoch *pos.Validators) {
+			return nil
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	buffer := dagordering.New(
+		cfg.Opera.Protocol.DagProcessor.EventsBufferLimit,
+		dagordering.Callback{
+			Process: func(e dag.Event) error {
+				fmt.Printf("<<< E(%d - %d) %s \n", e.Epoch(), e.Frame(), e.ID().String())
+				err = dagIndexer.Add(e)
+				if err != nil {
+					panic(err)
+				}
+				dagIndexer.Flush()
+				orderer.Process(e)
+
+				id := len(g.refs)
+				g.refs = append(g.refs, e.ID())
+				g.nodes[e.ID()] = &dagNode{
+					id:      int64(id),
+					hash:    e.ID(),
+					parents: e.Parents(),
+				}
+				return nil
+			},
+			Released: func(e dag.Event, peer string, err error) {
+				// panic(err)
+			},
+			Get: func(id hash.Event) dag.Event {
+				return ee[id]
+			},
+			Exists: func(id hash.Event) bool {
+				_, ok := ee[id]
+				return ok
+			},
+		})
+
+	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
+		// current epoch is finished
+		// , so process accumulated events
+		if epoch < e.Epoch() {
+			epoch = e.Epoch()
+
+			validators := vv.Build()
+			err := orderer.Reset(epoch, validators)
+			if err != nil {
+				panic(err)
+			}
+
+			for _, e := range ee {
+				fmt.Printf(">>> E(%d - %d) %s \n", e.Epoch(), e.Frame(), e.ID().String())
+				buffer.PushEvent(e, "")
+			}
+
+			for f := idx.Frame(0); f <= store.GetLastDecidedFrame(); f++ {
+				rr := store.GetFrameRoots(f)
+				for _, r := range rr {
+					g.nodes[r.ID].isRoot = true
+				}
+			}
+
+			// reset
+			vv = make(pos.ValidatorsBuilder, 60)
+			ee = make(map[hash.Event]dag.Event, 1000)
+		}
+		// break after last epoch
 		if to >= from && e.Epoch() > to {
 			return false
 		}
-
-		id := len(g.refs)
-		g.refs = append(g.refs, e.ID())
-		g.nodes[e.ID()] = &dagNode{
-			id:      int64(id),
-			hash:    e.ID(),
-			parents: e.Parents(),
-		}
+		// accumulate epoch's events and validators
+		ee[e.ID()] = e
+		vv.Set(e.Creator(), 1)
 
 		return true
 	})
 
-	db.ForEachBlock(func(index idx.Block, block *inter.Block) {
+	gdb.ForEachBlock(func(index idx.Block, block *inter.Block) {
 		node, exists := g.nodes[block.Atropos]
 		if exists {
 			node.isAtropos = true
@@ -163,4 +260,10 @@ func (g *dagLoader) Edge(uid, vid int64) graph.Edge {
 	}
 
 	return nil
+}
+
+func panics(name string) func(error) {
+	return func(err error) {
+		log.Crit(fmt.Sprintf("%s error", name), "err", err)
+	}
 }

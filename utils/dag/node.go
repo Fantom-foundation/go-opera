@@ -37,6 +37,7 @@ type dagNode struct {
 	id        int64
 	hash      hash.Event
 	parents   hash.Events
+	isRoot    bool
 	isAtropos bool
 }
 
@@ -50,6 +51,15 @@ func (n *dagNode) Attributes() []encoding.Attribute {
 			Key:   "label",
 			Value: n.hash.String(),
 		},
+	}
+
+	if n.isRoot {
+		aa = append(aa,
+			encoding.Attribute{
+				Key:   "role",
+				Value: "Root",
+			},
+		)
 	}
 
 	if n.isAtropos {
