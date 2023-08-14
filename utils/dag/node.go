@@ -2,6 +2,7 @@ package dag
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding"
 )
@@ -37,6 +38,7 @@ type dagNode struct {
 	id        int64
 	hash      hash.Event
 	parents   hash.Events
+	frame     idx.Frame
 	isRoot    bool
 	isAtropos bool
 }
@@ -53,20 +55,18 @@ func (n *dagNode) Attributes() []encoding.Attribute {
 		},
 	}
 
+	var role string
 	if n.isRoot {
-		aa = append(aa,
-			encoding.Attribute{
-				Key:   "role",
-				Value: "Root",
-			},
-		)
+		role = "Root"
 	}
-
 	if n.isAtropos {
+		role = "Atropos"
+	}
+	if len(role) > 0 {
 		aa = append(aa,
 			encoding.Attribute{
 				Key:   "xlabel",
-				Value: "Atropos",
+				Value: role,
 			},
 		)
 	}

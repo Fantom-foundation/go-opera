@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/log"
 	"gonum.org/v1/gonum/graph"
 
@@ -49,9 +50,10 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		cfg.Lachesis)
 
 	var (
-		epoch idx.Epoch
-		vv    = make(pos.ValidatorsBuilder, 60)
-		ee    = make(map[hash.Event]dag.Event, 1000)
+		epoch     idx.Epoch
+		vv        pos.ValidatorsBuilder    // = make(pos.ValidatorsBuilder, 60)
+		ee        map[hash.Event]dag.Event // = make(map[hash.Event]dag.Event, 1000)
+		processed map[hash.Event]dag.Event // = make(map[hash.Event]dag.Event, 1000)
 	)
 	err := orderer.Bootstrap(abft.OrdererCallbacks{
 		ApplyAtropos: func(decidedFrame idx.Frame, atropos hash.Event) (sealEpoch *pos.Validators) {
@@ -65,7 +67,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		cfg.Opera.Protocol.DagProcessor.EventsBufferLimit,
 		dagordering.Callback{
 			Process: func(e dag.Event) error {
-				fmt.Printf("<<< E(%d - %d) %s \n", e.Epoch(), e.Frame(), e.ID().String())
+				processed[e.ID()] = e
 				err = dagIndexer.Add(e)
 				if err != nil {
 					panic(err)
@@ -79,24 +81,26 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 					id:      int64(id),
 					hash:    e.ID(),
 					parents: e.Parents(),
+					frame:   e.Frame(),
 				}
 				return nil
 			},
 			Released: func(e dag.Event, peer string, err error) {
-				// panic(err)
+				if err != nil {
+					panic(err)
+				}
 			},
 			Get: func(id hash.Event) dag.Event {
-				return ee[id]
+				return processed[id]
 			},
 			Exists: func(id hash.Event) bool {
-				_, ok := ee[id]
+				_, ok := processed[id]
 				return ok
 			},
 		})
 
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
-		// current epoch is finished
-		// , so process accumulated events
+		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
 			epoch = e.Epoch()
 
@@ -105,9 +109,11 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			if err != nil {
 				panic(err)
 			}
+			dagIndexer.Reset(validators, memorydb.New(), func(id hash.Event) dag.Event {
+				return gdb.GetEvent(id)
+			})
 
 			for _, e := range ee {
-				fmt.Printf(">>> E(%d - %d) %s \n", e.Epoch(), e.Frame(), e.ID().String())
 				buffer.PushEvent(e, "")
 			}
 
@@ -121,6 +127,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			// reset
 			vv = make(pos.ValidatorsBuilder, 60)
 			ee = make(map[hash.Event]dag.Event, 1000)
+			processed = make(map[hash.Event]dag.Event, 1000)
 		}
 		// break after last epoch
 		if to >= from && e.Epoch() > to {

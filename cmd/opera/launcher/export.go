@@ -137,6 +137,7 @@ func exportRLP(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 // exportDOT writer the active chain.
 func exportDOT(writer io.Writer, gdb *gossip.Store, cfg *config, from, to idx.Epoch) (err error) {
 	consensusCfg := integration.Configs{
+		Opera:       cfg.Opera,
 		Lachesis:    cfg.Lachesis,
 		VectorClock: cfg.VectorClock,
 	}
