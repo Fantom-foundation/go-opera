@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -28,22 +29,27 @@ func overrideFlags() {
 }
 
 // NodeDefaultConfig contains reasonable default settings.
-var NodeDefaultConfig = node.Config{
-	DataDir:             DefaultDataDir(),
-	HTTPPort:            DefaultHTTPPort,
-	HTTPModules:         []string{},
-	HTTPVirtualHosts:    []string{"localhost"},
-	HTTPTimeouts:        rpc.DefaultHTTPTimeouts,
-	WSPort:              DefaultWSPort,
-	WSModules:           []string{},
-	GraphQLVirtualHosts: []string{"localhost"},
-	P2P: p2p.Config{
-		NoDiscovery: false, // enable discovery v4 by default
-		DiscoveryV5: true,  // enable discovery v5 by default
-		ListenAddr:  fmt.Sprintf(":%d", DefaultP2PPort),
-		MaxPeers:    50,
-		NAT:         nat.Any(),
-	},
+func DefaultNodeConfig() node.Config {
+	return node.Config{
+		DataDir:             DefaultDataDir(),
+		HTTPPort:            DefaultHTTPPort,
+		HTTPTimeouts:        rpc.DefaultHTTPTimeouts,
+		HTTPVirtualHosts:    []string{"localhost"},
+		HTTPModules:         []string{"eth", "ftm", "dag", "abft", "web3"},
+		WSModules:           []string{"eth", "ftm", "dag", "abft", "web3"},
+		WSPort:              DefaultWSPort,
+		GraphQLVirtualHosts: []string{"localhost"},
+		P2P: p2p.Config{
+			NoDiscovery: false, // enable discovery v4 by default
+			DiscoveryV5: true,  // enable discovery v5 by default
+			ListenAddr:  fmt.Sprintf(":%d", DefaultP2PPort),
+			MaxPeers:    50,
+			NAT:         nat.Any(),
+		},
+		Name:    clientIdentifier,
+		Version: params.VersionWithCommit(gitCommit, gitDate),
+		IPCPath: "opera.ipc",
+	}
 }
 
 // DefaultDataDir is the default data directory to use for the databases and other
