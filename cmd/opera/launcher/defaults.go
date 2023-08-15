@@ -28,7 +28,7 @@ func overrideFlags() {
 	utils.WSPortFlag.Value = DefaultWSPort
 }
 
-// NodeDefaultConfig contains reasonable default settings.
+// DefaultNodeConfig creates reasonable default configuration settings
 func DefaultNodeConfig() node.Config {
 	return node.Config{
 		DataDir:             DefaultDataDir(),
