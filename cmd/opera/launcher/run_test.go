@@ -33,7 +33,7 @@ type testcli struct {
 }
 
 func (tt *testcli) readConfig() {
-	cfg := defaultNodeConfig()
+	cfg := DefaultNodeConfig()
 	cfg.DataDir = tt.Datadir
 	addr := common.Address{} // TODO: addr = emitter coinbase
 	tt.Coinbase = strings.ToLower(addr.String())
