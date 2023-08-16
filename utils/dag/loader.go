@@ -2,6 +2,7 @@ package dag
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagordering"
@@ -32,29 +33,23 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		nodes: make(map[hash.Event]*dagNode),
 	}
 
-	store := abft.NewMemStore()
-	defer store.Close()
+	cdb := abft.NewMemStore()
+	defer cdb.Close()
 	// ApplyGenesis()
-	store.SetEpochState(&abft.EpochState{
+	cdb.SetEpochState(&abft.EpochState{
 		Epoch: from,
 	})
-	store.SetLastDecidedState(&abft.LastDecidedState{
+	cdb.SetLastDecidedState(&abft.LastDecidedState{
 		LastDecidedFrame: abft.FirstFrame - 1,
 	})
 
 	dagIndexer := vecmt.NewIndex(panics("Vector clock"), cfg.VectorClock)
 	orderer := abft.NewOrderer(
-		store,
+		cdb,
 		&integration.GossipStoreAdapter{gdb},
 		vecmt2dagidx.Wrap(dagIndexer),
 		panics("Lachesis"),
 		cfg.Lachesis)
-
-	var (
-		epoch     idx.Epoch
-		prevBS    *iblockproc.BlockState
-		processed map[hash.Event]dag.Event
-	)
 	err := orderer.Bootstrap(abft.OrdererCallbacks{
 		ApplyAtropos: func(decidedFrame idx.Frame, atropos hash.Event) (sealEpoch *pos.Validators) {
 			return nil
@@ -63,6 +58,57 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	if err != nil {
 		panic(err)
 	}
+
+	var (
+		epoch     idx.Epoch
+		prevBS    *iblockproc.BlockState
+		processed map[hash.Event]dag.Event
+	)
+
+	readRestoredAbftStore := func() {
+		bs, _ := gdb.GetHistoryBlockEpochState(epoch)
+
+		for f := idx.Frame(0); f <= cdb.GetLastDecidedFrame(); f++ {
+			rr := cdb.GetFrameRoots(f)
+			for _, r := range rr {
+				g.nodes[r.ID].isRoot = true
+			}
+		}
+
+		if prevBS != nil {
+
+			maxBlock := idx.Block(math.MaxUint64)
+			if bs != nil {
+				maxBlock = bs.LastBlock.Idx
+			}
+
+			for n := prevBS.LastBlock.Idx + 1; n <= maxBlock; n++ {
+				block := gdb.GetBlock(n)
+				if block == nil {
+					break
+				}
+				node, exists := g.nodes[block.Atropos]
+				if exists {
+					node.isAtropos = true
+				}
+			}
+		}
+
+		prevBS = bs
+	}
+
+	resetToNewEpoch := func() {
+		validators := gdb.GetHistoryEpochState(epoch).Validators
+		processed = make(map[hash.Event]dag.Event, 1000)
+		err := orderer.Reset(epoch, validators)
+		if err != nil {
+			panic(err)
+		}
+		dagIndexer.Reset(validators, memorydb.New(), func(id hash.Event) dag.Event {
+			return gdb.GetEvent(id)
+		})
+	}
+
 	buffer := dagordering.New(
 		cfg.Opera.Protocol.DagProcessor.EventsBufferLimit,
 		dagordering.Callback{
@@ -99,54 +145,27 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			},
 		})
 
+	// process events
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
 		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
+			readRestoredAbftStore()
+
 			epoch = e.Epoch()
-			bs, es := gdb.GetHistoryBlockEpochState(epoch)
-
-			// data from restored abft store:
-
-			for f := idx.Frame(0); f <= store.GetLastDecidedFrame(); f++ {
-				rr := store.GetFrameRoots(f)
-				for _, r := range rr {
-					g.nodes[r.ID].isRoot = true
-				}
-			}
-
-			if prevBS != nil {
-				for n := prevBS.LastBlock.Idx + 1; n <= bs.LastBlock.Idx; n++ {
-					block := gdb.GetBlock(n)
-					node, exists := g.nodes[block.Atropos]
-					if exists {
-						node.isAtropos = true
-					}
-				}
-			}
-
 			// break after last epoch:
 			if to >= from && epoch > to {
 				return false
 			}
 
-			// reset to new epoch:
-
-			prevBS = bs
-			processed = make(map[hash.Event]dag.Event, 1000)
-			err := orderer.Reset(epoch, es.Validators)
-			if err != nil {
-				panic(err)
-			}
-			dagIndexer.Reset(es.Validators, memorydb.New(), func(id hash.Event) dag.Event {
-				return gdb.GetEvent(id)
-			})
+			resetToNewEpoch()
 		}
 
-		// process epoch's event
 		buffer.PushEvent(e, "")
 
 		return true
 	})
+	epoch++
+	readRestoredAbftStore()
 
 	return g
 }
