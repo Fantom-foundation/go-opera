@@ -51,9 +51,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 	var (
 		epoch     idx.Epoch
-		vv        pos.ValidatorsBuilder    // = make(pos.ValidatorsBuilder, 60)
-		ee        map[hash.Event]dag.Event // = make(map[hash.Event]dag.Event, 1000)
-		processed map[hash.Event]dag.Event // = make(map[hash.Event]dag.Event, 1000)
+		processed map[hash.Event]dag.Event
 	)
 	err := orderer.Bootstrap(abft.OrdererCallbacks{
 		ApplyAtropos: func(decidedFrame idx.Frame, atropos hash.Event) (sealEpoch *pos.Validators) {
@@ -102,21 +100,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
 		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
-			epoch = e.Epoch()
-
-			validators := vv.Build()
-			err := orderer.Reset(epoch, validators)
-			if err != nil {
-				panic(err)
-			}
-			dagIndexer.Reset(validators, memorydb.New(), func(id hash.Event) dag.Event {
-				return gdb.GetEvent(id)
-			})
-
-			for _, e := range ee {
-				buffer.PushEvent(e, "")
-			}
-
+			// data from restored abft store
 			for f := idx.Frame(0); f <= store.GetLastDecidedFrame(); f++ {
 				rr := store.GetFrameRoots(f)
 				for _, r := range rr {
@@ -124,18 +108,27 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				}
 			}
 
-			// reset
-			vv = make(pos.ValidatorsBuilder, 60)
-			ee = make(map[hash.Event]dag.Event, 1000)
+			// reset to new epoch
+			epoch = e.Epoch()
+
+			es := gdb.GetHistoryEpochState(epoch)
+			err := orderer.Reset(epoch, es.Validators)
+			if err != nil {
+				panic(err)
+			}
+			dagIndexer.Reset(es.Validators, memorydb.New(), func(id hash.Event) dag.Event {
+				return gdb.GetEvent(id)
+			})
+
 			processed = make(map[hash.Event]dag.Event, 1000)
 		}
+
 		// break after last epoch
 		if to >= from && e.Epoch() > to {
 			return false
 		}
-		// accumulate epoch's events and validators
-		ee[e.ID()] = e
-		vv.Set(e.Creator(), 1)
+		// process epoch's event
+		buffer.PushEvent(e, "")
 
 		return true
 	})
