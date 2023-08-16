@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -51,6 +52,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 	var (
 		epoch     idx.Epoch
+		prevBS    *iblockproc.BlockState
 		processed map[hash.Event]dag.Event
 	)
 	err := orderer.Bootstrap(abft.OrdererCallbacks{
@@ -100,7 +102,11 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
 		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
-			// data from restored abft store
+			epoch = e.Epoch()
+			bs, es := gdb.GetHistoryBlockEpochState(epoch)
+
+			// data from restored abft store:
+
 			for f := idx.Frame(0); f <= store.GetLastDecidedFrame(); f++ {
 				rr := store.GetFrameRoots(f)
 				for _, r := range rr {
@@ -108,15 +114,25 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				}
 			}
 
-			epoch = e.Epoch()
+			if prevBS != nil {
+				for n := prevBS.LastBlock.Idx + 1; n <= bs.LastBlock.Idx; n++ {
+					block := gdb.GetBlock(n)
+					node, exists := g.nodes[block.Atropos]
+					if exists {
+						node.isAtropos = true
+					}
+				}
+			}
 
-			// break after last epoch
+			// break after last epoch:
 			if to >= from && epoch > to {
 				return false
 			}
 
-			// reset to new epoch
-			es := gdb.GetHistoryEpochState(epoch)
+			// reset to new epoch:
+
+			prevBS = bs
+			processed = make(map[hash.Event]dag.Event, 1000)
 			err := orderer.Reset(epoch, es.Validators)
 			if err != nil {
 				panic(err)
@@ -124,20 +140,12 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			dagIndexer.Reset(es.Validators, memorydb.New(), func(id hash.Event) dag.Event {
 				return gdb.GetEvent(id)
 			})
-			processed = make(map[hash.Event]dag.Event, 1000)
 		}
 
 		// process epoch's event
 		buffer.PushEvent(e, "")
 
 		return true
-	})
-
-	gdb.ForEachBlock(func(index idx.Block, block *inter.Block) {
-		node, exists := g.nodes[block.Atropos]
-		if exists {
-			node.isAtropos = true
-		}
 	})
 
 	return g
