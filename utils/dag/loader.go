@@ -108,9 +108,14 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				}
 			}
 
-			// reset to new epoch
 			epoch = e.Epoch()
 
+			// break after last epoch
+			if to >= from && epoch > to {
+				return false
+			}
+
+			// reset to new epoch
 			es := gdb.GetHistoryEpochState(epoch)
 			err := orderer.Reset(epoch, es.Validators)
 			if err != nil {
@@ -119,14 +124,9 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			dagIndexer.Reset(es.Validators, memorydb.New(), func(id hash.Event) dag.Event {
 				return gdb.GetEvent(id)
 			})
-
 			processed = make(map[hash.Event]dag.Event, 1000)
 		}
 
-		// break after last epoch
-		if to >= from && e.Epoch() > to {
-			return false
-		}
 		// process epoch's event
 		buffer.PushEvent(e, "")
 
