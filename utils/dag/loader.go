@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/log"
 	"gonum.org/v1/gonum/graph"
@@ -50,11 +49,7 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		vecmt2dagidx.Wrap(dagIndexer),
 		panics("Lachesis"),
 		cfg.Lachesis)
-	err := orderer.Bootstrap(abft.OrdererCallbacks{
-		ApplyAtropos: func(decidedFrame idx.Frame, atropos hash.Event) (sealEpoch *pos.Validators) {
-			return nil
-		},
-	})
+	err := orderer.Bootstrap(abft.OrdererCallbacks{})
 	if err != nil {
 		panic(err)
 	}
