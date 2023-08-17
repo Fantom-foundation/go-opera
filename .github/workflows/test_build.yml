@@ -1,6 +1,11 @@
 name: Check build
 
-on: [push]
+on: 
+  push:
+  pull_request:
+    branches: 
+      - develop
+      - master
 
 jobs:
   check-build:

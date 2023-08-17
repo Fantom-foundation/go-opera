@@ -788,10 +788,6 @@ func (h *handler) handle(p *peer) error {
 		useless = true
 		discfilter.Ban(p.ID())
 	}
-	if !p.Peer.Info().Network.Trusted && useless && h.peers.UselessNum() >= h.maxPeers/10 {
-		// don't allow more than 10% of useless peers
-		return p2p.DiscTooManyPeers
-	}
 	if !p.Peer.Info().Network.Trusted && useless {
 		if h.peers.UselessNum() >= h.maxPeers/10 {
 			// don't allow more than 10% of useless peers

@@ -1,6 +1,7 @@
 package emitter
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/utils/rate"
 )
 
@@ -306,6 +308,12 @@ func (em *Emitter) createEvent(sortedTxs *types.TransactionsByPriceAndNonce) (*i
 	selfParent, parents, ok := em.chooseParents(em.epoch, em.config.Validator.ID)
 	if !ok {
 		return nil, nil
+	}
+	prevEmitted := em.readLastEmittedEventID()
+	if prevEmitted != nil && prevEmitted.Epoch() >= em.epoch {
+		if selfParent == nil || *selfParent != *prevEmitted {
+			errlock.Permanent(errors.New("Local database is corrupted, which may lead to a doublesign"))
+		}
 	}
 
 	// Set parent-dependent fields
