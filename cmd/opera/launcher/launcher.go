@@ -360,13 +360,9 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	if err != nil {
 		utils.Fatalf("Failed to create the service: %v", err)
 	}
-	err = engine.Bootstrap(svc.GetConsensusCallbacks())
+	err = engine.StartFrom(svc.GetConsensusCallbacks(), gdb.GetEpoch(), gdb.GetValidators())
 	if err != nil {
-		utils.Fatalf("Failed to bootstrap the engine: %v", err)
-	}
-	err = engine.Reset(gdb.GetEpoch(), gdb.GetValidators())
-	if err != nil {
-		utils.Fatalf("Failed to reset the engine: %v", err)
+		utils.Fatalf("Failed to start the engine: %v", err)
 	}
 	svc.ReprocessEpochEvents()
 	if cfg.Emitter.Validator.ID != 0 {
