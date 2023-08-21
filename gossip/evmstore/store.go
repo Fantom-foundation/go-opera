@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -107,10 +108,7 @@ func (s *Store) initEVMDB() {
 			nokeyiserr.Wrap(
 				s.table.Evm)))
 	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
-		Cache:     s.cfg.Cache.EvmDatabase / opt.MiB,
-		Journal:   s.cfg.Cache.TrieCleanJournal,
 		Preimages: s.cfg.EnablePreimageRecording,
-		GreedyGC:  s.cfg.Cache.GreedyGC,
 	})
 }
 
@@ -232,28 +230,29 @@ func (s *Store) Flush(block iblockproc.BlockState) {
 			s.Log.Error("Failed to journal state snapshot", "err", err)
 		}
 	}
-	// Ensure the state of a recent block is also stored to disk before exiting.
-	if !s.cfg.Cache.TrieDirtyDisabled {
-		triedb := s.EvmState.TrieDB()
+	if s.EvmState.TrieDB().Scheme() == rawdb.PathScheme {
+		// Ensure that the in-memory trie nodes are journaled to disk properly.
+		if err := s.EvmState.TrieDB().Journal(common.Hash(block.FinalizedStateRoot)); err != nil {
+			log.Info("Failed to journal in-memory trie nodes", "err", err)
+		}
+	} else {
+		// Ensure the state of a recent block is also stored to disk before exiting.
+		if !s.cfg.Cache.TrieDirtyDisabled {
+			triedb := s.EvmState.TrieDB()
 
-		if number := uint64(block.LastBlock.Idx); number > 0 {
-			s.Log.Info("Writing cached state to disk", "block", number, "root", block.FinalizedStateRoot)
-			if err := triedb.Commit(common.Hash(block.FinalizedStateRoot), true); err != nil {
-				s.Log.Error("Failed to commit recent state trie", "err", err)
+			if number := uint64(block.LastBlock.Idx); number > 0 {
+				s.Log.Info("Writing cached state to disk", "block", number, "root", block.FinalizedStateRoot)
+				if err := triedb.Commit(common.Hash(block.FinalizedStateRoot), true); err != nil {
+					s.Log.Error("Failed to commit recent state trie", "err", err)
+				}
+			}
+			if snapBase != (common.Hash{}) {
+				s.Log.Info("Writing snapshot state to disk", "root", snapBase)
+				if err := triedb.Commit(snapBase, true); err != nil {
+					s.Log.Error("Failed to commit recent state trie", "err", err)
+				}
 			}
 		}
-		if snapBase != (common.Hash{}) {
-			s.Log.Info("Writing snapshot state to disk", "root", snapBase)
-			if err := triedb.Commit(snapBase, true); err != nil {
-				s.Log.Error("Failed to commit recent state trie", "err", err)
-			}
-		}
-	}
-	// Ensure all live cached entries be saved into disk, so that we can skip
-	// cache warmup when node restarts.
-	if s.cfg.Cache.TrieCleanJournal != "" {
-		triedb := s.EvmState.TrieDB()
-		triedb.SaveCache(s.cfg.Cache.TrieCleanJournal)
 	}
 }
 

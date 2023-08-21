@@ -27,7 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
-	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -1195,7 +1195,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		} else {
 			// for tests only
 			if reset.newHead != nil && pool.chainconfig.IsLondon(new(big.Int).Add(reset.newHead.Number, big.NewInt(1))) {
-				pendingBaseFee := misc.CalcBaseFee(pool.chainconfig, reset.newHead.EthHeader())
+				pendingBaseFee := eip1559.CalcBaseFee(pool.chainconfig, reset.newHead.EthHeader())
 				pool.priced.SetBaseFee(pendingBaseFee)
 			}
 		}

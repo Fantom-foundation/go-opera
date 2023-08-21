@@ -93,7 +93,7 @@ func (b *BlockGen) AddTxWithChain(bc DummyChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
 	}
-	msg, err := TxAsMessage(tx, types.MakeSigner(b.config, b.header.Number), b.header.BaseFee)
+	msg, err := TxAsMessage(tx, types.MakeSigner(b.config, b.header.Number, uint64(b.header.Time)), b.header.BaseFee)
 	if err != nil {
 		panic(err)
 	}
@@ -209,7 +209,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		}
 
 		// Write state changes to db
-		root, err := flush(statedb, config.IsEIP158(b.header.Number))
+		root, err := flush(b.header.Number.Uint64(), statedb, config.IsEIP158(b.header.Number))
 		if err != nil {
 			panic(fmt.Sprintf("state flush error: %v", err))
 		}

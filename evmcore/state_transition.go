@@ -284,8 +284,8 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// - prepare accessList(post-berlin)
 	// - reset transient storage(eip 1153)
 	// Set up the initial access list.
-	if rules := st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber); rules.IsBerlin {
-		st.state.PrepareAccessList(msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
+	if rules := st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, false, 0); rules.IsBerlin {
+		st.state.Prepare(rules, st.evm.Context.Coinbase, msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
 	}
 
 	var (

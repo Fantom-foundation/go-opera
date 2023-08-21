@@ -96,7 +96,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 		}
 
 		// check existence of every code hash and root of every storage trie
-		stateIt := stateTrie.NodeIterator(nil)
+		stateIt, _ := stateTrie.NodeIterator(nil)
 		for stateItSkip := false; stateIt.Next(!stateItSkip); {
 			stateItSkip = false
 			if stateIt.Hash() != emptyHash {
@@ -108,7 +108,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 			}
 
 			if stateIt.Leaf() {
-				addrHash := common.BytesToHash(stateIt.LeafKey())
+				addrHash := common.BytesToAddress(stateIt.LeafKey())
 
 				var account types.StateAccount
 				if err = rlp.Decode(bytes.NewReader(stateIt.LeafBlob()), &account); err != nil {
@@ -132,7 +132,7 @@ func (s *Store) CheckEvm(forEachState func(func(root common.Hash) (found bool, e
 						err = fmt.Errorf("failed to open storage trie %s at %s addr: %s", account.Root.String(), addrHash.String(), storageErr.Error())
 						return
 					}
-					storageIt := storageTrie.NodeIterator(nil)
+					storageIt, _ := storageTrie.NodeIterator(nil)
 					for storageItSkip := false; storageIt.Next(!storageItSkip); {
 						storageItSkip = false
 						if storageIt.Hash() != emptyHash {

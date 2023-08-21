@@ -71,8 +71,8 @@ func UnwrapStorageReceipts(config *params.ChainConfig, receiptsStorage []*types.
 	for i, r := range receiptsStorage {
 		receipts[i] = (*types.Receipt)(r)
 	}
-	// TODO [hadv]: How to get baseFee on opera from here?
-	err := receipts.DeriveFields(config, hash, uint64(n), big.NewInt(0), txs)
+	// TODO [hadv]: How to get time, baseFee, blobGasPrice on opera from here?
+	err := receipts.DeriveFields(config, hash, uint64(n), uint64(0), big.NewInt(0), big.NewInt(0), txs)
 	return receipts, err
 }
 

@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -1491,7 +1490,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		to = crypto.CreateAddress(args.from(), uint64(*args.Nonce))
 	}
 	// Retrieve the precompiles since they don't need to be added to the access list
-	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number))
+	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number, false, 0))
 
 	// Create an initial tracer
 	prevTracer := logger.NewAccessListTracer(nil, args.from(), to, precompiles)
@@ -1525,7 +1524,6 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		tracer := logger.NewAccessListTracer(accessList, args.from(), to, precompiles)
 		config := opera.DefaultVMConfig
 		config.Tracer = tracer
-		config.Debug = true
 		config.NoBaseFee = true
 		vmenv, _, err := b.GetEVM(ctx, msg, statedb, header, &config)
 		if err != nil {
@@ -1693,7 +1691,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 
 	// Derive the sender.
 	bigblock := new(big.Int).SetUint64(blockNumber)
-	signer := gsignercache.Wrap(types.MakeSigner(s.b.ChainConfig(), bigblock))
+	signer := gsignercache.Wrap(types.MakeSigner(s.b.ChainConfig(), bigblock, uint64(header.Time)))
 	from, _ := internaltx.Sender(signer, tx)
 
 	fields := map[string]interface{}{
@@ -1760,7 +1758,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	} // Print a log with full tx details for manual investigations and interventions
-	signer := gsignercache.Wrap(types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number))
+	signer := gsignercache.Wrap(types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number, uint64(b.CurrentBlock().Time)))
 	from, err := types.Sender(signer, tx)
 	if err != nil {
 		return common.Hash{}, err
@@ -2016,18 +2014,6 @@ func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (strin
 		return "", fmt.Errorf("block #%d not found", number)
 	}
 	return spew.Sdump(block), nil
-}
-
-// SeedHash retrieves the seed hash of a block.
-func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string, error) {
-	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
-	if err != nil {
-		return "", err
-	}
-	if block == nil {
-		return "", fmt.Errorf("block #%d not found", number)
-	}
-	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
 }
 
 // BlocksTransactionTimes returns the map time => number of transactions

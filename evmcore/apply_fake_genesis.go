@@ -42,7 +42,7 @@ func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map
 	}
 
 	// initial block
-	root, err := flush(statedb, true)
+	root, err := flush(0, statedb, true)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +51,8 @@ func ApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances map
 	return block, nil
 }
 
-func flush(statedb *state.StateDB, clean bool) (root common.Hash, err error) {
-	root, err = statedb.Commit(clean)
+func flush(block uint64, statedb *state.StateDB, clean bool) (root common.Hash, err error) {
+	root, err = statedb.Commit(block, clean)
 	if err != nil {
 		return
 	}

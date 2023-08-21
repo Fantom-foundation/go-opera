@@ -99,7 +99,7 @@ func NewPruner(db ethdb.Database, genesisRoot, root common.Hash, datadir string,
 		NoBuild:    false,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db), root)
+	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db, nil), root)
 	if err != nil {
 		return nil, err // The relevant snapshot(s) might not exist
 	}
@@ -315,7 +315,7 @@ func RecoverPruning(datadir string, db ethdb.Database, root common.Hash) error {
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db), root)
+	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db, nil), root)
 	if err != nil {
 		return err // The relevant snapshot(s) might not exist
 	}
@@ -352,11 +352,11 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom ethdb.KeyVal
 	if root == (common.Hash{}) {
 		return nil
 	}
-	t, err := trie.NewStateTrie(trie.StateTrieID(root), trie.NewDatabase(db))
+	t, err := trie.NewStateTrie(trie.StateTrieID(root), trie.NewDatabase(db, nil))
 	if err != nil {
 		return err
 	}
-	accIter := t.NodeIterator(nil)
+	accIter, _ := t.NodeIterator(nil)
 	for accIter.Next(true) {
 		hash := accIter.Hash()
 
@@ -372,11 +372,11 @@ func extractGenesis(db ethdb.Database, root common.Hash, stateBloom ethdb.KeyVal
 				return err
 			}
 			if acc.Root != types.EmptyRootHash {
-				storageTrie, err := trie.NewStateTrie(trie.StateTrieID(acc.Root), trie.NewDatabase(db))
+				storageTrie, err := trie.NewStateTrie(trie.StateTrieID(acc.Root), trie.NewDatabase(db, nil))
 				if err != nil {
 					return err
 				}
-				storageIter := storageTrie.NodeIterator(nil)
+				storageIter, _ := storageTrie.NodeIterator(nil)
 				for storageIter.Next(true) {
 					hash := storageIter.Hash()
 					if hash != (common.Hash{}) {

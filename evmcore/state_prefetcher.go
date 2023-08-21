@@ -52,7 +52,7 @@ func (p *statePrefetcher) Prefetch(block *EvmBlock, statedb *state.StateDB, cfg 
 		gaspool      = new(GasPool).AddGas(block.GasLimit)
 		blockContext = NewEVMBlockContext(header, p.bc, nil)
 		evm          = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
-		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number))
+		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number, uint64(header.Time)))
 	)
 	// Iterate over and process the individual transactions
 	byzantium := p.config.IsByzantium(block.Number)

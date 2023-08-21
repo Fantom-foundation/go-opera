@@ -70,7 +70,7 @@ func (p *StateProcessor) Process(
 		vmenv        = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
 		blockHash    = block.Hash
 		blockNumber  = block.Number
-		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number))
+		signer       = gsignercache.Wrap(types.MakeSigner(p.config, header.Number, uint64(header.Time)))
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {

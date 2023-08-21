@@ -226,6 +226,5 @@ var (
 
 func overrideParams() {
 	params.MainnetBootnodes = []string{}
-	params.RinkebyBootnodes = []string{}
 	params.GoerliBootnodes = []string{}
 }

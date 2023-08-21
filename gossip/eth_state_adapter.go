@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // ethBlockChain wraps store to implement eth/protocols/snap.BlockChain interface.
@@ -26,11 +27,16 @@ func (bc *ethBlockChain) StateCache() state.Database {
 
 // ContractCode retrieves a blob of data associated with a contract hash
 // either from ephemeral in-memory cache, or from persistent storage.
-func (bc *ethBlockChain) ContractCode(hash common.Hash) ([]byte, error) {
-	return bc.store.LastKvdbEvmSnapshot().EvmState.ContractCode(common.Hash{}, hash)
+func (bc *ethBlockChain) ContractCodeWithPrefix(hash common.Hash) ([]byte, error) {
+	return bc.store.LastKvdbEvmSnapshot().EvmState.ContractCode(common.Address{}, hash)
 }
 
 // Snapshots returns the blockchain snapshot tree to paused it during sync.
 func (bc *ethBlockChain) Snapshots() *snapshot.Tree {
 	return bc.store.LastKvdbEvmSnapshot().Snapshots()
+}
+
+// TrieDB retrieves the low level trie database used for data storage.
+func (bc *ethBlockChain) TrieDB() *trie.Database {
+	return bc.store.evm.EvmState.TrieDB()
 }

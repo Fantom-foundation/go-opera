@@ -64,7 +64,6 @@ var (
 					PruneGenesisCommand,
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RinkebyFlag,
 					utils.GoerliFlag,
 					utils.CacheTrieJournalFlag,
 					utils.BloomFilterSizeFlag,
@@ -93,7 +92,6 @@ the trie clean cache with default directory will be deleted.
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
 				Description: `
@@ -112,7 +110,6 @@ In other words, this command does the snapshot to trie conversion.
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
 				Description: `
@@ -133,7 +130,6 @@ It's also usable without snapshot enabled.
 				Flags: []cli.Flag{
 					DataDirFlag,
 					utils.AncientFlag,
-					utils.RinkebyFlag,
 					utils.GoerliFlag,
 				},
 				Description: `
@@ -286,7 +282,7 @@ func traverseState(ctx *cli.Context) error {
 		root = common.Hash(gdb.GetBlockState().FinalizedStateRoot)
 		log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
 	}
-	triedb := trie.NewDatabase(chaindb)
+	triedb := trie.NewDatabase(chaindb, nil)
 	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
@@ -299,7 +295,8 @@ func traverseState(ctx *cli.Context) error {
 		lastReport time.Time
 		start      = time.Now()
 	)
-	accIter := trie.NewIterator(t.NodeIterator(nil))
+	it, _ := t.NodeIterator(nil)
+	accIter := trie.NewIterator(it)
 	for accIter.Next() {
 		accounts += 1
 		var acc types.StateAccount
@@ -313,7 +310,8 @@ func traverseState(ctx *cli.Context) error {
 				log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
 				return err
 			}
-			storageIter := trie.NewIterator(storageTrie.NodeIterator(nil))
+			it, _ := storageTrie.NodeIterator(nil)
+			storageIter := trie.NewIterator(it)
 			for storageIter.Next() {
 				slots += 1
 			}
@@ -376,7 +374,7 @@ func traverseRawState(ctx *cli.Context) error {
 		root = common.Hash(gdb.GetBlockState().FinalizedStateRoot)
 		log.Info("Start traversing the state", "root", root, "number", gdb.GetBlockState().LastBlock.Idx)
 	}
-	triedb := trie.NewDatabase(chaindb)
+	triedb := trie.NewDatabase(chaindb, nil)
 	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
@@ -390,7 +388,7 @@ func traverseRawState(ctx *cli.Context) error {
 		lastReport time.Time
 		start      = time.Now()
 	)
-	accIter := t.NodeIterator(nil)
+	accIter, _ := t.NodeIterator(nil)
 	for accIter.Next(true) {
 		nodes += 1
 		node := accIter.Hash()
@@ -419,7 +417,7 @@ func traverseRawState(ctx *cli.Context) error {
 					log.Error("Failed to open storage trie", "root", acc.Root, "err", err)
 					return errors.New("missing storage trie")
 				}
-				storageIter := storageTrie.NodeIterator(nil)
+				storageIter, _ := storageTrie.NodeIterator(nil)
 				for storageIter.Next(true) {
 					nodes += 1
 					node := storageIter.Hash()

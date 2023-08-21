@@ -80,10 +80,7 @@ func localConsole(ctx *cli.Context) error {
 	defer nodeClose()
 
 	// Attach to the newly started node and start the JavaScript console
-	client, err := node.Attach()
-	if err != nil {
-		utils.Fatalf("Failed to attach to the inproc opera: %v", err)
-	}
+	client := node.Attach()
 	config := console.Config{
 		DataDir: utils.MakeDataDir(ctx),
 		DocRoot: ctx.String(utils.JSpathFlag.Name),

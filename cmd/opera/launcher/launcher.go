@@ -401,10 +401,7 @@ func startNode(ctx *cli.Context, stack *node.Node, isConsole bool) {
 	stack.AccountManager().Subscribe(events)
 
 	// Create a client to interact with local opera node.
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		utils.Fatalf("Failed to attach to self: %v", err)
-	}
+	rpcClient := stack.Attach()
 	ethClient := ethclient.NewClient(rpcClient)
 	go func() {
 		// Open any wallets already attached

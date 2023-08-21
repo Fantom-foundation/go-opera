@@ -119,7 +119,7 @@ func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs [
 	receipts = p.receipts
 
 	// Get state root
-	newStateHash, err := p.statedb.Commit(true)
+	newStateHash, err := p.statedb.Commit(evmBlock.NumberU64(), true)
 	if err != nil {
 		log.Crit("Failed to commit state", "err", err)
 	}
