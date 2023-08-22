@@ -27,12 +27,14 @@ func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber
 	if es == nil {
 		return nil, nil
 	}
-	res := map[hexutil.Uint64]interface{}{}
+
+	profiles := es.ValidatorProfiles
+	if epoch == rpc.PendingBlockNumber {
+		profiles = bs.NextValidatorProfiles
+	}
+
+	res := make(map[hexutil.Uint64]interface{}, es.Validators.Len())
 	for _, vid := range es.Validators.IDs() {
-		profiles := es.ValidatorProfiles
-		if epoch == rpc.PendingBlockNumber {
-			profiles = bs.NextValidatorProfiles
-		}
 		res[hexutil.Uint64(vid)] = map[string]interface{}{
 			"weight": (*hexutil.Big)(profiles[vid].Weight),
 			"pubkey": profiles[vid].PubKey.String(),
