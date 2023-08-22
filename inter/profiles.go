@@ -1,4 +1,4 @@
-package iblockproc
+package inter
 
 import (
 	"io"

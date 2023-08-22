@@ -6,6 +6,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 // PublicAbftAPI provides an API to access consensus related information.
@@ -33,14 +35,12 @@ func (s *PublicAbftAPI) GetValidators(ctx context.Context, epoch rpc.BlockNumber
 		profiles = bs.NextValidatorProfiles
 	}
 
-	res := make(map[hexutil.Uint64]interface{}, es.Validators.Len())
+	actualOnly := make(inter.ValidatorProfiles, es.Validators.Len())
 	for _, vid := range es.Validators.IDs() {
-		res[hexutil.Uint64(vid)] = map[string]interface{}{
-			"weight": (*hexutil.Big)(profiles[vid].Weight),
-			"pubkey": profiles[vid].PubKey.String(),
-		}
+		actualOnly[vid] = profiles[vid]
 	}
-	return res, nil
+
+	return inter.RPCMarshalValidators(actualOnly), nil
 }
 
 // GetDowntime returns validator's downtime.

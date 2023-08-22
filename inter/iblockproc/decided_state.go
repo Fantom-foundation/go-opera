@@ -50,7 +50,7 @@ type BlockState struct {
 	CheatersWritten uint32
 
 	ValidatorStates       []ValidatorBlockState
-	NextValidatorProfiles ValidatorProfiles
+	NextValidatorProfiles inter.ValidatorProfiles
 
 	DirtyRules *opera.Rules `rlp:"nil"` // nil means that there's no changes compared to epoch rules
 
@@ -97,7 +97,7 @@ type EpochStateV1 struct {
 
 	Validators        *pos.Validators
 	ValidatorStates   []ValidatorEpochState
-	ValidatorProfiles ValidatorProfiles
+	ValidatorProfiles inter.ValidatorProfiles
 
 	Rules opera.Rules
 }

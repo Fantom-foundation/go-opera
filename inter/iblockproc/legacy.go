@@ -23,7 +23,7 @@ type EpochStateV0 struct {
 
 	Validators        *pos.Validators
 	ValidatorStates   []ValidatorEpochStateV0
-	ValidatorProfiles ValidatorProfiles
+	ValidatorProfiles inter.ValidatorProfiles
 
 	Rules opera.Rules
 }
