@@ -102,8 +102,6 @@ To be accepted, the PR should adhere to these quality standards (https://gorepor
 
 ## Maintainers
 
-To make sure every PR is checked, we have [team maintainers](MAINTAINERS). Every PR MUST be reviewed by at least two maintainers before it can get merged.
-
 The maintainers will review your PR and notify you and tag it in case any
 information is still missing. They will wait 8 days for your interaction, after
 that the PR will be closed.
