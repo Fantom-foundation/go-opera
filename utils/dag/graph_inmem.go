@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"gonum.org/v1/gonum/graph/encoding/dot"
+
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagordering"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -24,6 +26,9 @@ import (
 
 // graphInMem implements dot.Graph over inmem refs and nodes
 type graphInMem struct {
+	name      string
+	subGraphs []dot.Graph
+
 	refs  []hash.Event
 	nodes map[hash.Event]*dotNode
 	attrs struct {
@@ -32,9 +37,9 @@ type graphInMem struct {
 	}
 }
 
-// readDagGraph read gossip.Store into inmem dot.Graph
-func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
-	g := &graphInMem{
+func newGraphInMem(name string) *graphInMem {
+	return &graphInMem{
+		name:  name,
 		refs:  make([]hash.Event, 0, 2000000),
 		nodes: make(map[hash.Event]*dotNode),
 		attrs: struct{ graph, edge attributer }{
@@ -42,7 +47,11 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			attributer(make(map[string]string, 10)),
 		},
 	}
+}
 
+// readDagGraph read gossip.Store into inmem dot.Graph
+func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
+	g := newGraphInMem("DOT")
 	g.attrs.graph.setAttr("clusterrank", "local")
 	g.attrs.graph.setAttr("compound", "true")
 	g.attrs.graph.setAttr("newrank", "true")
@@ -71,6 +80,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	}
 
 	var (
+		graphCols = make(map[idx.ValidatorID]*graphInMem, 10)
 		epoch     idx.Epoch
 		prevBS    *iblockproc.BlockState
 		processed map[hash.Event]dag.Event
@@ -111,6 +121,18 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 	resetToNewEpoch := func() {
 		validators := gdb.GetHistoryEpochState(epoch).Validators
+
+		for _, v := range validators.IDs() {
+			_, ok := graphCols[v]
+			if ok {
+				continue
+			}
+			col := newGraphInMem(fmt.Sprintf("validator-%d", v))
+			col.attrs.graph.setAttr("style", "dotted")
+			graphCols[v] = col
+			g.subGraphs = append(g.subGraphs, col)
+		}
+
 		processed = make(map[hash.Event]dag.Event, 1000)
 		err := orderer.Reset(epoch, validators)
 		if err != nil {
@@ -133,9 +155,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				dagIndexer.Flush()
 				orderer.Process(e)
 
-				id := len(g.refs)
-				g.refs = append(g.refs, e.ID())
-				g.nodes[e.ID()] = newDotNode(int64(id), e)
+				graphCols[e.Creator()].addDagEvent(e)
 				return nil
 			},
 			Released: func(e dag.Event, peer string, err error) {
@@ -178,7 +198,12 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 }
 
 func (g *graphInMem) DOTID() string {
-	return "DAG"
+	return g.name
+}
+
+// Structure returns subgraphs.
+func (g *graphInMem) Structure() []dot.Graph {
+	return g.subGraphs
 }
 
 // DOTAttributers are graph.Graph values that specify top-level DOT attributes.
@@ -186,6 +211,16 @@ func (g *graphInMem) DOTAttributers() (graph, node, edge encoding.Attributer) {
 	graph = g.attrs.graph
 	node = attributer(make(map[string]string, 0)) // empty
 	edge = g.attrs.edge
+	return
+}
+
+// TODO: global refs for subgraphs
+func (g *graphInMem) addDagEvent(e dag.Event) (id int64) {
+	id = int64(len(g.refs))
+	g.refs = append(g.refs, e.ID())
+	n := newDotNode(id, e)
+	g.nodes[e.ID()] = n
+
 	return
 }
 
