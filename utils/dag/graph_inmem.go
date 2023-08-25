@@ -21,13 +21,15 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
-type dagLoader struct {
+// graphInMem implements dot.Graph over inmem refs and nodes
+type graphInMem struct {
 	refs  []hash.Event
 	nodes map[hash.Event]*dagNode
 }
 
-func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *dagLoader {
-	g := &dagLoader{
+// readDagGraph read gossip.Store into inmem dot.Graph
+func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
+	g := &graphInMem{
 		refs:  make([]hash.Event, 0, 2000000),
 		nodes: make(map[hash.Event]*dagNode),
 	}
@@ -165,13 +167,13 @@ func newDagLoader(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	return g
 }
 
-func (g *dagLoader) DOTID() string {
+func (g *graphInMem) DOTID() string {
 	return "DAG"
 }
 
 // Node returns the node with the given ID if it exists
 // in the graph, and nil otherwise.
-func (g *dagLoader) Node(id int64) graph.Node {
+func (g *graphInMem) Node(id int64) graph.Node {
 	hash := g.refs[id]
 	return g.nodes[hash]
 }
@@ -179,7 +181,7 @@ func (g *dagLoader) Node(id int64) graph.Node {
 // Nodes returns all the nodes in the graph.
 //
 // Nodes must not return nil.
-func (g *dagLoader) Nodes() graph.Nodes {
+func (g *graphInMem) Nodes() graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -199,7 +201,7 @@ func (g *dagLoader) Nodes() graph.Nodes {
 // from the node with the given ID.
 //
 // From must not return nil.
-func (g *dagLoader) From(id int64) graph.Nodes {
+func (g *graphInMem) From(id int64) graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -221,7 +223,7 @@ func (g *dagLoader) From(id int64) graph.Nodes {
 // to the node with the given ID.
 //
 // To must not return nil.
-func (g *dagLoader) To(id int64) graph.Nodes {
+func (g *graphInMem) To(id int64) graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -231,7 +233,7 @@ func (g *dagLoader) To(id int64) graph.Nodes {
 
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
-func (g *dagLoader) HasEdgeBetween(xid, yid int64) bool {
+func (g *graphInMem) HasEdgeBetween(xid, yid int64) bool {
 	x := g.nodes[g.refs[xid]]
 	y := g.nodes[g.refs[yid]]
 
@@ -251,7 +253,7 @@ func (g *dagLoader) HasEdgeBetween(xid, yid int64) bool {
 
 // HasEdgeFromTo returns whether an edge exists
 // in the graph from u to v with IDs uid and vid.
-func (g *dagLoader) HasEdgeFromTo(uid, vid int64) bool {
+func (g *graphInMem) HasEdgeFromTo(uid, vid int64) bool {
 	u := g.nodes[g.refs[uid]]
 	v := g.nodes[g.refs[vid]]
 
@@ -268,7 +270,7 @@ func (g *dagLoader) HasEdgeFromTo(uid, vid int64) bool {
 // if such an edge exists and nil otherwise. The node v
 // must be directly reachable from u as defined by the
 // From method.
-func (g *dagLoader) Edge(uid, vid int64) graph.Edge {
+func (g *graphInMem) Edge(uid, vid int64) graph.Edge {
 	u := g.nodes[g.refs[uid]]
 	v := g.nodes[g.refs[vid]]
 

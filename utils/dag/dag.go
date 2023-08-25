@@ -9,13 +9,13 @@ import (
 )
 
 func Graph(db *gossip.Store, cfg integration.Configs, from, to idx.Epoch) dot.Graph {
-	/* g:= &dagReader{
+	/* g:= &graphOnDisk{
 		db:        db,
 		epochFrom: from,
 		epochTo:   to,
 	}*/
 
-	g := newDagLoader(db, cfg, from, to)
+	g := readDagGraph(db, cfg, from, to)
 
 	return g
 }

@@ -10,19 +10,19 @@ import (
 )
 
 // dagReader implements dot.Graph over gossip.Store
-type dagReader struct {
+type graphOnDisk struct {
 	db        *gossip.Store
 	epochFrom idx.Epoch
 	epochTo   idx.Epoch
 }
 
-func (g *dagReader) DOTID() string {
+func (g *graphOnDisk) DOTID() string {
 	return "DAG"
 }
 
 // Node returns the node with the given ID if it exists
 // in the graph, and nil otherwise.
-func (g *dagReader) Node(id int64) graph.Node {
+func (g *graphOnDisk) Node(id int64) graph.Node {
 	e := g.db.GetEvent(id2event(id))
 	return event2node(e)
 }
@@ -30,7 +30,7 @@ func (g *dagReader) Node(id int64) graph.Node {
 // Nodes returns all the nodes in the graph.
 //
 // Nodes must not return nil.
-func (g *dagReader) Nodes() graph.Nodes {
+func (g *graphOnDisk) Nodes() graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -54,7 +54,7 @@ func (g *dagReader) Nodes() graph.Nodes {
 // from the node with the given ID.
 //
 // From must not return nil.
-func (g *dagReader) From(id int64) graph.Nodes {
+func (g *graphOnDisk) From(id int64) graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -75,7 +75,7 @@ func (g *dagReader) From(id int64) graph.Nodes {
 // to the node with the given ID.
 //
 // To must not return nil.
-func (g *dagReader) To(id int64) graph.Nodes {
+func (g *graphOnDisk) To(id int64) graph.Nodes {
 	nn := &dagNodes{
 		data: make(chan *dagNode),
 	}
@@ -85,7 +85,7 @@ func (g *dagReader) To(id int64) graph.Nodes {
 
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
-func (g *dagReader) HasEdgeBetween(xid, yid int64) bool {
+func (g *graphOnDisk) HasEdgeBetween(xid, yid int64) bool {
 	x := g.Node(xid).(*dagNode)
 	y := g.Node(yid).(*dagNode)
 
@@ -105,7 +105,7 @@ func (g *dagReader) HasEdgeBetween(xid, yid int64) bool {
 
 // HasEdgeFromTo returns whether an edge exists
 // in the graph from u to v with IDs uid and vid.
-func (g *dagReader) HasEdgeFromTo(uid, vid int64) bool {
+func (g *graphOnDisk) HasEdgeFromTo(uid, vid int64) bool {
 	u := g.Node(uid).(*dagNode)
 	v := g.Node(vid).(*dagNode)
 
@@ -122,7 +122,7 @@ func (g *dagReader) HasEdgeFromTo(uid, vid int64) bool {
 // if such an edge exists and nil otherwise. The node v
 // must be directly reachable from u as defined by the
 // From method.
-func (g *dagReader) Edge(uid, vid int64) graph.Edge {
+func (g *graphOnDisk) Edge(uid, vid int64) graph.Edge {
 	u := g.Node(uid).(*dagNode)
 	v := g.Node(vid).(*dagNode)
 
