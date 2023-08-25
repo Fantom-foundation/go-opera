@@ -24,7 +24,7 @@ func (g *graphOnDisk) DOTID() string {
 // in the graph, and nil otherwise.
 func (g *graphOnDisk) Node(id int64) graph.Node {
 	e := g.db.GetEvent(id2event(id))
-	return event2node(e)
+	return newDotNode(id, e)
 }
 
 // Nodes returns all the nodes in the graph.
@@ -32,7 +32,7 @@ func (g *graphOnDisk) Node(id int64) graph.Node {
 // Nodes must not return nil.
 func (g *graphOnDisk) Nodes() graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 
 	go func() {
@@ -42,7 +42,8 @@ func (g *graphOnDisk) Nodes() graph.Nodes {
 				return false
 			}
 
-			nn.data <- event2node(&e.Event)
+			id := event2id(e.ID())
+			nn.data <- newDotNode(id, &e.Event)
 			return true
 		})
 	}()
@@ -56,15 +57,15 @@ func (g *graphOnDisk) Nodes() graph.Nodes {
 // From must not return nil.
 func (g *graphOnDisk) From(id int64) graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 
-	x := g.Node(id).(*dagNode)
+	x := g.Node(id).(*dotNode)
 	go func() {
 		defer close(nn.data)
 		for _, p := range x.parents {
 			n := g.Node(event2id(p))
-			nn.data <- n.(*dagNode)
+			nn.data <- n.(*dotNode)
 		}
 	}()
 
@@ -77,7 +78,7 @@ func (g *graphOnDisk) From(id int64) graph.Nodes {
 // To must not return nil.
 func (g *graphOnDisk) To(id int64) graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 	close(nn.data)
 	return nn
@@ -86,8 +87,8 @@ func (g *graphOnDisk) To(id int64) graph.Nodes {
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
 func (g *graphOnDisk) HasEdgeBetween(xid, yid int64) bool {
-	x := g.Node(xid).(*dagNode)
-	y := g.Node(yid).(*dagNode)
+	x := g.Node(xid).(*dotNode)
+	y := g.Node(yid).(*dotNode)
 
 	for _, p := range x.parents {
 		if p == y.hash {
@@ -106,8 +107,8 @@ func (g *graphOnDisk) HasEdgeBetween(xid, yid int64) bool {
 // HasEdgeFromTo returns whether an edge exists
 // in the graph from u to v with IDs uid and vid.
 func (g *graphOnDisk) HasEdgeFromTo(uid, vid int64) bool {
-	u := g.Node(uid).(*dagNode)
-	v := g.Node(vid).(*dagNode)
+	u := g.Node(uid).(*dotNode)
+	v := g.Node(vid).(*dotNode)
 
 	for _, p := range u.parents {
 		if p == v.hash {
@@ -123,12 +124,12 @@ func (g *graphOnDisk) HasEdgeFromTo(uid, vid int64) bool {
 // must be directly reachable from u as defined by the
 // From method.
 func (g *graphOnDisk) Edge(uid, vid int64) graph.Edge {
-	u := g.Node(uid).(*dagNode)
-	v := g.Node(vid).(*dagNode)
+	u := g.Node(uid).(*dotNode)
+	v := g.Node(vid).(*dotNode)
 
 	for _, p := range u.parents {
 		if p == v.hash {
-			return &dagEdge{
+			return &dotEdge{
 				x: u,
 				y: v,
 			}
@@ -139,14 +140,6 @@ func (g *graphOnDisk) Edge(uid, vid int64) graph.Edge {
 }
 
 // --
-
-func event2node(e *inter.Event) *dagNode {
-	return &dagNode{
-		id:      event2id(e.ID()),
-		hash:    e.ID(),
-		parents: e.Parents(),
-	}
-}
 
 var (
 	id2hash = make(map[int64]hash.Event)

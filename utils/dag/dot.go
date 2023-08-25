@@ -2,25 +2,26 @@ package dag
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding"
 )
 
-// Edge is a graph edge. In directed graphs, the direction of the
+// dotEdge is a graph edge. In directed graphs, the direction of the
 // edge is given from -> to, otherwise the edge is semantically
 // unordered.
-type dagEdge struct {
-	x, y *dagNode
+type dotEdge struct {
+	x, y *dotNode
 }
 
 // From returns the from node of the edge.
-func (e *dagEdge) From() graph.Node {
+func (e *dotEdge) From() graph.Node {
 	return e.x
 }
 
 // To returns the to node of the edge.
-func (e *dagEdge) To() graph.Node {
+func (e *dotEdge) To() graph.Node {
 	return e.y
 }
 
@@ -30,53 +31,59 @@ func (e *dagEdge) To() graph.Node {
 // the receiver with nodes of the receiver swapped should
 // be returned, otherwise the receiver should be returned
 // unaltered.
-func (e *dagEdge) ReversedEdge() graph.Edge {
+func (e *dotEdge) ReversedEdge() graph.Edge {
 	return nil
 }
 
-type dagNode struct {
-	id        int64
-	hash      hash.Event
-	parents   hash.Events
-	frame     idx.Frame
-	isRoot    bool
-	isAtropos bool
+// dotNode is a graph node.
+type dotNode struct {
+	id      int64
+	hash    hash.Event
+	parents hash.Events
+	frame   idx.Frame
+	attrs   map[string]string
 }
 
-func (n *dagNode) ID() int64 {
+func newDotNode(id int64, e dag.Event) *dotNode {
+	n := &dotNode{
+		id:      id,
+		hash:    e.ID(),
+		parents: e.Parents(),
+		attrs:   make(map[string]string, 10),
+	}
+	n.setAttr("label", n.hash.String())
+	return n
+}
+
+func (n *dotNode) ID() int64 {
 	return n.id
 }
 
-func (n *dagNode) Attributes() []encoding.Attribute {
-	aa := []encoding.Attribute{
-		encoding.Attribute{
-			Key:   "label",
-			Value: n.hash.String(),
-		},
-	}
+func (n *dotNode) Attributes() []encoding.Attribute {
+	aa := make([]encoding.Attribute, 0, len(n.attrs))
 
-	var role string
-	if n.isRoot {
-		role = "Root"
-	}
-	if n.isAtropos {
-		role = "Atropos"
-	}
-	if len(role) > 0 {
+	for k, v := range n.attrs {
 		aa = append(aa,
 			encoding.Attribute{
-				Key:   "xlabel",
-				Value: role,
-			},
-		)
+				Key:   k,
+				Value: v,
+			})
 	}
 
 	return aa
 }
 
+func (n *dotNode) setAttr(key, val string) {
+	if val == "" {
+		delete(n.attrs, key)
+		return
+	}
+	n.attrs[key] = val
+}
+
 type dagNodes struct {
-	data    chan *dagNode
-	current *dagNode
+	data    chan *dotNode
+	current *dotNode
 }
 
 // Reset returns the iterator to its start position.

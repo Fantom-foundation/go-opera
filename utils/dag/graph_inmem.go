@@ -24,14 +24,14 @@ import (
 // graphInMem implements dot.Graph over inmem refs and nodes
 type graphInMem struct {
 	refs  []hash.Event
-	nodes map[hash.Event]*dagNode
+	nodes map[hash.Event]*dotNode
 }
 
 // readDagGraph read gossip.Store into inmem dot.Graph
 func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
 	g := &graphInMem{
 		refs:  make([]hash.Event, 0, 2000000),
-		nodes: make(map[hash.Event]*dagNode),
+		nodes: make(map[hash.Event]*dotNode),
 	}
 
 	cdb := abft.NewMemStore()
@@ -68,7 +68,8 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		for f := idx.Frame(0); f <= cdb.GetLastDecidedFrame(); f++ {
 			rr := cdb.GetFrameRoots(f)
 			for _, r := range rr {
-				g.nodes[r.ID].isRoot = true
+				node := g.nodes[r.ID]
+				markAsRoot(node)
 			}
 		}
 
@@ -86,7 +87,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				}
 				node, exists := g.nodes[block.Atropos]
 				if exists {
-					node.isAtropos = true
+					markAsAtropos(node)
 				}
 			}
 		}
@@ -120,12 +121,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 				id := len(g.refs)
 				g.refs = append(g.refs, e.ID())
-				g.nodes[e.ID()] = &dagNode{
-					id:      int64(id),
-					hash:    e.ID(),
-					parents: e.Parents(),
-					frame:   e.Frame(),
-				}
+				g.nodes[e.ID()] = newDotNode(int64(id), e)
 				return nil
 			},
 			Released: func(e dag.Event, peer string, err error) {
@@ -183,7 +179,7 @@ func (g *graphInMem) Node(id int64) graph.Node {
 // Nodes must not return nil.
 func (g *graphInMem) Nodes() graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 
 	go func() {
@@ -203,7 +199,7 @@ func (g *graphInMem) Nodes() graph.Nodes {
 // From must not return nil.
 func (g *graphInMem) From(id int64) graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 
 	h := g.refs[id]
@@ -225,7 +221,7 @@ func (g *graphInMem) From(id int64) graph.Nodes {
 // To must not return nil.
 func (g *graphInMem) To(id int64) graph.Nodes {
 	nn := &dagNodes{
-		data: make(chan *dagNode),
+		data: make(chan *dotNode),
 	}
 	close(nn.data)
 	return nn
@@ -276,7 +272,7 @@ func (g *graphInMem) Edge(uid, vid int64) graph.Edge {
 
 	for _, p := range u.parents {
 		if p == v.hash {
-			return &dagEdge{
+			return &dotEdge{
 				x: u,
 				y: v,
 			}
@@ -290,4 +286,16 @@ func panics(name string) func(error) {
 	return func(err error) {
 		log.Crit(fmt.Sprintf("%s error", name), "err", err)
 	}
+}
+
+func markAsRoot(n *dotNode) {
+	n.setAttr("xlabel", "root")
+	n.setAttr("style", "filled")
+	n.setAttr("fillcolor", "#FFFF00")
+}
+
+func markAsAtropos(n *dotNode) {
+	n.setAttr("xlabel", "atropos")
+	n.setAttr("style", "filled")
+	n.setAttr("fillcolor", "#FF0000")
 }
