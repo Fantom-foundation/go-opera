@@ -153,9 +153,9 @@ func GetGenesisTxs(sealedEpoch idx.Epoch, validators gpos.Validators, totalSuppl
 func GetTestnetValidators() gpos.Validators {
 	validators := make(gpos.Validators, 0, len(opera.GenesisValidators)-1)
 
-	for _, genesisValidator := range opera.GenesisValidators {
+	for id, genesisValidator := range opera.GenesisValidators {
 		validators = append(validators, gpos.Validator{
-			ID:      1,
+			ID:      idx.ValidatorID(id + 1),
 			Address: common.HexToAddress(genesisValidator.AccountAddress),
 			PubKey: validatorpk.PubKey{
 				Raw:  common.Hex2Bytes(genesisValidator.ValidatorPubKey),
