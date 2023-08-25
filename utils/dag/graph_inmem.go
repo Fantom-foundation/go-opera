@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/log"
 	"gonum.org/v1/gonum/graph"
+	"gonum.org/v1/gonum/graph/encoding"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -25,6 +26,10 @@ import (
 type graphInMem struct {
 	refs  []hash.Event
 	nodes map[hash.Event]*dotNode
+	attrs struct {
+		graph attributer
+		edge  attributer
+	}
 }
 
 // readDagGraph read gossip.Store into inmem dot.Graph
@@ -32,7 +37,16 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	g := &graphInMem{
 		refs:  make([]hash.Event, 0, 2000000),
 		nodes: make(map[hash.Event]*dotNode),
+		attrs: struct{ graph, edge attributer }{
+			attributer(make(map[string]string, 10)),
+			attributer(make(map[string]string, 10)),
+		},
 	}
+
+	g.attrs.graph.setAttr("clusterrank", "local")
+	g.attrs.graph.setAttr("compound", "true")
+	g.attrs.graph.setAttr("newrank", "true")
+	g.attrs.graph.setAttr("ranksep", "0.05")
 
 	cdb := abft.NewMemStore()
 	defer cdb.Close()
@@ -165,6 +179,14 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 func (g *graphInMem) DOTID() string {
 	return "DAG"
+}
+
+// DOTAttributers are graph.Graph values that specify top-level DOT attributes.
+func (g *graphInMem) DOTAttributers() (graph, node, edge encoding.Attributer) {
+	graph = g.attrs.graph
+	node = attributer(make(map[string]string, 0)) // empty
+	edge = g.attrs.edge
+	return
 }
 
 // Node returns the node with the given ID if it exists

@@ -3,7 +3,6 @@ package dag
 import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding"
 )
@@ -40,16 +39,15 @@ type dotNode struct {
 	id      int64
 	hash    hash.Event
 	parents hash.Events
-	frame   idx.Frame
-	attrs   map[string]string
+	attributer
 }
 
 func newDotNode(id int64, e dag.Event) *dotNode {
 	n := &dotNode{
-		id:      id,
-		hash:    e.ID(),
-		parents: e.Parents(),
-		attrs:   make(map[string]string, 10),
+		id:         id,
+		hash:       e.ID(),
+		parents:    e.Parents(),
+		attributer: attributer(make(map[string]string, 10)),
 	}
 	n.setAttr("label", n.hash.String())
 	return n
@@ -57,28 +55,6 @@ func newDotNode(id int64, e dag.Event) *dotNode {
 
 func (n *dotNode) ID() int64 {
 	return n.id
-}
-
-func (n *dotNode) Attributes() []encoding.Attribute {
-	aa := make([]encoding.Attribute, 0, len(n.attrs))
-
-	for k, v := range n.attrs {
-		aa = append(aa,
-			encoding.Attribute{
-				Key:   k,
-				Value: v,
-			})
-	}
-
-	return aa
-}
-
-func (n *dotNode) setAttr(key, val string) {
-	if val == "" {
-		delete(n.attrs, key)
-		return
-	}
-	n.attrs[key] = val
 }
 
 type dagNodes struct {
@@ -124,4 +100,33 @@ func (nn *dagNodes) Node() graph.Node {
 // implementation-dependent semantics.
 func (nn *dagNodes) Len() int {
 	return -1
+}
+
+// --
+
+// Attributer implements encoding.Attributer over kv-map
+type attributer map[string]string
+
+// defines graph.Node or graph.Edge values that can
+// specify graph attributes.
+func (a attributer) Attributes() []encoding.Attribute {
+	aa := make([]encoding.Attribute, 0, len(a))
+
+	for k, v := range a {
+		aa = append(aa,
+			encoding.Attribute{
+				Key:   k,
+				Value: v,
+			})
+	}
+
+	return aa
+}
+
+func (a attributer) setAttr(key, val string) {
+	if val == "" {
+		delete(a, key)
+		return
+	}
+	a[key] = val
 }
