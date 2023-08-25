@@ -701,7 +701,7 @@ func (h *handler) Start(maxPeers int) {
 }
 
 func (h *handler) Stop() {
-	log.Info("Stopping Fantom protocol")
+	log.Info("Stopping X1 protocol")
 
 	h.brLeecher.Stop()
 	h.brSeeder.Stop()
@@ -749,7 +749,7 @@ func (h *handler) Stop() {
 	h.wg.Wait()
 	h.peerWG.Wait()
 
-	log.Info("Fantom protocol stopped")
+	log.Info("X1 protocol stopped")
 }
 
 func (h *handler) myProgress() PeerProgress {

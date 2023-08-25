@@ -1,24 +1,24 @@
 .PHONY: all
-all: opera
+all: x1
 
 GOPROXY ?= "https://proxy.golang.org,direct"
-.PHONY: opera
-opera:
+.PHONY: x1
+x1:
 	GIT_COMMIT=`git rev-list -1 HEAD 2>/dev/null || echo ""` && \
 	GIT_DATE=`git log -1 --date=short --pretty=format:%ct 2>/dev/null || echo ""` && \
 	GOPROXY=$(GOPROXY) \
 	go build \
 	    -ldflags "-s -w -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitCommit=$${GIT_COMMIT} -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitDate=$${GIT_DATE}" \
-	    -o build/opera \
+	    -o build/x1 \
 	    ./cmd/opera
 
 
 TAG ?= "latest"
-.PHONY: opera-image
-opera-image:
+.PHONY: x1-image
+x1-image:
 	docker build \
     	    --network=host \
-    	    -f ./docker/Dockerfile.opera -t "opera:$(TAG)" .
+    	    -f ./docker/Dockerfile.opera -t "x1:$(TAG)" .
 
 .PHONY: test
 test:

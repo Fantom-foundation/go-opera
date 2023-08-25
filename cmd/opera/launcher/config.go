@@ -466,7 +466,7 @@ func cacheScaler(ctx *cli.Context) cachescale.Func {
 	if !ctx.GlobalIsSet(CacheFlag.Name) {
 		recommendedCache := totalMemory / 2
 		if recommendedCache > baseSize {
-			log.Warn(fmt.Sprintf("Please add '--%s %d' flag to allocate more cache for Opera. Total memory is %d MB.", CacheFlag.Name, recommendedCache, totalMemory))
+			log.Warn(fmt.Sprintf("Please add '--%s %d' flag to allocate more cache for X1. Total memory is %d MB.", CacheFlag.Name, recommendedCache, totalMemory))
 		}
 		return cachescale.Identity
 	}
@@ -564,7 +564,7 @@ func defaultNodeConfig() node.Config {
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "dag", "abft", "web3")
 	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "abft", "web3")
-	cfg.IPCPath = "opera.ipc"
+	cfg.IPCPath = "x1.ipc"
 	cfg.DataDir = DefaultDataDir()
 	return cfg
 }

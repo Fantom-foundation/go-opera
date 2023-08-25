@@ -38,7 +38,7 @@ import (
 
 const (
 	// clientIdentifier to advertise over the network.
-	clientIdentifier = "go-opera"
+	clientIdentifier = "go-x1"
 )
 
 var (
