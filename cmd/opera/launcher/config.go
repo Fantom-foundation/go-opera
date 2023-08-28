@@ -14,6 +14,8 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -115,7 +117,16 @@ var (
 		Usage: `Blockchain garbage collection mode ("light", "full", "archive")`,
 		Value: "archive",
 	}
-
+	StateSchemeFlag = &cli.StringFlag{
+		Name:  "state.scheme",
+		Usage: "Scheme to use for storing ethereum state ('hash' or 'path')",
+		Value: rawdb.HashScheme,
+	}
+	StateHistoryFlag = &cli.Uint64Flag{
+		Name:  "history.state",
+		Usage: "Number of recent blocks to retain state history for (default = 90,000 blocks, 0 = entire chain)",
+		Value: ethconfig.Defaults.StateHistory,
+	}
 	ExitWhenAgeFlag = &cli.DurationFlag{
 		Name:  "exitwhensynced.age",
 		Usage: "Exits after synchronisation reaches the required age",
@@ -364,6 +375,39 @@ func gossipStoreConfigWithFlags(ctx *cli.Context, src gossip.StoreConfig) (gossi
 	return cfg, nil
 }
 
+func setStateSchemaConfig(ctx *cli.Context, src config) config {
+	cfg := src
+	schema, err := parseStateScheme(ctx, cfg)
+	if err != nil {
+		utils.Fatalf("%v", err)
+	}
+	cfg.OperaStore.EVM.Cache.StateScheme = schema
+	if ctx.IsSet(StateHistoryFlag.Name) {
+		cfg.OperaStore.EVM.Cache.StateHistory = ctx.Uint64(StateHistoryFlag.Name)
+	}
+	return cfg
+}
+
+func parseStateScheme(ctx *cli.Context, cfg config) (string, error) {
+	stored := string(futils.FileGet(path.Join(cfg.Node.DataDir, "chaindata", "schema")))
+	if !ctx.IsSet(StateSchemeFlag.Name) {
+		if stored == "" {
+			// use default scheme for empty database, flip it when
+			// path mode is chosen as default
+			log.Info("State schema set to default", "scheme", "hash")
+			return rawdb.HashScheme, nil
+		}
+		log.Info("State scheme set to already existing", "scheme", stored)
+		return stored, nil // reuse scheme of persistent scheme
+	}
+	scheme := ctx.String(StateSchemeFlag.Name)
+	if stored == "" || scheme == stored {
+		log.Info("State scheme set by user", "scheme", scheme)
+		return scheme, nil
+	}
+	return "", fmt.Errorf("incompatible state scheme, stored: %s, provided: %s", string(stored), scheme)
+}
+
 func setDBConfig(ctx *cli.Context, cfg integration.DBsConfig, cacheRatio cachescale.Func) integration.DBsConfig {
 	if ctx.IsSet(DBPresetFlag.Name) {
 		preset := ctx.String(DBPresetFlag.Name)
@@ -420,6 +464,16 @@ func memorizeDBPreset(cfg *config) {
 	pPath := path.Join(cfg.Node.DataDir, "chaindata", "preset")
 	if len(preset) != 0 {
 		futils.FilePut(pPath, []byte(preset), true)
+	} else {
+		_ = os.Remove(pPath)
+	}
+}
+
+func memorizeStateScheme(cfg *config) {
+	schema := cfg.OperaStore.EVM.Cache.StateScheme
+	pPath := path.Join(cfg.Node.DataDir, "chaindata", "schema")
+	if len(schema) != 0 {
+		futils.FilePut(pPath, []byte(schema), true)
 	} else {
 		_ = os.Remove(pPath)
 	}
@@ -529,6 +583,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	}
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
 	cfg.DBs = setDBConfig(ctx, cfg.DBs, cacheRatio)
+	cfg = setStateSchemaConfig(ctx, cfg)
 
 	err = setValidator(ctx, &cfg.Emitter)
 	if err != nil {

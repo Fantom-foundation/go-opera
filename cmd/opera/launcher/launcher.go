@@ -29,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/genesisstore"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
@@ -123,6 +124,8 @@ func initFlags() {
 		validatorPasswordFlag,
 		SyncModeFlag,
 		GCModeFlag,
+		StateSchemeFlag,
+		StateHistoryFlag,
 		DBPresetFlag,
 		DBMigrationModeFlag,
 	}
@@ -295,6 +298,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	}
 	metrics.SetDataDir(cfg.Node.DataDir)
 	memorizeDBPreset(cfg)
+	memorizeStateScheme(cfg)
 
 	// substitute default bootnodes if requested
 	networkName := ""
@@ -318,7 +322,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	valPubkey := cfg.Emitter.Validator.PubKey
 	if key := getFakeValidatorKey(ctx); key != nil && cfg.Emitter.Validator.ID != 0 {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
-		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, validatorpk.FakePassword)
 		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
 	}
 

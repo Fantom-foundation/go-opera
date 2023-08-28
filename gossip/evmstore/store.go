@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/trie/triedb/hashdb"
+	"github.com/ethereum/go-ethereum/trie/triedb/pathdb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
@@ -107,9 +109,20 @@ func (s *Store) initEVMDB() {
 		kvdb2ethdb.Wrap(
 			nokeyiserr.Wrap(
 				s.table.Evm)))
-	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, &trie.Config{
-		Preimages: s.cfg.EnablePreimageRecording,
-	})
+	config := &trie.Config{Preimages: s.cfg.EnablePreimageRecording}
+	if s.cfg.Cache.StateScheme == rawdb.HashScheme {
+		config.HashDB = &hashdb.Config{
+			CleanCacheSize: s.cfg.Cache.TrieCleanLimit,
+		}
+	}
+	if s.cfg.Cache.StateScheme == rawdb.PathScheme {
+		config.PathDB = &pathdb.Config{
+			StateHistory:   s.cfg.Cache.StateHistory,
+			CleanCacheSize: s.cfg.Cache.TrieCleanLimit,
+			DirtyCacheSize: s.cfg.Cache.TrieDirtyLimit,
+		}
+	}
+	s.EvmState = state.NewDatabaseWithConfig(s.EvmDb, config)
 }
 
 func (s *Store) ResetWithEVMDB(evmStore kvdb.Store) *Store {

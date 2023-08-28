@@ -205,7 +205,7 @@ func pruneState(ctx *cli.Context) error {
 			return err
 		}
 	}
-	if err = pruner.Prune(targetRoot); err != nil {
+	if err = pruner.Prune(cfg.OperaStore.EVM.Cache, targetRoot); err != nil {
 		log.Error("Failed to prune state", "err", err)
 		return err
 	}

@@ -226,7 +226,7 @@ func prune(snaptree *snapshot.Tree, root common.Hash, maindb ethdb.Database, sta
 // Prune deletes all historical state nodes except the nodes belong to the
 // specified state version. If user doesn't specify the state version, use
 // the bottom-most snapshot diff layer as the target.
-func (p *Pruner) Prune(root common.Hash) error {
+func (p *Pruner) Prune(cfg evmstore.StoreCacheConfig, root common.Hash) error {
 	// If the state bloom filter is already committed previously,
 	// reuse it for pruning instead of generating a new one. It's
 	// mandatory because a part of state may already be deleted,
@@ -235,7 +235,7 @@ func (p *Pruner) Prune(root common.Hash) error {
 	if err != nil {
 		return err
 	}
-	if stateBloomRoot != (common.Hash{}) {
+	if cfg.StateScheme == rawdb.HashScheme && stateBloomRoot != (common.Hash{}) {
 		return RecoverPruning(p.datadir, p.db, p.root)
 	}
 	// If the target state root is not specified, use the HEAD-127 as the

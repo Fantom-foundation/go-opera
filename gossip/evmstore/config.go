@@ -2,6 +2,8 @@ package evmstore
 
 import (
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
@@ -27,9 +29,15 @@ type (
 		// Whether to disable trie write caching and GC altogether (archive node)
 		TrieDirtyDisabled bool
 		// Memory limit (MB) at which to start flushing dirty trie nodes to disk
-		TrieDirtyLimit uint
+		TrieDirtyLimit int
+		// Memory allowance (MB) to use for caching trie nodes in memory
+		TrieCleanLimit int
 		// Whether to enable greedy gc mode
 		GreedyGC bool
+		// Number of blocks from head whose state histories are reserved.
+		StateHistory uint64
+		// Scheme used to store ethereum states and merkle tree nodes on top
+		StateScheme string
 	}
 	// StoreConfig is a config for store db.
 	StoreConfig struct {
@@ -52,7 +60,10 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			EvmBlocksSize:     scale.U(6 * opt.MiB),
 			TrieDirtyDisabled: true,
 			GreedyGC:          false,
-			TrieDirtyLimit:    scale.U(256 * opt.MiB),
+			TrieDirtyLimit:    scale.I(256 * opt.MiB),
+			TrieCleanLimit:    scale.I(128 * opt.MiB),
+			StateScheme:       rawdb.HashScheme,
+			StateHistory:      params.FullImmutabilityThreshold,
 		},
 		EnablePreimageRecording: true,
 	}

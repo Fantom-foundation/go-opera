@@ -97,13 +97,13 @@ func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*evmc
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	if number := rawdb.ReadHeaderNumber(b.db, hash); number != nil {
-		return rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig), nil
+		return rawdb.ReadReceipts(b.db, hash, *number, 0, params.TestChainConfig), nil
 	}
 	return nil, nil
 }
 
 func (b *testBackend) GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
-	return rawdb.ReadReceipts(b.db, common.Hash{}, uint64(number), params.TestChainConfig), nil
+	return rawdb.ReadReceipts(b.db, common.Hash{}, uint64(number), 0, params.TestChainConfig), nil
 }
 
 func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
@@ -112,7 +112,7 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 		return nil, nil
 	}
 
-	receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
+	receipts := rawdb.ReadReceipts(b.db, hash, *number, 0, params.TestChainConfig)
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
