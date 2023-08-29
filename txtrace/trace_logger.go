@@ -143,14 +143,17 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
 
 		// Get input data from memory
+		// Note that these variables aren't verified and can be faulty
 		offset := stackPosFromEnd(scope.Stack.Data(), 1).Uint64()
 		inputSize := stackPosFromEnd(scope.Stack.Data(), 2).Uint64()
 		var input []byte
 		if inputSize > 0 {
-			if offset < offset+inputSize {
+			if offset <= offset+inputSize && // no overflow
+				offset+inputSize <= uint64(len(scope.Memory.Data())) {
 				input = make([]byte, inputSize)
 				copy(input, scope.Memory.Data()[offset:offset+inputSize])
 			}
+			// if it's a faulty SC call, assume that input is nil
 		}
 
 		// Create new trace
@@ -172,11 +175,13 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		)
 
 		if vm.DELEGATECALL == op || vm.STATICCALL == op {
+			// Note that these variables aren't verified and can be faulty
 			inOffset = stackPosFromEnd(scope.Stack.Data(), 2).Uint64()
 			inSize = stackPosFromEnd(scope.Stack.Data(), 3).Uint64()
 			retOffset = stackPosFromEnd(scope.Stack.Data(), 4).Uint64()
 			retSize = stackPosFromEnd(scope.Stack.Data(), 5).Uint64()
 		} else {
+			// Note that these variables aren't verified and can be faulty
 			inOffset = stackPosFromEnd(scope.Stack.Data(), 3).Uint64()
 			inSize = stackPosFromEnd(scope.Stack.Data(), 4).Uint64()
 			retOffset = stackPosFromEnd(scope.Stack.Data(), 5).Uint64()
@@ -185,10 +190,12 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 			value = stackPosFromEnd(scope.Stack.Data(), 2)
 		}
 		if inSize > 0 {
-			if inOffset < inOffset+inSize {
+			if inOffset <= inOffset+inSize && // no overflow
+				inOffset+inSize <= uint64(len(scope.Memory.Data())) {
 				input = make([]byte, inSize)
 				copy(input, scope.Memory.Data()[inOffset:inOffset+inSize])
 			}
+			// if it's a faulty SC call, assume that input is nil
 		}
 		tr.traceAddress = addTraceAddress(tr.traceAddress, depth)
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
@@ -212,13 +219,16 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 				var data []byte
 
 				if vm.STOP != op {
+					// Note that these variables aren't verified and can be faulty
 					offset := stackPosFromEnd(scope.Stack.Data(), 0).Uint64()
 					size := stackPosFromEnd(scope.Stack.Data(), 1).Uint64()
 					if size > 0 {
-						if offset < offset+size {
+						if offset <= offset+size && // no overflow
+							offset+size <= uint64(len(scope.Memory.Data())) {
 							data = make([]byte, size)
 							copy(data, scope.Memory.Data()[offset:offset+size])
 						}
+						// if it's a faulty SC call, assume that input is nil
 					}
 				}
 
