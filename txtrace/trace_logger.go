@@ -50,6 +50,11 @@ func NewTraceStructLogger(store *txtrace.Store) *TraceStructLogger {
 
 // CaptureStart implements the tracer interface to initialize the tracing operation.
 func (tr *TraceStructLogger) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Tracer CaptureStart failed", r)
+		}
+	}()
 	// Create main trace holder
 	txTrace := CallTrace{
 		Actions: make([]ActionTrace, 0),
@@ -108,7 +113,11 @@ func stackPosFromEnd(stackData []uint256.Int, pos int) *big.Int {
 
 // CaptureState implements creating of traces based on getting opCodes from evm during contract processing
 func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
-
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Tracer CaptureState failed", r)
+		}
+	}()
 	// When going back from inner call
 	for lastState(tr.state).level >= depth {
 		result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
@@ -134,12 +143,14 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
 
 		// Get input data from memory
-		offset := stackPosFromEnd(scope.Stack.Data(), 1).Int64()
-		inputSize := stackPosFromEnd(scope.Stack.Data(), 2).Int64()
+		offset := stackPosFromEnd(scope.Stack.Data(), 1).Uint64()
+		inputSize := stackPosFromEnd(scope.Stack.Data(), 2).Uint64()
 		var input []byte
 		if inputSize > 0 {
-			input = make([]byte, inputSize)
-			copy(input, scope.Memory.Data()[offset:offset+inputSize])
+			if offset < offset+inputSize {
+				input = make([]byte, inputSize)
+				copy(input, scope.Memory.Data()[offset:offset+inputSize])
+			}
 		}
 
 		// Create new trace
@@ -154,28 +165,30 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 
 	case vm.CALL, vm.CALLCODE, vm.DELEGATECALL, vm.STATICCALL:
 		var (
-			inOffset, inSize   int64
+			inOffset, inSize   uint64
 			retOffset, retSize uint64
 			input              []byte
 			value              = big.NewInt(0)
 		)
 
 		if vm.DELEGATECALL == op || vm.STATICCALL == op {
-			inOffset = stackPosFromEnd(scope.Stack.Data(), 2).Int64()
-			inSize = stackPosFromEnd(scope.Stack.Data(), 3).Int64()
+			inOffset = stackPosFromEnd(scope.Stack.Data(), 2).Uint64()
+			inSize = stackPosFromEnd(scope.Stack.Data(), 3).Uint64()
 			retOffset = stackPosFromEnd(scope.Stack.Data(), 4).Uint64()
 			retSize = stackPosFromEnd(scope.Stack.Data(), 5).Uint64()
 		} else {
-			inOffset = stackPosFromEnd(scope.Stack.Data(), 3).Int64()
-			inSize = stackPosFromEnd(scope.Stack.Data(), 4).Int64()
+			inOffset = stackPosFromEnd(scope.Stack.Data(), 3).Uint64()
+			inSize = stackPosFromEnd(scope.Stack.Data(), 4).Uint64()
 			retOffset = stackPosFromEnd(scope.Stack.Data(), 5).Uint64()
 			retSize = stackPosFromEnd(scope.Stack.Data(), 6).Uint64()
 			// only CALL and CALLCODE need `value` field
 			value = stackPosFromEnd(scope.Stack.Data(), 2)
 		}
 		if inSize > 0 {
-			input = make([]byte, inSize)
-			copy(input, scope.Memory.Data()[inOffset:inOffset+inSize])
+			if inOffset < inOffset+inSize {
+				input = make([]byte, inSize)
+				copy(input, scope.Memory.Data()[inOffset:inOffset+inSize])
+			}
 		}
 		tr.traceAddress = addTraceAddress(tr.traceAddress, depth)
 		fromTrace := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1]
@@ -199,11 +212,13 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 				var data []byte
 
 				if vm.STOP != op {
-					offset := stackPosFromEnd(scope.Stack.Data(), 0).Int64()
-					size := stackPosFromEnd(scope.Stack.Data(), 1).Int64()
+					offset := stackPosFromEnd(scope.Stack.Data(), 0).Uint64()
+					size := stackPosFromEnd(scope.Stack.Data(), 1).Uint64()
 					if size > 0 {
-						data = make([]byte, size)
-						copy(data, scope.Memory.Data()[offset:offset+size])
+						if offset < offset+size {
+							data = make([]byte, size)
+							copy(data, scope.Memory.Data()[offset:offset+size])
+						}
 					}
 				}
 
@@ -244,6 +259,11 @@ func (tr *TraceStructLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, 
 
 // CaptureEnd is called after the call finishes to finalize the tracing.
 func (tr *TraceStructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Tracer CaptureEnd failed", r)
+		}
+	}()
 	log.Debug("TraceStructLogger capture END", "tx hash", tr.tx.String(), "duration", t, "gasUsed", gasUsed, "error", err)
 	if err != nil && err != vm.ErrExecutionReverted {
 		if tr.rootTrace != nil && tr.rootTrace.Stack != nil && len(tr.rootTrace.Stack) > 0 {
@@ -267,6 +287,11 @@ func (*TraceStructLogger) CaptureEnter(typ vm.OpCode, from common.Address, to co
 
 // CaptureExit is called when returning from an inner call
 func (tr *TraceStructLogger) CaptureExit(output []byte, gasUsed uint64, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Tracer CaptureExit failed", r)
+		}
+	}()
 	// When going back from inner call
 	result := tr.rootTrace.Stack[len(tr.rootTrace.Stack)-1].Result
 	if result != nil {
