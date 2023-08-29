@@ -2190,6 +2190,7 @@ func (api *PublicDebugAPI) traceTx(ctx context.Context, message evmcore.Message,
 			}
 		}
 		return result, err
+
 	default:
 		panic(fmt.Sprintf("bad tracer type %T", tracer))
 	}
