@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	inter "github.com/Fantom-foundation/go-opera/inter"
+	iblockproc "github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	validatorpk "github.com/Fantom-foundation/go-opera/inter/validatorpk"
 	opera "github.com/Fantom-foundation/go-opera/opera"
 	vecmt "github.com/Fantom-foundation/go-opera/vecmt"
@@ -209,6 +210,20 @@ func (m *MockExternal) GetHeads(arg0 idx.Epoch) hash.Events {
 func (mr *MockExternalMockRecorder) GetHeads(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHeads", reflect.TypeOf((*MockExternal)(nil).GetHeads), arg0)
+}
+
+// GetHistoryEpochState mocks base method.
+func (m *MockExternal) GetHistoryEpochState(arg0 idx.Epoch) *iblockproc.EpochState {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHistoryEpochState", arg0)
+	ret0, _ := ret[0].(*iblockproc.EpochState)
+	return ret0
+}
+
+// GetHistoryEpochState indicates an expected call of GetHistoryEpochState.
+func (mr *MockExternalMockRecorder) GetHistoryEpochState(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHistoryEpochState", reflect.TypeOf((*MockExternal)(nil).GetHistoryEpochState), arg0)
 }
 
 // GetLastBV mocks base method.
