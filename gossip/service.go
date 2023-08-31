@@ -478,7 +478,7 @@ func (s *Service) WaitBlockEnd() {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
-	defer log.Info("Fantom service stopped")
+	defer log.Info("X1 service stopped")
 	s.verWatcher.Stop()
 	for _, em := range s.emitters {
 		em.Stop()
