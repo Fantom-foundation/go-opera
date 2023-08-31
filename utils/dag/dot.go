@@ -1,6 +1,10 @@
 package dag
 
 import (
+	"fmt"
+
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"gonum.org/v1/gonum/graph"
@@ -12,6 +16,7 @@ import (
 // unordered.
 type dotEdge struct {
 	x, y *dotNode
+	attributer
 }
 
 // From returns the from node of the edge.
@@ -37,6 +42,7 @@ func (e *dotEdge) ReversedEdge() graph.Edge {
 // dotNode is a graph node.
 type dotNode struct {
 	id      int64
+	creator idx.ValidatorID
 	hash    hash.Event
 	parents hash.Events
 	attributer
@@ -45,11 +51,12 @@ type dotNode struct {
 func newDotNode(id int64, e dag.Event) *dotNode {
 	n := &dotNode{
 		id:         id,
+		creator:    e.Creator(),
 		hash:       e.ID(),
 		parents:    e.Parents(),
 		attributer: attributer(make(map[string]string, 10)),
 	}
-	n.setAttr("label", n.hash.String())
+	n.setAttr("label", fmt.Sprintf("%s\n%d", n.hash.String(), e.Creator()))
 	return n
 }
 

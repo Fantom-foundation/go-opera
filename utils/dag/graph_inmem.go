@@ -25,9 +25,9 @@ import (
 
 type eventSeq []hash.Event
 
-func (s *eventSeq) event2id(e dag.Event) int64 {
+func (s *eventSeq) event2id(h hash.Event) int64 {
 	id := int64(len(*s))
-	*s = append(*s, e.ID())
+	*s = append(*s, h)
 	return id
 }
 
@@ -48,6 +48,7 @@ func (l *eventList) get(h hash.Event) *dotNode {
 // graphInMem implements dot.Graph over inmem refs and nodes
 type graphInMem struct {
 	name      string
+	global    bool
 	subGraphs map[string]*graphInMem
 
 	include map[int64]struct{}
@@ -75,12 +76,14 @@ func newGraphInMem(name string) *graphInMem {
 // readDagGraph read gossip.Store into inmem dot.Graph
 func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
 	g := newGraphInMem("DOT")
+	g.global = true
 	g.refs = &eventSeq{}
 	g.nodes = &eventList{}
 	g.attrs.graph.setAttr("clusterrank", "local")
 	g.attrs.graph.setAttr("compound", "true")
 	g.attrs.graph.setAttr("newrank", "true")
 	g.attrs.graph.setAttr("ranksep", "0.05")
+	g.attrs.edge.setAttr("constraint", "true")
 
 	cdb := abft.NewMemStore()
 	defer cdb.Close()
@@ -172,8 +175,9 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				dagIndexer.Flush()
 				orderer.Process(e)
 
-				col := g.subGraph(e.Creator())
-				col.addDagEvent(e)
+				sg := g.subGraph(e.Creator())
+				sg.addDagEvent(e)
+
 				return nil
 			},
 			Released: func(e dag.Event, peer string, err error) {
@@ -229,17 +233,19 @@ func (g *graphInMem) Structure() []dot.Graph {
 }
 
 func (g *graphInMem) subGraph(v idx.ValidatorID) *graphInMem {
-	name := fmt.Sprintf("validator-%d", v)
+	name := fmt.Sprintf("cluster%d", v)
+	label := fmt.Sprintf("validator-%d", v)
 	sg, ok := g.subGraphs[name]
 	if !ok {
 		sg = newGraphInMem(name)
 		sg.refs = g.refs
 		sg.nodes = g.nodes
-		sg.attrs.graph.setAttr("label", name)
+		sg.attrs.graph.setAttr("label", label)
 		sg.attrs.graph.setAttr("sortv", fmt.Sprintf("%d", v))
 		sg.attrs.graph.setAttr("style", "dotted")
+		sg.attrs.edge.setAttr("constraint", "true")
 		g.subGraphs[name] = sg
-
+		sg.addPseudoNode(label)
 	}
 	return sg
 }
@@ -253,11 +259,38 @@ func (g *graphInMem) DOTAttributers() (graph, node, edge encoding.Attributer) {
 }
 
 func (g *graphInMem) addDagEvent(e dag.Event) (id int64) {
-	id = g.refs.event2id(e)
-	n := newDotNode(id, e)
-	g.nodes.set(n)
-	g.include[id] = struct{}{}
+	n := g.nodes.get(e.ID())
+	if n == nil {
+		id = g.refs.event2id(e.ID())
+		n = newDotNode(id, e)
+		g.nodes.set(n)
+	} else {
+		id = n.id
+	}
 
+	g.include[id] = struct{}{}
+	return
+}
+
+func (g *graphInMem) addPseudoNode(name string) (id int64) {
+	h := hash.BytesToEvent([]byte(name))
+	n := g.nodes.get(h)
+	if n == nil {
+		id = g.refs.event2id(h)
+		n = &dotNode{
+			id:         id,
+			hash:       h,
+			attributer: attributer(make(map[string]string, 10)),
+		}
+		n.setAttr("label", name)
+		n.setAttr("style", "invis")
+		n.setAttr("width", "0")
+		g.nodes.set(n)
+	} else {
+		id = n.id
+	}
+
+	g.include[id] = struct{}{}
 	return
 }
 
@@ -303,11 +336,14 @@ func (g *graphInMem) From(id int64) graph.Nodes {
 
 	h := g.refs.id2event(id)
 	x := g.nodes.get(h)
+
 	go func() {
 		defer close(nn.data)
 		for _, p := range x.parents {
-			n := g.nodes.get(p)
-			nn.data <- n
+			y := g.nodes.get(p)
+			if g.hasEdge(x, y) {
+				nn.data <- y
+			}
 		}
 	}()
 
@@ -331,6 +367,9 @@ func (g *graphInMem) To(id int64) graph.Nodes {
 func (g *graphInMem) HasEdgeBetween(xid, yid int64) bool {
 	x := g.nodes.get(g.refs.id2event(xid))
 	y := g.nodes.get(g.refs.id2event(yid))
+	if !g.hasEdge(x, y) {
+		return false
+	}
 
 	for _, p := range x.parents {
 		if p == y.hash {
@@ -351,6 +390,9 @@ func (g *graphInMem) HasEdgeBetween(xid, yid int64) bool {
 func (g *graphInMem) HasEdgeFromTo(uid, vid int64) bool {
 	u := g.nodes.get(g.refs.id2event(uid))
 	v := g.nodes.get(g.refs.id2event(vid))
+	if !g.hasEdge(u, v) {
+		return false
+	}
 
 	for _, p := range u.parents {
 		if p == v.hash {
@@ -368,17 +410,36 @@ func (g *graphInMem) HasEdgeFromTo(uid, vid int64) bool {
 func (g *graphInMem) Edge(uid, vid int64) graph.Edge {
 	u := g.nodes.get(g.refs.id2event(uid))
 	v := g.nodes.get(g.refs.id2event(vid))
+	if !g.hasEdge(u, v) {
+		return nil
+	}
 
 	for _, p := range u.parents {
 		if p == v.hash {
-			return &dotEdge{
+			e := &dotEdge{
 				x: u,
 				y: v,
 			}
+			return e
 		}
 	}
 
 	return nil
+}
+
+func (g *graphInMem) hasEdge(x, y *dotNode) bool {
+	if _, ok := g.include[x.id]; !ok && !g.global {
+		return false
+	}
+	if _, ok := g.include[y.id]; !ok && !g.global {
+		return false
+	}
+
+	if g.global && x.creator == y.creator {
+		return false
+	}
+
+	return true
 }
 
 func panics(name string) func(error) {
@@ -388,13 +449,13 @@ func panics(name string) func(error) {
 }
 
 func markAsRoot(n *dotNode) {
-	n.setAttr("xlabel", "root")
+	// n.setAttr("xlabel", "root")
 	n.setAttr("style", "filled")
 	n.setAttr("fillcolor", "#FFFF00")
 }
 
 func markAsAtropos(n *dotNode) {
-	n.setAttr("xlabel", "atropos")
+	// n.setAttr("xlabel", "atropos")
 	n.setAttr("style", "filled")
 	n.setAttr("fillcolor", "#FF0000")
 }
