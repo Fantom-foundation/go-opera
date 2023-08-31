@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"gonum.org/v1/gonum/graph/encoding/dot"
-
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/gossip/dagordering"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -15,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding"
+	"gonum.org/v1/gonum/graph/encoding/dot"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
@@ -24,14 +23,37 @@ import (
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
+type eventSeq []hash.Event
+
+func (s *eventSeq) event2id(e dag.Event) int64 {
+	id := int64(len(*s))
+	*s = append(*s, e.ID())
+	return id
+}
+
+func (s *eventSeq) id2event(id int64) hash.Event {
+	return (*s)[id]
+}
+
+type eventList map[hash.Event]*dotNode
+
+func (l *eventList) set(n *dotNode) {
+	(*l)[n.hash] = n
+}
+
+func (l *eventList) get(h hash.Event) *dotNode {
+	return (*l)[h]
+}
+
 // graphInMem implements dot.Graph over inmem refs and nodes
 type graphInMem struct {
 	name      string
-	subGraphs []dot.Graph
+	subGraphs map[string]*graphInMem
 
-	refs  []hash.Event
-	nodes map[hash.Event]*dotNode
-	attrs struct {
+	include map[int64]struct{}
+	refs    *eventSeq
+	nodes   *eventList
+	attrs   struct {
 		graph attributer
 		edge  attributer
 	}
@@ -39,9 +61,10 @@ type graphInMem struct {
 
 func newGraphInMem(name string) *graphInMem {
 	return &graphInMem{
-		name:  name,
-		refs:  make([]hash.Event, 0, 2000000),
-		nodes: make(map[hash.Event]*dotNode),
+		name:      name,
+		include:   make(map[int64]struct{}),
+		subGraphs: make(map[string]*graphInMem),
+
 		attrs: struct{ graph, edge attributer }{
 			attributer(make(map[string]string, 10)),
 			attributer(make(map[string]string, 10)),
@@ -52,6 +75,8 @@ func newGraphInMem(name string) *graphInMem {
 // readDagGraph read gossip.Store into inmem dot.Graph
 func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch) *graphInMem {
 	g := newGraphInMem("DOT")
+	g.refs = &eventSeq{}
+	g.nodes = &eventList{}
 	g.attrs.graph.setAttr("clusterrank", "local")
 	g.attrs.graph.setAttr("compound", "true")
 	g.attrs.graph.setAttr("newrank", "true")
@@ -80,7 +105,6 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	}
 
 	var (
-		graphCols = make(map[idx.ValidatorID]*graphInMem, 10)
 		epoch     idx.Epoch
 		prevBS    *iblockproc.BlockState
 		processed map[hash.Event]dag.Event
@@ -92,7 +116,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		for f := idx.Frame(0); f <= cdb.GetLastDecidedFrame(); f++ {
 			rr := cdb.GetFrameRoots(f)
 			for _, r := range rr {
-				node := g.nodes[r.ID]
+				node := g.nodes.get(r.ID)
 				markAsRoot(node)
 			}
 		}
@@ -109,8 +133,8 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				if block == nil {
 					break
 				}
-				node, exists := g.nodes[block.Atropos]
-				if exists {
+				node := g.nodes.get(block.Atropos)
+				if node != nil {
 					markAsAtropos(node)
 				}
 			}
@@ -123,14 +147,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		validators := gdb.GetHistoryEpochState(epoch).Validators
 
 		for _, v := range validators.IDs() {
-			_, ok := graphCols[v]
-			if ok {
-				continue
-			}
-			col := newGraphInMem(fmt.Sprintf("validator-%d", v))
-			col.attrs.graph.setAttr("style", "dotted")
-			graphCols[v] = col
-			g.subGraphs = append(g.subGraphs, col)
+			_ = g.subGraph(v)
 		}
 
 		processed = make(map[hash.Event]dag.Event, 1000)
@@ -155,7 +172,8 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				dagIndexer.Flush()
 				orderer.Process(e)
 
-				graphCols[e.Creator()].addDagEvent(e)
+				col := g.subGraph(e.Creator())
+				col.addDagEvent(e)
 				return nil
 			},
 			Released: func(e dag.Event, peer string, err error) {
@@ -203,7 +221,27 @@ func (g *graphInMem) DOTID() string {
 
 // Structure returns subgraphs.
 func (g *graphInMem) Structure() []dot.Graph {
-	return g.subGraphs
+	res := make([]dot.Graph, 0, len(g.subGraphs))
+	for _, sg := range g.subGraphs {
+		res = append(res, sg)
+	}
+	return res
+}
+
+func (g *graphInMem) subGraph(v idx.ValidatorID) *graphInMem {
+	name := fmt.Sprintf("validator-%d", v)
+	sg, ok := g.subGraphs[name]
+	if !ok {
+		sg = newGraphInMem(name)
+		sg.refs = g.refs
+		sg.nodes = g.nodes
+		sg.attrs.graph.setAttr("label", name)
+		sg.attrs.graph.setAttr("sortv", fmt.Sprintf("%d", v))
+		sg.attrs.graph.setAttr("style", "dotted")
+		g.subGraphs[name] = sg
+
+	}
+	return sg
 }
 
 // DOTAttributers are graph.Graph values that specify top-level DOT attributes.
@@ -214,12 +252,11 @@ func (g *graphInMem) DOTAttributers() (graph, node, edge encoding.Attributer) {
 	return
 }
 
-// TODO: global refs for subgraphs
 func (g *graphInMem) addDagEvent(e dag.Event) (id int64) {
-	id = int64(len(g.refs))
-	g.refs = append(g.refs, e.ID())
+	id = g.refs.event2id(e)
 	n := newDotNode(id, e)
-	g.nodes[e.ID()] = n
+	g.nodes.set(n)
+	g.include[id] = struct{}{}
 
 	return
 }
@@ -227,8 +264,11 @@ func (g *graphInMem) addDagEvent(e dag.Event) (id int64) {
 // Node returns the node with the given ID if it exists
 // in the graph, and nil otherwise.
 func (g *graphInMem) Node(id int64) graph.Node {
-	hash := g.refs[id]
-	return g.nodes[hash]
+	if _, ok := g.include[id]; !ok {
+		return nil
+	}
+	hash := g.refs.id2event(id)
+	return g.nodes.get(hash)
 }
 
 // Nodes returns all the nodes in the graph.
@@ -242,7 +282,9 @@ func (g *graphInMem) Nodes() graph.Nodes {
 	go func() {
 		defer close(nn.data)
 
-		for _, e := range g.nodes {
+		for id := range g.include {
+			h := g.refs.id2event(id)
+			e := g.nodes.get(h)
 			nn.data <- e
 		}
 	}()
@@ -259,12 +301,12 @@ func (g *graphInMem) From(id int64) graph.Nodes {
 		data: make(chan *dotNode),
 	}
 
-	h := g.refs[id]
-	x := g.nodes[h]
+	h := g.refs.id2event(id)
+	x := g.nodes.get(h)
 	go func() {
 		defer close(nn.data)
 		for _, p := range x.parents {
-			n := g.nodes[p]
+			n := g.nodes.get(p)
 			nn.data <- n
 		}
 	}()
@@ -287,8 +329,8 @@ func (g *graphInMem) To(id int64) graph.Nodes {
 // HasEdgeBetween returns whether an edge exists between
 // nodes with IDs xid and yid without considering direction.
 func (g *graphInMem) HasEdgeBetween(xid, yid int64) bool {
-	x := g.nodes[g.refs[xid]]
-	y := g.nodes[g.refs[yid]]
+	x := g.nodes.get(g.refs.id2event(xid))
+	y := g.nodes.get(g.refs.id2event(yid))
 
 	for _, p := range x.parents {
 		if p == y.hash {
@@ -307,8 +349,8 @@ func (g *graphInMem) HasEdgeBetween(xid, yid int64) bool {
 // HasEdgeFromTo returns whether an edge exists
 // in the graph from u to v with IDs uid and vid.
 func (g *graphInMem) HasEdgeFromTo(uid, vid int64) bool {
-	u := g.nodes[g.refs[uid]]
-	v := g.nodes[g.refs[vid]]
+	u := g.nodes.get(g.refs.id2event(uid))
+	v := g.nodes.get(g.refs.id2event(vid))
 
 	for _, p := range u.parents {
 		if p == v.hash {
@@ -324,8 +366,8 @@ func (g *graphInMem) HasEdgeFromTo(uid, vid int64) bool {
 // must be directly reachable from u as defined by the
 // From method.
 func (g *graphInMem) Edge(uid, vid int64) graph.Edge {
-	u := g.nodes[g.refs[uid]]
-	v := g.nodes[g.refs[vid]]
+	u := g.nodes.get(g.refs.id2event(uid))
+	v := g.nodes.get(g.refs.id2event(vid))
 
 	for _, p := range u.parents {
 		if p == v.hash {
