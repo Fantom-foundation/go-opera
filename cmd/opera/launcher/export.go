@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/status-im/keycard-go/hexutils"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"gonum.org/v1/gonum/graph/encoding/dot"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -143,12 +142,8 @@ func exportDOT(writer io.Writer, gdb *gossip.Store, cfg *config, from, to idx.Ep
 	}
 
 	graph := dag.Graph(gdb, consensusCfg, from, to)
-	buf, err := dot.Marshal(graph, "DAG", "", "\t")
-	if err != nil {
-		return err
-	}
 
-	_, err = writer.Write(buf)
+	_, err = writer.Write([]byte(graph.String()))
 	if err != nil {
 		return err
 	}

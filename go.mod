@@ -43,8 +43,6 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
 
-require gonum.org/v1/gonum v0.13.0
-
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
