@@ -183,32 +183,13 @@ func MainNetRules() Rules {
 	}
 }
 
-func X1TestnetRules() Rules {
-	return Rules{
-		Name:      "x1-testnet",
-		NetworkID: TestNetworkID,
-		Dag:       DefaultDagRules(),
-		Epochs:    DefaultEpochsRules(),
-		Economy:   X1EconomyRules(),
-		Blocks: BlocksRules{
-			MaxBlockGas:             20500000,
-			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
-		},
-		Upgrades: Upgrades{
-			Berlin: true,
-			London: true,
-			Llr:    true,
-		},
-	}
-}
-
 func TestNetRules() Rules {
 	return Rules{
 		Name:      "x1-testnet",
 		NetworkID: TestNetworkID,
 		Dag:       DefaultDagRules(),
 		Epochs:    DefaultEpochsRules(),
-		Economy:   DefaultEconomyRules(),
+		Economy:   TestnetEconomyRules(),
 		Blocks: BlocksRules{
 			MaxBlockGas:             20500000,
 			MaxEmptyBlockSkipPeriod: inter.Timestamp(1 * time.Minute),
@@ -261,16 +242,6 @@ func TestnetEconomyRules() EconomyRules {
 	}
 }
 
-func X1EconomyRules() EconomyRules {
-	return EconomyRules{
-		BlockMissedSlack: 50,
-		Gas:              X1GasRules(),
-		MinGasPrice:      big.NewInt(5e11),
-		ShortGasPower:    X1ShortGasPowerRules(),
-		LongGasPower:     X1LongGasPowerRules(),
-	}
-}
-
 // FakeEconomyRules returns fakenet economy
 func FakeEconomyRules() EconomyRules {
 	cfg := DefaultEconomyRules()
@@ -307,19 +278,6 @@ func DefaultGasRules() GasRules {
 	}
 }
 
-func X1GasRules() GasRules {
-	return GasRules{
-		MaxEventGas:          10000000 + DefaultEventGas,
-		EventGas:             DefaultEventGas,
-		ParentGas:            2400,
-		ExtraDataGas:         25,
-		BlockVotesBaseGas:    1024,
-		BlockVoteGas:         512,
-		EpochVoteGas:         1536,
-		MisbehaviourProofGas: 71536,
-	}
-}
-
 func FakeNetEpochsRules() EpochsRules {
 	cfg := DefaultEpochsRules()
 	cfg.MaxEpochGas /= 5
@@ -341,24 +299,6 @@ func DefaulLongGasPowerRules() GasPowerRules {
 func DefaultShortGasPowerRules() GasPowerRules {
 	// 2x faster allocation rate, 6x lower max accumulated gas power
 	cfg := DefaulLongGasPowerRules()
-	cfg.AllocPerSec *= 2
-	cfg.StartupAllocPeriod /= 2
-	cfg.MaxAllocPeriod /= 2 * 6
-	return cfg
-}
-
-func X1LongGasPowerRules() GasPowerRules {
-	return GasPowerRules{
-		AllocPerSec:        100 * DefaultEventGas,
-		MaxAllocPeriod:     inter.Timestamp(60 * time.Minute),
-		StartupAllocPeriod: inter.Timestamp(5 * time.Second),
-		MinStartupGas:      DefaultEventGas * 20,
-	}
-}
-
-func X1ShortGasPowerRules() GasPowerRules {
-	// 2x faster allocation rate, 6x lower max accumulated gas power
-	cfg := X1LongGasPowerRules()
 	cfg.AllocPerSec *= 2
 	cfg.StartupAllocPeriod /= 2
 	cfg.MaxAllocPeriod /= 2 * 6
