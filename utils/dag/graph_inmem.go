@@ -3,6 +3,7 @@ package dag
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
@@ -16,7 +17,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/utils/dag/dot"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -54,9 +54,10 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	graph.Set("compound", "true")
 	graph.SetGlobalEdgeAttr("constraint", "true")
 	var (
-		clusters  = 0
+		clusters  idx.ValidatorID
 		g         *dot.SubGraph // epoch sub
 		subGraphs map[idx.ValidatorID]*dot.SubGraph
+		emitters  []string
 		nodes     map[hash.Event]*dot.Node
 	)
 
@@ -64,11 +65,14 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 	var (
 		epoch     idx.Epoch
-		prevBS    *iblockproc.BlockState
 		processed map[hash.Event]dag.Event
 	)
 
 	finishCurrentEpoch := func() {
+		if epoch == 0 {
+			return // nothing to finish
+		}
+
 		for f := idx.Frame(0); f <= cdb.GetLastDecidedFrame(); f++ {
 			rr := cdb.GetFrameRoots(f)
 			for _, r := range rr {
@@ -77,67 +81,71 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			}
 		}
 
-		bs, _ := gdb.GetHistoryBlockEpochState(epoch)
-		if prevBS != nil {
-			maxBlock := idx.Block(math.MaxUint64)
-			if bs != nil {
-				maxBlock = bs.LastBlock.Idx
-			}
+		bs0, _ := gdb.GetHistoryBlockEpochState(epoch)
+		blockFrom := bs0.LastBlock.Idx + 1
 
-			for b := prevBS.LastBlock.Idx + 1; b <= maxBlock; b++ {
-				block := gdb.GetBlock(b)
-				if block == nil {
-					break
-				}
-				n := nodes[block.Atropos]
-				if n == nil {
-					continue
-				}
-				markAsAtropos(n)
-			}
+		bs1, _ := gdb.GetHistoryBlockEpochState(epoch + 1)
+		blockTo := idx.Block(math.MaxUint64)
+		if bs1 != nil {
+			blockTo = bs1.LastBlock.Idx
 		}
-		prevBS = bs
+
+		for b := blockFrom; b <= blockTo; b++ {
+			block := gdb.GetBlock(b)
+			if block == nil {
+				break
+			}
+			n := nodes[block.Atropos]
+			markAsAtropos(n)
+		}
 
 		// NOTE: github.com/tmc/dot renders subgraphs not in the ordering that specified
 		//   so we introduce pseudo nodes and edges to work around
-		if len(subGraphs) > 0 {
-			groups := make([]string, 0, len(subGraphs))
-			for v := range subGraphs {
-				groups = append(groups, groupName(v))
-			}
-			g.SameRank([]string{
-				"\"" + strings.Join(groups, `" -> "`) + "\" [style = invis, constraint = true];",
-			})
-		}
+		g.SameRank([]string{
+			"\"" + strings.Join(emitters, `" -> "`) + "\" [style = invis, constraint = true];",
+		})
 	}
 
 	resetToNewEpoch := func() {
-		validators := gdb.GetHistoryEpochState(epoch).Validators
-
-		g = dot.NewSubgraph(fmt.Sprintf("epoch-%d", epoch))
-		// g.Set("style", "invis")
+		name := fmt.Sprintf("epoch-%d", epoch)
+		g = dot.NewSubgraph(name)
+		g.Set("label", name)
+		g.Set("style", "dotted")
+		g.Set("compound", "true")
 		g.Set("clusterrank", "local")
 		g.Set("newrank", "true")
 		g.Set("ranksep", "0.05")
 		graph.AddSubgraph(g)
 
-		subGraphs = make(map[idx.ValidatorID]*dot.SubGraph, validators.Len())
-		for _, v := range validators.IDs() {
-			group := groupName(v)
-			sg := dot.NewSubgraph(fmt.Sprintf("cluster%d", clusters))
-			clusters++
-			sg.Set("label", group)
-			sg.Set("sortv", fmt.Sprintf("%d", v))
-			sg.Set("style", "dotted")
+		validators := gdb.GetHistoryEpochState(epoch).Validators
 
-			pseudoNode := dot.NewNode(group)
+		sortedIDs := make([]idx.ValidatorID, validators.Len())
+		copy(sortedIDs, validators.IDs())
+		sort.Slice(sortedIDs, func(i, j int) bool {
+			return sortedIDs[i] < sortedIDs[j]
+		})
+		subGraphs = make(map[idx.ValidatorID]*dot.SubGraph, len(sortedIDs))
+		emitters = make([]string, 0, len(sortedIDs))
+		var maxID idx.ValidatorID
+		for _, v := range sortedIDs {
+			if maxID < v {
+				maxID = v
+			}
+			emitter := fmt.Sprintf("emitter-%d", clusters+v)
+			emitters = append(emitters, emitter)
+			sg := dot.NewSubgraph(fmt.Sprintf("cluster%d", clusters+v))
+			sg.Set("label", fmt.Sprintf("emitter-%d", v))
+			sg.Set("sortv", fmt.Sprintf("%d", clusters+v))
+			sg.Set("style", "dotted")
+			subGraphs[v] = sg
+			g.AddSubgraph(sg)
+
+			pseudoNode := dot.NewNode(emitter)
 			pseudoNode.Set("style", "invis")
 			pseudoNode.Set("width", "0")
 			sg.AddNode(pseudoNode)
-
-			subGraphs[v] = sg
-			g.AddSubgraph(sg)
 		}
+		clusters += maxID
 
 		nodes = make(map[hash.Event]*dot.Node)
 		processed = make(map[hash.Event]dag.Event, 1000)
@@ -162,7 +170,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				dagIndexer.Flush()
 				orderer.Process(e)
 
-				name := fmt.Sprintf("%s\n%d", e.ID().String(), e.Creator())
+				name := e.ID().String()
 				n := dot.NewNode(name)
 				sg := subGraphs[e.Creator()]
 				sg.AddNode(n)
@@ -199,12 +207,12 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
 		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
-			finishCurrentEpoch()
-			epoch = e.Epoch()
 			// break after last epoch:
-			if to >= from && epoch > to {
+			if to >= from && e.Epoch() > to {
 				return false
 			}
+			finishCurrentEpoch()
+			epoch = e.Epoch()
 			resetToNewEpoch()
 		}
 
@@ -234,8 +242,4 @@ func markAsAtropos(n *dot.Node) {
 	// n.setAttr("xlabel", "atropos")
 	n.Set("style", "filled")
 	n.Set("fillcolor", "#FF0000")
-}
-
-func groupName(v idx.ValidatorID) string {
-	return fmt.Sprintf("host-%d", v)
 }
