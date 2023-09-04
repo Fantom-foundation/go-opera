@@ -50,16 +50,14 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 
 	// 1. Set dot.Graph data:
 
-	g := dot.NewGraph("DOT")
-	g.Set("clusterrank", "local")
-	g.Set("compound", "true")
-	g.Set("newrank", "true")
-	g.Set("ranksep", "0.05")
-	g.SetGlobalEdgeAttr("constraint", "true")
-
+	graph := dot.NewGraph("DOT")
+	graph.Set("compound", "true")
+	graph.SetGlobalEdgeAttr("constraint", "true")
 	var (
-		nodes     = make(map[hash.Event]*dot.Node)
-		subGraphs = make(map[idx.ValidatorID]*dot.SubGraph)
+		clusters  = 0
+		g         *dot.SubGraph // epoch sub
+		subGraphs map[idx.ValidatorID]*dot.SubGraph
+		nodes     map[hash.Event]*dot.Node
 	)
 
 	// 2. Set event processor data:
@@ -70,9 +68,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 		processed map[hash.Event]dag.Event
 	)
 
-	readRestoredAbftStore := func() {
-		bs, _ := gdb.GetHistoryBlockEpochState(epoch)
-
+	finishCurrentEpoch := func() {
 		for f := idx.Frame(0); f <= cdb.GetLastDecidedFrame(); f++ {
 			rr := cdb.GetFrameRoots(f)
 			for _, r := range rr {
@@ -81,8 +77,8 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			}
 		}
 
+		bs, _ := gdb.GetHistoryBlockEpochState(epoch)
 		if prevBS != nil {
-
 			maxBlock := idx.Block(math.MaxUint64)
 			if bs != nil {
 				maxBlock = bs.LastBlock.Idx
@@ -100,19 +96,36 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 				markAsAtropos(n)
 			}
 		}
-
 		prevBS = bs
+
+		// NOTE: github.com/tmc/dot renders subgraphs not in the ordering that specified
+		//   so we introduce pseudo nodes and edges to work around
+		if len(subGraphs) > 0 {
+			groups := make([]string, 0, len(subGraphs))
+			for v := range subGraphs {
+				groups = append(groups, groupName(v))
+			}
+			g.SameRank([]string{
+				"\"" + strings.Join(groups, `" -> "`) + "\" [style = invis, constraint = true];",
+			})
+		}
 	}
 
 	resetToNewEpoch := func() {
 		validators := gdb.GetHistoryEpochState(epoch).Validators
 
+		g = dot.NewSubgraph(fmt.Sprintf("epoch-%d", epoch))
+		// g.Set("style", "invis")
+		g.Set("clusterrank", "local")
+		g.Set("newrank", "true")
+		g.Set("ranksep", "0.05")
+		graph.AddSubgraph(g)
+
+		subGraphs = make(map[idx.ValidatorID]*dot.SubGraph, validators.Len())
 		for _, v := range validators.IDs() {
-			if _, ok := subGraphs[v]; ok {
-				continue
-			}
 			group := groupName(v)
-			sg := dot.NewSubgraph(fmt.Sprintf("cluster%d", len(subGraphs)))
+			sg := dot.NewSubgraph(fmt.Sprintf("cluster%d", clusters))
+			clusters++
 			sg.Set("label", group)
 			sg.Set("sortv", fmt.Sprintf("%d", v))
 			sg.Set("style", "dotted")
@@ -126,6 +139,7 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 			g.AddSubgraph(sg)
 		}
 
+		nodes = make(map[hash.Event]*dot.Node)
 		processed = make(map[hash.Event]dag.Event, 1000)
 		err := orderer.Reset(epoch, validators)
 		if err != nil {
@@ -185,37 +199,23 @@ func readDagGraph(gdb *gossip.Store, cfg integration.Configs, from, to idx.Epoch
 	gdb.ForEachEvent(from, func(e *inter.EventPayload) bool {
 		// current epoch is finished, so process accumulated events
 		if epoch < e.Epoch() {
-			readRestoredAbftStore()
-
+			finishCurrentEpoch()
 			epoch = e.Epoch()
 			// break after last epoch:
 			if to >= from && epoch > to {
 				return false
 			}
-
 			resetToNewEpoch()
 		}
 
 		buffer.PushEvent(e, "")
-
 		return true
 	})
-	epoch++
-	readRestoredAbftStore()
+	finishCurrentEpoch()
 
 	// 4. Result
 
-	// NOTE: github.com/tmc/dot renders subgraphs not in the ordering that specified
-	//   so we introduce pseudo nodes and edges to work around
-	groups := make([]string, 0, len(subGraphs))
-	for v := range subGraphs {
-		groups = append(groups, groupName(v))
-	}
-	g.SameRank([]string{
-		"\"" + strings.Join(groups, `" -> "`) + "\" [style = invis, constraint = true];",
-	})
-
-	return g
+	return graph
 }
 
 func panics(name string) func(error) {
