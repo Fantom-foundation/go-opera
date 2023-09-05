@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
@@ -21,7 +22,7 @@ import (
 func BenchmarkFlushDBs(b *testing.B) {
 	dir := tmpDir("flush_bench")
 	defer os.RemoveAll(dir)
-	genStore := makefakegenesis.FakeGenesisStore(1, utils.ToFtm(1), utils.ToFtm(1))
+	genStore := makefakegenesis.FakeGenesisStore(rawdb.HashScheme, 1, utils.ToFtm(1), utils.ToFtm(1))
 	g := genStore.Genesis()
 	_, _, store, s2, _, closeDBs := MakeEngine(dir, &g, Configs{
 		Opera:         gossip.DefaultConfig(cachescale.Identity),

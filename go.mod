@@ -129,6 +129,6 @@ require (
 
 replace github.com/Fantom-foundation/lachesis-base => github.com/hadv/lachesis-base v1.11.5-rc1
 
-replace github.com/ethereum/go-ethereum => github.com/hadv/go-ethereum v1.13.0-rc.3
+replace github.com/ethereum/go-ethereum => github.com/hadv/go-ethereum v1.13.0-rc.4
 
 replace github.com/dvyukov/go-fuzz => github.com/guzenok/go-fuzz v0.0.0-20210201043429-a8e90a2a4f88

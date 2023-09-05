@@ -222,7 +222,7 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		return makefakegenesis.FakeGenesisStore(ctx.String(StateSchemeFlag.Name), num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.IsSet(GenesisFlag.Name):
 		genesisPath := ctx.String(GenesisFlag.Name)
 

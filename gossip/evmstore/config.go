@@ -1,6 +1,8 @@
 package evmstore
 
 import (
+	"time"
+
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/params"
@@ -32,6 +34,10 @@ type (
 		TrieDirtyLimit int
 		// Memory allowance (MB) to use for caching trie nodes in memory
 		TrieCleanLimit int
+		// Time limit after which to flush the current in-memory trie to disk
+		TrieTimeLimit time.Duration
+		// Memory allowance (MB) to use for caching snapshot entries in memory
+		SnapshotLimit int
 		// Whether to enable greedy gc mode
 		GreedyGC bool
 		// Number of blocks from head whose state histories are reserved.
@@ -62,6 +68,7 @@ func DefaultStoreConfig(scale cachescale.Func) StoreConfig {
 			GreedyGC:          false,
 			TrieDirtyLimit:    scale.I(256 * opt.MiB),
 			TrieCleanLimit:    scale.I(128 * opt.MiB),
+			TrieTimeLimit:     5 * time.Minute,
 			StateScheme:       rawdb.HashScheme,
 			StateHistory:      params.FullImmutabilityThreshold,
 		},

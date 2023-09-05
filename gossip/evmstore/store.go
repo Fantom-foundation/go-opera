@@ -168,6 +168,11 @@ func (s *Store) CleanCommit(block iblockproc.BlockState) error {
 	// due to it already be referenced on `Commit()` function
 	triedb := s.EvmState.TrieDB()
 	stateRoot := common.Hash(block.FinalizedStateRoot)
+	// If node is running in path mode, skip explicit gc operation
+	// which is unnecessary in this mode.
+	if triedb.Scheme() == rawdb.PathScheme {
+		return nil
+	}
 	if current := uint64(block.LastBlock.Idx); current > TriesInMemory {
 		// Find the next state trie we need to commit
 		chosen := current - TriesInMemory
@@ -200,6 +205,11 @@ func (s *Store) IsEvmSnapshotPaused() bool {
 // Commit changes.
 func (s *Store) Commit(block idx.Block, root hash.Hash, flush bool) error {
 	triedb := s.EvmState.TrieDB()
+	// If node is running in path mode, skip explicit gc operation
+	// which is unnecessary in this mode.
+	if triedb.Scheme() == rawdb.PathScheme {
+		return nil
+	}
 	stateRoot := common.Hash(root)
 	// If we're applying genesis or running an archive node, always flush
 	if flush || s.cfg.Cache.TrieDirtyDisabled {

@@ -109,8 +109,10 @@ func (b *GenesisBuilder) CurrentHash() hash.Hash {
 	return er.Hash()
 }
 
-func NewGenesisBuilder(dbs kvdb.DBProducer) *GenesisBuilder {
-	tmpEvmStore := evmstore.NewStore(dbs, evmstore.LiteStoreConfig())
+func NewGenesisBuilder(scheme string, dbs kvdb.DBProducer) *GenesisBuilder {
+	cfg := evmstore.LiteStoreConfig()
+	cfg.Cache.StateScheme = scheme
+	tmpEvmStore := evmstore.NewStore(dbs, cfg)
 	statedb, _ := tmpEvmStore.StateDB(hash.Zero)
 	return &GenesisBuilder{
 		dbs:         dbs,
