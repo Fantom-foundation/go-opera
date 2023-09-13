@@ -90,6 +90,7 @@ type feeHistoryResult struct {
 	Reward       [][]*hexutil.Big `json:"reward,omitempty"`
 	BaseFee      []*hexutil.Big   `json:"baseFeePerGas,omitempty"`
 	GasUsedRatio []float64        `json:"gasUsedRatio"`
+	Note         string           `json:"note"`
 }
 
 var errInvalidPercentile = errors.New("invalid reward percentile")
@@ -153,6 +154,11 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 		r := rand.New(rand.NewSource(int64(oldest) + int64(i)))
 		res.GasUsedRatio = append(res.GasUsedRatio, 0.9+r.Float64()*0.1)
 	}
+	res.Note = `In the FTM network, the eth_feeHistory method operates slightly differently due to the network's unique consensus mechanism. ` +
+		`Here, instead of returning a range of gas tip values from requested blocks, ` +
+		`it provides a singular estimated gas tip based on a defined confidence level (indicated by the percentile parameter). ` +
+		`This approach means that while you will receive replicated (and randomized) reward values across the requested blocks, ` +
+		`the average or median of these values remains consistent with the intended gas tip.`
 	return res, nil
 }
 
