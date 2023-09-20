@@ -29,20 +29,24 @@ func (em *Emitter) addLlrBlockVotes(e *inter.MutableEventPayload) {
 	if prevInFile != nil && start < *prevInFile+1 {
 		start = *prevInFile + 1
 	}
-	records := make([]hash.Hash, 0, 16)
+	records := make([]hash.Hash, 0, basiccheck.MaxBlockVotesPerEvent)
 	epochEnd := false
 	var epoch idx.Epoch
 	for b := start; len(records) < basiccheck.MaxBlockVotesPerEvent; b++ {
-		record := em.world.GetBlockRecordHash(b)
-		if record == nil {
-			break
-		}
 		blockEpoch := em.world.GetBlockEpoch(b)
 		if epoch == 0 {
+			if !em.isEpochValidator(blockEpoch) {
+				continue
+			}
 			epoch = blockEpoch
+			start = b
 		}
 		if epoch != blockEpoch || blockEpoch == 0 {
 			epochEnd = true
+			break
+		}
+		record := em.world.GetBlockRecordHash(b)
+		if record == nil {
 			break
 		}
 		records = append(records, *record)
@@ -72,6 +76,9 @@ func (em *Emitter) addLlrEpochVote(e *inter.MutableEventPayload) {
 	prevInFile := em.readLastEpochVote()
 	if prevInFile != nil && target < *prevInFile+1 {
 		target = *prevInFile + 1
+	}
+	if !em.isEpochValidator(target) {
+		return
 	}
 	vote := em.world.GetEpochRecordHash(target)
 	if vote == nil {
@@ -105,4 +112,14 @@ func (em *Emitter) skipLlrEpochVote() bool {
 	}
 	// otherwise, poor validators have a small chance to vote
 	return rand.Intn(30) != 0
+}
+
+func (em *Emitter) isEpochValidator(epoch idx.Epoch) bool {
+	es := em.world.GetHistoryEpochState(epoch)
+	if es == nil {
+		return false
+	}
+
+	_, ok := es.ValidatorProfiles[em.config.Validator.ID]
+	return ok
 }

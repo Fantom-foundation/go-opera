@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
@@ -69,6 +70,7 @@ type Reader interface {
 	LlrReader
 	GetLatestBlockIndex() idx.Block
 	GetEpochValidators() (*pos.Validators, idx.Epoch)
+	GetHistoryEpochState(epoch idx.Epoch) *iblockproc.EpochState
 	GetEvent(hash.Event) *inter.Event
 	GetEventPayload(hash.Event) *inter.EventPayload
 	GetLastEvent(epoch idx.Epoch, from idx.ValidatorID) *hash.Event
