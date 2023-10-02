@@ -1,8 +1,6 @@
 package emitter
 
 import (
-	"github.com/Fantom-foundation/go-opera/vecmt"
-	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"testing"
 	"time"
 
@@ -10,12 +8,14 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/golang/mock/gomock"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 func TestParents(t *testing.T) {
