@@ -1,6 +1,10 @@
 package genesis
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 
 	"github.com/Fantom-foundation/go-opera/inter/ibr"
@@ -45,6 +49,19 @@ func (hh Hashes) Equal(hh2 Hashes) bool {
 	return hh.Includes(hh2) && hh2.Includes(hh)
 }
 
+func (hh Hashes) String() string {
+	bb := make([]string, 0, len(hh))
+	for n, h := range hh {
+		bb = append(bb, fmt.Sprintf("%s: %s", n, h.String()))
+	}
+	sort.Strings(bb)
+	return "{" + strings.Join(bb, ", ") + "}"
+}
+
 func (h Header) Equal(h2 Header) bool {
 	return h == h2
+}
+
+func (h Header) String() string {
+	return fmt.Sprintf("{%d, net:%s, id:%s}", h.NetworkID, h.NetworkName, h.GenesisID.String())
 }
