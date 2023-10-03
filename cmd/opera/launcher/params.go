@@ -182,7 +182,7 @@ var (
 
 		{
 			Name:   "Testnet-16200 without history",
-			Header: mainnetHeader,
+			Header: testnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection(0): hash.HexToHash("0xd72e9bf39c645df8d978955fab8997a7e9cd7cb5812c007e2bb4b51a8c570a90"),
 				genesisstore.BlocksSection(0): hash.HexToHash("0x7d651ed0e0f3e92ffd89cb52112598db54afd8bf3050bc083ff0bfe1b98948fd"),
@@ -190,7 +190,7 @@ var (
 		},
 		{
 			Name:   "Testnet-16200 without MPT",
-			Header: mainnetHeader,
+			Header: testnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection(0): hash.HexToHash("0x61040a80f16755b86d67f13880f55c1238d307e2e1c6fc87951eb3bdee0bdff2"),
 				genesisstore.BlocksSection(0): hash.HexToHash("0x12010621d8cf4dcd4ea357e98eac61edf9517a6df752cb2d929fca69e56bd8d1"),
@@ -200,7 +200,7 @@ var (
 		},
 		{
 			Name:   "Testnet-16200 with pruned MPT",
-			Header: mainnetHeader,
+			Header: testnetHeader,
 			Hashes: genesis.Hashes{
 				genesisstore.EpochsSection(0): hash.HexToHash("0x61040a80f16755b86d67f13880f55c1238d307e2e1c6fc87951eb3bdee0bdff2"),
 				genesisstore.BlocksSection(0): hash.HexToHash("0x12010621d8cf4dcd4ea357e98eac61edf9517a6df752cb2d929fca69e56bd8d1"),
