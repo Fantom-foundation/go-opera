@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter/mock"
 	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
@@ -99,15 +100,18 @@ func TestParents(t *testing.T) {
 	})
 
 	t.Run("build strategies 0 events", func(t *testing.T) {
-		em.buildSearchStrategies(idx.Event(0))
+		strategies := em.buildSearchStrategies(idx.Event(0))
+		require.Equal(t, 0, len(strategies))
 	})
 
 	t.Run("build strategies 1 event", func(t *testing.T) {
-		em.buildSearchStrategies(idx.Event(1))
+		strategies := em.buildSearchStrategies(idx.Event(1))
+		require.Equal(t, 1, len(strategies))
 	})
 
 	t.Run("build strategies 4 event", func(t *testing.T) {
-		em.buildSearchStrategies(idx.Event(4))
+		strategies := em.buildSearchStrategies(idx.Event(4))
+		require.Equal(t, 4, len(strategies))
 	})
 
 	t.Run("build strategies with fcIndexer", func(t *testing.T) {
@@ -119,14 +123,23 @@ func TestParents(t *testing.T) {
 		em.quorumIndexer = nil
 		em.fcIndexer = ancestor.NewFCIndexer(newValidators, em.world.DagIndex(), em.config.Validator.ID)
 
-		em.buildSearchStrategies(idx.Event(4))
+		strategies := em.buildSearchStrategies(idx.Event(4))
+		require.Equal(t, 4, len(strategies))
 	})
 
 	t.Run("choose parent not selfParent", func(t *testing.T) {
-		em.chooseParents(idx.Epoch(1), em.config.Validator.ID)
+		event, events, ok := em.chooseParents(idx.Epoch(1), em.config.Validator.ID)
+		require.Equal(t, true, ok)
+		var eventExp *hash.Event
+		require.Equal(t, eventExp, event)
+		require.Equal(t, hash.Events{}, events)
 	})
 
 	t.Run("choose parent selfParent", func(t *testing.T) {
-		em.chooseParents(idx.Epoch(2), em.config.Validator.ID)
+		event, events, ok := em.chooseParents(idx.Epoch(2), em.config.Validator.ID)
+		require.Equal(t, true, ok)
+		eventExp := new(hash.Event)
+		require.Equal(t, eventExp, event)
+		require.Equal(t, hash.Events{hash.Event{}}, events)
 	})
 }
