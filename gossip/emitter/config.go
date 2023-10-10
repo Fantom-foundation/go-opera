@@ -92,15 +92,3 @@ func (cfg EmitIntervals) RandomizeEmitTime(r *rand.Rand) EmitIntervals {
 	}
 	return config
 }
-
-// FakeConfig returns the testing configurations for the events emitter.
-func FakeConfig(num idx.Validator) Config {
-	cfg := DefaultConfig()
-	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
-	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max / 2
-	if num <= 1 {
-		// disable self-fork protection if fakenet 1/1
-		cfg.EmitIntervals.DoublesignProtection = 0
-	}
-	return cfg
-}

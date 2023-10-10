@@ -94,7 +94,18 @@ func MustApplyFakeGenesis(statedb *state.StateDB, time inter.Timestamp, balances
 
 // FakeKey gets n-th fake private key.
 func FakeKey(n uint32) *ecdsa.PrivateKey {
-	var keys = [100]string{
+	/* NOTE: hardcoded keys are from legacy (golang 1.17)
+	func FakeKey(n uint32) *ecdsa.PrivateKey {
+		reader := rand.New("math/rand".NewSource(int64(n)))
+		key, err := ecdsa.GenerateKey(crypto.S256(), reader)
+		if err != nil {
+			panic(err)
+		}
+		return key
+	}
+	*/
+	var keys = [101]string{
+		"0x41d3ff12045b73c870529fe44f70dca2745bafbe1698ffc3c8759eef3cfbaee1",
 		"0x163f5f0f9a621d72fedd85ffca3d08d131ab4e812181e0d30ffd1c885d20aac7",
 		"0x3144c0aa4ced56dc15c79b045bc5559a5ac9363d98db6df321fe3847a103740f",
 		"0x04a531f967898df5dbe223b67989b248e23c1c356a3f6717775cccb7fe53482c",
@@ -197,10 +208,10 @@ func FakeKey(n uint32) *ecdsa.PrivateKey {
 		"0x4203c438d4e94bf4a595794b5f5c2882f959face730abb7a7b8acb462c8e138d",
 	}
 
-	if n == 0 || n > 100 {
+	if 0 > n || n >= uint32(len(keys)) {
 		panic(errors.New("validator num is out of range"))
 	}
 
-	key, _ := crypto.ToECDSA(hexutil.MustDecode(keys[n-1]))
+	key, _ := crypto.ToECDSA(hexutil.MustDecode(keys[n]))
 	return key
 }

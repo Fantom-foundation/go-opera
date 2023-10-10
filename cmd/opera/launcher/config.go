@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
@@ -207,10 +208,7 @@ func loadAllConfigs(file string, cfg *config) error {
 func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		if err != nil {
-			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
-		}
+		num := getFakeValidatorCount(ctx)
 		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
 	case ctx.GlobalIsSet(GenesisFlag.Name):
 		genesisPath := ctx.GlobalString(GenesisFlag.Name)
@@ -272,10 +270,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalIsSet(DataDirFlag.Name):
 		cfg.DataDir = ctx.GlobalString(DataDirFlag.Name)
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		if err != nil {
-			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
-		}
+		num := getFakeValidatorCount(ctx)
 		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", num))
 	}
 }
@@ -498,11 +493,13 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		if err != nil {
-			return nil, fmt.Errorf("invalid fakenet flag")
+		// don't wait long in fakenet
+		cfg.Emitter.EmitIntervals.Max = 10 * time.Second
+		cfg.Emitter.EmitIntervals.DoublesignProtection = 5 * time.Second
+		if getFakeValidatorCount(ctx) <= 1 {
+			// disable self-fork protection if fakenet 1/1
+			cfg.Emitter.EmitIntervals.DoublesignProtection = 0
 		}
-		cfg.Emitter = emitter.FakeConfig(num)
 		setBootnodes(ctx, []string{}, &cfg.Node)
 	} else {
 		// "asDefault" means set network defaults

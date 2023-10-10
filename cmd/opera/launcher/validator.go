@@ -7,7 +7,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
@@ -34,18 +33,14 @@ var validatorPasswordFlag = cli.StringFlag{
 func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
 	// Extract the current validator address, new flag overriding legacy one
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		id, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
-		if err != nil {
-			return err
+		id := getFakeValidatorID(ctx)
+		if id != 0 {
+			if ctx.GlobalIsSet(validatorIDFlag.Name) {
+				return errors.New("specified validator ID with both --fakenet and --validator.id")
+			}
+			cfg.Validator.ID = id
+			cfg.Validator.PubKey = fakeValidatorPubKey(id)
 		}
-
-		if ctx.GlobalIsSet(validatorIDFlag.Name) && id != 0 {
-			return errors.New("specified validator ID with both --fakenet and --validator.id")
-		}
-
-		cfg.Validator.ID = id
-		validators := makefakegenesis.GetFakeValidators(num)
-		cfg.Validator.PubKey = validators.Map()[cfg.Validator.ID].PubKey
 	}
 
 	if ctx.GlobalIsSet(validatorIDFlag.Name) {

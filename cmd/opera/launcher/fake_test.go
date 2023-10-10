@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/integration/makefakegenesis"
 	"github.com/Fantom-foundation/go-opera/inter/validatorpk"
 )
 
@@ -101,18 +99,11 @@ To exit, press ctrl-d
 	}
 }
 
-func readFakeValidator(fakenet string) *validatorpk.PubKey {
-	n, _, err := parseFakeGen(fakenet)
+func readFakeValidator(fakenet string) validatorpk.PubKey {
+	id, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
 	}
 
-	if n < 1 {
-		return nil
-	}
-
-	return &validatorpk.PubKey{
-		Raw:  crypto.FromECDSAPub(&makefakegenesis.FakeKey(n).PublicKey),
-		Type: validatorpk.Types.Secp256k1,
-	}
+	return fakeValidatorPubKey(id)
 }
