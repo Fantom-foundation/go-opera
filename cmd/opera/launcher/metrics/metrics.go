@@ -15,33 +15,30 @@ var once sync.Once
 
 func SetDataDir(datadir string) {
 	once.Do(func() {
-		go measureDbDir("db_size", datadir)
+
+		var dbSize int64
+		_ = metrics.NewRegisteredFunctionalGauge("db_size", nil, func() int64 {
+			return atomic.LoadInt64(&dbSize)
+		})
+
+		if !metrics.Enabled {
+			return
+		}
+
+		if len(datadir) == 0 || datadir == "inmemory" {
+			return
+		}
+
+		go measureDbDir(datadir, &dbSize)
+
 	})
 }
 
-func measureDbDir(name, datadir string) {
-	var (
-		dbSize int64
-		gauge  metrics.Gauge
-		rescan = (len(datadir) > 0 && datadir != "inmemory")
-	)
+func measureDbDir(datadir string, dbSize *int64) {
 	for {
 		time.Sleep(10 * time.Second)
-
-		if rescan {
-			size := sizeOfDir(datadir)
-			atomic.StoreInt64(&dbSize, size)
-		}
-
-		if gauge == nil {
-			gauge = metrics.NewRegisteredFunctionalGauge(name, nil, func() int64 {
-				return atomic.LoadInt64(&dbSize)
-			})
-		}
-
-		if !rescan {
-			break
-		}
+		size := sizeOfDir(datadir)
+		atomic.StoreInt64(dbSize, size)
 	}
 }
 
