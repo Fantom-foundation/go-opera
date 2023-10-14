@@ -29,7 +29,7 @@ func measureDbDir(name, datadir string) {
 		time.Sleep(10 * time.Second)
 
 		if rescan {
-			size := sizeOfDir(datadir, new(int))
+			size := sizeOfDir(datadir)
 			atomic.StoreInt64(&dbSize, size)
 		}
 
@@ -45,14 +45,13 @@ func measureDbDir(name, datadir string) {
 	}
 }
 
-var symlinksCache = make(map[string]string, 10e6)
+var (
+	symlinksCache     = make(map[string]string, 10e6)
+	symlinksThrottler = &throttler{Period: 100, Timeout: 100 * time.Millisecond}
+)
 
-func sizeOfDir(dir string, counter *int) (size int64) {
+func sizeOfDir(dir string) (size int64) {
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		*counter++
-		if *counter % 100 == 0 {
-			time.Sleep(100 * time.Millisecond)
-		}
 		if err != nil {
 			log.Debug("datadir walk", "path", path, "err", err)
 			return filepath.SkipDir
@@ -64,6 +63,7 @@ func sizeOfDir(dir string, counter *int) (size int64) {
 
 		dst, cached := symlinksCache[path]
 		if !cached {
+			symlinksThrottler.Do()
 			var err error
 			dst, err = filepath.EvalSymlinks(path)
 			if err != nil || dst == path {
@@ -73,7 +73,7 @@ func sizeOfDir(dir string, counter *int) (size int64) {
 		}
 
 		if dst != "" {
-			size += sizeOfDir(dst, counter)
+			size += sizeOfDir(dst)
 		} else {
 			size += info.Size()
 		}
