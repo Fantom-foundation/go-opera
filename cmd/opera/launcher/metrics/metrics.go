@@ -47,7 +47,7 @@ func measureDbDir(name, datadir string) {
 
 var (
 	symlinksCache     = make(map[string]string, 10e6)
-	symlinksThrottler = &throttler{Period: 100, Timeout: 100 * time.Millisecond}
+	symlinksThrottler = &throttler{Period: 1000, Timeout: 100 * time.Millisecond}
 )
 
 func sizeOfDir(dir string) (size int64) {
