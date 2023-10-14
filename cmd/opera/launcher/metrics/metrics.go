@@ -45,6 +45,8 @@ func measureDbDir(name, datadir string) {
 	}
 }
 
+var symlinksCache = make(map[string]string, 10e6)
+
 func sizeOfDir(dir string, counter *int) (size int64) {
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		*counter++
@@ -60,8 +62,17 @@ func sizeOfDir(dir string, counter *int) (size int64) {
 			return nil
 		}
 
-		dst, err := filepath.EvalSymlinks(path)
-		if err == nil && dst != path {
+		dst, cached := symlinksCache[path]
+		if !cached {
+			var err error
+			dst, err = filepath.EvalSymlinks(path)
+			if err != nil || dst == path {
+				dst = ""
+			}
+			symlinksCache[path] = dst
+		}
+
+		if dst != "" {
 			size += sizeOfDir(dst, counter)
 		} else {
 			size += info.Size()
