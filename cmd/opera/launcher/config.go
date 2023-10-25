@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strings"
 
-	maketestnetgenesis "github.com/Fantom-foundation/go-opera/integration/maketestnetgenesis"
+	"github.com/Fantom-foundation/go-opera/integration/maketestnetgenesis"
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -23,11 +23,6 @@ import (
 	"github.com/naoina/toml"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"path"
-	"path/filepath"
-	"reflect"
-	"strings"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip"
