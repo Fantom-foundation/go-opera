@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -89,6 +90,7 @@ type feeHistoryResult struct {
 	Reward       [][]*hexutil.Big `json:"reward,omitempty"`
 	BaseFee      []*hexutil.Big   `json:"baseFeePerGas,omitempty"`
 	GasUsedRatio []float64        `json:"gasUsedRatio"`
+	Note         string           `json:"note"`
 }
 
 var errInvalidPercentile = errors.New("invalid reward percentile")
@@ -127,17 +129,36 @@ func (s *PublicEthereumAPI) FeeHistory(ctx context.Context, blockCount rpc.Decim
 	}
 
 	baseFee := s.b.MinGasPrice()
-	tips := make([]*hexutil.Big, 0, len(rewardPercentiles))
+
+	tips := make([]*big.Int, 0, len(rewardPercentiles))
 	for _, p := range rewardPercentiles {
 		tip := s.b.SuggestGasTipCap(ctx, uint64(gasprice.DecimalUnit*p/100.0))
-		tips = append(tips, (*hexutil.Big)(tip))
+		tips = append(tips, tip)
 	}
 	res.OldestBlock.ToInt().SetUint64(uint64(oldest))
 	for i := uint64(0); i < uint64(last-oldest+1); i++ {
-		res.Reward = append(res.Reward, tips)
+		// randomize the output to mimic the ETH API eth_feeHistory for compatibility reasons
+		rTips := make([]*hexutil.Big, 0, len(tips))
+		for _, t := range tips {
+			rTip := t
+			// don't randomize last iteration
+			if i < uint64(last-oldest) {
+				// increase by up to 2% randomly
+				rTip = new(big.Int).Mul(t, big.NewInt(int64(rand.Intn(gasprice.DecimalUnit/50)+gasprice.DecimalUnit)))
+				rTip.Div(rTip, big.NewInt(gasprice.DecimalUnit))
+			}
+			rTips = append(rTips, (*hexutil.Big)(rTip))
+		}
+		res.Reward = append(res.Reward, rTips)
 		res.BaseFee = append(res.BaseFee, (*hexutil.Big)(baseFee))
-		res.GasUsedRatio = append(res.GasUsedRatio, 0.99)
+		r := rand.New(rand.NewSource(int64(oldest) + int64(i)))
+		res.GasUsedRatio = append(res.GasUsedRatio, 0.9+r.Float64()*0.1)
 	}
+	res.Note = `In the FTM network, the eth_feeHistory method operates slightly differently due to the network's unique consensus mechanism. ` +
+		`Here, instead of returning a range of gas tip values from requested blocks, ` +
+		`it provides a singular estimated gas tip based on a defined confidence level (indicated by the percentile parameter). ` +
+		`This approach means that while you will receive replicated (and randomized) reward values across the requested blocks, ` +
+		`the average or median of these values remains consistent with the intended gas tip.`
 	return res, nil
 }
 

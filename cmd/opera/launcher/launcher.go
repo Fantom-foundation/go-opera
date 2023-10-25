@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	gmetrics "github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover/discfilter"
 	"github.com/ethereum/go-ethereum/params"
@@ -300,7 +301,10 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 	if genesisStore != nil {
 		_ = genesisStore.Close()
 	}
-	metrics.SetDataDir(cfg.Node.DataDir)
+
+	if gmetrics.Enabled {
+		metrics.SetDataDir(cfg.Node.DataDir)
+	}
 	memorizeDBPreset(cfg)
 
 	// substitute default bootnodes if requested

@@ -213,6 +213,7 @@ func DefaultConfig(scale cachescale.Func) Config {
 		GPO: gasprice.Config{
 			MaxGasPrice:      gasprice.DefaultMaxGasPrice,
 			MinGasPrice:      new(big.Int),
+			MinGasTip:        new(big.Int),
 			DefaultCertainty: 0.5 * gasprice.DecimalUnit,
 		},
 

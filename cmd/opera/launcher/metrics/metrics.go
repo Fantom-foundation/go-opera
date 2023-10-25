@@ -26,10 +26,10 @@ func measureDbDir(name, datadir string) {
 		rescan = (len(datadir) > 0 && datadir != "inmemory")
 	)
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(10 * time.Second)
 
 		if rescan {
-			size := sizeOfDir(datadir)
+			size := sizeOfDir(datadir, new(int))
 			atomic.StoreInt64(&dbSize, size)
 		}
 
@@ -45,8 +45,12 @@ func measureDbDir(name, datadir string) {
 	}
 }
 
-func sizeOfDir(dir string) (size int64) {
+func sizeOfDir(dir string, counter *int) (size int64) {
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		*counter++
+		if *counter % 100 == 0 {
+			time.Sleep(100 * time.Millisecond)
+		}
 		if err != nil {
 			log.Debug("datadir walk", "path", path, "err", err)
 			return filepath.SkipDir
@@ -58,7 +62,7 @@ func sizeOfDir(dir string) (size int64) {
 
 		dst, err := filepath.EvalSymlinks(path)
 		if err == nil && dst != path {
-			size += sizeOfDir(dst)
+			size += sizeOfDir(dst, counter)
 		} else {
 			size += info.Size()
 		}
