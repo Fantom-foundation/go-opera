@@ -1,0 +1,28 @@
+title: Xen Crypto Documentation
+description: XEN is a cryptocurrency for the masses. It is designed and built to deliver on the First Principles of Crypto.
+url: https://docs.xen.network/
+
+author:
+  name: Fair Crypto Foundation
+  url: https://faircrypto.org
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-titles-from-headings
+remote_theme: FairCrypto/minima
+minima:
+  skin: auto
+  social_links:
+    - { platform: github,  user_url: "https://github.com/FairCrypto/go-x1" }
+    - { platform: twitter, user_url: "https://twitter.com/XEN_Crypto" }
+    - { platform: telegram, user_url: "https://t.me/XENCryptoTalk" }
+    - { platform: youtube, user_url: "https://m.youtube.com/channel/UCiw5nyHHt9BPHvoRbcGNehA/playlists" }
+show_excerpts: false
+
+titles_from_headings:
+  enabled:     true
+  strip_title: true
+  collections: false
+
+header_pages:
+  - index.md
