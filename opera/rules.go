@@ -22,7 +22,7 @@ const (
 	berlinBit                  = 1 << 0
 	londonBit                  = 1 << 1
 	llrBit                     = 1 << 2
-	TestnetStartBalance        = 995000000
+	TestnetStartBalance        = 495000000
 	TestnetStartStake          = 5000000
 	TestnetGenesisTime         = inter.Timestamp(1692844103 * time.Second)
 )
