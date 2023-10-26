@@ -2,7 +2,7 @@
 
 X1 is a simple, fast, and secure EVM-compatible network for the next generation of decentralized applications powered by Lachesis consensus algorithm.
 
-## Explore the Network
+## Explore the Network (Testnet)
 
 - [X1 Explorer](https://explorer.x1-testnet.xen.network)
 
@@ -11,22 +11,13 @@ RPC Endpoints
 - https://x1-testnet.xen.network/
 - wss://x1-testnet.xen.network
 
-## Building the source
-
-Building `x1` requires both a Go (version 1.14 or later) and a C compiler. You can install
-them using your favourite package manager. Once the dependencies are installed, run
-
-```shell
-make x1
-```
-The build output is ```build/x1``` executable.
-
 ## Run Full Node (Testnet)
 
 You will need a genesis file to join a network, which may be found in https://x1-testnet-genesis.s3.amazonaws.com/x1-testnet.g
 You will also need a list of boot nodes to connect to the network. You can find a list of boot nodes in https://x1-testnet-genesis.s3.amazonaws.com/bootnodes.txt.
 
 > Quick start a full node and run in the foreground
+
 ```shell
 # Install dependencies (ex: ubuntu)
 apt update -y
