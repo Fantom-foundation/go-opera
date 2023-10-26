@@ -122,7 +122,7 @@ func remoteConsole(ctx *cli.Context) error {
 		if ctx.GlobalIsSet(DataDirFlag.Name) {
 			path = ctx.GlobalString(DataDirFlag.Name)
 		}
-		endpoint = fmt.Sprintf("%s/opera.ipc", path)
+		endpoint = fmt.Sprintf("%s/x1.ipc", path)
 	}
 	client, err := dialRPC(endpoint)
 	if err != nil {

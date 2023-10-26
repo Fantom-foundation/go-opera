@@ -62,7 +62,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 	} else {
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
-		ipc = filepath.Join(ws, "opera.ipc")
+		ipc = filepath.Join(ws, "x1.ipc")
 	}
 	cli := exec(t,
 		"--fakenet", "0/1", "--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
