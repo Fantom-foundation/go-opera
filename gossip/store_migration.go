@@ -3,11 +3,15 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/utils/migration"
@@ -28,6 +32,9 @@ func (s *Store) migrateData() error {
 	}
 
 	err := s.migrations().Exec(versions, s.flushDBs)
+	if err != nil {
+		panic(err)
+	}
 	return err
 }
 
@@ -43,7 +50,8 @@ func (s *Store) migrations() *migration.Migration {
 		Next("erase gossip-async db", s.eraseGossipAsyncDB).
 		Next("erase SFC API table", s.eraseSfcApiTable).
 		Next("erase legacy genesis DB", s.eraseGenesisDB).
-		Next("calculate upgrade heights", s.calculateUpgradeHeights)
+		Next("calculate upgrade heights", s.calculateUpgradeHeights).
+		Next("EVM TxPosition.BlockOffset fix", s.fixTxPositionBlockOffset)
 }
 
 func unsupportedMigration() error {
@@ -139,5 +147,51 @@ func (s *Store) calculateUpgradeHeights() error {
 		// special case when no history is available
 		s.WriteUpgradeHeight(s.GetBlockState(), s.GetEpochState(), nil)
 	}
+	return nil
+}
+
+func (s *Store) fixTxPositionBlockOffset() error {
+	var (
+		start     = time.Now()
+		processed = 0
+	)
+
+	receiptsTable, _ := s.dbs.OpenDB("evm/r")
+	txPositionsTable, _ := s.dbs.OpenDB("evm/x")
+
+	it := receiptsTable.NewIterator(nil, nil)
+	defer it.Release()
+	for it.Next() {
+
+		var receiptsStorage []*types.ReceiptForStorage
+		err := rlp.DecodeBytes(it.Value(), &receiptsStorage)
+		if err != nil {
+			s.Log.Crit("Failed to decode rlp", "err", err, "size", len(it.Value()))
+		}
+
+		var pos = new(evmstore.TxPosition)
+
+		for _, r := range receiptsStorage {
+			processed++
+			key := r.TxHash.Bytes()
+
+			got := s.rlp.Get(txPositionsTable, key, pos)
+			if got == nil {
+				continue
+			}
+			pos.BlockOffset = uint32(r.TransactionIndex)
+			s.rlp.Set(txPositionsTable, key, pos)
+
+			if s.dbs.NotFlushedSizeEst() > s.cfg.MaxNonFlushedSize/2 {
+				err = s.flushDBs()
+				if err != nil {
+					return err
+				}
+				s.Log.Info("Txs positions processing", "elapsed", common.PrettyDuration(time.Since(start)), "done", processed)
+			}
+		}
+	}
+	s.Log.Info("Txs positions processing", "elapsed", common.PrettyDuration(time.Since(start)), "done", processed)
+
 	return nil
 }
