@@ -319,7 +319,6 @@ func consensusCallbackBeginBlockFn(
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)
 					}
-
 					_ = evmProcessor.Execute(txs)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
@@ -345,12 +344,12 @@ func consensusCallbackBeginBlockFn(
 						}
 					}
 					// memorize block position of each tx
-					for i, tx := range evmBlock.Transactions {
+					for _, r := range allReceipts {
 						// not skipped txs only
-						position := txPositions[tx.Hash()]
+						position := txPositions[r.TxHash]
 						position.Block = blockCtx.Idx
-						position.BlockOffset = uint32(i)
-						txPositions[tx.Hash()] = position
+						position.BlockOffset = uint32(r.TransactionIndex)
+						txPositions[r.TxHash] = position
 					}
 
 					// call OnNewReceipt
