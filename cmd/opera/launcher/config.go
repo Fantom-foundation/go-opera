@@ -108,7 +108,7 @@ var (
 	SyncModeFlag = cli.StringFlag{
 		Name:  "syncmode",
 		Usage: `Blockchain sync mode ("full" or "snap")`,
-		Value: "full",
+		Value: "snap",
 	}
 
 	GCModeFlag = cli.StringFlag{
@@ -133,6 +133,7 @@ var (
 	DBPresetFlag = cli.StringFlag{
 		Name:  "db.preset",
 		Usage: "DBs layout preset ('pbl-1' or 'ldb-1' or 'legacy-ldb' or 'legacy-pbl')",
+		Value: "pbl-1",
 	}
 )
 
