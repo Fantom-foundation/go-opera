@@ -343,18 +343,16 @@ func consensusCallbackBeginBlockFn(
 							}
 						}
 					}
-					// memorize block position of each tx
-					for _, r := range allReceipts {
-						// not skipped txs only
+
+					for i, r := range allReceipts {
+						// memorize block position for not skipped txs only
 						position := txPositions[r.TxHash]
 						position.Block = blockCtx.Idx
 						position.BlockOffset = uint32(r.TransactionIndex)
 						txPositions[r.TxHash] = position
-					}
-
-					// call OnNewReceipt
-					for i, r := range allReceipts {
-						creator := txPositions[r.TxHash].EventCreator
+						// call OnNewReceipt
+						creator := position.EventCreator
+						// TODO: is it check necessary?
 						if creator != 0 && es.Validators.Get(creator) == 0 {
 							creator = 0
 						}
