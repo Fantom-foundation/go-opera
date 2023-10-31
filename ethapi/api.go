@@ -2282,7 +2282,7 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 	}
 	// Execute all the transaction contained within the block concurrently
 	var (
-		signer  = types.MakeSigner(api.b.ChainConfig(), block.Number)
+		signer  = gsignercache.Wrap(types.MakeSigner(api.b.ChainConfig(), block.Number))
 		txs     = block.Transactions
 		results = make([]*txTraceResult, len(txs))
 	)
