@@ -2299,7 +2299,7 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 			TxIndex:   i,
 			TxHash:    txs[i].Hash(),
 		}
-		msg, _ := tx.AsMessage(signer, block.BaseFee)
+		msg, _ := evmcore.TxAsMessage(tx, signer, block.BaseFee)
 		res, err := api.traceTx(ctx, msg, txctx, blockCtx, statedb, config)
 		if err != nil {
 			results[i] = &txTraceResult{Error: err.Error()}
@@ -2329,7 +2329,7 @@ func (api *PublicDebugAPI) stateAtTransaction(ctx context.Context, block *evmcor
 	signer := gsignercache.Wrap(types.MakeSigner(api.b.ChainConfig(), block.Number))
 	for idx, tx := range block.Transactions {
 		// Assemble the transaction call message and return if the requested offset
-		msg, _ := tx.AsMessage(signer, block.BaseFee)
+		msg, _ := evmcore.TxAsMessage(tx, signer, block.BaseFee)
 		txContext := evmcore.NewEVMTxContext(msg)
 		context := api.b.GetBlockContext(block.Header())
 		if idx == txIndex {
