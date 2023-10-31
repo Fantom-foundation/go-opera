@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -44,20 +45,31 @@ func FakeKey(n idx.ValidatorID) *ecdsa.PrivateKey {
 	return evmcore.FakeKey(uint32(n))
 }
 
-func FakeGenesisStore(num idx.Validator, balance, stake *big.Int) *genesisstore.Store {
-	return FakeGenesisStoreWithRules(num, balance, stake, opera.FakeNetRules())
+func FakeGenesisStore(num idx.Validator, balance, stake *big.Int, genesis *core.Genesis) *genesisstore.Store {
+	return FakeGenesisStoreWithRules(num, balance, stake, opera.FakeNetRules(), genesis)
 }
 
-func FakeGenesisStoreWithRules(num idx.Validator, balance, stake *big.Int, rules opera.Rules) *genesisstore.Store {
-	return FakeGenesisStoreWithRulesAndStart(num, balance, stake, rules, 2, 1)
+func FakeGenesisStoreWithRules(num idx.Validator, balance, stake *big.Int, rules opera.Rules, genesis *core.Genesis) *genesisstore.Store {
+	return FakeGenesisStoreWithRulesAndStart(num, balance, stake, rules, 2, 1, genesis)
 }
 
-func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block) *genesisstore.Store {
+func FakeGenesisStoreWithRulesAndStart(num idx.Validator, balance, stake *big.Int, rules opera.Rules, epoch idx.Epoch, block idx.Block, g *core.Genesis) *genesisstore.Store {
 	builder := makegenesis.NewGenesisBuilder(memorydb.NewProducer(""))
 
-	validators := GetFakeValidators(num)
+	// init genesis alloc accounts if any
+	if g != nil {
+		for addr, account := range g.Alloc {
+			builder.AddBalance(addr, account.Balance)
+			builder.SetCode(addr, account.Code)
+			builder.SetNonce(addr, account.Nonce)
+			for key, value := range account.Storage {
+				builder.SetStorage(addr, key, value)
+			}
+		}
+	}
 
 	// add balances to validators
+	validators := GetFakeValidators(num)
 	var delegations []drivercall.Delegation
 	for _, val := range validators {
 		builder.AddBalance(val.Address, balance)
