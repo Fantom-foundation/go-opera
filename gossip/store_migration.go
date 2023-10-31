@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -153,6 +154,9 @@ func (s *Store) calculateUpgradeHeights() error {
 }
 
 func (s *Store) fixTxPositionBlockOffset() (err error) {
+	const (
+		parallels = 10
+	)
 	receiptsTable, _ := s.dbs.OpenDB("evm/r")
 	txPositionsTable, _ := s.dbs.OpenDB("evm/x")
 
@@ -183,11 +187,8 @@ func (s *Store) fixTxPositionBlockOffset() (err error) {
 	var (
 		blocks = new(uint32)
 	)
-	processBlocksRange := func() {
+	processBlocksRange := func(from, to idx.Block) {
 		defer wg.Done()
-		const (
-			parallels = 10
-		)
 		wg.Add(parallels)
 		threads := make([]chan []*types.ReceiptForStorage, parallels)
 		for i := range threads {
@@ -195,9 +196,12 @@ func (s *Store) fixTxPositionBlockOffset() (err error) {
 			go processBlockReceipts(threads[i])
 		}
 
-		it := receiptsTable.NewIterator(nil, nil)
+		it := receiptsTable.NewIterator(nil, from.Bytes())
 		defer it.Release()
 		for n := 0; it.Next(); n++ {
+			if idx.BytesToBlock(it.Key()) > to {
+				break
+			}
 			atomic.AddUint32(blocks, 1)
 
 			var receiptsStorage []*types.ReceiptForStorage
@@ -216,6 +220,7 @@ func (s *Store) fixTxPositionBlockOffset() (err error) {
 	var (
 		done = make(chan struct{})
 	)
+	defer close(done)
 	go func() {
 		var (
 			start         = time.Now()
@@ -239,11 +244,25 @@ func (s *Store) fixTxPositionBlockOffset() (err error) {
 		}
 	}()
 
+	// params
+	firstBlock := func() idx.Block {
+		it := receiptsTable.NewIterator(nil, nil)
+		defer it.Release()
+		if it.Next() {
+			return idx.BytesToBlock(it.Key())
+		}
+		return 0
+	}()
+	lastBlock := s.GetBlockState().LastBlock.Idx
+
 	// main start
-	wg.Add(1)
-	go processBlocksRange()
+	s.Log.Debug("processBlocksRange", "from", firstBlock, "to", lastBlock)
+	step := (lastBlock - firstBlock) / parallels
+	wg.Add(parallels + 1)
+	for i := idx.Block(0); i <= parallels; i++ {
+		go processBlocksRange(firstBlock+i*step, firstBlock+(i+1)*step-1)
+	}
 	wg.Wait()
-	close(done)
 
 	return
 }
