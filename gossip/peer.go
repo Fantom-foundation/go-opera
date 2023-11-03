@@ -541,7 +541,7 @@ func (p *peer) readStatus(network uint64, handshake *handshakeData, genesis comm
 		return errResp(ErrDecode, "msg %v: %v", msg, err)
 	}
 
-	// TODO: rm after all the nodes updated to #184
+	// TODO: rm after all the nodes updated to #527
 	if handshake.NetworkID == 0 {
 		handshake.NetworkID = network
 	}
