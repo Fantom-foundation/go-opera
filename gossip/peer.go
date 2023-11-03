@@ -494,7 +494,7 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.H
 		// send both HandshakeMsg and ProgressMsg
 		err := p2p.Send(p.rw, HandshakeMsg, &handshakeData{
 			ProtocolVersion: uint32(p.version),
-			NetworkID:       0, // TODO: set to `network` after all nodes updated to #184
+			NetworkID:       network,
 			Genesis:         genesis,
 		})
 		if err != nil {
