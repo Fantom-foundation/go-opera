@@ -159,6 +159,10 @@ func (p *dummyTxPool) Clear() {
 func (p *dummyTxPool) Delete(needle common.Hash) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+
+	if len(p.pool) < 1 {
+		return
+	}
 	notErased := make([]*types.Transaction, 0, len(p.pool)-1)
 	for _, tx := range p.pool {
 		if tx.Hash() != needle {
