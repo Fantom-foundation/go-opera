@@ -87,7 +87,7 @@ func (p *dummyTxPool) Map() map[common.Hash]*types.Transaction {
 	for _, tx := range p.pool {
 		res[tx.Hash()] = tx
 	}
-	return nil
+	return res
 }
 
 func (p *dummyTxPool) Get(txid common.Hash) *types.Transaction {
