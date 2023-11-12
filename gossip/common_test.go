@@ -155,14 +155,16 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	engine, vecClock := makeTestEngine(store)
 
 	// create the service
-	txPool := &dummyTxPool{}
+	txPool := newDummyTxPool()
 	env.Service, err = newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
 		return txPool
 	})
 	if err != nil {
 		panic(err)
 	}
-	txPool.signer = env.EthAPI.signer
+
+	txPool.Signer = env.Service.EthAPI.signer
+
 	err = engine.Bootstrap(env.GetConsensusCallbacks())
 	if err != nil {
 		panic(err)
