@@ -78,8 +78,8 @@ The import command imports EVM storage (trie nodes, code, preimages) from files.
 
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
-last epoch to write. If the file ends with .gz, the output will
-be gzipped
+last epoch to write. If the file ends with .gz, the output will be gzipped.
+End the rest of file name with .dot to export events graph as DOT
 `,
 			},
 			{

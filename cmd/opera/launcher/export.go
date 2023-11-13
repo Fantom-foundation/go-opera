@@ -21,6 +21,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/utils/dag"
 	"github.com/Fantom-foundation/go-opera/utils/dbutil/autocompact"
 )
 
@@ -46,18 +48,13 @@ func exportEvents(ctx *cli.Context) error {
 
 	fn := ctx.Args().First()
 
-	// Open the file handle and potentially wrap with a gzip stream
+	// Open the file handle
+	log.Info("Exporting events to file", "file", fn)
 	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	defer fh.Close()
-
-	var writer io.Writer = fh
-	if strings.HasSuffix(fn, ".gz") {
-		writer = gzip.NewWriter(writer)
-		defer writer.(*gzip.Writer).Close()
-	}
 
 	from := idx.Epoch(1)
 	if len(ctx.Args()) > 1 {
@@ -76,22 +73,39 @@ func exportEvents(ctx *cli.Context) error {
 		to = idx.Epoch(n)
 	}
 
-	log.Info("Exporting events to file", "file", fn)
-	// Write header and version
-	_, err = writer.Write(append(eventsFileHeader, eventsFileVersion...))
-	if err != nil {
-		return err
+	// Potentially wrap with a gzip stream
+	var writer io.Writer = fh
+	if strings.HasSuffix(fn, ".gz") {
+		fn = fn[:len(fn)-len(".gz")]
+		writer = gzip.NewWriter(writer)
+		defer writer.(*gzip.Writer).Close()
 	}
-	err = exportTo(writer, gdb, from, to)
-	if err != nil {
-		utils.Fatalf("Export error: %v\n", err)
+
+	switch {
+	// DOT format:
+	case strings.HasSuffix(fn, ".dot"):
+		err = exportDOT(writer, gdb, cfg, from, to)
+		if err != nil {
+			utils.Fatalf("Export DOT error: %v\n", err)
+		}
+	// RLP format:
+	default:
+		// Write header and version
+		_, err = writer.Write(append(eventsFileHeader, eventsFileVersion...))
+		if err != nil {
+			return err
+		}
+		err = exportRLP(writer, gdb, from, to)
+		if err != nil {
+			utils.Fatalf("Export RLP error: %v\n", err)
+		}
 	}
 
 	return nil
 }
 
-// exportTo writer the active chain.
-func exportTo(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
+// exportRLP writer the active chain.
+func exportRLP(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 	start, reported := time.Now(), time.Time{}
 
 	var (
@@ -117,6 +131,24 @@ func exportTo(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
 	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
 
 	return
+}
+
+// exportDOT writer the active chain.
+func exportDOT(writer io.Writer, gdb *gossip.Store, cfg *config, from, to idx.Epoch) (err error) {
+	consensusCfg := integration.Configs{
+		Opera:       cfg.Opera,
+		Lachesis:    cfg.Lachesis,
+		VectorClock: cfg.VectorClock,
+	}
+
+	graph := dag.Graph(gdb, consensusCfg, from, to)
+
+	_, err = writer.Write([]byte(graph.String()))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func exportEvmKeys(ctx *cli.Context) error {
