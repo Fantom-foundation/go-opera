@@ -146,6 +146,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 			Value:                args.Value,
 			Data:                 args.Data,
 			AccessList:           args.AccessList,
+			Nonce:                args.Nonce,
 		}
 		pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
 		estimated, err := DoEstimateGas(ctx, b, callArgs, pendingBlockNr, b.RPCGasCap())
@@ -158,6 +159,58 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.ChainID == nil {
 		id := (*hexutil.Big)(b.ChainConfig().ChainID)
 		args.ChainID = id
+	}
+	return nil
+}
+
+// setDefaults is a helper function that fills in default values for unspecified AA tx fields.
+func (args *TransactionArgs) setAADefaults(ctx context.Context, b Backend) error {
+	if args.GasPrice == nil {
+		price := b.SuggestGasTipCap(ctx, gasprice.AsDefaultCertainty)
+		price.Add(price, b.MinGasPrice())
+		args.GasPrice = (*hexutil.Big)(price)
+	}
+	if args.Value == nil {
+		args.Value = new(hexutil.Big)
+	} else if args.Value.ToInt().Sign() != 0 {
+		return errors.New(`"value" has to be 0 for account abstraction transactions`)
+	}
+	if args.To == nil {
+		return errors.New(`AA transactions require "to" address`)
+	}
+	if args.Nonce == nil {
+		nonce, err := b.GetPoolNonce(ctx, *args.To)
+		if err != nil {
+			return err
+		}
+		args.Nonce = (*hexutil.Uint64)(&nonce)
+	}
+	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
+		return errors.New(`both "data" and "input" are set and not equal. Please use "input" to pass transaction call data`)
+	}
+	// Estimate the gas usage if necessary.
+	if args.Gas == nil {
+		// For backwards-compatibility reason, we try both input and data
+		// but input is preferred.
+		input := args.Input
+		if input == nil {
+			input = args.Data
+		}
+		callArgs := TransactionArgs{
+			From:     args.From, // From shouldn't be nil
+			To:       args.To,
+			GasPrice: args.GasPrice,
+			Value:    args.Value,
+			Nonce:    args.Nonce,
+			Data:     input,
+		}
+		pendingBlockNr := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
+		estimated, err := DoEstimateGas(ctx, b, callArgs, pendingBlockNr, b.RPCGasCap())
+		if err != nil {
+			return err
+		}
+		args.Gas = &estimated
+		log.Trace("Estimate gas usage automatically", "gas", args.Gas)
 	}
 	return nil
 }
@@ -229,7 +282,11 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (t
 	if args.AccessList != nil {
 		accessList = *args.AccessList
 	}
-	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, gasFeeCap, gasTipCap, data, accessList, true)
+	nonce := uint64(0)
+	if args.Nonce != nil {
+		nonce = uint64(*args.Nonce)
+	}
+	msg := types.NewMessage(addr, args.To, nonce, value, gas, gasPrice, gasFeeCap, gasTipCap, data, accessList, true)
 	return msg, nil
 }
 
@@ -238,6 +295,15 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (t
 func (args *TransactionArgs) toTransaction() *types.Transaction {
 	var data types.TxData
 	switch {
+	case args.From.IsEntryPoint():
+		data = &types.AccountAbstractionTx{
+			To:       args.To,
+			Nonce:    uint64(*args.Nonce),
+			Gas:      uint64(*args.Gas),
+			GasPrice: (*big.Int)(args.GasPrice),
+			Value:    (*big.Int)(args.Value),
+			Data:     args.data(),
+		}
 	case args.MaxFeePerGas != nil:
 		al := types.AccessList{}
 		if args.AccessList != nil {

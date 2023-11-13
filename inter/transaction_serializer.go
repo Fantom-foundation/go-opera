@@ -25,7 +25,7 @@ func decodeSig(sig [64]byte) (r, s *big.Int) {
 }
 
 func TransactionMarshalCSER(w *cser.Writer, tx *types.Transaction) error {
-	if tx.Type() != types.LegacyTxType && tx.Type() != types.AccessListTxType && tx.Type() != types.DynamicFeeTxType {
+	if tx.Type() != types.LegacyTxType && tx.Type() != types.AccessListTxType && tx.Type() != types.DynamicFeeTxType && tx.Type() != types.AccountAbstractionTxType {
 		return ErrUnknownTxType
 	}
 	if tx.Type() != types.LegacyTxType {

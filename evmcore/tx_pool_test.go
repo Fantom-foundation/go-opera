@@ -96,6 +96,10 @@ func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *EvmBlock {
 	return bc.CurrentBlock()
 }
 
+func (bc *testBlockChain) GetHeader(hash common.Hash, number uint64) *EvmHeader {
+	return bc.CurrentBlock().Header()
+}
+
 func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
 	return bc.statedb, nil
 }

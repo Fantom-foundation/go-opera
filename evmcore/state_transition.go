@@ -42,8 +42,10 @@ The state transitioning model does all the necessary work to work out a valid ne
 3) Create a new state object if the recipient is \0*32
 4) Value transfer
 == If contract creation ==
-  4a) Attempt to run transaction data
-  4b) If valid, use result as code for the new state object
+
+	4a) Attempt to run transaction data
+	4b) If valid, use result as code for the new state object
+
 == end ==
 5) Run Script section
 6) Derive new state root
@@ -73,6 +75,7 @@ type Message interface {
 
 	Nonce() uint64
 	IsFake() bool
+	IsAA() bool
 	Data() []byte
 	AccessList() types.AccessList
 }
@@ -113,11 +116,13 @@ func (result *ExecutionResult) Revert() []byte {
 }
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool) (uint64, error) {
+func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation bool, isAA bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if isContractCreation {
 		gas = params.TxGasContractCreation
+	} else if isAA {
+		gas = params.AATxGas
 	} else {
 		gas = params.TxGas
 	}
@@ -188,17 +193,31 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.Gas())
 	mgval = mgval.Mul(mgval, st.gasPrice)
-	// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
-	if have, want := st.state.GetBalance(st.msg.From()), mgval; have.Cmp(want) < 0 {
-		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+
+	if !st.msg.IsAA() {
+		// Note: Opera doesn't need to check against gasFeeCap instead of gasPrice, as it's too aggressive in the asynchronous environment
+		if have, want := st.state.GetBalance(st.msg.From()), mgval; have.Cmp(want) < 0 {
+			return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From().Hex(), have, want)
+		}
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
-	st.gas += st.msg.Gas()
+
+	// AA transactions can have no more than `params.VerificationGasCap` amount of gas until calling PAYGAS opcode.
+	// PAYGAS will return the initial gas limit.
+	if st.msg.IsAA() && st.msg.Gas() > params.VerificationGasCap {
+		st.gas += params.VerificationGasCap
+	} else {
+		st.gas += st.msg.Gas()
+	}
 
 	st.initialGas = st.msg.Gas()
-	st.state.SubBalance(st.msg.From(), mgval)
+
+	if !st.msg.IsAA() {
+		st.state.SubBalance(st.msg.From(), mgval)
+	}
+
 	return nil
 }
 
@@ -214,10 +233,21 @@ func (st *StateTransition) preCheck() error {
 			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooLow,
 				st.msg.From().Hex(), msgNonce, stNonce)
 		}
-		// Make sure the sender is an EOA
-		if codeHash := st.state.GetCodeHash(st.msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
+
+		isAA := st.msg.IsAA()
+		codeHash := st.state.GetCodeHash(st.msg.From())
+		isContract := codeHash != emptyCodeHash && codeHash != (common.Hash{})
+		if !isAA && isContract {
 			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
 				st.msg.From().Hex(), codeHash)
+		}
+		if isAA {
+			if st.value.Sign() != 0 {
+				return fmt.Errorf("value of AA transaction must be zero")
+			}
+			if !isContract {
+				return fmt.Errorf("%w: address %v", ErrSenderNoContract, st.msg.From().Hex())
+			}
 		}
 	}
 	// Note: Opera doesn't need to check gasFeeCap >= BaseFee, because it's already checked by epochcheck
@@ -232,13 +262,13 @@ func (st *StateTransition) internal() bool {
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
 //
-// - used gas:
-//      total gas used (including gas being refunded)
-// - returndata:
-//      the returned data from evm
-// - concrete execution error:
-//      various **EVM** error which aborts the execution,
-//      e.g. ErrOutOfGas, ErrExecutionReverted
+//   - used gas:
+//     total gas used (including gas being refunded)
+//   - returndata:
+//     the returned data from evm
+//   - concrete execution error:
+//     various **EVM** error which aborts the execution,
+//     e.g. ErrOutOfGas, ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
@@ -266,7 +296,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	london := st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation)
+	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, st.msg.IsAA())
 	if err != nil {
 		return nil, err
 	}
@@ -319,9 +349,11 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 	}
 	st.gas += refund
 
-	// Return wei for remaining gas, exchanged at the original rate.
-	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
-	st.state.AddBalance(st.msg.From(), remaining)
+	if st.evm.TransactionFeePaid {
+		// Return wei for remaining gas, exchanged at the original rate.
+		remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
+		st.state.AddBalance(st.msg.From(), remaining)
+	}
 
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.

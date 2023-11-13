@@ -542,5 +542,6 @@ func (m callmsg) Gas() uint64                  { return m.CallMsg.Gas }
 func (m callmsg) Value() *big.Int              { return m.CallMsg.Value }
 func (m callmsg) Nonce() uint64                { return 0 }
 func (m callmsg) IsFake() bool                 { return true }
+func (m callmsg) IsAA() bool                   { return false }
 func (m callmsg) Data() []byte                 { return m.CallMsg.Data }
 func (m callmsg) AccessList() types.AccessList { return nil }
