@@ -66,7 +66,7 @@ func (p *statePrefetcher) Prefetch(block *EvmBlock, statedb *state.StateDB, cfg 
 		if err != nil {
 			return // Also invalid block, bail out
 		}
-		statedb.Prepare(tx.Hash(), i)
+		statedb.SetTxContext(tx.Hash(), i)
 		if err := precacheTransaction(msg, p.config, gaspool, statedb, header, evm); err != nil {
 			return // Ugh, something went horribly wrong, bail out
 		}
