@@ -15,42 +15,40 @@ var once sync.Once
 
 func SetDataDir(datadir string) {
 	once.Do(func() {
-		go measureDbDir("db_size", datadir)
+
+		var dbSize int64
+		_ = metrics.NewRegisteredFunctionalGauge("db_size", nil, func() int64 {
+			return atomic.LoadInt64(&dbSize)
+		})
+
+		if !metrics.Enabled {
+			return
+		}
+
+		if len(datadir) == 0 || datadir == "inmemory" {
+			return
+		}
+
+		go measureDbDir(datadir, &dbSize)
+
 	})
 }
 
-func measureDbDir(name, datadir string) {
-	var (
-		dbSize int64
-		gauge  metrics.Gauge
-		rescan = (len(datadir) > 0 && datadir != "inmemory")
-	)
+func measureDbDir(datadir string, dbSize *int64) {
 	for {
 		time.Sleep(10 * time.Second)
-
-		if rescan {
-			size := sizeOfDir(datadir, new(int))
-			atomic.StoreInt64(&dbSize, size)
-		}
-
-		if gauge == nil {
-			gauge = metrics.NewRegisteredFunctionalGauge(name, nil, func() int64 {
-				return atomic.LoadInt64(&dbSize)
-			})
-		}
-
-		if !rescan {
-			break
-		}
+		size := sizeOfDir(datadir)
+		atomic.StoreInt64(dbSize, size)
 	}
 }
 
-func sizeOfDir(dir string, counter *int) (size int64) {
+var (
+	symlinksCache     = make(map[string]string, 10e6)
+	symlinksThrottler = &throttler{Period: 1000, Timeout: 100 * time.Millisecond}
+)
+
+func sizeOfDir(dir string) (size int64) {
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		*counter++
-		if *counter % 100 == 0 {
-			time.Sleep(100 * time.Millisecond)
-		}
 		if err != nil {
 			log.Debug("datadir walk", "path", path, "err", err)
 			return filepath.SkipDir
@@ -60,9 +58,19 @@ func sizeOfDir(dir string, counter *int) (size int64) {
 			return nil
 		}
 
-		dst, err := filepath.EvalSymlinks(path)
-		if err == nil && dst != path {
-			size += sizeOfDir(dst, counter)
+		dst, cached := symlinksCache[path]
+		if !cached {
+			symlinksThrottler.Do()
+			var err error
+			dst, err = filepath.EvalSymlinks(path)
+			if err != nil || dst == path {
+				dst = ""
+			}
+			symlinksCache[path] = dst
+		}
+
+		if dst != "" {
+			size += sizeOfDir(dst)
 		} else {
 			size += info.Size()
 		}
