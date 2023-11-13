@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"gopkg.in/urfave/cli.v1"
@@ -487,7 +486,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 	// Defaults (low priority)
 	cacheRatio := cacheScaler(ctx)
 	cfg := config{
-		Node:          defaultNodeConfig(),
+		Node:          DefaultNodeConfig(),
 		Opera:         gossip.DefaultConfig(cacheRatio),
 		Emitter:       emitter.DefaultConfig(),
 		TxPool:        evmcore.DefaultTxPoolConfig,
@@ -561,17 +560,6 @@ func makeAllConfigs(ctx *cli.Context) *config {
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
-	return cfg
-}
-
-func defaultNodeConfig() node.Config {
-	cfg := NodeDefaultConfig
-	cfg.Name = clientIdentifier
-	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "dag", "abft", "web3")
-	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "abft", "web3")
-	cfg.IPCPath = "opera.ipc"
-	cfg.DataDir = DefaultDataDir()
 	return cfg
 }
 
