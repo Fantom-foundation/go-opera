@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -40,8 +41,8 @@ import (
 )
 
 const (
-	gasLimit       = uint64(21000)
-	maxGasLimit    = uint64(6000000)
+	gasPrice = uint64(1e12)
+
 	genesisBalance = 1e18
 	genesisStake   = 2 * 4e6
 
@@ -60,8 +61,9 @@ type testEnv struct {
 	nonces   map[common.Address]uint64
 	callback callbacks
 	*Service
-	signer  valkeystore.SignerI
-	pubkeys []validatorpk.PubKey
+	transactor *ethapi.PublicTransactionPoolAPI
+	signer     valkeystore.SignerI
+	pubkeys    []validatorpk.PubKey
 }
 
 func panics(name string) func(error) {
@@ -162,8 +164,8 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	if err != nil {
 		panic(err)
 	}
-
 	txPool.Signer = env.Service.EthAPI.signer
+	env.transactor = ethapi.NewPublicTransactionPoolAPI(env.Service.EthAPI, new(ethapi.AddrLocker))
 
 	err = engine.Bootstrap(env.GetConsensusCallbacks())
 	if err != nil {
@@ -308,13 +310,24 @@ func (env *testEnv) EmitUntil(stop func() bool) error {
 
 func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.Transaction {
 	sender := env.Address(from)
-	nonce, _ := env.PendingNonceAt(nil, sender)
-	env.incNonce(sender)
-	key := env.privateKey(from)
+	nonce := env.nextNonce(sender)
 	receiver := env.Address(to)
-	gp := new(big.Int).SetUint64(1e12)
-	tx := types.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
-	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
+
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		To:       &receiver,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	key := env.privateKey(from)
+	tx, err := types.SignTx(raw.Tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -324,13 +337,24 @@ func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.T
 
 func (env *testEnv) Contract(from idx.ValidatorID, amount *big.Int, hex string) *types.Transaction {
 	sender := env.Address(from)
-	nonce, _ := env.PendingNonceAt(nil, sender)
-	env.incNonce(sender)
-	key := env.privateKey(from)
-	gp := env.store.GetRules().Economy.MinGasPrice
+	nonce := env.nextNonce(sender)
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
 	data := hexutil.MustDecode(hex)
-	tx := types.NewContractCreation(nonce, amount, maxGasLimit, gp, data)
-	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
+
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+		Data:     (*hexutil.Bytes)(&data),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	key := env.privateKey(from)
+	tx, err := types.SignTx(raw.Tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -349,25 +373,40 @@ func (env *testEnv) Address(n idx.ValidatorID) common.Address {
 	return addr
 }
 
-func (env *testEnv) Payer(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
-	key := env.privateKey(n)
-	t, _ := bind.NewKeyedTransactorWithChainID(key, new(big.Int).SetUint64(env.store.GetRules().NetworkID))
-	nonce, _ := env.PendingNonceAt(nil, env.Address(n))
-	t.Nonce = big.NewInt(int64(nonce))
-	t.Value = big.NewInt(0)
-	for _, amount := range amounts {
-		t.Value.Add(t.Value, amount)
+func (env *testEnv) Pay(from idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
+	sender := env.Address(from)
+	nonce := env.nextNonce(sender)
+	amount := big.NewInt(0)
+	for _, a := range amounts {
+		amount.Add(amount, a)
 	}
-	t.GasLimit = env.GetEvmStateReader().MaxGasLimit()
-	t.GasPrice = env.GetEvmStateReader().MinGasPrice()
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
 
-	return t
-}
+	data := []byte{0} // fake
 
-func (env *testEnv) Pay(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
-	t := env.Payer(n, amounts...)
-	env.incNonce(t.From)
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+		Data:     (*hexutil.Bytes)(&data),
+	})
+	if err != nil {
+		panic(err)
+	}
 
+	key := env.privateKey(from)
+	t, _ := bind.NewKeyedTransactorWithChainID(key, new(big.Int).SetUint64(env.store.GetRules().NetworkID))
+	{
+		t.Nonce = big.NewInt(int64(nonce))
+		t.Value = amount
+		t.NoSend = true
+		t.GasLimit = raw.Tx.Gas()
+		t.GasPrice = raw.Tx.GasPrice()
+		//t.GasFeeCap = raw.Tx.GasFeeCap()
+		//t.GasTipCap = raw.Tx.GasTipCap()
+	}
 	return t
 }
 
@@ -380,8 +419,10 @@ func (env *testEnv) State() *state.StateDB {
 	return statedb
 }
 
-func (env *testEnv) incNonce(account common.Address) {
-	env.nonces[account] += 1
+func (env *testEnv) nextNonce(account common.Address) uint64 {
+	nonce := env.nonces[account]
+	env.nonces[account] = nonce + 1
+	return nonce
 }
 
 /*
@@ -498,12 +539,8 @@ func (env *testEnv) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // transactions may be added or removed by miners, but it should provide a basis
 // for setting a reasonable default.
 func (env *testEnv) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error) {
-	if call.To == nil {
-		gas = gasLimit * 10000
-	} else {
-		gas = gasLimit * 10
-	}
-	return
+	panic("is not implemented")
+	return 0, nil
 }
 
 // SendTransaction injects the transaction into the pending pool for execution.
