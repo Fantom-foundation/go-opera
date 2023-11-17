@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
@@ -105,7 +106,9 @@ func (em testEmitterWorldExternal) Build(e *inter.MutableEventPayload, onIndexed
 	if em.env.callback.buildEvent != nil {
 		em.env.callback.buildEvent(e)
 	}
-	return em.External.Build(e, onIndexed)
+	err := em.External.Build(e, onIndexed)
+
+	return err
 }
 
 func (em testEmitterWorldExternal) Broadcast(*inter.EventPayload) {}
@@ -119,6 +122,7 @@ func (p testConfirmedEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 	if p.env.callback.onEventConfirmed != nil {
 		p.env.callback.onEventConfirmed(e)
 	}
+
 	p.ConfirmedEventsProcessor.ProcessConfirmedEvent(e)
 }
 
@@ -219,41 +223,99 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
 	env.t = env.t.Add(spent)
 
-	externalReceipts := make(types.Receipts, 0, len(txs))
+	env.callback.onEventConfirmed = func(e inter.EventI) {
+		for _, em := range env.emitters {
+			em.OnEventConfirmed(e)
+		}
+	}
 
-	env.txpool.AddRemotes(txs)
-	defer env.txpool.(*dummyTxPool).Clear()
+	rest := int32(len(txs))
+	waitFor := make(map[common.Hash]struct{}, len(txs))
+	for _, tx := range txs {
+
+		g, err := tx.EffectiveGasTip(env.store.GetRules().Economy.MinGasPrice)
+
+		fmt.Printf("->> TX: %s, nonce: %d, g: %d, err: %s\n", tx.Hash().String(), tx.Nonce(), g, err)
+		waitFor[tx.Hash()] = struct{}{}
+	}
+
+	receipts := make(types.Receipts, 0, len(txs))
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	defer wg.Wait()
+
 	newBlocks := make(chan evmcore.ChainHeadNotify)
+	defer close(newBlocks)
 	chainHeadSub := env.feed.SubscribeNewBlock(newBlocks)
-	mu := &sync.Mutex{}
+	defer chainHeadSub.Unsubscribe()
+
 	go func() {
+		defer wg.Done()
 		for b := range newBlocks {
-			if len(b.Block.Transactions) == 0 {
-				continue
-			}
-			receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
-			for i, tx := range b.Block.Transactions {
-				if r, _, _ := tx.RawSignatureValues(); r.Sign() != 0 {
-					mu.Lock()
-					externalReceipts = append(externalReceipts, receipts[i])
-					mu.Unlock()
-					env.txpool.(*dummyTxPool).Delete(tx.Hash())
+
+			n := idx.Block(b.Block.Number.Uint64())
+			// valid txs
+			if len(b.Block.Transactions) > 0 {
+				rr := env.store.evm.GetReceipts(n, env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
+				for _, r := range rr {
+					env.txpool.(*dummyTxPool).Delete(r.TxHash)
+					if _, ok := waitFor[r.TxHash]; ok {
+						fmt.Printf("<<- TX: %s, g: %d\n", r.TxHash.String(), r.GasUsed)
+						receipts = append(receipts, r)
+						delete(waitFor, r.TxHash)
+						atomic.AddInt32(&rest, -1)
+					}
 				}
 			}
-			if externalReceipts.Len() == len(txs) {
-				chainHeadSub.Unsubscribe()
-				close(newBlocks)
-				break
+			// invalid txs
+			block := env.store.GetBlock(n)
+			if len(block.SkippedTxs) > 0 {
+				var (
+					internalsLen = uint32(len(block.InternalTxs))
+					externalsLen = uint32(len(block.InternalTxs) + len(block.Txs))
+					eventstxsLen = uint32(len(block.InternalTxs) + len(block.Txs) + 0)
+					e            = 0
+				)
+				for _, txi := range block.SkippedTxs {
+					var tx common.Hash
+
+					switch {
+					case txi < internalsLen:
+						tx = block.InternalTxs[txi+0]
+					case txi < externalsLen:
+						tx = block.Txs[txi-internalsLen]
+					default:
+						for {
+							etxs := env.store.GetEventPayload(block.Events[e]).Txs()
+							if txi < (eventstxsLen + uint32(len(etxs))) {
+								tx = etxs[txi-eventstxsLen].Hash()
+								break
+							} else {
+								e += 1 // next event
+								eventstxsLen += uint32(len(etxs))
+							}
+						}
+					}
+					env.txpool.(*dummyTxPool).Delete(tx)
+					if _, ok := waitFor[tx]; ok {
+						fmt.Printf("<<- TX: %s, err: skipped\n", tx.String())
+						delete(waitFor, tx)
+						atomic.AddInt32(&rest, -1)
+					}
+				}
 			}
 		}
 	}()
+
+	env.txpool.AddRemotes(txs)
+	defer env.txpool.(*dummyTxPool).Clear()
+
 	err := env.EmitUntil(func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		return externalReceipts.Len() == len(txs)
+		return atomic.LoadInt32(&rest) == 0
 	})
 
-	return externalReceipts, err
+	return receipts, err
 }
 
 func (env *testEnv) ApplyMPs(spent time.Duration, mps ...inter.MisbehaviourProof) error {
@@ -381,7 +443,6 @@ func (env *testEnv) Pay(from idx.ValidatorID, amounts ...*big.Int) *bind.Transac
 		amount.Add(amount, a)
 	}
 	gasLimit := env.GetEvmStateReader().MaxGasLimit()
-
 	data := []byte{0} // fake
 
 	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
