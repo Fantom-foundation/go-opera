@@ -471,6 +471,32 @@ func (env *testEnv) Pay(from idx.ValidatorID, amounts ...*big.Int) *bind.Transac
 	return t
 }
 
+func withLowGas(opts *bind.TransactOpts) *bind.TransactOpts {
+	originSigner := opts.Signer
+
+	opts.Signer = func(from common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		gas, err := evmcore.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil)
+		if err != nil {
+			return nil, err
+		}
+		if tx.Gas() >= gas {
+			repack := &types.LegacyTx{
+				To:       tx.To(),
+				Nonce:    tx.Nonce(),
+				GasPrice: tx.GasPrice(),
+				Gas:      gas + 1,
+				Value:    tx.Value(),
+				Data:     tx.Data(),
+			}
+			tx = types.NewTx(repack)
+		}
+		return originSigner(from, tx)
+	}
+
+	return opts
+
+}
+
 func (env *testEnv) ReadOnly() *bind.CallOpts {
 	return &bind.CallOpts{}
 }
