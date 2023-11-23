@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="testnet" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="go-x1" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="--testnet --datadir $USER_HOME$/.x1 --http --http.port 8545 --http.api &quot;eth,ftm,web3,net&quot; --verbosity 4 --port 5052" />
+    <kind value="FILE" />
+    <package value="github.com/Fantom-foundation/go-opera" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/opera/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
