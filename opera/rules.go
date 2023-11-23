@@ -22,9 +22,9 @@ const (
 	berlinBit                  = 1 << 0
 	londonBit                  = 1 << 1
 	llrBit                     = 1 << 2
-	TestnetStartBalance        = 495000000
+	TestnetStartBalance        = 328333333
 	TestnetStartStake          = 5000000
-	TestnetGenesisTime         = inter.Timestamp(1692844103 * time.Second)
+	TestnetGenesisTime         = inter.Timestamp(1700783108 * time.Second)
 )
 
 var DefaultVMConfig = vm.Config{
@@ -41,6 +41,10 @@ var GenesisValidators = []GenesisValidator{
 	{
 		"0x9c11DafF4913c68838ce7ce6969b12BaBff4318b",
 		"04dfc5e6a7594905af4ea831847367e22e9a02c2669d5b00407800e616e1504ab8c847d1e42c118230e593c010e0466b33410450d01811700d562e14a98c521b8f",
+	},
+	{
+		"0xa12f1025aF20f6C13385CdCFE5fc897496F87d98",
+		"04b2366cb5269d81cd00e0db9f808c43f614b44dc3abd25f54b025af498a579e7dd13de4f7573360690b23b22b2527a518ecf37119b8a03c8afc9fdbdbac98667e\n"
 	},
 }
 
