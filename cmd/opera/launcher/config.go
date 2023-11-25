@@ -267,6 +267,7 @@ func setBootnodes(ctx *cli.Context, urls []string, cfg *node.Config) {
 		}
 	}
 	cfg.P2P.BootstrapNodes = cfg.P2P.BootstrapNodesV5
+	cfg.P2P.TrustedNodes = cfg.P2P.BootstrapNodesV5
 }
 
 func setDataDir(ctx *cli.Context, cfg *node.Config) {
@@ -512,6 +513,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		// "asDefault" means set network defaults
 		cfg.Node.P2P.BootstrapNodes = asDefault
 		cfg.Node.P2P.BootstrapNodesV5 = asDefault
+		cfg.Node.P2P.TrustedNodes = asDefault
 	}
 
 	// Load config file (medium priority)
