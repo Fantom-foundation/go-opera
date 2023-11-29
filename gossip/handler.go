@@ -784,7 +784,8 @@ func (h *handler) handle(p *peer) error {
 		return err
 	}
 	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "opera")) {
+	log.Info("New peer connected", "name", p.Name(), "useless", useless)
+	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "x1")) {
 		useless = true
 		discfilter.Ban(p.ID())
 	}
