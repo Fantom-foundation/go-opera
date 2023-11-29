@@ -35,7 +35,7 @@ func TestFakeNetFlag_NonValidator(t *testing.T) {
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-x1/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
@@ -79,7 +79,7 @@ func TestFakeNetFlag_Validator(t *testing.T) {
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-x1/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 1 ({{niltime}})
  datadir: {{.Datadir}}

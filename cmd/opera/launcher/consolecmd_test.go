@@ -41,7 +41,7 @@ func TestConsoleWelcome(t *testing.T) {
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-x1/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 1 ({{niltime}})
  datadir: {{.Datadir}}
@@ -123,7 +123,7 @@ func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 	attach.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-x1/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{coinbase}}
 at block: 1 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}
