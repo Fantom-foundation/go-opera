@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/contract/ballot"
@@ -25,44 +26,49 @@ func TestTxIndexing(t *testing.T) {
 		ballotOption("Option 3"),
 	}
 
-	// valid tx
-	_, tx1ok, cBallot, err := ballot.DeployBallot(env.Pay(1), env, proposals)
+	// preparing
+	_, tx1pre, cBallot, err := ballot.DeployBallot(env.Pay(1), env, proposals)
 	require.NoError(err)
 	require.NotNil(cBallot)
-	require.NotNil(tx1ok)
-
-	// invalid tx
-	tx2reverted, err := cBallot.Vote(env.Pay(2), big.NewInt(0))
+	require.NotNil(tx1pre)
+	tx2pre, err := cBallot.GiveRightToVote(env.Pay(1), env.Address(3))
 	require.NoError(err)
-	require.NotNil(tx2reverted)
-
-	// valid tx
-	tx3ok, err := cBallot.GiveRightToVote(env.Pay(1), env.Address(3))
-	require.NoError(err)
-	require.NotNil(tx3ok)
-
-	// invalid tx
-	tx4skipped, err := cBallot.Vote(withLowGas(env.Pay(2)), big.NewInt(0))
-	require.NoError(err)
-	require.NotNil(tx4skipped)
-
-	//  valid tx
-	tx5ok, err := cBallot.Vote(env.Pay(3), big.NewInt(0))
-	require.NoError(err)
-	require.NotNil(tx5ok)
-
-	receipts, err := env.ApplyTxs(nextEpoch,
-		tx1ok,
-		tx2reverted,
-		tx3ok,
-		tx4skipped,
-		tx5ok,
+	require.NotNil(tx2pre)
+	receipts, err := env.BlockTxs(nextEpoch,
+		tx1pre,
+		tx2pre,
 	)
 	require.NoError(err)
+	require.Len(receipts, 2)
+	for i, r := range receipts {
+		require.Equal(types.ReceiptStatusSuccessful, r.Status, i)
+	}
+	// invalid tx
+	tx1reverted, err := cBallot.Vote(env.Pay(2), big.NewInt(0))
+	require.NoError(err)
+	require.NotNil(tx1reverted)
+	//  valid tx
+	tx2ok, err := cBallot.Vote(env.Pay(3), big.NewInt(0))
+	require.NoError(err)
+	require.NotNil(tx2ok)
+	// skipped tx
+	_, tx3skipped, _, err := ballot.DeployBallot(withLowGas(env.Pay(1)), env, proposals)
+	require.NoError(err)
+	require.NotNil(tx3skipped)
 
-	for _, r := range receipts {
-		fmt.Printf(">>>>>>>>> tx[%s] status %d\n", r.TxHash.String(), r.Status)
+	receipts, err = env.BlockTxs(nextEpoch,
+		tx1reverted,
+		tx2ok,
+		tx3skipped,
+	)
+	require.NoError(err)
+	require.Len(receipts, 3)
+	var block *big.Int
+	for i, r := range receipts {
+		if block == nil {
+			block = r.BlockNumber
+		}
+		require.Equal(block.Uint64(), r.BlockNumber.Uint64(), i)
 	}
 
-	require.Len(receipts, 0)
 }
