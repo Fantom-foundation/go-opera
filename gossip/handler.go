@@ -784,7 +784,6 @@ func (h *handler) handle(p *peer) error {
 		return err
 	}
 	useless := discfilter.Banned(p.Node().ID(), p.Node().Record())
-	log.Info("New peer connected", "name", p.Name(), "useless", useless)
 	if !useless && (!eligibleForSnap(p.Peer) || !strings.Contains(strings.ToLower(p.Name()), "x1")) {
 		useless = true
 		discfilter.Ban(p.ID())
@@ -817,7 +816,7 @@ func (h *handler) handle(p *peer) error {
 	if h.peers.Len() >= h.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
 	}
-	p.Log().Debug("Peer connected", "name", p.Name())
+	p.Log().Info("Peer connected", "name", p.Name(), "id", p.ID(), "genesis", genesis, "progress", myProgress)
 
 	// Register the peer locally
 	if err := h.peers.RegisterPeer(p, snap); err != nil {
