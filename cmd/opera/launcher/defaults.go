@@ -1,7 +1,9 @@
 package launcher
 
 import (
+	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -46,6 +48,20 @@ var NodeDefaultConfig = node.Config{
 	},
 }
 
+func moveMacDataDir(home string) string {
+	dataDir := filepath.Join(home, "Library", "Lachesis")
+	newDataDir := filepath.Join(home, ".x1")
+	if _, err := os.Stat(dataDir); !errors.Is(err, os.ErrNotExist) {
+		log.Info("Moving datadir to ~/.x1", "datadir", dataDir)
+		err := os.Rename(dataDir, newDataDir)
+		if err != nil {
+			log.Error("Failed to move datadir", "datadir", dataDir, "newDatadir", newDataDir, "err", err)
+			return dataDir
+		}
+	}
+	return newDataDir
+}
+
 // DefaultDataDir is the default data directory to use for the databases and other
 // persistence requirements.
 func DefaultDataDir() string {
@@ -54,7 +70,9 @@ func DefaultDataDir() string {
 	if home != "" {
 		switch runtime.GOOS {
 		case "darwin":
-			return filepath.Join(home, "Library", "Lachesis")
+			// On macOS, we used to put everything in ~/Library/Lachesis
+			// to be more specific with linux we'll use ~/.x1
+			return moveMacDataDir(home)
 		case "windows":
 			// We used to put everything in %HOME%\AppData\Roaming, but this caused
 			// problems with non-typical setups. If this fallback location exists and
