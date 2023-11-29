@@ -30,6 +30,11 @@ cp build/x1 /usr/local/bin
 x1 --testnet
 ```
 
+> Run with Xenblocks reporting enabled
+```shell
+x1 --testnet --xenblocks-endpoint ws://xenblocks.io:6668
+```
+
 > Run with RPC server enabled
 ```shell
 x1 --testnet --http --http.port 8545 --ws --ws.port 8546

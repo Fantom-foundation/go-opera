@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
 	"math/big"
 	"os"
 	"path"
@@ -173,6 +174,7 @@ type config struct {
 	LachesisStore abft.StoreConfig
 	VectorClock   vecmt.IndexConfig
 	DBs           integration.DBsConfig
+	XenBlocks     xenblocks.Config
 }
 
 func (c *config) AppConfigs() integration.Configs {
@@ -500,6 +502,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
+		XenBlocks:     xenblocks.DefaultConfig(),
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
@@ -514,6 +517,14 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		cfg.Node.P2P.BootstrapNodes = asDefault
 		cfg.Node.P2P.BootstrapNodesV5 = asDefault
 		cfg.Node.P2P.TrustedNodes = asDefault
+	}
+
+	if ctx.GlobalIsSet(XenBlocksEndpointFlag.Name) {
+		endpoint, err := parseXenBlocksEndpoint(ctx.GlobalString(XenBlocksEndpointFlag.Name))
+		if err != nil {
+			return nil, fmt.Errorf("invalid xenblocks-endpoint flag")
+		}
+		cfg.XenBlocks.Endpoint = endpoint
 	}
 
 	// Load config file (medium priority)

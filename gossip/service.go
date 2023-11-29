@@ -3,6 +3,7 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -157,17 +158,19 @@ type Service struct {
 
 	bootstrapping bool
 
+	xenblocks *xenblocks.Xenblocks
+
 	logger.Instance
 }
 
 func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc,
 	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
-	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool) (*Service, error) {
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool, xenblocks *xenblocks.Xenblocks) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
-	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool)
+	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool, xenblocks)
 	if err != nil {
 		return nil, err
 	}
@@ -179,11 +182,12 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 	svc.haltCheck = haltCheck
+	svc.xenblocks = xenblocks.Start(svc.p2pServer)
 
 	return svc, nil
 }
 
-func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool) (*Service, error) {
+func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool, xenblocks *xenblocks.Xenblocks) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		blockProcTasksDone: make(chan struct{}),
@@ -198,6 +202,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 		Instance:           logger.New("gossip-service"),
 	}
 
+	svc.xenblocks = xenblocks
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
 
 	// load epoch DB

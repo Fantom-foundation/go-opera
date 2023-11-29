@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -74,6 +75,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			&s.emitters,
 			s.verWatcher,
 			&s.bootstrapping,
+			s.xenblocks,
 		),
 	}
 }
@@ -91,6 +93,7 @@ func consensusCallbackBeginBlockFn(
 	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
 	bootstrapping *bool,
+	xenblocks *xenblocks.Xenblocks,
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		if *bootstrapping {
@@ -445,6 +448,13 @@ func consensusCallbackBeginBlockFn(
 						evmBlock.GasUsed, "txs", fmt.Sprintf("%d/%d", len(evmBlock.Transactions), len(block.SkippedTxs)),
 						"age", utils.PrettyDuration(blockAge), "t", utils.PrettyDuration(now.Sub(start)))
 					blockAgeGauge.Update(int64(blockAge.Nanoseconds()))
+
+					if xenblocks.Enabled {
+						xenblocks.Send(
+							fmt.Sprintf("%d", blockCtx.Idx),
+							fmt.Sprintf("%s", block.Atropos),
+							fmt.Sprintf("%s", utils.PrettyDuration(now.Sub(start))))
+					}
 				}
 				if confirmedEvents.Len() != 0 {
 					atomic.StoreUint32(blockBusyFlag, 1)
