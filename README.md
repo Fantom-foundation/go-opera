@@ -1,6 +1,8 @@
-# X1 
+# X1 Blockchain
 
 X1 is a simple, fast, and secure EVM-compatible network for the next generation of decentralized applications powered by Lachesis consensus algorithm.
+
+Chain ID: `204005`
 
 ## Explore the Network (Testnet)
 
