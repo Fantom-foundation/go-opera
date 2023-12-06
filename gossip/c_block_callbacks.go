@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks/reporter"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,6 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/verwatcher"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
-	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/iblockproc"
 	"github.com/Fantom-foundation/go-opera/opera"
@@ -75,7 +75,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			&s.emitters,
 			s.verWatcher,
 			&s.bootstrapping,
-			s.xenblocks,
+			s.reporter,
 		),
 	}
 }
@@ -93,7 +93,7 @@ func consensusCallbackBeginBlockFn(
 	emitters *[]*emitter.Emitter,
 	verWatcher *verwatcher.VerWarcher,
 	bootstrapping *bool,
-	xenblocks *xenblocks.Xenblocks,
+	xenblocks *reporter.Reporter,
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		if *bootstrapping {

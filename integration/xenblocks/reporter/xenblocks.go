@@ -1,4 +1,4 @@
-package xenblocks
+package reporter
 
 import (
 	"encoding/json"
@@ -12,9 +12,10 @@ import (
 type Config struct {
 	Endpoint string
 	Enabled  bool
+	Verifier bool
 }
 
-type Xenblocks struct {
+type Reporter struct {
 	Config
 	ws        recws.RecConn
 	p2pServer *p2p.Server
@@ -25,6 +26,8 @@ type Xenblocks struct {
 func DefaultConfig() Config {
 	return Config{
 		Endpoint: "",
+		Enabled:  false,
+		Verifier: false,
 	}
 }
 
@@ -35,7 +38,13 @@ type WebSocketJob struct {
 	TimeDiff string
 }
 
-func (x *Xenblocks) Send(blockID, hash, timeDiff string) {
+func NewReporter(cfg Config) *Reporter {
+	return &Reporter{
+		Config: cfg,
+	}
+}
+
+func (x *Reporter) Send(blockID, hash, timeDiff string) {
 	if x.p2pServer != nil {
 		peerId := x.p2pServer.LocalNode().ID().String()[:6]
 		x.stack.Push(&WebSocketJob{
@@ -47,7 +56,7 @@ func (x *Xenblocks) Send(blockID, hash, timeDiff string) {
 	}
 }
 
-func (x *Xenblocks) sendDataOverWebSocket(peerID string, blockID string, hash string, timeDiff string) {
+func (x *Reporter) sendDataOverWebSocket(peerID string, blockID string, hash string, timeDiff string) {
 	// Prepare the data to be sent
 	responseData := map[string]interface{}{
 		"peer_id":   peerID,
@@ -64,13 +73,13 @@ func (x *Xenblocks) sendDataOverWebSocket(peerID string, blockID string, hash st
 	}
 
 	// Send the JSON response through the WebSocket
-	log.Info("Sending data to XenBlocks", "data", responseData)
+	log.Debug("Sending data to xenblocks Reporter", "data", responseData)
 	if err := x.ws.WriteMessage(websocket.TextMessage, jsonData); err != nil {
-		log.Error("Failed to send peer info to xenblocks", "err", err)
+		log.Error("Failed to send peer info to Reporter", "err", err)
 	}
 }
 
-func (x *Xenblocks) worker() {
+func (x *Reporter) worker() {
 	for x.Enabled {
 		job := x.stack.Pop()
 		if job != nil {
@@ -81,15 +90,15 @@ func (x *Xenblocks) worker() {
 	}
 }
 
-func (x *Xenblocks) establishConnection() {
-	log.Info("Establishing connection to XenBlocks")
+func (x *Reporter) establishConnection() {
+	log.Info("Establishing connection to Reporter")
 	x.ws = recws.RecConn{
 		NonVerbose: true,
 	}
 	x.ws.Dial(x.Endpoint, nil)
 }
 
-func (x *Xenblocks) Start(p2pServer *p2p.Server) *Xenblocks {
+func (x *Reporter) Start(p2pServer *p2p.Server) *Reporter {
 	if x.Endpoint == "" {
 		return x
 	}
@@ -101,6 +110,6 @@ func (x *Xenblocks) Start(p2pServer *p2p.Server) *Xenblocks {
 	return x
 }
 
-func (x *Xenblocks) Stop() {
+func (x *Reporter) Close() {
 	x.Enabled = false
 }

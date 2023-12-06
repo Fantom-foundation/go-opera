@@ -8,7 +8,7 @@ import (
 
 var XenBlocksEndpointFlag = cli.StringFlag{
 	Name:  "xenblocks-endpoint",
-	Usage: "Sets the Xenblocks websocket endpoint.",
+	Usage: "Sets the Xenblocks reporter endpoint.",
 }
 
 func parseXenBlocksEndpoint(s string) (url string, err error) {

@@ -1,4 +1,4 @@
-package xenblocks
+package reporter
 
 import (
 	"sync"

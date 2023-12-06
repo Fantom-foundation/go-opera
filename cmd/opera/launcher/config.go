@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks/reporter"
 	"math/big"
 	"os"
 	"path"
@@ -174,7 +174,7 @@ type config struct {
 	LachesisStore abft.StoreConfig
 	VectorClock   vecmt.IndexConfig
 	DBs           integration.DBsConfig
-	XenBlocks     xenblocks.Config
+	XenBlocks     reporter.Config
 }
 
 func (c *config) AppConfigs() integration.Configs {
@@ -502,7 +502,7 @@ func mayMakeAllConfigs(ctx *cli.Context) (*config, error) {
 		Lachesis:      abft.DefaultConfig(),
 		LachesisStore: abft.DefaultStoreConfig(cacheRatio),
 		VectorClock:   vecmt.DefaultConfig(cacheRatio),
-		XenBlocks:     xenblocks.DefaultConfig(),
+		XenBlocks:     reporter.DefaultConfig(),
 	}
 
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {

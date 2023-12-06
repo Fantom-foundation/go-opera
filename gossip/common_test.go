@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks/reporter"
 	"math"
 	"math/big"
 	"sync"
@@ -155,7 +155,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 
 	engine, vecClock := makeTestEngine(store)
 
-	xb := xenblocks.Xenblocks{}
+	xb := reporter.Reporter{}
 
 	// create the service
 	txPool := &dummyTxPool{}

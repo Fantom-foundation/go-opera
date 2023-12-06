@@ -3,7 +3,7 @@ package gossip
 import (
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-opera/integration/xenblocks"
+	"github.com/Fantom-foundation/go-opera/integration/xenblocks/reporter"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -158,19 +158,19 @@ type Service struct {
 
 	bootstrapping bool
 
-	xenblocks *xenblocks.Xenblocks
+	reporter *reporter.Reporter
 
 	logger.Instance
 }
 
 func NewService(stack *node.Node, config Config, store *Store, blockProc BlockProc,
 	engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool,
-	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool, xenblocks *xenblocks.Xenblocks) (*Service, error) {
+	haltCheck func(oldEpoch, newEpoch idx.Epoch, age time.Time) bool, reporter *reporter.Reporter) (*Service, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
-	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool, xenblocks)
+	svc, err := newService(config, store, blockProc, engine, dagIndexer, newTxPool, reporter)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +182,12 @@ func NewService(stack *node.Node, config Config, store *Store, blockProc BlockPr
 	// Create the net API service
 	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, store.GetRules().NetworkID)
 	svc.haltCheck = haltCheck
-	svc.xenblocks = xenblocks.Start(svc.p2pServer)
+	svc.reporter = reporter.Start(svc.p2pServer)
 
 	return svc, nil
 }
 
-func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool, xenblocks *xenblocks.Xenblocks) (*Service, error) {
+func newService(config Config, store *Store, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index, newTxPool func(evmcore.StateReader) TxPool, reporter *reporter.Reporter) (*Service, error) {
 	svc := &Service{
 		config:             config,
 		blockProcTasksDone: make(chan struct{}),
@@ -202,7 +202,7 @@ func newService(config Config, store *Store, blockProc BlockProc, engine lachesi
 		Instance:           logger.New("gossip-service"),
 	}
 
-	svc.xenblocks = xenblocks
+	svc.reporter = reporter
 	svc.blockProcTasks = workers.New(new(sync.WaitGroup), svc.blockProcTasksDone, 1)
 
 	// load epoch DB
