@@ -1018,6 +1018,9 @@ func (h *handler) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
+		if progress.LastBlockIdx > h.chain.GenesisBlock() && progress.Epoch != progress.LastBlockAtropos.Epoch() {
+			return errResp(ErrNoStatusMsg, "epoch %d does not match atropos %s", progress.Epoch, progress.LastBlockAtropos.String())
+		}
 		p.SetProgress(progress)
 
 	case msg.Code == EvmTxsMsg:
