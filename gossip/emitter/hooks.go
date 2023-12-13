@@ -115,8 +115,6 @@ func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
 }
 
 func (em *Emitter) OnEventConfirmed(he inter.EventI) {
-	log.Info("Event confirmed", "id", he.ID(), "creator", he.Creator(), "parents", he.Parents(), "epoch", he.Epoch(), "frame", he.Frame())
-
 	if !em.isValidator() {
 		return
 	}
