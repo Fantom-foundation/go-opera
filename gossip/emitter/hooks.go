@@ -1,7 +1,6 @@
 package emitter
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
@@ -88,8 +87,6 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 // OnEventConnected tracks new events
 func (em *Emitter) OnEventConnected(e inter.EventPayloadI) {
-	log.Info("OnEventConnected", "id", e.ID(), "creator", e.Creator(), "parents", e.Parents(), "epoch", e.Epoch(), "frame", e.Frame())
-
 	if !em.isValidator() {
 		return
 	}
