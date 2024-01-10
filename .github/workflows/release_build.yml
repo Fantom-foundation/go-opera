@@ -21,10 +21,10 @@ jobs:
         run: go test -v ./...
 
       - name: Build
-        run: make opera
+        run: make x1
 
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "./build/opera"
+          artifacts: "./build/x1"
           token: ${{ secrets.GITHUB_TOKEN }}

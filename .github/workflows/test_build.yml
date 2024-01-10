@@ -1,9 +1,9 @@
 name: Check build
 
-on: 
+on:
   push:
   pull_request:
-    branches: 
+    branches:
       - develop
       - master
 
@@ -23,10 +23,10 @@ jobs:
         run: go test -v ./...
 
       - name: Build
-        run: make opera
+        run: make x1
 
       - name: Publish
         uses: actions/upload-artifact@v2
         with:
-          name: opera
-          path: ./build/opera
+          name: x1
+          path: ./build/x1
