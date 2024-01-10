@@ -29,7 +29,13 @@ make x1
 cp build/x1 /usr/local/bin
 
 # Run the node
-x1 --testnet
+x1 --testnet --syncmode snap
+```
+
+## Run an Archive Node (Testnet)
+
+```shell
+x1 --testnet --gcmode archive --syncmode full
 ```
 
 > Run with Xenblocks reporting enabled
