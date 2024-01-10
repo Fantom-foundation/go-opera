@@ -115,7 +115,7 @@ var (
 	GCModeFlag = cli.StringFlag{
 		Name:  "gcmode",
 		Usage: `Blockchain garbage collection mode ("light", "full", "archive")`,
-		Value: "archive",
+		Value: "full",
 	}
 
 	ExitWhenAgeFlag = cli.DurationFlag{
