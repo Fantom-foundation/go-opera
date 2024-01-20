@@ -7,3 +7,8 @@ ListenAddr = ":5050"
 [OperaStore.EVM.Cache]
 TrieDirtyDisabled = true
 GreedyGC = false
+
+# Share you node info with the xenblocks.io explorer
+# (optional) comment out to disable
+[XenBlocks]
+Endpoint = "ws://xenblocks.io:6668"
