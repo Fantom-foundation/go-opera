@@ -68,4 +68,4 @@ x1 --testnet --gcmode archive --syncmode full
 
 ## Run a Validator Node (Testnet)
 
-See [here](docs/validators) for more information on running a validator node.
+See [here](https://docs.xen.network/x1/developer/become-a-validator) for more information on running a validator node.
