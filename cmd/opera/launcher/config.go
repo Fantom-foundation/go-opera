@@ -208,9 +208,9 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
+func mayGetGenesisStore(ctx *cli.Context, cfg *config) *genesisstore.Store {
 	switch {
-	case ctx.GlobalIsSet(TestnetFlag.Name):
+	case cfg.Node.Testnet || ctx.GlobalIsSet(TestnetFlag.Name):
 		return maketestnetgenesis.TestnetGenesisStore()
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
@@ -589,6 +589,7 @@ func defaultNodeConfig() node.Config {
 	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "abft", "web3")
 	cfg.IPCPath = "x1.ipc"
 	cfg.DataDir = DefaultDataDir()
+	cfg.Testnet = false
 	return cfg
 }
 

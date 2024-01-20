@@ -60,3 +60,5 @@ testnet.g
 .#*
 
 **/coverage.txt
+
+dist/

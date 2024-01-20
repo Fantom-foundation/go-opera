@@ -1,0 +1,21 @@
+[Unit]
+Description=X1
+After=syslog.target network.target
+
+[Service]
+User=x1
+Group=x1
+Type=simple
+WorkingDirectory=~
+LimitNOFILE=infinity
+EnvironmentFile=-/etc/default/x1
+KillMode=process
+KillSignal=SIGINT
+TimeoutStopSec=600
+Restart=on-failure
+RestartSec=10s
+SyslogIdentifier=x1
+ExecStart=/usr/local/bin/x1 --config /etc/x1/config.toml $X1_OPTS
+
+[Install]
+WantedBy=multi-user.target

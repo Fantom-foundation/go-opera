@@ -1,0 +1,37 @@
+[Node]
+Testnet = true
+
+[Node.P2P]
+ListenAddr = ":5050"
+
+# RPC server
+HTTPHost = "0.0.0.0"
+HTTPVirtualHosts = ["*"]
+HTTPCors = ["*"]
+HTTPPort = 8545
+HTTPModules = [
+    "eth",
+    "ftm",
+    "dag",
+    "abft",
+    "web3",
+    "net",
+    "txpool"
+]
+
+# Websocket server
+WSHost = "0.0.0.0"
+WSPort = 8546
+WSOrigins = ["*"]
+WSModules = [
+    "eth",
+    "ftm",
+    "dag",
+    "abft",
+    "web3",
+    "net",
+    "txpool",
+]
+
+[Opera]
+AllowSnapsync = true

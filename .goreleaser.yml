@@ -1,58 +1,164 @@
-before:
-  hooks:
-    - make clean proto vendor
+project_name: go-x1
+
+release:
+  disable: false
+  prerelease: auto
+
 builds:
-  - main: ./cmd/opera/main.go
-    binary: go-opera
-    ldflags:
-      - -linkmode external -extldflags -static -s -w
-      - -X main.gitCommit={{ .ShortCommit }}
+  - id: darwin-amd64
+    main: ./cmd/opera/main.go
+    binary: x1
+    goos:
+      - darwin
+    goarch:
+      - amd64
     env:
-      - CGO_ENABLED=0
+      - CC=o64-clang
+      - CXX=o64-clang++
+    ldflags:
+      - -s -w
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitCommit={{ .ShortCommit }}
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitDate={{ .CommitDate }}
+
+  - id: darwin-arm64
+    main: ./cmd/opera/main.go
+    binary: x1
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    env:
+      - CC=oa64-clang
+      - CXX=oa64-clang++
+    ldflags:
+      - -s -w
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitCommit={{ .ShortCommit }}
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitDate={{ .CommitDate }}
+
+  - id: linux-amd64
+    main: ./cmd/opera/main.go
+    binary: x1
     goos:
       - linux
     goarch:
       - amd64
-archive:
-  replacements:
-    darwin: Darwin
-    linux: Linux
-    windows: Windows
-    386: i386
-    amd64: x86_64
-checksum:
-  name_template: 'checksums.txt'
+    env:
+      - CC=gcc
+      - CXX=g++
+    ldflags:
+      - -s -w -linkmode external -extldflags "-static"
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitCommit={{ .ShortCommit }}
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitDate={{ .CommitDate }}
+    tags:
+      - netgo
+      - osusergo
+
+  - id: linux-arm64
+    main: ./cmd/opera/main.go
+    binary: x1
+    goos:
+      - linux
+    goarch:
+      - arm64
+    env:
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    ldflags:
+      - -s -w -linkmode external -extldflags "-static"
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitCommit={{ .ShortCommit }}
+      - -X github.com/Fantom-foundation/go-opera/cmd/opera/launcher.gitDate={{ .CommitDate }}
+    tags:
+      - netgo
+      - osusergo
+
+nfpms:
+  - vendor: Faircrypto
+    homepage: https://faircrypto.org
+    maintainer: Faircrypto <nick@faircrypto.org>
+    description:  X1 is a simple, fast, and secure EVM-compatible network for the next generation of decentralized applications powered by Lachesis consensus algorithm.
+    license: GPLv3 LGPLv3
+
+    bindir: /usr/local/bin
+
+    formats:
+      - deb
+      - rpm
+
+    contents:
+      - src: system/lib/systemd/system/x1.service
+        dst: /lib/systemd/system/x1.service
+
+      - src: system/etc/default/x1
+        dst: /etc/default/x1
+        type: "config|noreplace"
+
+      - src: system/etc/x1/config.toml
+        dst: /etc/x1/config.toml
+        type: "config|noreplace"
+
+    scripts:
+      preinstall: system/x1-pre-install.sh
+      postinstall: system/x1-post-install.sh
+
+    file_name_template: "{{ .PackageName }}_{{.Os}}-{{ .Arch }}"
+
+    overrides:
+      rpm:
+        replacements:
+          amd64: x86_64
+      deb:
+        replacements:
+          amd64: x86_64
+
+archives:
+  - format: tar.gz
+    replacements:
+      darwin: macos
+      386: i386
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: '{{.ProjectName}}_{{.Os}}-{{.Arch}}'
+    files:
+      - COPYING.LESSER
+      - README.md
+
 snapshot:
-  name_template: "{{ .Tag }}-next"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
-nfpm:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  replacements:
-    amd64: 64-bit
-    386: 32-bit
-    darwin: macOS
-    linux: Tux
+  name_template: "{{ .Tag }}.next"
 
-  vendor: Fanton Foundation
-  homepage: https://fantom.foundation
-  maintainer: Samuel Marks <samuel@fantom.foundation>
-  description: BFT Consensus platform for distributed applications.
-  license: MIT
+dockers:
+  - image_templates:
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-amd64
+    dockerfile: Dockerfile.release
+    use: buildx
+    goarch: amd64
+    ids:
+      - linux-amd64
+    build_flag_templates:
+      - --platform=linux/amd64
+    skip_push: false
 
-  formats:
-    - deb
-    - rpm
+  - image_templates:
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-arm64
+    dockerfile: Dockerfile.release
+    use: buildx
+    goarch: arm64
+    ids:
+      - linux-arm64
+    build_flag_templates:
+      - --platform=linux/arm64
+    skip_push: false
 
-  empty_folders:
-    - /var/log/go-opera
+docker_manifests:
+  - name_template: ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}
+    image_templates:
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-amd64
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-arm64
+    skip_push: false
 
-  files:
-    "scripts/daemon/go-opera.service": "/lib/systemd/system/go-opera.service"
-
-  # scripts:
-  #   preinstall: "scripts/preinstall.bash"
+  - name_template: ghcr.io/{{ .Env.REPOSITORY }}:latest
+    image_templates:
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-amd64
+      - ghcr.io/{{ .Env.REPOSITORY }}:{{ .Version }}-arm64
+    skip_push: auto

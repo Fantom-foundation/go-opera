@@ -285,7 +285,7 @@ func lachesisMain(ctx *cli.Context) error {
 	//defer tracingStop()
 
 	cfg := makeAllConfigs(ctx)
-	genesisStore := mayGetGenesisStore(ctx)
+	genesisStore := mayGetGenesisStore(ctx, cfg)
 	node, _, nodeClose := makeNode(ctx, cfg, genesisStore)
 	defer nodeClose()
 	startNode(ctx, node)
@@ -342,7 +342,7 @@ func makeNode(ctx *cli.Context, cfg *config, genesisStore *genesisstore.Store) (
 
 	// unlock validator key
 	if !valPubkey.Empty() {
-		err := unlockValidatorKey(ctx, valPubkey, valKeystore)
+		err := unlockValidatorKey(cfg, ctx, valPubkey, valKeystore)
 		if err != nil {
 			utils.Fatalf("Failed to unlock validator key: %v", err)
 		}

@@ -262,13 +262,6 @@ func DefaultDagRules() DagRules {
 	}
 }
 
-func DefaultEpochsRules() EpochsRules {
-	return EpochsRules{
-		MaxEpochGas:      1500000000,
-		MaxEpochDuration: inter.Timestamp(4 * time.Hour),
-	}
-}
-
 func DefaultGasRules() GasRules {
 	return GasRules{
 		MaxEventGas:          10000000 + DefaultEventGas,
@@ -279,6 +272,13 @@ func DefaultGasRules() GasRules {
 		BlockVoteGas:         512,
 		EpochVoteGas:         1536,
 		MisbehaviourProofGas: 71536,
+	}
+}
+
+func DefaultEpochsRules() EpochsRules {
+	return EpochsRules{
+		MaxEpochGas:      1500000000,
+		MaxEpochDuration: inter.Timestamp(4 * time.Hour),
 	}
 }
 
@@ -299,6 +299,13 @@ func DefaulLongGasPowerRules() GasPowerRules {
 	}
 }
 
+// FakeLongGasPowerRules is fake long-window config
+func FakeLongGasPowerRules() GasPowerRules {
+	config := DefaulLongGasPowerRules()
+	config.AllocPerSec *= 1000
+	return config
+}
+
 // DefaultShortGasPowerRules is short-window config
 func DefaultShortGasPowerRules() GasPowerRules {
 	// 2x faster allocation rate, 6x lower max accumulated gas power
@@ -307,13 +314,6 @@ func DefaultShortGasPowerRules() GasPowerRules {
 	cfg.StartupAllocPeriod /= 2
 	cfg.MaxAllocPeriod /= 2 * 6
 	return cfg
-}
-
-// FakeLongGasPowerRules is fake long-window config
-func FakeLongGasPowerRules() GasPowerRules {
-	config := DefaulLongGasPowerRules()
-	config.AllocPerSec *= 1000
-	return config
 }
 
 // FakeShortGasPowerRules is fake short-window config

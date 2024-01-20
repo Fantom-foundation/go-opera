@@ -21,8 +21,10 @@ type EmitIntervals struct {
 }
 
 type ValidatorConfig struct {
-	ID     idx.ValidatorID
-	PubKey validatorpk.PubKey
+	ID               idx.ValidatorID
+	PubKey           validatorpk.PubKey
+	PubKeyString     string
+	PasswordFilePath string
 }
 
 type FileConfig struct {

@@ -32,6 +32,14 @@ var validatorPasswordFlag = cli.StringFlag{
 // setValidatorID retrieves the validator ID either from the directly specified
 // command line flags or from the keystore if CLI indexed.
 func setValidator(ctx *cli.Context, cfg *emitter.Config) error {
+	if cfg.Validator.ID != 0 && cfg.Validator.PubKeyString != "" {
+		pk, err := validatorpk.FromString(cfg.Validator.PubKeyString)
+		if err != nil {
+			return err
+		}
+		cfg.Validator.PubKey = pk
+	}
+
 	// Extract the current validator address, new flag overriding legacy one
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
 		id, num, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))

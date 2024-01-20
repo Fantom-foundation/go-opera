@@ -40,7 +40,7 @@ SUBCOMMANDS:
 	AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2019-2021 The go-opera Authors
+   Copyright 2013-2024 The go-x1 Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}

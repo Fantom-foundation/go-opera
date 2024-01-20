@@ -1,6 +1,10 @@
 .PHONY: all
 all: x1
 
+ifeq ($(PREFIX),)
+    PREFIX := /usr/local
+endif
+
 GOPROXY ?= "https://proxy.golang.org,direct"
 .PHONY: x1
 x1:
@@ -12,6 +16,22 @@ x1:
 	    -o build/x1 \
 	    ./cmd/opera
 
+install:
+	system/x1-pre-install.sh
+
+	install -d $(DESTDIR)$(PREFIX)/lib
+	install -m 0777 build/x1 $(DESTDIR)$(PREFIX)/bin
+
+ifneq ("$(wildcard $(/etc/systemd/system))","")
+		install -m 644 system/lib/systemd/system/x1.service $(DESTDIR)/lib/systemd/system
+endif
+
+	install -d $(DESTDIR)$(PREFIX)/share/x1/configs/testnet
+	install -m 644 system/usr/share/x1/configs/testnet/full-node.toml $(DESTDIR)$(PREFIX)/share/x1/configs/testnet/full-node.toml
+	install -m 644 system/usr/share/x1/configs/testnet/api-node.toml $(DESTDIR)$(PREFIX)/share/x1/configs/testnet/api-node.toml
+	install -m 644 system/usr/share/x1/configs/testnet/archive-node.toml $(DESTDIR)$(PREFIX)/share/x1/configs/testnet/archive-node.toml
+
+	system/x1-post-install.sh
 
 TAG ?= "latest"
 .PHONY: x1-image

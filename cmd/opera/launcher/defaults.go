@@ -39,6 +39,7 @@ var NodeDefaultConfig = node.Config{
 	WSPort:              DefaultWSPort,
 	WSModules:           []string{},
 	GraphQLVirtualHosts: []string{"localhost"},
+	Testnet:             false,
 	P2P: p2p.Config{
 		NoDiscovery: false, // enable discovery v4 by default
 		DiscoveryV5: true,  // enable discovery v5 by default

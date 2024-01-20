@@ -76,9 +76,10 @@ func importEvents(ctx *cli.Context) error {
 		utils.Fatalf("This command requires an argument.")
 	}
 
-	// avoid P2P interaction, API calls and events emitting
-	genesisStore := mayGetGenesisStore(ctx)
 	cfg := makeAllConfigs(ctx)
+
+	// avoid P2P interaction, API calls and events emitting
+	genesisStore := mayGetGenesisStore(ctx, cfg)
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Size = math.MaxUint32
 	cfg.Opera.Protocol.EventsSemaphoreLimit.Num = math.MaxUint32
 	cfg.Emitter.Validator = emitter.ValidatorConfig{}

@@ -1,0 +1,9 @@
+[Node]
+Testnet = true
+
+[Node.P2P]
+ListenAddr = ":5050"
+
+[OperaStore.EVM.Cache]
+TrieDirtyDisabled = true
+GreedyGC = false

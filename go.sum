@@ -192,8 +192,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/etcd-io/bbolt v1.3.3/go.mod h1:ZF2nL25h33cCyBtcyWeZ2/I3HQOfTP+0PIEvHjkjCrw=
 github.com/evalphobia/logrus_sentry v0.8.2 h1:dotxHq+YLZsT1Bb45bB5UQbfCh3gM/nFFetyN46VoDQ=
 github.com/evalphobia/logrus_sentry v0.8.2/go.mod h1:pKcp+vriitUqu9KiWj/VRFbRfFNUwz95/UkgG8a6MNc=
-github.com/faircrypto/go-ethereum v1.10.8-ftm-rc12-x1-5 h1:edJqA+dRGYTaxNyYY3DPGsGw4e7tu5IjEW4H1NpoBKM=
-github.com/faircrypto/go-ethereum v1.10.8-ftm-rc12-x1-5/go.mod h1:ah5rnRobPJSTUKXIETbrkyrrEhWPTUPfmF1gPPNr0Tg=
+github.com/faircrypto/go-ethereum v1.10.8-ftm-rc12-x1-7 h1:OT5kKAQ+kqmro7lnSThMHPp7kk+fOg+TCLn9K/T1ALE=
+github.com/faircrypto/go-ethereum v1.10.8-ftm-rc12-x1-7/go.mod h1:ah5rnRobPJSTUKXIETbrkyrrEhWPTUPfmF1gPPNr0Tg=
 github.com/fasthttp-contrib/websocket v0.0.0-20160511215533-1f3b11f56072/go.mod h1:duJ4Jxv5lDcvg4QuQr0oowTf7dz4/CR8NtyCooz9HL8=
 github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=

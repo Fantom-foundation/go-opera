@@ -1,0 +1,10 @@
+FROM alpine:3.14
+
+RUN set -x \
+    && apk add --update --no-cache \
+       ca-certificates \
+    && rm -rf /var/cache/apk/*
+COPY x1 /usr/local/bin/
+
+EXPOSE 18545 18546 5050
+ENTRYPOINT ["x1"]

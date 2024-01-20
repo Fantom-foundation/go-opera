@@ -1,0 +1,19 @@
+[Node]
+Testnet = true
+
+[Node.P2P]
+ListenAddr = ":5050"
+
+[Opera]
+AllowSnapsync = true
+
+[Emitter.Validator]
+
+# update with your validator ID
+ID = 0
+
+# update with your validator public key
+PubKeyString = ""
+
+# update with your validator password file path
+PasswordFilePath = ""

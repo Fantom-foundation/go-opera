@@ -8,7 +8,7 @@ Chain ID: `204005`
 
 - [X1 Explorer](https://explorer.x1-testnet.xen.network)
 
-RPC Endpoints
+### RPC Endpoints
 
 - https://x1-testnet.xen.network/
 - wss://x1-testnet.xen.network

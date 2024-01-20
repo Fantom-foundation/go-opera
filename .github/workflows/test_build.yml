@@ -24,9 +24,3 @@ jobs:
 
       - name: Build
         run: make x1
-
-      - name: Publish
-        uses: actions/upload-artifact@v2
-        with:
-          name: x1
-          path: ./build/x1
