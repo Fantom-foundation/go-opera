@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -228,7 +229,31 @@ func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (ty
 }
 
 func (env *testEnv) BlockTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
-	return env.applyTxs(spent, true, txs...)
+	// Just `env.applyTxs(spent, true, txs...)` does not work guaranteed because of gas rules.
+	// So we make single-event block and skip emitting process.
+	env.t = env.t.Add(spent)
+
+	mutEvent := &inter.MutableEventPayload{}
+	mutEvent.SetVersion(1) // LLR
+	mutEvent.SetEpoch(env.store.GetEpoch())
+	mutEvent.SetCreationTime(inter.Timestamp(env.t.UnixNano()))
+	mutEvent.SetTxs(types.Transactions(txs))
+	event := mutEvent.Build()
+	env.store.SetEvent(event)
+
+	consensus := env.Service.GetConsensusCallbacks()
+	blockCallback := consensus.BeginBlock(&lachesis.Block{
+		Atropos:  event.ID(),
+		Cheaters: make([]idx.ValidatorID, 0),
+	})
+	blockCallback.ApplyEvent(event)
+	blockCallback.EndBlock()
+	env.blockProcWg.Wait()
+
+	number := env.store.GetBlockIndex(event.ID())
+	block := env.GetEvmStateReader().GetBlock(common.Hash{}, uint64(*number))
+	receipts := env.store.evm.GetReceipts(*number, env.EthAPI.signer, block.Hash, block.Transactions)
+	return receipts, nil
 }
 
 func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*types.Transaction) (types.Receipts, error) {
@@ -255,7 +280,7 @@ func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*type
 			for _, tx := range e.Txs() {
 				h := tx.Hash()
 				delete(waitForInEvents, h)
-				// env.txpool.(*dummyTxPool).Delete(tx.Hash())
+				env.txpool.(*dummyTxPool).Delete(tx.Hash())
 			}
 		}
 	}()
