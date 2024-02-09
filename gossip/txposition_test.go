@@ -95,7 +95,7 @@ func TestTxIndexing(t *testing.T) {
 			t.Fatal("skipped tx's receipt found")
 		case tx4ok.Hash():
 			require.Equal(types.ReceiptStatusSuccessful, r.Status, i)
-			require.Equal(txPos.BlockOffset, uint32(3)) // THAT shows the effect of the fix #524
+			require.Equal(txPos.BlockOffset, uint32(2)) // skipped txs aren't counted
 		}
 
 		for j, l := range r.Logs {

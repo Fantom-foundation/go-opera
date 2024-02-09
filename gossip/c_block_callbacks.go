@@ -319,6 +319,7 @@ func consensusCallbackBeginBlockFn(
 					for _, e := range blockEvents {
 						txs = append(txs, e.Txs()...)
 					}
+
 					_ = evmProcessor.Execute(txs)
 
 					evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
@@ -343,16 +344,18 @@ func consensusCallbackBeginBlockFn(
 							}
 						}
 					}
-
-					for i, r := range allReceipts {
-						// memorize block position for not skipped txs only
-						position := txPositions[r.TxHash]
+					// memorize block position of each tx
+					for i, tx := range evmBlock.Transactions {
+						// not skipped txs only
+						position := txPositions[tx.Hash()]
 						position.Block = blockCtx.Idx
-						position.BlockOffset = uint32(r.TransactionIndex)
-						txPositions[r.TxHash] = position
-						// call OnNewReceipt
-						creator := position.EventCreator
-						// TODO: is it check necessary?
+						position.BlockOffset = uint32(i)
+						txPositions[tx.Hash()] = position
+					}
+
+					// call OnNewReceipt
+					for i, r := range allReceipts {
+						creator := txPositions[r.TxHash].EventCreator
 						if creator != 0 && es.Validators.Get(creator) == 0 {
 							creator = 0
 						}
