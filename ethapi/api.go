@@ -22,9 +22,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -2180,6 +2178,9 @@ func (api *PublicDebugAPI) traceTx(ctx context.Context, message evmcore.Message,
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
 
+	// Finalize the state so any modifications are written to the trie
+	statedb.Finalise(vmenv.ChainConfig().IsByzantium(vmctx.BlockNumber) || vmenv.ChainConfig().IsEIP158(vmctx.BlockNumber))
+
 	// Depending on the tracer type, format and return the output.
 	switch tracer := tracer.(type) {
 	case *vm.StructLogger:
@@ -2220,13 +2221,6 @@ func (api *PublicDebugAPI) traceTx(ctx context.Context, message evmcore.Message,
 type txTraceResult struct {
 	Result interface{} `json:"result,omitempty"` // Trace results produced by the tracer
 	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
-}
-
-// txTraceTask represents a single transaction trace task when an entire block
-// is being traced.
-type txTraceTask struct {
-	statedb *state.StateDB // Intermediate state prepped for tracing
-	index   int            // Transaction offset in the block
 }
 
 // TraceBlockByNumber returns the structured logs created during the execution of
@@ -2288,67 +2282,30 @@ func (api *PublicDebugAPI) traceBlock(ctx context.Context, block *evmcore.EvmBlo
 	}
 	// Execute all the transaction contained within the block concurrently
 	var (
-		signer  = types.MakeSigner(api.b.ChainConfig(), block.Number)
+		signer  = gsignercache.Wrap(types.MakeSigner(api.b.ChainConfig(), block.Number))
 		txs     = block.Transactions
 		results = make([]*txTraceResult, len(txs))
-
-		pend = new(sync.WaitGroup)
-		jobs = make(chan *txTraceTask, len(txs))
 	)
-	threads := runtime.NumCPU()
-	if threads > len(txs) {
-		threads = len(txs)
-	}
 
 	blockHeader := block.Header()
 	blockHash := block.Hash
-	for th := 0; th < threads; th++ {
-		pend.Add(1)
-		go func() {
-			defer pend.Done()
-			blockCtx := api.b.GetBlockContext(blockHeader)
 
-			// Fetch and execute the next transaction trace tasks
-			for task := range jobs {
-				msg, _ := txs[task.index].AsMessage(signer, block.BaseFee)
-				txctx := &tracers.Context{
-					BlockHash: blockHash,
-					TxIndex:   task.index,
-					TxHash:    txs[task.index].Hash(),
-				}
-				res, err := api.traceTx(ctx, msg, txctx, blockCtx, task.statedb, config)
-				if err != nil {
-					results[task.index] = &txTraceResult{Error: err.Error()}
-					continue
-				}
-				results[task.index] = &txTraceResult{Result: res}
-			}
-		}()
-	}
 	// Feed the transactions into the tracers and return
 	blockCtx := api.b.GetBlockContext(blockHeader)
-	var failed error
 	for i, tx := range txs {
-		// Send the trace task over for execution
-		jobs <- &txTraceTask{statedb: statedb.Copy(), index: i}
 
-		// Generate the next state snapshot fast without tracing
-		msg, _ := tx.AsMessage(signer, block.BaseFee)
-		statedb.Prepare(tx.Hash(), i)
-		vmenv := vm.NewEVM(blockCtx, evmcore.NewEVMTxContext(msg), statedb, api.b.ChainConfig(), opera.DefaultVMConfig)
-		if _, err := evmcore.ApplyMessage(vmenv, msg, new(evmcore.GasPool).AddGas(msg.Gas())); err != nil {
-			failed = err
-			break
+		txctx := &tracers.Context{
+			BlockHash: blockHash,
+			TxIndex:   i,
+			TxHash:    txs[i].Hash(),
 		}
-		// Finalize the state so any modifications are written to the trie
-		statedb.Finalise(vmenv.ChainConfig().IsByzantium(block.Number) || vmenv.ChainConfig().IsEIP158(block.Number))
-	}
-	close(jobs)
-	pend.Wait()
-
-	// If execution failed in between, abort
-	if failed != nil {
-		return nil, failed
+		msg, _ := evmcore.TxAsMessage(tx, signer, block.BaseFee)
+		res, err := api.traceTx(ctx, msg, txctx, blockCtx, statedb, config)
+		if err != nil {
+			results[i] = &txTraceResult{Error: err.Error()}
+			continue
+		}
+		results[i] = &txTraceResult{Result: res}
 	}
 	return results, nil
 }
@@ -2372,7 +2329,7 @@ func (api *PublicDebugAPI) stateAtTransaction(ctx context.Context, block *evmcor
 	signer := gsignercache.Wrap(types.MakeSigner(api.b.ChainConfig(), block.Number))
 	for idx, tx := range block.Transactions {
 		// Assemble the transaction call message and return if the requested offset
-		msg, _ := tx.AsMessage(signer, block.BaseFee)
+		msg, _ := evmcore.TxAsMessage(tx, signer, block.BaseFee)
 		txContext := evmcore.NewEVMTxContext(msg)
 		context := api.b.GetBlockContext(block.Header())
 		if idx == txIndex {
