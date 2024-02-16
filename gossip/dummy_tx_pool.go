@@ -50,6 +50,9 @@ func (p *dummyTxPool) AddRemotes(txs []*types.Transaction) []error {
 }
 
 func (p *dummyTxPool) Count() int {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	return len(p.index)
 }
 

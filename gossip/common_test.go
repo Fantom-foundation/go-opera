@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
@@ -224,10 +225,6 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
-	return env.applyTxs(spent, false, txs...)
-}
-
 func (env *testEnv) BlockTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
 	// Just `env.applyTxs(spent, true, txs...)` does not work guaranteed because of gas rules.
 	// So we make single-event block and skip emitting process.
@@ -256,34 +253,22 @@ func (env *testEnv) BlockTxs(spent time.Duration, txs ...*types.Transaction) (ty
 	return receipts, nil
 }
 
-func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*types.Transaction) (types.Receipts, error) {
+func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
+	return env.applyTxs(spent, txs...)
+}
+
+func (env *testEnv) applyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
 	env.t = env.t.Add(spent)
 
-	waitForInEvents := make(map[common.Hash]struct{}, len(txs))
-	waitForInBlocks := make(map[common.Hash]struct{}, len(txs))
+	waitForCount := int64(len(txs))
+	waitForTxs := make(map[common.Hash]struct{}, len(txs))
 	for _, tx := range txs {
-		waitForInEvents[tx.Hash()] = struct{}{}
-		waitForInBlocks[tx.Hash()] = struct{}{}
+		waitForTxs[tx.Hash()] = struct{}{}
 	}
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(1)
 	defer wg.Wait()
-
-	newEvents := make(chan *inter.EventPayload)
-	defer close(newEvents)
-	eventsSub := env.feed.SubscribeNewEmitted(newEvents)
-	defer eventsSub.Unsubscribe()
-	go func() {
-		defer wg.Done()
-		for e := range newEvents {
-			for _, tx := range e.Txs() {
-				h := tx.Hash()
-				delete(waitForInEvents, h)
-				env.txpool.(*dummyTxPool).Delete(tx.Hash())
-			}
-		}
-	}()
 
 	receipts := make(types.Receipts, 0, len(txs))
 
@@ -301,9 +286,10 @@ func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*type
 				rr := env.store.evm.GetReceipts(n, env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
 				for _, r := range rr {
 					env.txpool.(*dummyTxPool).Delete(r.TxHash)
-					if _, ok := waitForInBlocks[r.TxHash]; ok {
+					if _, ok := waitForTxs[r.TxHash]; ok {
 						receipts = append(receipts, r)
-						delete(waitForInBlocks, r.TxHash)
+						delete(waitForTxs, r.TxHash)
+						atomic.AddInt64(&waitForCount, -1)
 					}
 				}
 			}
@@ -337,8 +323,9 @@ func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*type
 						}
 					}
 					env.txpool.(*dummyTxPool).Delete(tx)
-					if _, ok := waitForInBlocks[tx]; ok {
-						delete(waitForInBlocks, tx)
+					if _, ok := waitForTxs[tx]; ok {
+						delete(waitForTxs, tx)
+						atomic.AddInt64(&waitForCount, -1)
 					}
 				}
 			}
@@ -346,13 +333,7 @@ func (env *testEnv) applyTxs(spent time.Duration, singleBlock bool, txs ...*type
 	}()
 
 	byEmitters := func() []*emitter.Emitter {
-		// datarace does not matter
-		if singleBlock && len(waitForInEvents) > 0 {
-			count := len(env.emitters) * 70 / 100
-			// prevent block creation
-			return env.emitters[:count]
-		}
-		if len(waitForInBlocks) > 0 {
+		if atomic.LoadInt64(&waitForCount) > 0 {
 			// allow block creation
 			return env.emitters
 		}
