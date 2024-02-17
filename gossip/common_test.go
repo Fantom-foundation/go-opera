@@ -8,12 +8,14 @@ import (
 	"math"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/abft"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -25,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
@@ -40,8 +43,8 @@ import (
 )
 
 const (
-	gasLimit       = uint64(21000)
-	maxGasLimit    = uint64(6000000)
+	gasPrice = uint64(1e12)
+
 	genesisBalance = 1e18
 	genesisStake   = 2 * 4e6
 
@@ -60,8 +63,9 @@ type testEnv struct {
 	nonces   map[common.Address]uint64
 	callback callbacks
 	*Service
-	signer  valkeystore.SignerI
-	pubkeys []validatorpk.PubKey
+	transactor *ethapi.PublicTransactionPoolAPI
+	signer     valkeystore.SignerI
+	pubkeys    []validatorpk.PubKey
 }
 
 func panics(name string) func(error) {
@@ -103,10 +107,15 @@ func (em testEmitterWorldExternal) Build(e *inter.MutableEventPayload, onIndexed
 	if em.env.callback.buildEvent != nil {
 		em.env.callback.buildEvent(e)
 	}
-	return em.External.Build(e, onIndexed)
+	err := em.External.Build(e, onIndexed)
+
+	return err
 }
 
-func (em testEmitterWorldExternal) Broadcast(*inter.EventPayload) {}
+func (em testEmitterWorldExternal) Broadcast(emitted *inter.EventPayload) {
+	// PM listens and will broadcast it
+	em.env.feed.newEmittedEvent.Send(emitted)
+}
 
 type testConfirmedEventsProcessor struct {
 	blockproc.ConfirmedEventsProcessor
@@ -117,6 +126,7 @@ func (p testConfirmedEventsProcessor) ProcessConfirmedEvent(e inter.EventI) {
 	if p.env.callback.onEventConfirmed != nil {
 		p.env.callback.onEventConfirmed(e)
 	}
+
 	p.ConfirmedEventsProcessor.ProcessConfirmedEvent(e)
 }
 
@@ -155,14 +165,16 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 	engine, vecClock := makeTestEngine(store)
 
 	// create the service
-	txPool := &dummyTxPool{}
+	txPool := newDummyTxPool()
 	env.Service, err = newService(DefaultConfig(cachescale.Identity), store, blockProc, engine, vecClock, func(_ evmcore.StateReader) TxPool {
 		return txPool
 	})
 	if err != nil {
 		panic(err)
 	}
-	txPool.signer = env.EthAPI.signer
+	txPool.Signer = env.Service.EthAPI.signer
+	env.transactor = ethapi.NewPublicTransactionPoolAPI(env.Service.EthAPI, new(ethapi.AddrLocker))
+
 	err = engine.Bootstrap(env.GetConsensusCallbacks())
 	if err != nil {
 		panic(err)
@@ -191,6 +203,7 @@ func newTestEnv(firstEpoch idx.Epoch, validatorsNum idx.Validator) *testEnv {
 		env.RegisterEmitter(em)
 		env.pubkeys = append(env.pubkeys, pubkey)
 		em.Start()
+		em.Stop() // to control emitting manually
 	}
 
 	_ = env.store.GenerateSnapshotAt(common.Hash(store.GetBlockState().FinalizedStateRoot), false)
@@ -212,44 +225,127 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
+func (env *testEnv) BlockTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
+	// Just `env.applyTxs(spent, true, txs...)` does not work guaranteed because of gas rules.
+	// So we make single-event block and skip emitting process.
 	env.t = env.t.Add(spent)
 
-	externalReceipts := make(types.Receipts, 0, len(txs))
+	mutEvent := &inter.MutableEventPayload{}
+	mutEvent.SetVersion(1) // LLR
+	mutEvent.SetEpoch(env.store.GetEpoch())
+	mutEvent.SetCreationTime(inter.Timestamp(env.t.UnixNano()))
+	mutEvent.SetTxs(types.Transactions(txs))
+	event := mutEvent.Build()
+	env.store.SetEvent(event)
 
-	env.txpool.AddRemotes(txs)
-	defer env.txpool.(*dummyTxPool).Clear()
+	consensus := env.Service.GetConsensusCallbacks()
+	blockCallback := consensus.BeginBlock(&lachesis.Block{
+		Atropos:  event.ID(),
+		Cheaters: make([]idx.ValidatorID, 0),
+	})
+	blockCallback.ApplyEvent(event)
+	blockCallback.EndBlock()
+	env.blockProcWg.Wait()
+
+	number := env.store.GetBlockIndex(event.ID())
+	block := env.GetEvmStateReader().GetBlock(common.Hash{}, uint64(*number))
+	receipts := env.store.evm.GetReceipts(*number, env.EthAPI.signer, block.Hash, block.Transactions)
+	return receipts, nil
+}
+
+func (env *testEnv) ApplyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
+	return env.applyTxs(spent, txs...)
+}
+
+func (env *testEnv) applyTxs(spent time.Duration, txs ...*types.Transaction) (types.Receipts, error) {
+	env.t = env.t.Add(spent)
+
+	waitForCount := int64(len(txs))
+	waitForTxs := make(map[common.Hash]struct{}, len(txs))
+	for _, tx := range txs {
+		waitForTxs[tx.Hash()] = struct{}{}
+	}
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	defer wg.Wait()
+
+	receipts := make(types.Receipts, 0, len(txs))
+
 	newBlocks := make(chan evmcore.ChainHeadNotify)
-	chainHeadSub := env.feed.SubscribeNewBlock(newBlocks)
-	mu := &sync.Mutex{}
+	defer close(newBlocks)
+	blocksSub := env.feed.SubscribeNewBlock(newBlocks)
+	defer blocksSub.Unsubscribe()
 	go func() {
+		defer wg.Done()
 		for b := range newBlocks {
-			if len(b.Block.Transactions) == 0 {
-				continue
-			}
-			receipts := env.store.evm.GetReceipts(idx.Block(b.Block.Number.Uint64()), env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
-			for i, tx := range b.Block.Transactions {
-				if r, _, _ := tx.RawSignatureValues(); r.Sign() != 0 {
-					mu.Lock()
-					externalReceipts = append(externalReceipts, receipts[i])
-					mu.Unlock()
-					env.txpool.(*dummyTxPool).Delete(tx.Hash())
+
+			n := idx.Block(b.Block.Number.Uint64())
+			// valid txs
+			if len(b.Block.Transactions) > 0 {
+				rr := env.store.evm.GetReceipts(n, env.EthAPI.signer, b.Block.Hash, b.Block.Transactions)
+				for _, r := range rr {
+					env.txpool.(*dummyTxPool).Delete(r.TxHash)
+					if _, ok := waitForTxs[r.TxHash]; ok {
+						receipts = append(receipts, r)
+						delete(waitForTxs, r.TxHash)
+						atomic.AddInt64(&waitForCount, -1)
+					}
 				}
 			}
-			if externalReceipts.Len() == len(txs) {
-				chainHeadSub.Unsubscribe()
-				close(newBlocks)
-				break
+			// invalid txs
+			block := env.store.GetBlock(n)
+			if len(block.SkippedTxs) > 0 {
+				var (
+					internalsLen = uint32(len(block.InternalTxs))
+					externalsLen = uint32(len(block.InternalTxs) + len(block.Txs))
+					eventstxsLen = uint32(len(block.InternalTxs) + len(block.Txs) + 0)
+					e            = 0
+				)
+				for _, txi := range block.SkippedTxs {
+					var tx common.Hash
+
+					switch {
+					case txi < internalsLen:
+						tx = block.InternalTxs[txi+0]
+					case txi < externalsLen:
+						tx = block.Txs[txi-internalsLen]
+					default:
+						for {
+							etxs := env.store.GetEventPayload(block.Events[e]).Txs()
+							if txi < (eventstxsLen + uint32(len(etxs))) {
+								tx = etxs[txi-eventstxsLen].Hash()
+								break
+							} else {
+								e += 1 // next event
+								eventstxsLen += uint32(len(etxs))
+							}
+						}
+					}
+					env.txpool.(*dummyTxPool).Delete(tx)
+					if _, ok := waitForTxs[tx]; ok {
+						delete(waitForTxs, tx)
+						atomic.AddInt64(&waitForCount, -1)
+					}
+				}
 			}
 		}
 	}()
-	err := env.EmitUntil(func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		return externalReceipts.Len() == len(txs)
-	})
 
-	return externalReceipts, err
+	byEmitters := func() []*emitter.Emitter {
+		if atomic.LoadInt64(&waitForCount) > 0 {
+			// allow block creation
+			return env.emitters
+		}
+		// ready to stop
+		return nil
+	}
+
+	env.txpool.AddRemotes(txs)
+	defer env.txpool.(*dummyTxPool).Clear()
+	err := env.EmitUntil(byEmitters)
+
+	return receipts, err
 }
 
 func (env *testEnv) ApplyMPs(spent time.Duration, mps ...inter.MisbehaviourProof) error {
@@ -280,16 +376,24 @@ func (env *testEnv) ApplyMPs(spent time.Duration, mps ...inter.MisbehaviourProof
 		env.callback.buildEvent = nil
 	}()
 
-	return env.EmitUntil(func() bool {
-		return confirmed
-	})
+	byEmitters := func() []*emitter.Emitter {
+		if !confirmed {
+			return env.emitters
+		}
+		return nil
+	}
+
+	return env.EmitUntil(byEmitters)
 }
 
-func (env *testEnv) EmitUntil(stop func() bool) error {
-	t := time.Now()
-
-	for !stop() {
-		for _, em := range env.emitters {
+func (env *testEnv) EmitUntil(by func() []*emitter.Emitter) error {
+	start := time.Now()
+	for {
+		emitters := by()
+		if len(emitters) < 1 {
+			break
+		}
+		for _, em := range emitters {
 			_, err := em.EmitEvent()
 			if err != nil {
 				return err
@@ -297,7 +401,7 @@ func (env *testEnv) EmitUntil(stop func() bool) error {
 		}
 		env.WaitBlockEnd()
 		env.t = env.t.Add(time.Second)
-		if time.Since(t) > 30*time.Second {
+		if time.Since(start) > 30*time.Second {
 			panic("block doesn't get processed")
 		}
 	}
@@ -306,13 +410,24 @@ func (env *testEnv) EmitUntil(stop func() bool) error {
 
 func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.Transaction {
 	sender := env.Address(from)
-	nonce, _ := env.PendingNonceAt(nil, sender)
-	env.incNonce(sender)
-	key := env.privateKey(from)
+	nonce := env.nextNonce(sender)
 	receiver := env.Address(to)
-	gp := new(big.Int).SetUint64(1e12)
-	tx := types.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
-	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
+
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		To:       &receiver,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	key := env.privateKey(from)
+	tx, err := types.SignTx(raw.Tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -322,13 +437,24 @@ func (env *testEnv) Transfer(from, to idx.ValidatorID, amount *big.Int) *types.T
 
 func (env *testEnv) Contract(from idx.ValidatorID, amount *big.Int, hex string) *types.Transaction {
 	sender := env.Address(from)
-	nonce, _ := env.PendingNonceAt(nil, sender)
-	env.incNonce(sender)
-	key := env.privateKey(from)
-	gp := env.store.GetRules().Economy.MinGasPrice
+	nonce := env.nextNonce(sender)
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
 	data := hexutil.MustDecode(hex)
-	tx := types.NewContractCreation(nonce, amount, maxGasLimit, gp, data)
-	tx, err := types.SignTx(tx, env.EthAPI.signer, key)
+
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+		Data:     (*hexutil.Bytes)(&data),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	key := env.privateKey(from)
+	tx, err := types.SignTx(raw.Tx, env.EthAPI.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -347,26 +473,66 @@ func (env *testEnv) Address(n idx.ValidatorID) common.Address {
 	return addr
 }
 
-func (env *testEnv) Payer(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
-	key := env.privateKey(n)
-	t, _ := bind.NewKeyedTransactorWithChainID(key, new(big.Int).SetUint64(env.store.GetRules().NetworkID))
-	nonce, _ := env.PendingNonceAt(nil, env.Address(n))
-	t.Nonce = big.NewInt(int64(nonce))
-	t.Value = big.NewInt(0)
-	for _, amount := range amounts {
-		t.Value.Add(t.Value, amount)
+func (env *testEnv) Pay(from idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
+	sender := env.Address(from)
+	nonce := env.nextNonce(sender)
+	amount := big.NewInt(0)
+	for _, a := range amounts {
+		amount.Add(amount, a)
 	}
-	t.GasLimit = env.GetEvmStateReader().MaxGasLimit()
-	t.GasPrice = env.GetEvmStateReader().MinGasPrice()
+	gasLimit := env.GetEvmStateReader().MaxGasLimit()
+	data := []byte{0} // fake
 
+	raw, err := env.transactor.FillTransaction(context.Background(), ethapi.TransactionArgs{
+		From:     &sender,
+		Value:    (*hexutil.Big)(amount),
+		Nonce:    (*hexutil.Uint64)(&nonce),
+		Gas:      (*hexutil.Uint64)(&gasLimit),
+		GasPrice: (*hexutil.Big)(new(big.Int).SetUint64(gasPrice)),
+		Data:     (*hexutil.Bytes)(&data),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	key := env.privateKey(from)
+	t, _ := bind.NewKeyedTransactorWithChainID(key, new(big.Int).SetUint64(env.store.GetRules().NetworkID))
+	{
+		t.Nonce = big.NewInt(int64(nonce))
+		t.Value = amount
+		t.NoSend = true
+		t.GasLimit = raw.Tx.Gas()
+		t.GasPrice = raw.Tx.GasPrice()
+		//t.GasFeeCap = raw.Tx.GasFeeCap()
+		//t.GasTipCap = raw.Tx.GasTipCap()
+	}
 	return t
 }
 
-func (env *testEnv) Pay(n idx.ValidatorID, amounts ...*big.Int) *bind.TransactOpts {
-	t := env.Payer(n, amounts...)
-	env.incNonce(t.From)
+func withLowGas(opts *bind.TransactOpts) *bind.TransactOpts {
+	originSigner := opts.Signer
 
-	return t
+	opts.Signer = func(from common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		gas, err := evmcore.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil)
+		if err != nil {
+			return nil, err
+		}
+		if tx.Gas() >= gas {
+			repack := &types.LegacyTx{
+				To:       tx.To(),
+				Nonce:    tx.Nonce(),
+				GasPrice: tx.GasPrice(),
+				Gas:      gas + 1,
+				Value:    tx.Value(),
+				Data:     tx.Data(),
+			}
+			tx = types.NewTx(repack)
+		}
+		return originSigner(from, tx)
+	}
+
+	return opts
+
 }
 
 func (env *testEnv) ReadOnly() *bind.CallOpts {
@@ -378,8 +544,10 @@ func (env *testEnv) State() *state.StateDB {
 	return statedb
 }
 
-func (env *testEnv) incNonce(account common.Address) {
-	env.nonces[account] += 1
+func (env *testEnv) nextNonce(account common.Address) uint64 {
+	nonce := env.nonces[account]
+	env.nonces[account] = nonce + 1
+	return nonce
 }
 
 /*
@@ -496,12 +664,8 @@ func (env *testEnv) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // transactions may be added or removed by miners, but it should provide a basis
 // for setting a reasonable default.
 func (env *testEnv) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error) {
-	if call.To == nil {
-		gas = gasLimit * 10000
-	} else {
-		gas = gasLimit * 10
-	}
-	return
+	panic("is not implemented")
+	return 0, nil
 }
 
 // SendTransaction injects the transaction into the pending pool for execution.

@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"math/rand"
 	"sort"
 	"sync"
 
@@ -14,13 +13,17 @@ import (
 
 // dummyTxPool is a fake, helper transaction pool for testing purposes
 type dummyTxPool struct {
-	txFeed notify.Feed
-	pool   []*types.Transaction        // Collection of all transactions
-	added  chan<- []*types.Transaction // Notification channel for new transactions
+	lock   sync.RWMutex // Protects the transaction pool
+	Signer types.Signer
 
-	signer types.Signer
+	index   map[common.Hash]common.Address
+	pending map[common.Address]types.Transactions
+}
 
-	lock sync.RWMutex // Protects the transaction pool
+func newDummyTxPool() *dummyTxPool {
+	p := new(dummyTxPool)
+	p.Clear()
+	return p
 }
 
 // AddRemotes appends a batch of transactions to the pool, and notifies any
@@ -29,35 +32,40 @@ func (p *dummyTxPool) AddRemotes(txs []*types.Transaction) []error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	p.pool = append(p.pool, txs...)
-	if p.added != nil {
-		p.added <- txs
+	errs := make([]error, 0, len(txs))
+	for _, tx := range txs {
+		txid := tx.Hash()
+		if _, ok := p.index[txid]; ok {
+			continue
+		}
+		from, err := types.Sender(p.Signer, tx)
+		if err == nil {
+			p.index[txid] = from
+			p.pending[from] = append(p.pending[from], tx)
+			sort.Sort(types.TxByNonce(p.pending[from]))
+		}
+		errs = append(errs, err)
 	}
-	return make([]error, len(txs))
+	return errs
 }
 
-func (p *dummyTxPool) AddLocals(txs []*types.Transaction) []error {
-	return p.AddRemotes(txs)
-}
+func (p *dummyTxPool) Count() int {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
-func (p *dummyTxPool) AddLocal(tx *types.Transaction) error {
-	return p.AddLocals([]*types.Transaction{tx})[0]
-}
-
-func (p *dummyTxPool) Nonce(addr common.Address) uint64 {
-	return 0
+	return len(p.index)
 }
 
 func (p *dummyTxPool) Stats() (int, int) {
 	return p.Count(), 0
 }
 
-func (p *dummyTxPool) Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
-	return nil, nil
-}
+func (p *dummyTxPool) Has(txid common.Hash) bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 
-func (p *dummyTxPool) ContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
-	return nil, nil
+	_, ok := p.index[txid]
+	return ok
 }
 
 // Pending returns all the transactions known to the pool
@@ -65,105 +73,101 @@ func (p *dummyTxPool) Pending(enforceTips bool) (map[common.Address]types.Transa
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	batches := make(map[common.Address]types.Transactions)
-	for _, tx := range p.pool {
-		from, _ := types.Sender(p.signer, tx)
-		batches[from] = append(batches[from], tx)
-	}
-	for _, batch := range batches {
-		sort.Sort(types.TxByNonce(batch))
-	}
-	return batches, nil
+	return p.clonePending(), nil
 }
 
-func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
-	return p.txFeed.Subscribe(ch)
-}
+func (p *dummyTxPool) clonePending() map[common.Address]types.Transactions {
+	clone := make(map[common.Address]types.Transactions, len(p.pending))
 
-func (p *dummyTxPool) Map() map[common.Hash]*types.Transaction {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	res := make(map[common.Hash]*types.Transaction, len(p.pool))
-	for _, tx := range p.pool {
-		res[tx.Hash()] = tx
-	}
-	return nil
-}
-
-func (p *dummyTxPool) Get(txid common.Hash) *types.Transaction {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	for _, tx := range p.pool {
-		if tx.Hash() == txid {
-			return tx
+	for from, txs := range p.pending {
+		tt := make(types.Transactions, len(txs))
+		for i, tx := range txs {
+			tt[i] = tx
 		}
+		clone[from] = tt
 	}
-	return nil
-}
 
-func (p *dummyTxPool) Has(txid common.Hash) bool {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	for _, tx := range p.pool {
-		if tx.Hash() == txid {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *dummyTxPool) OnlyNotExisting(txids []common.Hash) []common.Hash {
-	m := p.Map()
-	notExisting := make([]common.Hash, 0, len(txids))
-	for _, txid := range txids {
-		if m[txid] == nil {
-			notExisting = append(notExisting, txid)
-		}
-	}
-	return notExisting
-}
-
-func (p *dummyTxPool) SampleHashes(max int) []common.Hash {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	res := make([]common.Hash, 0, max)
-	skip := 0
-	if len(p.pool) > max {
-		skip = rand.Intn(len(p.pool) - max)
-	}
-	for _, tx := range p.pool {
-		if len(res) >= max {
-			break
-		}
-		if skip > 0 {
-			skip--
-			continue
-		}
-		res = append(res, tx.Hash())
-	}
-	return res
-}
-
-func (p *dummyTxPool) Count() int {
-	return len(p.pool)
+	return clone
 }
 
 func (p *dummyTxPool) Clear() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if len(p.pool) != 0 {
-		p.pool = p.pool[:0]
-	}
+
+	p.index = make(map[common.Hash]common.Address)
+	p.pending = make(map[common.Address]types.Transactions)
 }
 
 func (p *dummyTxPool) Delete(needle common.Hash) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	notErased := make([]*types.Transaction, 0, len(p.pool)-1)
-	for _, tx := range p.pool {
-		if tx.Hash() != needle {
-			notErased = append(notErased, tx)
-		}
+
+	from, ok := p.index[needle]
+	if !ok {
+		return
 	}
-	p.pool = notErased
+
+	txs := p.pending[from]
+	if len(txs) < 2 {
+		delete(p.pending, from)
+	} else {
+		notErased := make(types.Transactions, 0, len(txs)-1)
+		for _, tx := range txs {
+			if tx.Hash() != needle {
+				notErased = append(notErased, tx)
+			}
+		}
+		p.pending[from] = notErased
+	}
+	delete(p.index, needle)
+}
+
+func (p *dummyTxPool) AddLocals(txs []*types.Transaction) []error {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) AddLocal(tx *types.Transaction) error {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) Nonce(addr common.Address) uint64 {
+	panic("is not implemented")
+	return 0
+}
+
+func (p *dummyTxPool) Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	panic("is not implemented")
+	return nil, nil
+}
+
+func (p *dummyTxPool) ContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	panic("is not implemented")
+	return nil, nil
+}
+
+func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) Map() map[common.Hash]*types.Transaction {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) Get(txid common.Hash) *types.Transaction {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) OnlyNotExisting(txids []common.Hash) []common.Hash {
+	panic("is not implemented")
+	return nil
+}
+
+func (p *dummyTxPool) SampleHashes(max int) []common.Hash {
+	panic("is not implemented")
+	return nil
 }
