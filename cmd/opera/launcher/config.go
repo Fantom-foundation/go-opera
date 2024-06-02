@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -15,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/utils/cachescale"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -211,7 +213,24 @@ func mayGetGenesisStore(ctx *cli.Context) *genesisstore.Store {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000))
+		if ctx.GlobalIsSet(InitGenesisFlag.Name) {
+			genesisPath := ctx.GlobalString(InitGenesisFlag.Name)
+			if len(genesisPath) == 0 {
+				utils.Fatalf("invalid path to genesis file")
+			}
+			file, err := os.Open(genesisPath)
+			if err != nil {
+				utils.Fatalf("Failed to read genesis file: %v", err)
+			}
+			defer file.Close()
+
+			genesis := new(core.Genesis)
+			if err := json.NewDecoder(file).Decode(genesis); err != nil {
+				utils.Fatalf("invalid genesis file: %v", err)
+			}
+			return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000), genesis)
+		}
+		return makefakegenesis.FakeGenesisStore(num, futils.ToFtm(1000000000), futils.ToFtm(5000000), nil)
 	case ctx.GlobalIsSet(GenesisFlag.Name):
 		genesisPath := ctx.GlobalString(GenesisFlag.Name)
 

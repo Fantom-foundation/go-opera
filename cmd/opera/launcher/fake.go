@@ -18,6 +18,11 @@ var FakeNetFlag = cli.StringFlag{
 	Usage: "'n/N' - sets coinbase as fake n-th key from genesis of N validators.",
 }
 
+var InitGenesisFlag = cli.StringFlag{
+	Name:  "init",
+	Usage: "path to genesis json file to allocate account/contract genesis state for testing purpose on fakenet",
+}
+
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
 	id, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil || id == 0 {
